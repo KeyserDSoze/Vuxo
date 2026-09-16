@@ -3,6 +3,7 @@ using Npgsql;
 using Vuxo.Domain.Events;
 using Vuxo.Domain.Players;
 using Vuxo.Infrastructure.Persistence;
+using Xunit;
 
 namespace Vuxo.Infrastructure.Tests.Persistence;
 
