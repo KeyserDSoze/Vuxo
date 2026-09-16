@@ -9,15 +9,18 @@ namespace Vuxo.Api.Tests.Infrastructure;
 internal sealed class VuxoApiFactory(
     string environment = "Test",
     bool enableMockLogin = true,
-    Action<IServiceCollection>? configureServices = null) : WebApplicationFactory<Program>
+    Action<IServiceCollection>? configureServices = null,
+    IReadOnlyDictionary<string, string?>? configurationOverrides = null) : WebApplicationFactory<Program>
 {
     internal const string TestSigningKey = "vuxo-tests-signing-key-that-is-at-least-32-characters-long";
+    private const string TestConnectionString = "Host=localhost;Database=vuxo_tests;Username=vuxo";
 
     static VuxoApiFactory()
     {
-        // Program validates this required secret before WebApplicationFactory applies
-        // ConfigureWebHost callbacks. Environment variables mirror production bootstrap.
+        // Program consumes mandatory configuration while top-level statements execute,
+        // before WebApplicationFactory ConfigureWebHost callbacks are applied.
         Environment.SetEnvironmentVariable("Auth__Jwt__SigningKey", TestSigningKey);
+        Environment.SetEnvironmentVariable("ConnectionStrings__GameDb", TestConnectionString);
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -25,9 +28,9 @@ internal sealed class VuxoApiFactory(
         builder.UseEnvironment(environment);
         builder.ConfigureAppConfiguration((_, configuration) =>
         {
-            configuration.AddInMemoryCollection(new Dictionary<string, string?>
+            var values = new Dictionary<string, string?>
             {
-                ["ConnectionStrings:GameDb"] = "Host=localhost;Database=vuxo_tests;Username=vuxo;Password=vuxo",
+                ["ConnectionStrings:GameDb"] = TestConnectionString,
                 ["Database:ApplyMigrationsOnStartup"] = "false",
                 ["World:Id"] = "vuxo-test-world",
                 ["World:Seed"] = "424242",
@@ -38,7 +41,17 @@ internal sealed class VuxoApiFactory(
                 ["Auth:Jwt:SigningKey"] = TestSigningKey,
                 ["Llm:Enabled"] = "false",
                 ["Redis:ConnectionString"] = string.Empty
-            });
+            };
+
+            if (configurationOverrides is not null)
+            {
+                foreach (var (key, value) in configurationOverrides)
+                {
+                    values[key] = value;
+                }
+            }
+
+            configuration.AddInMemoryCollection(values);
         });
 
         if (configureServices is not null)
