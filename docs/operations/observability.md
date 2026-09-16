@@ -6,6 +6,8 @@ The API uses OpenTelemetry for traces, metrics and structured logs. The self-hos
 
 ## Components
 
+- OpenTelemetry .NET `1.18.0` for hosting, ASP.NET Core, HTTP, runtime and OTLP export;
+- `Npgsql.OpenTelemetry` `10.0.3` for PostgreSQL command/connection tracing while the native `Npgsql` meter supplies database metrics;
 - OpenTelemetry Collector Contrib `0.161.0`: OTLP ingestion, secret-prone attribute removal and routing;
 - Prometheus `3.14.0`: metrics storage;
 - Loki `3.7.6`: structured logs;
@@ -39,7 +41,7 @@ Without the second `-f` file, the API runs normally and `Observability:OtlpEndpo
 
 ## Telemetry emitted by the API
 
-The API registers OpenTelemetry tracing for ASP.NET Core and outbound HTTP, runtime/API meters, and the custom `Vuxo.Api` source/meter. The world host also emits:
+The API registers OpenTelemetry tracing for ASP.NET Core, outbound HTTP and PostgreSQL, plus runtime/API/Npgsql meters and the custom `Vuxo.Api` source/meter. The world host also emits:
 
 - `world.join` and `world.leave` activities;
 - `vuxo.world.tick.duration`;
@@ -48,21 +50,23 @@ The API registers OpenTelemetry tracing for ASP.NET Core and outbound HTTP, runt
 - `vuxo.world.tick.failures`;
 - `vuxo.world.input.rejected`.
 
+Npgsql 10 emits database client spans and standard-compatible PostgreSQL metrics such as command duration. Vuxo collects those signals but intentionally removes SQL statement/query text in the production Collector before export.
+
 Requests receive an `X-Correlation-ID`. A safe incoming correlation ID is preserved; otherwise Vuxo derives one from the active trace. Authenticated requests add the player ID to the telemetry scope/activity.
 
 ## Sensitive data rules
 
-Never add authentication tokens, passwords, cookies, secrets or database connection strings to telemetry.
+Never add authentication tokens, passwords, cookies, secrets, raw SQL text or database connection strings to exported telemetry.
 
 Vuxo applies two layers of protection:
 
 1. application-side query sanitization redacts sensitive query parameters before adding any custom query tag;
-2. the production collector removes generic `url.query`, authorization/cookie headers and `db.connection_string` before exporting.
+2. the production collector removes generic `url.query`, authorization/cookie headers, `db.connection_string`, `db.query.text` and legacy `db.statement` attributes before exporting.
 
-Do not weaken these processors when adding a new backend.
+Do not enable Npgsql query parameters or weaken these processors when adding a new backend.
 
 ## Verification
 
-CI validates the merged production + observability Compose model, starts an isolated Collector with `otel-collector.smoke.yml`, runs the backend tests with a real OTLP exporter pointed at that Collector and finally verifies that telemetry containing the `vuxo-api` service identity reached the Collector.
+CI validates the merged production + observability Compose model and separately starts the **production Collector configuration** to verify that its real pipelines/processors become healthy. It then starts an isolated Collector with `otel-collector.smoke.yml`, runs backend tests with a real OTLP exporter pointed at that Collector and verifies that telemetry containing the `vuxo-api` service identity actually reached it.
 
-Unit/integration coverage also verifies correlation enrichment, sensitive query redaction, custom activity tags, custom metric emission and Administrator-only observability metadata.
+Unit/integration coverage also verifies correlation enrichment, sensitive query redaction, custom activity tags, custom metric emission and Administrator-only observability metadata. Frontend Playwright verifies the localized observability panel, Grafana link and responsive admin experience.
