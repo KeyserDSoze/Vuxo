@@ -10,6 +10,7 @@ public sealed class VuxoDbContext(DbContextOptions<VuxoDbContext> options) : DbC
     public DbSet<GameEventEntity> GameEvents => Set<GameEventEntity>();
     public DbSet<WorldDefinitionEntity> WorldDefinitions => Set<WorldDefinitionEntity>();
     public DbSet<WorldChunkEntity> WorldChunks => Set<WorldChunkEntity>();
+    public DbSet<ExclusiveContentGrantEntity> ExclusiveContentGrants => Set<ExclusiveContentGrantEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -50,6 +51,20 @@ public sealed class VuxoDbContext(DbContextOptions<VuxoDbContext> options) : DbC
                 .WithMany()
                 .HasForeignKey(x => x.WorldId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ExclusiveContentGrantEntity>(entity =>
+        {
+            entity.ToTable("exclusive_content_grants");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.PlayerId, x.ConsumedAtUtc, x.ExpiresAtUtc });
+            entity.HasIndex(x => x.GrantEventId).IsUnique();
+            entity.Property(x => x.PlayerId).HasMaxLength(200);
+            entity.Property(x => x.ContentKey).HasMaxLength(200);
+            entity.Property(x => x.PortalKey).HasMaxLength(200);
+            entity.Property(x => x.DialogBranchKey).HasMaxLength(200);
+            entity.Property(x => x.RewardKey).HasMaxLength(200);
+            entity.Property(x => x.RuleVersion).HasMaxLength(100);
         });
     }
 }
