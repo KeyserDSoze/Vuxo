@@ -1,0 +1,130 @@
+import { i18n } from '../../i18n'
+
+const resources = {
+  it: {
+    admin: {
+      eyebrow: 'Controllo operativo',
+      title: 'Amministrazione',
+      description: 'Consulta la presenza online e ricostruisci gli eventi di gioco tramite filtri, regole e catene di causalità. I dati personali restano visibili solo agli amministratori autorizzati.',
+      online: {
+        title: 'Giocatori online',
+        description: 'Snapshot autoritativo della simulazione attiva in questo processo.',
+        count: '{{count}} online',
+        empty: 'Nessun giocatore è online in questo momento.',
+        position: 'Posizione: {{x}}, {{y}}',
+      },
+      audit: {
+        title: 'Audit eventi',
+        description: 'Filtra gli eventi append-only per giocatore, tipo, correlation ID o intervallo UTC.',
+        loading: 'Caricamento eventi…',
+        empty: 'Nessun evento corrisponde ai filtri selezionati.',
+        tableLabel: 'Eventi di gioco recenti',
+        pagination: '{{from}}–{{to}} di {{total}} eventi',
+      },
+      filters: {
+        playerId: 'Player ID',
+        eventType: 'Tipo evento',
+        correlationId: 'Correlation ID',
+        fromUtc: 'Da (ora locale)',
+        toUtc: 'A (ora locale)',
+      },
+      actions: {
+        apply: 'Applica',
+        reset: 'Azzera',
+        refresh: 'Aggiorna',
+        details: 'Dettagli',
+        previous: 'Precedente',
+        next: 'Successiva',
+        close: 'Chiudi',
+      },
+      columns: {
+        time: 'Data e ora',
+        type: 'Tipo',
+        player: 'Giocatore',
+        rule: 'Regola',
+        actions: 'Azioni',
+      },
+      detail: {
+        title: 'Dettaglio evento',
+        loading: 'Caricamento dettaglio…',
+        eventId: 'Event ID',
+        correlationId: 'Correlation ID',
+        causationId: 'Causation ID',
+        payload: 'Payload versionato',
+      },
+      errors: {
+        admin_authentication_required: 'Serve una sessione Vuxo autenticata per accedere all’amministrazione.',
+        admin_forbidden: 'Questa sezione è riservata al ruolo Administrator.',
+        audit_query_invalid: 'I filtri dell’audit non sono validi.',
+        audit_event_not_found: 'L’evento richiesto non esiste più o non è disponibile.',
+        admin_request_failed: 'Non è stato possibile caricare i dati amministrativi.',
+        generic: 'Non è stato possibile completare la richiesta amministrativa.',
+      },
+    },
+  },
+  en: {
+    admin: {
+      eyebrow: 'Operational control',
+      title: 'Administration',
+      description: 'Inspect online presence and reconstruct game events through filters, rules and causal chains. Personal data remains visible only to authorized administrators.',
+      online: {
+        title: 'Online players',
+        description: 'Authoritative snapshot of the simulation active in this process.',
+        count: '{{count}} online',
+        empty: 'No players are online right now.',
+        position: 'Position: {{x}}, {{y}}',
+      },
+      audit: {
+        title: 'Event audit',
+        description: 'Filter append-only events by player, type, correlation ID or UTC time range.',
+        loading: 'Loading events…',
+        empty: 'No events match the selected filters.',
+        tableLabel: 'Recent game events',
+        pagination: '{{from}}–{{to}} of {{total}} events',
+      },
+      filters: {
+        playerId: 'Player ID',
+        eventType: 'Event type',
+        correlationId: 'Correlation ID',
+        fromUtc: 'From (local time)',
+        toUtc: 'To (local time)',
+      },
+      actions: {
+        apply: 'Apply',
+        reset: 'Reset',
+        refresh: 'Refresh',
+        details: 'Details',
+        previous: 'Previous',
+        next: 'Next',
+        close: 'Close',
+      },
+      columns: {
+        time: 'Date and time',
+        type: 'Type',
+        player: 'Player',
+        rule: 'Rule',
+        actions: 'Actions',
+      },
+      detail: {
+        title: 'Event detail',
+        loading: 'Loading detail…',
+        eventId: 'Event ID',
+        correlationId: 'Correlation ID',
+        causationId: 'Causation ID',
+        payload: 'Versioned payload',
+      },
+      errors: {
+        admin_authentication_required: 'An authenticated Vuxo session is required to access administration.',
+        admin_forbidden: 'This section is restricted to the Administrator role.',
+        audit_query_invalid: 'The audit filters are invalid.',
+        audit_event_not_found: 'The requested event no longer exists or is unavailable.',
+        admin_request_failed: 'Administrative data could not be loaded.',
+        generic: 'The administrative request could not be completed.',
+      },
+    },
+  },
+} as const
+
+for (const language of ['it', 'en'] as const) {
+  i18n.addResourceBundle(language, 'translation', resources[language], true, true)
+}
