@@ -13,12 +13,14 @@ internal sealed class VuxoApiFactory(
     IReadOnlyDictionary<string, string?>? configurationOverrides = null) : WebApplicationFactory<Program>
 {
     internal const string TestSigningKey = "vuxo-tests-signing-key-that-is-at-least-32-characters-long";
+    private const string TestConnectionString = "Host=localhost;Database=vuxo_tests;Username=vuxo";
 
     static VuxoApiFactory()
     {
-        // Program validates this required secret before WebApplicationFactory applies
-        // ConfigureWebHost callbacks. Environment variables mirror production bootstrap.
+        // Program consumes mandatory configuration while top-level statements execute,
+        // before WebApplicationFactory ConfigureWebHost callbacks are applied.
         Environment.SetEnvironmentVariable("Auth__Jwt__SigningKey", TestSigningKey);
+        Environment.SetEnvironmentVariable("ConnectionStrings__GameDb", TestConnectionString);
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -28,7 +30,7 @@ internal sealed class VuxoApiFactory(
         {
             var values = new Dictionary<string, string?>
             {
-                ["ConnectionStrings:GameDb"] = "Host=localhost;Database=vuxo_tests;Username=vuxo",
+                ["ConnectionStrings:GameDb"] = TestConnectionString,
                 ["Database:ApplyMigrationsOnStartup"] = "false",
                 ["World:Id"] = "vuxo-test-world",
                 ["World:Seed"] = "424242",
