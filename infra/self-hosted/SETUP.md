@@ -9,7 +9,7 @@ Alla fine avrai:
 - GitHub Actions **self-hosted runner** registrato sulla repository privata `KeyserDSoze/Vuxo`;
 - runner avviato come servizio `systemd` e pronto a ricevere il job `vuxo-prod`;
 - directory persistenti per deploy, backup e stato operativo;
-- GitHub Environment `production` con i secret runtime;
+- secret production gestiti da GitHub Actions;
 - Cloudflare Tunnel configurato per `api.vuxoapi.xyz`;
 - API, PostgreSQL, Redis, Ollama e `cloudflared` avviati dal primo deploy GitHub Actions;
 - riavvio automatico dello stack dopo un reboot del server;
@@ -132,7 +132,7 @@ Seleziona Linux e architettura x64.
 
 GitHub mostrerà un token temporaneo per registrare il runner. **Copia solo il token**: non è necessario eseguire manualmente i comandi di download/configurazione mostrati da GitHub, perché li esegue il bootstrap Vuxo.
 
-Il token è time-limited e serve solo alla prima registrazione.
+Il token di registrazione è time-limited e serve solo alla prima registrazione. Se scade, torna nella stessa pagina e generane uno nuovo.
 
 ---
 
@@ -201,9 +201,11 @@ Il bootstrap verifica inoltre che il servizio sia `enabled` e quindi parta autom
 
 ---
 
-## 8. Crea il GitHub Environment `production`
+## 8. Configura i secret GitHub production
 
-Nella repository GitHub vai in:
+### Opzione consigliata: GitHub Environment `production`
+
+Nella repository vai in:
 
 `Settings` → `Environments`
 
@@ -223,6 +225,24 @@ VUXO_JWT_SIGNING_KEY
 VUXO_CLOUDFLARE_TUNNEL_TOKEN
 ```
 
+> Su repository private la disponibilità degli Environment e degli Environment secrets dipende dal piano GitHub. Per repository private GitHub documenta il supporto con GitHub Pro, Team o Enterprise.
+
+### Fallback per repository privata senza Environment secrets
+
+Se il tuo piano non permette di configurare gli Environment secrets sulla repository privata, usa:
+
+`Settings` → `Secrets and variables` → `Actions` → `New repository secret`
+
+Crea gli stessi tre secret con gli stessi nomi:
+
+```text
+VUXO_POSTGRES_PASSWORD
+VUXO_JWT_SIGNING_KEY
+VUXO_CLOUDFLARE_TUNNEL_TOKEN
+```
+
+Il workflow li legge tramite `secrets.<NOME>`, quindi i repository secrets con questi nomi funzionano come fallback. Mantieni comunque `environment: production` nel workflow per conservare semanticamente il target di deploy.
+
 ### Generare password/chiavi robuste
 
 Puoi generare una password PostgreSQL casuale con:
@@ -239,9 +259,9 @@ openssl rand -base64 64
 
 Non riutilizzare la stessa stringa per PostgreSQL e JWT.
 
-### Environment variables opzionali
+### Variabili production opzionali
 
-Puoi aggiungere anche:
+Quando supportate dal piano/environment puoi aggiungere:
 
 ```text
 VUXO_ALLOWED_ORIGIN=https://vuxo.quest
@@ -277,7 +297,7 @@ http://api:8080
 
 Per recuperare il tunnel token, seleziona il tunnel e usa l'opzione per aggiungere una replica/connector. Copia il token dal comando `cloudflared` mostrato da Cloudflare.
 
-Inserisci **solo il token** nel GitHub Environment secret:
+Inserisci **solo il token** nel secret GitHub:
 
 ```text
 VUXO_CLOUDFLARE_TUNNEL_TOKEN
@@ -496,13 +516,17 @@ sudo systemctl list-unit-files | grep actions.runner
 
 ### Log container
 
+I nomi effettivi dei container possono variare. Recuperali prima con:
+
 ```bash
-docker logs --tail 200 vuxo-api-1
-docker logs --tail 200 vuxo-postgres-1
-docker logs --tail 200 vuxo-cloudflared-1
+docker ps --format '{{.Names}}'
 ```
 
-I nomi effettivi dei container possono variare; usa `docker ps` per recuperarli.
+Poi usa, ad esempio:
+
+```bash
+docker logs --tail 200 <nome-container>
+```
 
 ### Health check
 
@@ -521,7 +545,7 @@ Prima di considerare il server production pronto verifica:
 - [ ] bootstrap completato senza errori;
 - [ ] Docker `active` e `enabled`;
 - [ ] GitHub Actions runner `Online/Idle` con label `vuxo-prod`;
-- [ ] environment GitHub `production` creato;
+- [ ] secret GitHub production configurati;
 - [ ] `VUXO_POSTGRES_PASSWORD` configurato;
 - [ ] `VUXO_JWT_SIGNING_KEY` configurato;
 - [ ] `VUXO_CLOUDFLARE_TUNNEL_TOKEN` configurato;
