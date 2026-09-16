@@ -28,9 +28,11 @@ import {
   type AdminEventDetail,
   type AdminEventFilters,
   type AdminEventPage,
+  type AdminObservabilityStatus,
   type AdminOnlinePlayer,
   fetchAdminEvent,
   fetchAdminEvents,
+  fetchAdminObservability,
   fetchAdminOnlinePlayers,
 } from '../features/admin/adminApi'
 
@@ -58,6 +60,7 @@ export function AdminPage() {
   const [activeFilters, setActiveFilters] = useState<FilterDraft>(EMPTY_FILTERS)
   const [events, setEvents] = useState<AdminEventPage>({ total: 0, offset: 0, limit: PAGE_SIZE, items: [] })
   const [onlinePlayers, setOnlinePlayers] = useState<AdminOnlinePlayer[]>([])
+  const [observability, setObservability] = useState<AdminObservabilityStatus | null>(null)
   const [selectedEvent, setSelectedEvent] = useState<AdminEventDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [detailLoading, setDetailLoading] = useState(false)
@@ -74,12 +77,14 @@ export function AdminPage() {
     setErrorCode(null)
     try {
       const query = toApiFilters(filters, offset)
-      const [eventPage, players] = await Promise.all([
+      const [eventPage, players, telemetry] = await Promise.all([
         fetchAdminEvents(query),
         fetchAdminOnlinePlayers(),
+        fetchAdminObservability(),
       ])
       setEvents(eventPage)
       setOnlinePlayers(players)
+      setObservability(telemetry)
     } catch (error) {
       setErrorCode(readErrorCode(error))
     } finally {
@@ -131,6 +136,47 @@ export function AdminPage() {
         <Alert severity={errorCode === 'admin_forbidden' ? 'warning' : 'error'} data-testid="admin-error">
           {t(`admin.errors.${errorCode}`, { defaultValue: t('admin.errors.generic') })}
         </Alert>
+      )}
+
+      {observability && (
+        <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 } }} data-testid="admin-observability">
+          <Stack spacing={2}>
+            <Box>
+              <Typography variant="h5">{t('admin.observability.title')}</Typography>
+              <Typography variant="body2" color="text.secondary">{t('admin.observability.description')}</Typography>
+            </Box>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ alignItems: { sm: 'center' } }}>
+              <Chip
+                size="small"
+                color={observability.enabled ? 'success' : 'default'}
+                label={t(observability.enabled ? 'admin.observability.enabled' : 'admin.observability.disabled')}
+              />
+              <Chip
+                size="small"
+                variant="outlined"
+                label={t(observability.exporterConfigured
+                  ? 'admin.observability.exporterConfigured'
+                  : 'admin.observability.exporterNotConfigured')}
+              />
+              {observability.dashboardUrl ? (
+                <Button
+                  component="a"
+                  href={observability.dashboardUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  size="small"
+                  data-testid="admin-observability-link"
+                >
+                  {t('admin.observability.openDashboard')}
+                </Button>
+              ) : (
+                <Typography variant="caption" color="text.secondary" data-testid="admin-observability-no-link">
+                  {t('admin.observability.dashboardNotConfigured')}
+                </Typography>
+              )}
+            </Stack>
+          </Stack>
+        </Paper>
       )}
 
       <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 } }}>

@@ -8,6 +8,7 @@ using Vuxo.Api.Admin;
 using Vuxo.Api.Auth;
 using Vuxo.Api.Contracts.Auth;
 using Vuxo.Api.Contracts.Players;
+using Vuxo.Api.Observability;
 using Vuxo.Api.PersonalContent;
 using Vuxo.Api.Realtime;
 using Vuxo.Api.Worlds;
@@ -23,6 +24,7 @@ using Vuxo.Infrastructure;
 using Vuxo.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.AddVuxoObservability();
 
 builder.Services.AddOpenApi();
 builder.Services.AddHealthChecks();
@@ -122,6 +124,7 @@ if (app.Configuration.GetValue("Database:ApplyMigrationsOnStartup", true))
 
 app.UseCors("web");
 app.UseAuthentication();
+app.UseMiddleware<TelemetryContextMiddleware>();
 app.UseAuthorization();
 
 if (app.Environment.IsDevelopment())

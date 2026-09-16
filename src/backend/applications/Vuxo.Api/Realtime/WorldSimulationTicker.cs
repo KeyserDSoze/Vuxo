@@ -1,4 +1,6 @@
+using System.Diagnostics;
 using Microsoft.AspNetCore.SignalR;
+using Vuxo.Api.Observability;
 using Vuxo.Application.Worlds;
 using Vuxo.Application.Worlds.Realtime;
 
@@ -19,10 +21,17 @@ public sealed class WorldSimulationTicker(
             try
             {
                 await Task.Delay(WorldSimulationRules.TickInterval, timeProvider, stoppingToken);
+                var stopwatch = Stopwatch.StartNew();
                 var delta = await simulation.TickAsync(
                     WorldSimulationRules.TickInterval,
                     runtimeMap,
                     stoppingToken);
+                stopwatch.Stop();
+
+                VuxoTelemetry.RecordWorldTick(
+                    stopwatch.Elapsed,
+                    delta.Players.Count,
+                    simulation.Snapshot().Count);
 
                 if (delta.Players.Count > 0)
                 {
@@ -37,6 +46,7 @@ public sealed class WorldSimulationTicker(
             }
             catch (Exception exception)
             {
+                VuxoTelemetry.RecordWorldTickFailure();
                 logger.LogError(exception, "World simulation tick failed.");
             }
         }

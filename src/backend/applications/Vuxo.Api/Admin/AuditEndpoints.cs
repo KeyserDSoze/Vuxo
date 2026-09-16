@@ -86,8 +86,26 @@ public static class AuditEndpoints
                 })
             }));
 
+        group.MapGet(
+            "/observability",
+            (IConfiguration configuration) => Results.Ok(new
+            {
+                enabled = configuration.GetValue("Observability:Enabled", true),
+                exporterConfigured = Uri.TryCreate(
+                    configuration["Observability:OtlpEndpoint"],
+                    UriKind.Absolute,
+                    out _),
+                dashboardUrl = NormalizeDashboardUrl(configuration["Observability:GrafanaUrl"])
+            }));
+
         return endpoints;
     }
+
+    private static string? NormalizeDashboardUrl(string? value)
+        => Uri.TryCreate(value, UriKind.Absolute, out var uri)
+            && uri.Scheme is "http" or "https"
+                ? uri.ToString().TrimEnd('/')
+                : null;
 
     private static object ToSummary(GameEventRecord record) => new
     {
