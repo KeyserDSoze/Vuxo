@@ -19,5 +19,6 @@ public sealed class MigrationDiscoveryTests
 
         Assert.Contains("202609160001_Initial", migrations);
         Assert.Contains("202609160002_WorldGeneration", migrations);
+        Assert.Contains("202609160003_ExclusiveContent", migrations);
     }
 }
