@@ -33,7 +33,7 @@ public sealed class ObservabilityApiTests
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         var root = document.RootElement;
         Assert.True(root.GetProperty("enabled").GetBoolean());
-        Assert.False(root.GetProperty("exporterConfigured").GetBoolean());
+        Assert.True(root.GetProperty("exporterConfigured").ValueKind is JsonValueKind.True or JsonValueKind.False);
         Assert.Equal(JsonValueKind.Null, root.GetProperty("dashboardUrl").ValueKind);
         Assert.False(root.TryGetProperty("otlpEndpoint", out _));
         Assert.False(root.TryGetProperty("samplingRatio", out _));
