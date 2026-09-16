@@ -1,0 +1,77 @@
+services:
+  api:
+    environment:
+      Observability__Enabled: "true"
+      Observability__OtlpEndpoint: http://otel-collector:4317
+      Observability__SamplingRatio: ${VUXO_OTEL_SAMPLING_RATIO:-0.25}
+      Observability__GrafanaUrl: ${VUXO_GRAFANA_URL:-}
+    depends_on:
+      otel-collector:
+        condition: service_started
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.161.0
+    restart: unless-stopped
+    command: ["--config=/etc/otelcol-contrib/config.yaml"]
+    volumes:
+      - ./observability/otel-collector.yml:/etc/otelcol-contrib/config.yaml:ro
+    networks: [vuxo]
+
+  prometheus:
+    image: prom/prometheus:v3.14.0
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=${VUXO_PROMETHEUS_RETENTION:-15d}
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - vuxo-prometheus:/prometheus
+    networks: [vuxo]
+
+  loki:
+    image: grafana/loki:3.7.6
+    restart: unless-stopped
+    command: ["-config.file=/etc/loki/local-config.yaml", "-config.expand-env=true"]
+    environment:
+      LOKI_RETENTION: ${VUXO_LOKI_RETENTION:-168h}
+    volumes:
+      - ./observability/loki.yml:/etc/loki/local-config.yaml:ro
+      - vuxo-loki:/loki
+    networks: [vuxo]
+
+  tempo:
+    image: grafana/tempo:3.0.3
+    restart: unless-stopped
+    command: ["-config.file=/etc/tempo.yaml", "-config.expand-env=true"]
+    environment:
+      TEMPO_RETENTION: ${VUXO_TEMPO_RETENTION:-48h}
+    volumes:
+      - ./observability/tempo.yml:/etc/tempo.yaml:ro
+      - vuxo-tempo:/var/tempo
+    networks: [vuxo]
+
+  grafana:
+    image: grafana/grafana:13.2.1
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: ${VUXO_GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${VUXO_GRAFANA_ADMIN_PASSWORD}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+    ports:
+      - "127.0.0.1:${VUXO_GRAFANA_PORT:-3000}:3000"
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - vuxo-grafana:/var/lib/grafana
+    depends_on:
+      - prometheus
+      - loki
+      - tempo
+    networks: [vuxo]
+
+volumes:
+  vuxo-prometheus:
+  vuxo-loki:
+  vuxo-tempo:
+  vuxo-grafana:
