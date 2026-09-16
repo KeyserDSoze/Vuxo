@@ -16,8 +16,11 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddVuxoInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
-        var connectionString = configuration.GetConnectionString("GameDb")
-            ?? throw new InvalidOperationException("ConnectionStrings:GameDb is required.");
+        var connectionString = configuration.GetConnectionString("GameDb");
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            throw new InvalidOperationException("ConnectionStrings:GameDb is required and cannot be empty.");
+        }
 
         services.AddDbContext<VuxoDbContext>(options => options.UseNpgsql(connectionString));
         services.AddScoped<IPlayerCharacterRepository, PlayerCharacterRepository>();
