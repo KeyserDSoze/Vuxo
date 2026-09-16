@@ -166,11 +166,11 @@ public sealed class PostgresPersistenceIntegrationTests
             Assert.Equal("player-a", item.Envelope.PlayerId);
             Assert.Equal(correlation, item.Envelope.CorrelationId);
             Assert.Equal(BaseTime.AddMinutes(5), item.Envelope.OccurredAtUtc);
-            Assert.Equal(expectedPayload, item.PayloadJson);
+            GameEventStoreTests.AssertJsonEquivalent(expectedPayload, item.PayloadJson);
 
             var byId = await store.GetByIdAsync(expectedId);
             Assert.NotNull(byId);
-            Assert.Equal(expectedPayload, byId.PayloadJson);
+            GameEventStoreTests.AssertJsonEquivalent(expectedPayload, byId.PayloadJson);
         }
     }
 
