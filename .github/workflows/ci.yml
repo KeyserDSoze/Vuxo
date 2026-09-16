@@ -76,6 +76,13 @@ jobs:
         if: always()
         run: docker rm -f vuxo-otel-smoke || true
 
+  docker-runtime:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Production-like Docker runtime smoke
+        run: bash scripts/test-docker-runtime.sh
+
   frontend:
     runs-on: ubuntu-latest
     defaults:
