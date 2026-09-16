@@ -23,7 +23,7 @@ Quando una issue cambia stato in modo significativo, aggiornare la riga corrispo
 | #2 | Feature | 0.0.1 | Backend/API | In progress | Build/test backend verdi | Completare health/version/OpenAPI e relativi test |
 | #3 | Feature | 0.0.1 | PostgreSQL/EF | Planned | Pending | Migration iniziale, persistence e integration test |
 | #4 | Feature | 0.0.1 | Auth social | Planned | Pending | Microsoft + Google con identità Vuxo |
-| #5 | Feature | 0.0.1 | Mock auth | Planned | Pending | User/GM/Admin per sviluppo e test |
+| #5 | Feature | 0.0.1 | Mock auth | In progress | Foundation endpoint/token già presente; integration test da completare | Rendere il mock login disponibile solo in Development/Test, validare ruoli/input e verificare policy REST/SignalR |
 | #6 | Feature | 0.0.1 | Character | Planned | Regole base già coperte parzialmente da xUnit | API/persistenza completa creazione personaggio |
 | #7 | Feature | 0.0.1 | Character UI | Planned | Pending | Editor 2D originale e Playwright |
 | #8 | Feature | 0.0.1 | World generation | Planned | Pending | Primo chunk deterministico e persistence metadata |
