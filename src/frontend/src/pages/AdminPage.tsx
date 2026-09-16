@@ -135,7 +135,11 @@ export function AdminPage() {
 
       <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 } }}>
         <Stack spacing={2}>
-          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ md: 'center' }} justifyContent="space-between">
+          <Stack
+            direction={{ xs: 'column', md: 'row' }}
+            spacing={2}
+            sx={{ alignItems: { md: 'center' }, justifyContent: 'space-between' }}
+          >
             <Box>
               <Typography variant="h5">{t('admin.online.title')}</Typography>
               <Typography variant="body2" color="text.secondary">{t('admin.online.description')}</Typography>
@@ -146,10 +150,10 @@ export function AdminPage() {
           {onlinePlayers.length === 0 ? (
             <Typography color="text.secondary">{t('admin.online.empty')}</Typography>
           ) : (
-            <Stack direction="row" flexWrap="wrap" gap={1.5}>
+            <Stack direction="row" sx={{ flexWrap: 'wrap', gap: 1.5 }}>
               {onlinePlayers.map(player => (
                 <Paper key={player.playerId} variant="outlined" sx={{ p: 1.5, minWidth: 220 }} data-testid="admin-online-player">
-                  <Typography fontWeight={800}>{player.characterName}</Typography>
+                  <Typography sx={{ fontWeight: 800 }}>{player.characterName}</Typography>
                   <Typography variant="caption" color="text.secondary">{player.playerId}</Typography>
                   <Typography variant="body2" sx={{ mt: 0.5 }}>
                     {t('admin.online.position', { x: player.x.toFixed(2), y: player.y.toFixed(2) })}
@@ -168,14 +172,14 @@ export function AdminPage() {
             <Typography variant="body2" color="text.secondary">{t('admin.audit.description')}</Typography>
           </Box>
 
-          <Stack direction={{ xs: 'column', lg: 'row' }} spacing={1.5} alignItems={{ lg: 'flex-end' }}>
+          <Stack direction={{ xs: 'column', lg: 'row' }} spacing={1.5} sx={{ alignItems: { lg: 'flex-end' } }}>
             <TextField
               fullWidth
               size="small"
               label={t('admin.filters.playerId')}
               value={draft.playerId}
               onChange={event => setDraft(current => ({ ...current, playerId: event.target.value }))}
-              inputProps={{ 'data-testid': 'admin-filter-player' }}
+              slotProps={{ htmlInput: { 'data-testid': 'admin-filter-player' } }}
             />
             <TextField
               fullWidth
@@ -183,7 +187,7 @@ export function AdminPage() {
               label={t('admin.filters.eventType')}
               value={draft.eventType}
               onChange={event => setDraft(current => ({ ...current, eventType: event.target.value }))}
-              inputProps={{ 'data-testid': 'admin-filter-type' }}
+              slotProps={{ htmlInput: { 'data-testid': 'admin-filter-type' } }}
             />
             <TextField
               fullWidth
@@ -191,11 +195,11 @@ export function AdminPage() {
               label={t('admin.filters.correlationId')}
               value={draft.correlationId}
               onChange={event => setDraft(current => ({ ...current, correlationId: event.target.value }))}
-              inputProps={{ 'data-testid': 'admin-filter-correlation' }}
+              slotProps={{ htmlInput: { 'data-testid': 'admin-filter-correlation' } }}
             />
           </Stack>
 
-          <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} alignItems={{ md: 'flex-end' }}>
+          <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} sx={{ alignItems: { md: 'flex-end' } }}>
             <TextField
               fullWidth
               size="small"
@@ -203,8 +207,7 @@ export function AdminPage() {
               label={t('admin.filters.fromUtc')}
               value={draft.fromUtc}
               onChange={event => setDraft(current => ({ ...current, fromUtc: event.target.value }))}
-              InputLabelProps={{ shrink: true }}
-              inputProps={{ 'data-testid': 'admin-filter-from' }}
+              slotProps={{ inputLabel: { shrink: true }, htmlInput: { 'data-testid': 'admin-filter-from' } }}
             />
             <TextField
               fullWidth
@@ -213,8 +216,7 @@ export function AdminPage() {
               label={t('admin.filters.toUtc')}
               value={draft.toUtc}
               onChange={event => setDraft(current => ({ ...current, toUtc: event.target.value }))}
-              InputLabelProps={{ shrink: true }}
-              inputProps={{ 'data-testid': 'admin-filter-to' }}
+              slotProps={{ inputLabel: { shrink: true }, htmlInput: { 'data-testid': 'admin-filter-to' } }}
             />
             <Stack direction="row" spacing={1}>
               <Button variant="contained" data-testid="admin-filter-apply" onClick={applyFilters}>{t('admin.actions.apply')}</Button>
@@ -226,7 +228,7 @@ export function AdminPage() {
           <Divider />
 
           {loading ? (
-            <Stack direction="row" spacing={1.5} alignItems="center" sx={{ py: 4 }}>
+            <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', py: 4 }}>
               <CircularProgress size={24} />
               <Typography>{t('admin.audit.loading')}</Typography>
             </Stack>
@@ -249,8 +251,8 @@ export function AdminPage() {
                     <TableRow key={item.eventId} data-testid="admin-event-row" hover>
                       <TableCell>{formatDate(item.occurredAtUtc, dateFormatter)}</TableCell>
                       <TableCell>
-                        <Stack direction="row" spacing={1} alignItems="center">
-                          <Typography variant="body2" fontWeight={700}>{item.eventType}</Typography>
+                        <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                          <Typography variant="body2" sx={{ fontWeight: 700 }}>{item.eventType}</Typography>
                           <Chip size="small" label={item.visibilityScope} />
                         </Stack>
                       </TableCell>
@@ -268,7 +270,11 @@ export function AdminPage() {
             </TableContainer>
           )}
 
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} justifyContent="space-between" alignItems={{ sm: 'center' }}>
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            spacing={1}
+            sx={{ justifyContent: 'space-between', alignItems: { sm: 'center' } }}
+          >
             <Typography variant="body2" color="text.secondary" data-testid="admin-pagination-summary">
               {t('admin.audit.pagination', {
                 from: events.total === 0 ? 0 : events.offset + 1,
@@ -292,7 +298,7 @@ export function AdminPage() {
         <DialogTitle>{t('admin.detail.title')}</DialogTitle>
         <DialogContent dividers>
           {detailLoading || !selectedEvent ? (
-            <Stack direction="row" spacing={1.5} alignItems="center" sx={{ py: 3 }}>
+            <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', py: 3 }}>
               <CircularProgress size={24} />
               <Typography>{t('admin.detail.loading')}</Typography>
             </Stack>
