@@ -1,6 +1,5 @@
 name: Feature
-summary: Proponi o pianifica una nuova funzionalità Vuxo
-description: Usa questo form per feature di gioco, piattaforma, infrastruttura o tooling.
+description: Proponi o pianifica una nuova funzionalità Vuxo.
 title: "[versione] "
 labels:
   - enhancement
