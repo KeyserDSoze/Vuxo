@@ -29,7 +29,7 @@ Quando una issue cambia stato in modo significativo, aggiornare la riga corrispo
 | #8 | Feature | 0.0.1 | World generation | Done | Domain/Application/API xUnit + migration discovery + CI backend/frontend + 7 Playwright verdi | Chiuso: generatore v1 deterministico 16×16, bordi compatibili, walkability server-side, seed/versione persistiti, fingerprint chunk e API autenticata |
 | #28 | Bug | 0.0.1 | PostgreSQL/EF | Done | CI backend build/test + frontend build + 7 Playwright verdi | Chiuso: metadata EF espliciti sulla migration iniziale e regression test offline su `Database.GetMigrations()` |
 | #9 | Feature | 0.0.1 | SignalR/MMO | Done | Application xUnit + SignalR multi-client integration + CI backend/frontend verdi | Chiuso: Hub stateless, presence/reconnect, tick 20 Hz, input intent/rate-limit/sequence, velocità da Destrezza, collisioni su chunk #8 e delta server-side |
-| #10 | Feature | 0.0.1 | Phaser multiplayer | In progress | Client SignalR/Phaser e Playwright multiplayer in implementazione | Sostituire movimento locale con intent server-side, camera follow, smoothing, presence, reconnect e touch |
+| #10 | Feature | 0.0.1 | Phaser multiplayer | Done | Frontend build + Playwright keyboard/reconnect/two-context/mobile + CI backend/frontend verdi | Chiuso: Phaser renderizza snapshot/delta autoritativi, invia solo intent, camera follow, smoothing, nomi/presence, reconnect e controlli touch responsive |
 | #11 | Feature | 0.0.1 | Personal content | Planned | Pending | Grant, portali/dialoghi/ricompense personali auditabili |
 | #12 | Feature | 0.0.1 | Audit/Admin | Planned | Pending | Event store e vista amministrativa |
 | #13 | Feature | 0.0.1 | Observability | Planned | Pending | OpenTelemetry + stack self-hosted |
