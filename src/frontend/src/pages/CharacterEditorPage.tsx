@@ -154,7 +154,7 @@ export function CharacterEditorPage() {
 
   if (!catalog && !catalogError) {
     return (
-      <Stack alignItems="center" spacing={2} sx={{ py: 10 }}>
+      <Stack spacing={2} sx={{ py: 10, alignItems: 'center' }}>
         <CircularProgress />
         <Typography>{t('character.editor.loading')}</Typography>
       </Stack>
@@ -171,18 +171,19 @@ export function CharacterEditorPage() {
     labelKey: string,
     optionGroup: string,
   ) => (
-    <TextField
-      select
-      fullWidth
-      label={t(labelKey)}
-      value={draft.appearance[field]}
-      onChange={event => setAppearance(field, event.target.value)}
-      inputProps={{ 'data-testid': `${field}-select` }}
-    >
-      {values.map(value => (
-        <MenuItem key={value} value={value}>{t(`character.options.${optionGroup}.${value}`)}</MenuItem>
-      ))}
-    </TextField>
+    <Box data-testid={`${field}-select`}>
+      <TextField
+        select
+        fullWidth
+        label={t(labelKey)}
+        value={draft.appearance[field]}
+        onChange={event => setAppearance(field, event.target.value)}
+      >
+        {values.map(value => (
+          <MenuItem key={value} value={value}>{t(`character.options.${optionGroup}.${value}`)}</MenuItem>
+        ))}
+      </TextField>
+    </Box>
   )
 
   return (
@@ -200,12 +201,12 @@ export function CharacterEditorPage() {
       {!accessToken && <Alert severity="info">{t('character.editor.authenticationRequired')}</Alert>}
       {result && <Alert severity={result.kind === 'success' ? 'success' : 'error'}>{t(result.key)}</Alert>}
 
-      <Grid container spacing={3} alignItems="flex-start">
+      <Grid container spacing={3} sx={{ alignItems: 'flex-start' }}>
         <Grid size={{ xs: 12, md: 5, lg: 4 }}>
           <Card variant="outlined" sx={{ position: { md: 'sticky' }, top: { md: 96 } }}>
             <CardContent>
               <CharacterPreview appearance={draft.appearance} />
-              <Stack direction="row" justifyContent="space-between" sx={{ mt: 2 }}>
+              <Stack direction="row" sx={{ mt: 2, justifyContent: 'space-between' }}>
                 <Box>
                   <Typography variant="caption" color="text.secondary">{t('character.stats.maxHealth')}</Typography>
                   <Typography variant="h6">{derived.maxHealth}</Typography>
@@ -232,11 +233,11 @@ export function CharacterEditorPage() {
                       setDraft(current => ({ ...current, name: event.target.value }))
                       setResult(null)
                     }}
-                    inputProps={{ maxLength: 24 }}
+                    slotProps={{ htmlInput: { maxLength: 24 } }}
                     fullWidth
                   />
                   <Divider />
-                  <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" gap={1}>
+                  <Stack direction={{ xs: 'column', sm: 'row' }} sx={{ justifyContent: 'space-between', gap: 1 }}>
                     <Typography variant="h6">{t('character.editor.attributes')}</Typography>
                     <Typography color={allocationTotal === CHARACTER_ALLOCATION_POINTS ? 'text.secondary' : 'error.main'}>
                       {t('character.editor.points', { used: allocationTotal, total: CHARACTER_ALLOCATION_POINTS })}
