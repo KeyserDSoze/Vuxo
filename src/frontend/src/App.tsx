@@ -2,7 +2,7 @@ import { DarkMode, Language, LightMode, SettingsBrightness } from '@mui/icons-ma
 import { AppBar, Box, Button, Chip, Container, Stack, Toolbar, Tooltip, Typography } from '@mui/material';
 import { useTranslation } from 'react-i18next';
 import { Link as RouterLink, Route, Routes } from 'react-router-dom';
-import { AdminPage } from './pages/AdminPage';
+import { AdminRoute } from './pages/AdminRoute';
 import { CharacterEditorPage } from './pages/CharacterEditorPage';
 import { GamePage } from './pages/GamePage';
 import { HomePage } from './pages/HomePage';
@@ -58,7 +58,7 @@ export function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/character" element={<CharacterEditorPage />} />
           <Route path="/game" element={<GamePage />} />
-          <Route path="/admin" element={<AdminPage />} />
+          <Route path="/admin" element={<AdminRoute />} />
           <Route path="/version" element={<VersionPage />} />
         </Routes>
       </Container>
