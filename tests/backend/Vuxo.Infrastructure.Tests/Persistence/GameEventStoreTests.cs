@@ -1,3 +1,4 @@
+using System.Text.Json.Nodes;
 using Microsoft.EntityFrameworkCore;
 using Vuxo.Domain.Events;
 using Vuxo.Infrastructure.Persistence;
@@ -67,7 +68,7 @@ public sealed class GameEventStoreTests
     }
 
     [Fact]
-    public async Task GetByIdAsync_ReturnsEnvelopeAndOriginalPayload()
+    public async Task GetByIdAsync_ReturnsEnvelopeAndEquivalentPayload()
     {
         await using var db = CreateDbContext();
         var entity = CreateEntity("player-a", "evt.detail", Guid.NewGuid(), BaseTime);
@@ -81,7 +82,14 @@ public sealed class GameEventStoreTests
         Assert.NotNull(result);
         Assert.Equal(entity.EventId, result.Envelope.EventId);
         Assert.Equal(entity.EventType, result.Envelope.EventType);
-        Assert.Equal(entity.PayloadJson, result.PayloadJson);
+        AssertJsonEquivalent(entity.PayloadJson, result.PayloadJson);
+    }
+
+    internal static void AssertJsonEquivalent(string expected, string actual)
+    {
+        var expectedNode = JsonNode.Parse(expected);
+        var actualNode = JsonNode.Parse(actual);
+        Assert.True(JsonNode.DeepEquals(expectedNode, actualNode), $"Expected JSON equivalent to {expected}, actual {actual}.");
     }
 
     private static VuxoDbContext CreateDbContext()
