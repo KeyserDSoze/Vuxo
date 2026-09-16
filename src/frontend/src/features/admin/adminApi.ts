@@ -44,6 +44,12 @@ export type AdminOnlinePlayer = {
   revision: number
 }
 
+export type AdminObservabilityStatus = {
+  enabled: boolean
+  exporterConfigured: boolean
+  dashboardUrl: string | null
+}
+
 export class AdminApiError extends Error {
   constructor(
     public readonly code: string,
@@ -73,6 +79,10 @@ export async function fetchAdminEvent(eventId: string, signal?: AbortSignal): Pr
 export async function fetchAdminOnlinePlayers(signal?: AbortSignal): Promise<AdminOnlinePlayer[]> {
   const response = await request<{ players: AdminOnlinePlayer[] }>('/api/admin/online-players', signal)
   return response.players
+}
+
+export async function fetchAdminObservability(signal?: AbortSignal): Promise<AdminObservabilityStatus> {
+  return request<AdminObservabilityStatus>('/api/admin/observability', signal)
 }
 
 async function request<T>(path: string, signal?: AbortSignal): Promise<T> {
