@@ -1,4 +1,5 @@
 using System.Reflection;
+using Npgsql;
 using OpenTelemetry.Exporter;
 using OpenTelemetry.Logs;
 using OpenTelemetry.Metrics;
@@ -48,7 +49,8 @@ public static class ObservabilityExtensions
                         options.RecordException = true;
                         options.Filter = context => !context.Request.Path.StartsWithSegments("/health");
                     })
-                    .AddHttpClientInstrumentation(options => options.RecordException = true);
+                    .AddHttpClientInstrumentation(options => options.RecordException = true)
+                    .AddNpgsql();
 
                 if (otlpEndpoint is not null)
                 {
@@ -62,7 +64,8 @@ public static class ObservabilityExtensions
                         VuxoTelemetry.MeterName,
                         "Microsoft.AspNetCore.Hosting",
                         "Microsoft.AspNetCore.Server.Kestrel",
-                        "System.Net.Http")
+                        "System.Net.Http",
+                        "Npgsql")
                     .AddRuntimeInstrumentation();
 
                 if (otlpEndpoint is not null)
