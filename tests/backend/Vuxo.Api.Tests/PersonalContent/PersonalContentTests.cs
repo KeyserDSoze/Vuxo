@@ -63,6 +63,7 @@ public sealed class PersonalContentTests
         var error = await response.Content.ReadFromJsonAsync<ErrorResponse>();
         Assert.Equal("exclusive_content_not_found", error?.Code);
         Assert.False(grant.IsConsumed);
+        Assert.Equal(0, repository.UpdateCalls);
         Assert.Empty(events.Appended);
         Assert.Equal(0, unitOfWork.SaveCalls);
     }
@@ -166,10 +167,17 @@ public sealed class PersonalContentTests
     private sealed class FakeRepository : IExclusiveContentGrantRepository
     {
         public List<ExclusiveContentGrant> Grants { get; } = [];
+        public int UpdateCalls { get; private set; }
 
         public Task AddAsync(ExclusiveContentGrant grant, CancellationToken cancellationToken = default)
         {
             Grants.Add(grant);
+            return Task.CompletedTask;
+        }
+
+        public Task UpdateAsync(ExclusiveContentGrant grant, CancellationToken cancellationToken = default)
+        {
+            UpdateCalls++;
             return Task.CompletedTask;
         }
 
