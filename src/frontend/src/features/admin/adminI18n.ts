@@ -6,6 +6,16 @@ const resources = {
       eyebrow: 'Controllo operativo',
       title: 'Amministrazione',
       description: 'Consulta la presenza online e ricostruisci gli eventi di gioco tramite filtri, regole e catene di causalità. I dati personali restano visibili solo agli amministratori autorizzati.',
+      observability: {
+        title: 'Osservabilità tecnica',
+        description: 'Stato della telemetria tecnica separata dall’audit funzionale: trace, metriche e log OpenTelemetry.',
+        enabled: 'Telemetria attiva',
+        disabled: 'Telemetria disattivata',
+        exporterConfigured: 'Exporter OTLP configurato',
+        exporterNotConfigured: 'Exporter OTLP non configurato',
+        openDashboard: 'Apri Grafana',
+        dashboardNotConfigured: 'URL della dashboard tecnica non configurato.',
+      },
       online: {
         title: 'Giocatori online',
         description: 'Snapshot autoritativo della simulazione attiva in questo processo.',
@@ -67,6 +77,16 @@ const resources = {
       eyebrow: 'Operational control',
       title: 'Administration',
       description: 'Inspect online presence and reconstruct game events through filters, rules and causal chains. Personal data remains visible only to authorized administrators.',
+      observability: {
+        title: 'Technical observability',
+        description: 'Status of technical telemetry kept separate from functional audit: OpenTelemetry traces, metrics and logs.',
+        enabled: 'Telemetry enabled',
+        disabled: 'Telemetry disabled',
+        exporterConfigured: 'OTLP exporter configured',
+        exporterNotConfigured: 'OTLP exporter not configured',
+        openDashboard: 'Open Grafana',
+        dashboardNotConfigured: 'Technical dashboard URL is not configured.',
+      },
       online: {
         title: 'Online players',
         description: 'Authoritative snapshot of the simulation active in this process.',
