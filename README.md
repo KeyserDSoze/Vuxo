@@ -2,6 +2,13 @@
 
 Vuxo è un gioco online 2D di esplorazione, collezione e combattimento strategico in un mondo procedurale persistente. La prima milestone (`0.0.1`) porta il giocatore da login e creazione del personaggio all'ingresso in un mondo condiviso, con movimento realtime server-authoritative e presenza degli altri giocatori.
 
+## Endpoint production canonici
+
+- Frontend: `https://vuxo.quest`
+- API: `https://api.vuxoapi.xyz`
+
+Il frontend è pubblicato tramite GitHub Pages sul dominio custom `vuxo.quest`. Il backend viene eseguito sul server self-hosted e pubblicato tramite Cloudflare Tunnel su `api.vuxoapi.xyz`.
+
 ## Stack iniziale
 
 - Backend: .NET 10 / ASP.NET Core / SignalR
@@ -18,11 +25,19 @@ Vuxo è un gioco online 2D di esplorazione, collezione e combattimento strategic
 - Backend hosting: server self-hosted esposto tramite Cloudflare Tunnel
 - CI/CD: GitHub Actions + GHCR + GitHub self-hosted runner
 
-## Versione
+## Versione e patch note
 
-Versione iniziale: **0.0.1**.
+La versione corrente è letta dal file root `VERSION`, che è la fonte canonica della versione applicativa.
 
-Le patch note sono versionate in `docs/patch-notes/` e ogni build espone versione, commit e data di build.
+Le patch note sono versionate in `docs/patch-notes/`. Ogni nuova versione deve includere nello stesso change set:
+
+1. bump di `VERSION`;
+2. sincronizzazione degli altri metadati di versione committati, quando applicabile;
+3. creazione/aggiornamento di `docs/patch-notes/<VERSION>.md`;
+4. test verdi;
+5. eventuali note operative per migrazioni/configurazione/deploy.
+
+Ogni build espone versione, commit e data di build.
 
 ## Struttura
 
@@ -40,7 +55,10 @@ tests/
 docs/
 docker/
 infra/
+.agents/skills/
+.github/instructions/
 .github/workflows/
+AGENTS.md
 ```
 
 ## Principi architetturali
@@ -57,6 +75,20 @@ infra/
 - nessun secret nel repository;
 - ogni regola deterministica deve essere coperta da test parametrizzati ove possibile;
 - asset 2D originali del progetto; i placeholder iniziali sono generati dal codice.
+
+## Sviluppo assistito da agent/LLM
+
+`AGENTS.md` è la guida canonica del repository per sviluppatori e coding agent. Prima di modificare il progetto bisogna leggere quella guida, cercare l'implementazione/test esistenti e usare la skill pertinente sotto `.agents/skills/`.
+
+Sono presenti entrypoint compatibili con più strumenti:
+
+- `.github/copilot-instructions.md` per GitHub Copilot;
+- `AGENTS.md` come istruzione agent-first e fonte canonica;
+- `CLAUDE.md` e `GEMINI.md` come puntatori alla stessa fonte, così le regole non divergono;
+- `.github/instructions/*.instructions.md` per istruzioni Copilot specifiche per path;
+- `.agents/skills/*/SKILL.md` per workflow riutilizzabili.
+
+Le skill iniziali coprono: sviluppo verticale di feature, UI/design system, i18n, testing, release/versioning e integrazione LLM/tool calling. La documentazione operativa è in `docs/engineering/ai-development.md`.
 
 ## Avvio dipendenze locali
 
@@ -80,6 +112,8 @@ La pipeline pubblica l'immagine API su GitHub Container Registry. Un GitHub Acti
 
 Il provisioning del server è in `infra/self-hosted/` e il runtime in `docker/compose.prod.yml`. `docker/compose.gpu.yml` abilita esplicitamente l'accesso GPU a Ollama solo quando la macchina lo supporta e i benchmark mostrano un beneficio.
 
+Il workflow production usa `https://vuxo.quest` come origin CORS predefinita e `https://api.vuxoapi.xyz` come endpoint API del build frontend. Le variabili GitHub possono sovrascrivere questi default quando serve una migrazione controllata.
+
 ## Backlog
 
-Il backlog è gestito tramite GitHub Issues. La EPIC `#20` definisce la first playable 0.0.1; `#21` copre design system/temi/i18n e `#22` il runtime LLM locale con tool calling.
+Il backlog è gestito tramite GitHub Issues. La EPIC `#20` definisce la first playable 0.0.1; `#21` copre design system/temi/i18n, `#22` il runtime LLM locale con tool calling e `#23` handbook/skill multi-LLM.
