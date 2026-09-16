@@ -22,6 +22,7 @@ import {
   Typography,
 } from '@mui/material'
 import { useTranslation } from 'react-i18next'
+import '../features/admin/adminI18n'
 import {
   AdminApiError,
   type AdminEventDetail,
