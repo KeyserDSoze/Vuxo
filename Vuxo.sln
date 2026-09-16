@@ -14,6 +14,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Vuxo.Domain.Tests", "tests\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Vuxo.Application.Tests", "tests\backend\Vuxo.Application.Tests\Vuxo.Application.Tests.csproj", "{871F6899-0C76-4F8C-9213-AD0B78278F06}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Vuxo.Infrastructure.Tests", "tests\backend\Vuxo.Infrastructure.Tests\Vuxo.Infrastructure.Tests.csproj", "{3C5B284E-8D97-4CE0-BE68-67BA6A93D608}"
+EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Vuxo.Api.Tests", "tests\backend\Vuxo.Api.Tests\Vuxo.Api.Tests.csproj", "{6C9D5D3E-7F65-4F0C-8FA9-7A88D0B41207}"
 EndProject
 Global
@@ -46,6 +48,10 @@ Global
     {871F6899-0C76-4F8C-9213-AD0B78278F06}.Debug|Any CPU.Build.0 = Debug|Any CPU
     {871F6899-0C76-4F8C-9213-AD0B78278F06}.Release|Any CPU.ActiveCfg = Release|Any CPU
     {871F6899-0C76-4F8C-9213-AD0B78278F06}.Release|Any CPU.Build.0 = Release|Any CPU
+    {3C5B284E-8D97-4CE0-BE68-67BA6A93D608}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+    {3C5B284E-8D97-4CE0-BE68-67BA6A93D608}.Debug|Any CPU.Build.0 = Debug|Any CPU
+    {3C5B284E-8D97-4CE0-BE68-67BA6A93D608}.Release|Any CPU.ActiveCfg = Release|Any CPU
+    {3C5B284E-8D97-4CE0-BE68-67BA6A93D608}.Release|Any CPU.Build.0 = Release|Any CPU
     {6C9D5D3E-7F65-4F0C-8FA9-7A88D0B41207}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
     {6C9D5D3E-7F65-4F0C-8FA9-7A88D0B41207}.Debug|Any CPU.Build.0 = Debug|Any CPU
     {6C9D5D3E-7F65-4F0C-8FA9-7A88D0B41207}.Release|Any CPU.ActiveCfg = Release|Any CPU
