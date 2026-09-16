@@ -39,7 +39,7 @@ Quando una issue cambia stato in modo significativo, aggiornare la riga corrispo
 | #21 | Feature | 0.0.1 | UI/i18n | In progress | Build + Playwright tema/lingua verdi | Consolidare design system durante le prossime UI |
 | #22 | Feature | 0.0.1 | Local LLM | In progress | Adapter/test foundation presenti | Validare smoke tool-calling sul server reale |
 | #23 | Feature | 0.0.1 | Agent handbook | Done | CI completa verde | Chiuso: AGENTS/skills/multi-LLM governance completati |
-| #24 | Feature | 0.0.1 | Handoff/issue lifecycle | In progress | Docs in aggiornamento | Prompt, ledger, issue forms, lifecycle e AGENTS |
+| #24 | Feature | 0.0.1 | Handoff/issue lifecycle | Done | Governance check + backend xUnit + frontend build/Playwright verdi | Chiuso: prompt <=8000, ledger, Issue Forms, lifecycle, skill e AGENTS completati |
 | #18 | Feature | post-0.0.1 | React Native/shared TS | Deferred | N/A | Riprendere dopo first playable |
 | #19 | Feature | post-0.0.1 | Asset pipeline | Deferred | N/A | Riprendere dopo foundation asset 0.0.1 |
 
