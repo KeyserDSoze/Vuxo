@@ -20,4 +20,4 @@ public sealed record CreateCharacterRequest(
     int Constitution,
     int Luck,
     int Faith,
-    CharacterAppearanceRequest Appearance);
+    CharacterAppearanceRequest? Appearance);
