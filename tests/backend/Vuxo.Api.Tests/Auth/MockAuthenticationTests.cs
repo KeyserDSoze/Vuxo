@@ -14,6 +14,16 @@ namespace Vuxo.Api.Tests.Auth;
 
 public sealed class MockAuthenticationTests
 {
+    private const string TestSigningKey = "vuxo-tests-signing-key-that-is-at-least-32-characters-long";
+
+    static MockAuthenticationTests()
+    {
+        // Program validates the signing key before WebApplicationFactory can apply its
+        // ConfigureWebHost callbacks. Environment variables are therefore used for
+        // this required bootstrap secret, matching the production configuration path.
+        Environment.SetEnvironmentVariable("Auth__Jwt__SigningKey", TestSigningKey);
+    }
+
     [Theory]
     [InlineData("User")]
     [InlineData("GameMaster")]
@@ -194,7 +204,7 @@ public sealed class MockAuthenticationTests
                     ["Auth:EnableMockLogin"] = enableMockLogin.ToString(),
                     ["Auth:Jwt:Issuer"] = "Vuxo.Tests",
                     ["Auth:Jwt:Audience"] = "Vuxo.Tests",
-                    ["Auth:Jwt:SigningKey"] = "vuxo-tests-signing-key-that-is-at-least-32-characters-long",
+                    ["Auth:Jwt:SigningKey"] = TestSigningKey,
                     ["Llm:Enabled"] = "false",
                     ["Redis:ConnectionString"] = string.Empty
                 });
