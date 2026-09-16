@@ -3,27 +3,15 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Vuxo.Api.Auth;
+using Vuxo.Api.Tests.Infrastructure;
 
 namespace Vuxo.Api.Tests.Auth;
 
 public sealed class MockAuthenticationTests
 {
-    private const string TestSigningKey = "vuxo-tests-signing-key-that-is-at-least-32-characters-long";
-
-    static MockAuthenticationTests()
-    {
-        // Program validates the signing key before WebApplicationFactory can apply its
-        // ConfigureWebHost callbacks. Environment variables are therefore used for
-        // this required bootstrap secret, matching the production configuration path.
-        Environment.SetEnvironmentVariable("Auth__Jwt__SigningKey", TestSigningKey);
-    }
-
     [Theory]
     [InlineData("User")]
     [InlineData("GameMaster")]
@@ -189,26 +177,4 @@ public sealed class MockAuthenticationTests
     private sealed record MockLoginResponse(string AccessToken, string TokenType);
 
     private sealed record ErrorResponse(string Code);
-
-    private sealed class VuxoApiFactory(string environment, bool enableMockLogin) : WebApplicationFactory<Program>
-    {
-        protected override void ConfigureWebHost(IWebHostBuilder builder)
-        {
-            builder.UseEnvironment(environment);
-            builder.ConfigureAppConfiguration((_, configuration) =>
-            {
-                configuration.AddInMemoryCollection(new Dictionary<string, string?>
-                {
-                    ["ConnectionStrings:GameDb"] = "Host=localhost;Database=vuxo_tests;Username=vuxo;Password=vuxo",
-                    ["Database:ApplyMigrationsOnStartup"] = "false",
-                    ["Auth:EnableMockLogin"] = enableMockLogin.ToString(),
-                    ["Auth:Jwt:Issuer"] = "Vuxo.Tests",
-                    ["Auth:Jwt:Audience"] = "Vuxo.Tests",
-                    ["Auth:Jwt:SigningKey"] = TestSigningKey,
-                    ["Llm:Enabled"] = "false",
-                    ["Redis:ConnectionString"] = string.Empty
-                });
-            });
-        }
-    }
 }
