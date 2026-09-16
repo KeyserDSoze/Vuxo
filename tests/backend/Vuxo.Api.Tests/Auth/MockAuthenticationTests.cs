@@ -31,8 +31,8 @@ public sealed class MockAuthenticationTests
         });
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var payload = await response.Content.ReadFromJsonAsync<MockLoginResponse>();
-        Assert.NotNull(payload);
+        var payload = await response.Content.ReadFromJsonAsync<MockLoginResponse>()
+            ?? throw new InvalidOperationException("Mock login response was empty.");
         Assert.False(string.IsNullOrWhiteSpace(payload.AccessToken));
         Assert.Equal("Bearer", payload.TokenType);
     }
@@ -136,8 +136,8 @@ public sealed class MockAuthenticationTests
             role
         });
         loginResponse.EnsureSuccessStatusCode();
-        var login = await loginResponse.Content.ReadFromJsonAsync<MockLoginResponse>();
-        Assert.NotNull(login);
+        var login = await loginResponse.Content.ReadFromJsonAsync<MockLoginResponse>()
+            ?? throw new InvalidOperationException("Mock login response was empty.");
 
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", login.AccessToken);
         var protectedResponse = await client.GetAsync("/api/admin/llm/tool-smoke");
