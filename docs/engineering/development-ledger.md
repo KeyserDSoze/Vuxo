@@ -24,7 +24,7 @@ Quando una issue cambia stato in modo significativo, aggiornare la riga corrispo
 | #3 | Feature | 0.0.1 | PostgreSQL/EF | Planned | Pending | Migration iniziale, persistence e integration test |
 | #4 | Feature | 0.0.1 | Auth social | Planned | Pending | Microsoft + Google con identità Vuxo |
 | #5 | Feature | 0.0.1 | Mock auth | Done | API integration xUnit + CI backend/frontend + Playwright verdi | Chiuso: mock login solo Development/Test, Production non mappata, ruoli e policy REST/SignalR verificati |
-| #6 | Feature | 0.0.1 | Character | In progress | Regole attributi già coperte; API/application/persistence test in completamento | Completare error contract, doppia creazione, nome, risposta derivata e verticale API autenticata |
+| #6 | Feature | 0.0.1 | Character | Done | Domain/Application/API xUnit + CI frontend/Playwright verdi | Chiuso: creazione autenticata, owner JWT, livello 0, 10 punti, statistiche derivate, error contract e singolo personaggio per owner |
 | #7 | Feature | 0.0.1 | Character UI | Planned | Pending | Editor 2D originale e Playwright |
 | #8 | Feature | 0.0.1 | World generation | Planned | Pending | Primo chunk deterministico e persistence metadata |
 | #9 | Feature | 0.0.1 | SignalR/MMO | Planned | Pending | Host server-authoritative e presence |
