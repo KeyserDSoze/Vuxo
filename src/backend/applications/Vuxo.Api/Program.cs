@@ -50,8 +50,8 @@ builder.Services
         {
             OnMessageReceived = context =>
             {
-                var accessToken = context.Request.Query["access_token"];
-                if (!string.IsNullOrEmpty(accessToken) && context.HttpContext.Request.Path.StartsWithSegments("/hubs/world"))
+                var accessToken = SignalRAccessTokenResolver.Resolve(context.Request);
+                if (accessToken is not null)
                 {
                     context.Token = accessToken;
                 }
@@ -115,15 +115,23 @@ app.MapGet("/api/meta/version", (IConfiguration configuration) => Results.Ok(new
     environment = app.Environment.EnvironmentName
 }));
 
-app.MapPost("/api/auth/mock", (MockLoginRequest request, IConfiguration configuration, MockTokenService tokens) =>
+if (MockAuthentication.IsEnabled(app.Environment, app.Configuration))
 {
-    if (!configuration.GetValue("Auth:EnableMockLogin", false))
+    app.MapPost("/api/auth/mock", (MockLoginRequest request, MockTokenService tokens) =>
     {
-        return Results.NotFound();
-    }
+        var validationError = MockAuthentication.Validate(request);
+        if (validationError is not null)
+        {
+            return Results.BadRequest(new { code = validationError });
+        }
 
-    return Results.Ok(new { accessToken = tokens.CreateToken(request.Subject, request.DisplayName, request.Role) });
-});
+        return Results.Ok(new
+        {
+            accessToken = tokens.CreateToken(request.Subject, request.DisplayName, request.Role),
+            tokenType = "Bearer"
+        });
+    });
+}
 
 app.MapPost("/api/characters", async (CreateCharacterRequest request, ClaimsPrincipal user, CharacterService service, CancellationToken cancellationToken) =>
 {
