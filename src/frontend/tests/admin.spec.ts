@@ -8,11 +8,14 @@ test.beforeEach(async ({ page }) => {
   await configureSession(page, 'Administrator')
 })
 
-test('admin dashboard shows online players, events and versioned event detail', async ({ page }) => {
+test('admin dashboard shows observability, online players, events and versioned event detail', async ({ page }) => {
   await installAdminRoutes(page)
   await page.goto('./#/admin')
 
   await expect(page.getByRole('heading', { name: 'Amministrazione' })).toBeVisible()
+  await expect(page.getByTestId('admin-observability')).toContainText('Telemetria attiva')
+  await expect(page.getByTestId('admin-observability')).toContainText('Exporter OTLP configurato')
+  await expect(page.getByTestId('admin-observability-link')).toHaveAttribute('href', 'https://grafana.vuxo.test/')
   await expect(page.getByTestId('admin-online-count')).toHaveText('1 online')
   await expect(page.getByTestId('admin-online-player')).toContainText('Online Vuxian')
   await expect(page.getByTestId('admin-event-row')).toHaveCount(2)
@@ -96,6 +99,7 @@ test('admin dashboard strings switch to English through shared i18n', async ({ p
   await page.getByTestId('language-toggle').click()
 
   await expect(page.getByRole('heading', { name: 'Administration' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Technical observability' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Event audit' })).toBeVisible()
   await expect(page.getByTestId('admin-filter-apply')).toHaveText('Apply')
 })
@@ -106,6 +110,7 @@ test('admin dashboard remains usable on a mobile viewport', async ({ page }) => 
   await page.goto('./#/admin')
 
   await expect(page.getByTestId('admin-dashboard')).toBeVisible()
+  await expect(page.getByTestId('admin-observability-link')).toBeVisible()
   await expect(page.getByTestId('admin-filter-player')).toBeVisible()
   await expect(page.getByTestId('admin-filter-apply')).toBeVisible()
   await expect(page.getByTestId(`admin-event-detail-${EVENT_A}`)).toBeVisible()
@@ -123,6 +128,18 @@ async function configureSession(page: Page, role: string): Promise<void> {
 async function installAdminRoutes(page: Page, requestedUrls: URL[] = []): Promise<void> {
   await page.route('**/api/admin/**', async route => {
     const url = new URL(route.request().url())
+
+    if (url.pathname === '/api/admin/observability') {
+      await route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({
+          enabled: true,
+          exporterConfigured: true,
+          dashboardUrl: 'https://grafana.vuxo.test/',
+        }),
+      })
+      return
+    }
 
     if (url.pathname === '/api/admin/online-players') {
       await route.fulfill({
