@@ -1,0 +1,75 @@
+name: Bug
+description: Segnala un comportamento errato o una regressione di Vuxo.
+title: "[BUG] "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Non includere token, password, cookie o altri secret. Cerca prima issue duplicate e consulta AGENTS.md.
+  - type: input
+    id: version
+    attributes:
+      label: Versione / commit
+      placeholder: 0.0.1 / commit SHA
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Ambiente
+      placeholder: local, CI, vuxo.quest, api.vuxoapi.xyz, browser/OS...
+    validations:
+      required: true
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severità
+      options:
+        - Low - cosmetico o workaround semplice
+        - Medium - funzione degradata
+        - High - funzione principale non utilizzabile
+        - Critical - perdita dati, sicurezza o servizio indisponibile
+    validations:
+      required: true
+  - type: textarea
+    id: symptom
+    attributes:
+      label: Sintomo osservato
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Passi di riproduzione
+      placeholder: "1. ...\n2. ...\n3. ..."
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Comportamento atteso
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidenze
+      description: Log redatti, screenshot, correlation ID o dettagli tecnici senza dati sensibili.
+  - type: textarea
+    id: cause
+    attributes:
+      label: Causa radice
+      description: Compilare/aggiornare quando viene identificata; evitare supposizioni presentate come fatti.
+  - type: textarea
+    id: regression
+    attributes:
+      label: Regression test previsto
+      description: Descrivi il test che deve fallire prima del fix e passare dopo, quando tecnicamente possibile.
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Note / issue collegate
