@@ -12,6 +12,7 @@ using Vuxo.Api.Worlds;
 using Vuxo.Application.AI;
 using Vuxo.Application.Players;
 using Vuxo.Application.Worlds;
+using Vuxo.Application.Worlds.Realtime;
 using Vuxo.Domain.Players;
 using Vuxo.Domain.Worlds;
 using Vuxo.Infrastructure;
@@ -36,6 +37,9 @@ builder.Services.AddSingleton(provider =>
         ?? WorldGenerationRules.CurrentGeneratorVersion;
     return new WorldBootstrapSpec(worldId, seed, generatorVersion);
 });
+builder.Services.AddSingleton<WorldSimulation>();
+builder.Services.AddSingleton<WorldRuntimeMap>();
+builder.Services.AddHostedService<WorldSimulationTicker>();
 builder.Services.AddSingleton<MockTokenService>();
 
 var signingKey = builder.Configuration["Auth:Jwt:SigningKey"];
