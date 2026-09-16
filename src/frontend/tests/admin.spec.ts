@@ -5,11 +5,7 @@ const EVENT_B = '22222222-2222-4222-8222-222222222222'
 const CORRELATION = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
 
 test.beforeEach(async ({ page }) => {
-  await page.addInitScript(() => {
-    localStorage.setItem('vuxo.accessToken', 'e2e-admin-token')
-    localStorage.setItem('vuxo.language', 'it')
-    localStorage.setItem('vuxo.theme', 'system')
-  })
+  await configureSession(page, 'Administrator')
 })
 
 test('admin dashboard shows online players, events and versioned event detail', async ({ page }) => {
@@ -50,7 +46,7 @@ test('admin filters and pagination are sent to the server query', async ({ page 
   await expect(page.getByTestId('admin-pagination-summary')).toContainText('21–40 di 42 eventi')
 })
 
-test('admin forbidden state is localized and does not expose audit data', async ({ page }) => {
+test('admin API forbidden state is localized and does not expose audit data', async ({ page }) => {
   await page.route('**/api/admin/**', async route => {
     await route.fulfill({
       status: 403,
@@ -63,6 +59,33 @@ test('admin forbidden state is localized and does not expose audit data', async 
 
   await expect(page.getByTestId('admin-error')).toContainText('riservata al ruolo Administrator')
   await expect(page.getByTestId('admin-event-row')).toHaveCount(0)
+})
+
+test('admin route guard blocks GameMaster before audit APIs are called', async ({ page }) => {
+  await configureSession(page, 'GameMaster')
+  let adminRequests = 0
+  await page.route('**/api/admin/**', async route => {
+    adminRequests++
+    await route.abort()
+  })
+
+  await page.goto('./#/admin')
+
+  await expect(page.getByTestId('admin-access-denied')).toContainText('riservata al ruolo Administrator')
+  await expect(page.getByTestId('admin-dashboard')).toHaveCount(0)
+  await expect.poll(() => adminRequests).toBe(0)
+})
+
+test('admin route guard requires an authenticated JWT', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.removeItem('vuxo.accessToken')
+    localStorage.setItem('vuxo.language', 'it')
+  })
+
+  await page.goto('./#/admin')
+
+  await expect(page.getByTestId('admin-access-denied')).toContainText('sessione Vuxo autenticata')
+  await expect(page.getByTestId('admin-dashboard')).toHaveCount(0)
 })
 
 test('admin dashboard strings switch to English through shared i18n', async ({ page }) => {
@@ -87,6 +110,15 @@ test('admin dashboard remains usable on a mobile viewport', async ({ page }) => 
   await expect(page.getByTestId('admin-filter-apply')).toBeVisible()
   await expect(page.getByTestId(`admin-event-detail-${EVENT_A}`)).toBeVisible()
 })
+
+async function configureSession(page: Page, role: string): Promise<void> {
+  const token = makeJwt(role)
+  await page.addInitScript(({ accessToken }) => {
+    localStorage.setItem('vuxo.accessToken', accessToken)
+    localStorage.setItem('vuxo.language', 'it')
+    localStorage.setItem('vuxo.theme', 'system')
+  }, { accessToken: token })
+}
 
 async function installAdminRoutes(page: Page, requestedUrls: URL[] = []): Promise<void> {
   await page.route('**/api/admin/**', async route => {
@@ -161,4 +193,9 @@ function event(eventId: string, eventType: string, playerId: string | null, occu
     ruleVersion: 'personal-content-v1',
     occurredAtUtc,
   }
+}
+
+function makeJwt(role: string): string {
+  const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString('base64url')
+  return `${encode({ alg: 'none', typ: 'JWT' })}.${encode({ role, exp: 4_102_444_800 })}.e2e`
 }
