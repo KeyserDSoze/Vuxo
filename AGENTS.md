@@ -45,13 +45,45 @@ Do not introduce alternative production URLs in code or documentation unless a m
 Before changing behavior, inspect the repository instead of guessing. In this order:
 
 1. Read this file and any nearer `AGENTS.md`.
-2. Read the relevant skill under `.agents/skills/`.
-3. Search existing code for the same concept/component/use case.
-4. Read related tests; tests are executable documentation.
-5. Read relevant files under `docs/architecture/`, `docs/engineering/` and the current patch notes.
-6. Check the related GitHub issue/EPIC when available.
+2. Read `docs/engineering/development-ledger.md` to understand current work state.
+3. Read the relevant skill under `.agents/skills/`.
+4. Search existing code for the same concept/component/use case.
+5. Read related tests; tests are executable documentation.
+6. Read relevant files under `docs/architecture/`, `docs/engineering/` and the current patch notes.
+7. Check the related GitHub issue/EPIC.
+
+For a fresh project chat, `docs/engineering/chat-handoff-prompt.md` is the reusable handoff prompt. Repository state, `AGENTS.md`, current issues and tests have precedence if the prompt becomes stale.
 
 Prefer extending an existing pattern over creating a parallel abstraction.
+
+## Issue lifecycle and development ledger
+
+Every non-trivial feature, bug fix, infrastructure change or developer-workflow change must be attached to a GitHub Issue. Search for an existing issue first; create one if none exists.
+
+`docs/engineering/development-ledger.md` is the compact project status index. GitHub Issues remain the detailed source of truth.
+
+Before implementation:
+- ensure an issue exists with target version, objective/symptom, scope or reproduction, acceptance criteria and test strategy;
+- set or add the ledger row to `In progress`;
+- link the work to the current EPIC/version when applicable.
+
+During implementation, update the issue when a meaningful architecture decision is made, scope changes, a blocker appears, a bug root cause is discovered, or a substantial slice/test is completed. Do not add comments for every trivial edit.
+
+Do not close a feature or bug merely because code was written. Before closure verify acceptance criteria, relevant tests/CI, documentation, ledger, i18n/UI requirements when applicable and current release patch notes.
+
+Every closed feature/bug must have a final issue comment containing:
+- what was implemented/fixed;
+- why closure is justified;
+- tests/commands/CI and their results;
+- target/current version and patch-note reference;
+- relevant commit/PR when useful;
+- remaining limitations or follow-up debt.
+
+For bugs also record root cause and regression test. For `not planned`, `duplicate`, deferred or cancelled work, explicitly document the reason and replacement/future issue when applicable.
+
+After closure update the ledger to `Done`, `Deferred`, `Duplicate` or `Cancelled` with concise verification/resolution notes.
+
+Follow `docs/engineering/issue-lifecycle.md` and `.agents/skills/vuxo-issue-lifecycle/SKILL.md`.
 
 ## UI and design system
 
@@ -95,11 +127,15 @@ Frontend:
 
 For procedural systems, test determinism: same seed + same version/rules must reproduce the same canonical result.
 
+For a bug fix, add a regression test that fails before the fix when technically practical and passes after it.
+
 Follow `.agents/skills/vuxo-testing/SKILL.md`.
 
 ## Release and version discipline
 
 `VERSION` at repository root is the canonical release version. During the 0.0.x phase, use patch increments unless a different version is explicitly requested.
+
+A version bump is required when opening a new release/version, not for every individual commit or issue. Work developed inside the current version keeps that version until the next release is opened.
 
 Every release/version change must include all of the following in the same change set:
 
@@ -109,7 +145,7 @@ Every release/version change must include all of the following in the same chang
 4. Ensure version endpoints/build metadata still expose version + commit + build time.
 5. Run the full relevant test suite before considering the version releasable.
 
-Do not silently change behavior intended for release without documenting it in patch notes.
+Every change intended for the current release must be reflected in the current patch note before that release is considered complete. Do not silently change release behavior without documenting it.
 
 Follow `.agents/skills/vuxo-release/SKILL.md`.
 
@@ -142,7 +178,18 @@ A normal feature should leave the repository with:
 - tests, preferably parameterized for rule combinations;
 - observability/audit hooks where the behavior matters operationally or affects player state;
 - documentation updated when architecture, operations or developer workflow changed;
-- release/version/patch-note updates when the change is part of a new version.
+- issue updated with meaningful progress and final closure information;
+- development ledger synchronized with the real status;
+- release/version/patch-note updates when the change is part of a new/current version.
+
+## End-of-chat handoff
+
+After substantial repository work, leave a future chat/agent a recoverable state:
+- active issue reflects progress, blockers and decisions;
+- development ledger reflects the same state;
+- tests run or current CI status are recorded;
+- patch note is updated for release-bound changes;
+- the next concrete action is clear.
 
 ## Commands
 
@@ -181,5 +228,6 @@ Reusable repository workflows live in `.agents/skills/`:
 - `vuxo-testing`: design parameterized and E2E tests
 - `vuxo-release`: bump version and patch notes consistently
 - `vuxo-llm`: integrate local LLM/tool calling without leaking authority
+- `vuxo-issue-lifecycle`: start/update/close feature and bug work while keeping issues and ledger synchronized
 
 Use the relevant skill before starting that kind of work.
