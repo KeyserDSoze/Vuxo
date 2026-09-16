@@ -16,7 +16,7 @@ public sealed class PostgresPersistenceIntegrationTests
         await using var database = await PostgresDatabaseScope.CreateAsync();
         await using var db = database.CreateDbContext();
 
-        var expected = (await db.Database.GetMigrationsAsync()).ToArray();
+        var expected = db.Database.GetMigrations().ToArray();
         Assert.NotEmpty(expected);
 
         await db.Database.MigrateAsync();
@@ -185,7 +185,7 @@ public sealed class PostgresPersistenceIntegrationTests
             GameEventVisibilityScope.Player,
             playerId,
             correlationId,
-            causationId: null,
-            ruleVersion: "persistence-v1",
-            occurredAtUtc);
+            CausationId: null,
+            RuleVersion: "persistence-v1",
+            OccurredAtUtc: occurredAtUtc);
 }
