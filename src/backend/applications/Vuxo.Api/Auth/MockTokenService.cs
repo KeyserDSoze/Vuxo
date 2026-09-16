@@ -9,16 +9,25 @@ public sealed class MockTokenService(IConfiguration configuration)
 {
     public string CreateToken(string subject, string displayName, string role)
     {
+        if (string.IsNullOrWhiteSpace(subject))
+        {
+            throw new ArgumentException("Subject is required.", nameof(subject));
+        }
+
+        if (string.IsNullOrWhiteSpace(displayName))
+        {
+            throw new ArgumentException("Display name is required.", nameof(displayName));
+        }
+
+        if (!MockAuthentication.IsAllowedRole(role))
+        {
+            throw new ArgumentOutOfRangeException(nameof(role), "Unsupported mock role.");
+        }
+
         var signingKey = configuration["Auth:Jwt:SigningKey"];
         if (string.IsNullOrWhiteSpace(signingKey) || signingKey.Length < 32)
         {
             throw new InvalidOperationException("Auth:Jwt:SigningKey must contain at least 32 characters.");
-        }
-
-        var allowedRoles = new[] { "User", "GameMaster", "Administrator" };
-        if (!allowedRoles.Contains(role, StringComparer.Ordinal))
-        {
-            throw new ArgumentOutOfRangeException(nameof(role), "Unsupported mock role.");
         }
 
         var claims = new[]
