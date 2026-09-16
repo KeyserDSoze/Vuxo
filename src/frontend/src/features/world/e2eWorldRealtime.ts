@@ -7,6 +7,7 @@ import type {
 } from './worldRealtime'
 
 const POLL_INTERVAL_MS = 80
+const RECONNECT_DELAY_MS = 200
 
 export class E2EWorldRealtimeClient implements WorldRealtimeClient {
   private readonly listeners = new Set<(state: WorldRealtimeState) => void>()
@@ -137,7 +138,7 @@ export class E2EWorldRealtimeClient implements WorldRealtimeClient {
     if (!this.connected) return
     this.stopPolling()
     this.setStatus('reconnecting')
-    await new Promise(resolve => window.setTimeout(resolve, 60))
+    await new Promise(resolve => window.setTimeout(resolve, RECONNECT_DELAY_MS))
     try {
       await this.join()
       this.startPolling()
