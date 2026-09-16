@@ -141,6 +141,11 @@ app.MapPost("/api/characters", async (CreateCharacterRequest request, ClaimsPrin
         return Results.Unauthorized();
     }
 
+    if (request.Appearance is null)
+    {
+        return Results.BadRequest(new { code = "character_appearance_required" });
+    }
+
     var appearance = new CharacterAppearance(
         request.Appearance.HairStyle,
         request.Appearance.HairColor,
@@ -164,17 +169,28 @@ app.MapPost("/api/characters", async (CreateCharacterRequest request, ClaimsPrin
         request.Faith,
         appearance);
 
-    var character = await service.CreateAsync(command, cancellationToken);
-    return Results.Created($"/api/characters/{character.Id}", new
+    try
     {
-        character.Id,
-        character.Name,
-        character.Level,
-        character.Attributes,
-        character.Appearance,
-        character.Attributes.MaxHealth,
-        character.Attributes.MovementSpeedMultiplier
-    });
+        var character = await service.CreateAsync(command, cancellationToken);
+        return Results.Created($"/api/characters/{character.Id}", new
+        {
+            character.Id,
+            character.Name,
+            character.Level,
+            character.Attributes,
+            character.Appearance,
+            character.Attributes.MaxHealth,
+            character.Attributes.MovementSpeedMultiplier
+        });
+    }
+    catch (CharacterCreationException exception) when (exception.Code == CharacterCreationErrorCodes.AlreadyExists)
+    {
+        return Results.Conflict(new { code = exception.Code });
+    }
+    catch (CharacterCreationException exception)
+    {
+        return Results.BadRequest(new { code = exception.Code });
+    }
 }).RequireAuthorization();
 
 app.MapGet("/api/admin/llm/tool-smoke", async (ILanguageModelGateway gateway, LanguageModelSmokeService smoke, CancellationToken cancellationToken) =>
