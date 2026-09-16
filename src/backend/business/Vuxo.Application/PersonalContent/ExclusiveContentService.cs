@@ -1,4 +1,4 @@
-using System.Text.Json;
+using Vuxo.Application.Events;
 using Vuxo.Domain.Common;
 using Vuxo.Domain.Events;
 using Vuxo.Domain.PersonalContent;
@@ -52,17 +52,19 @@ public sealed class ExclusiveContentService(
                 grant.CausationId,
                 grant.RuleVersion,
                 now),
-            JsonSerializer.Serialize(new
-            {
-                grantId = grant.Id,
-                grant.SourceEventId,
-                grant.ContentKey,
-                grant.PortalKey,
-                grant.DialogBranchKey,
-                grant.RewardKey,
-                grant.Seed,
-                grant.ExpiresAtUtc
-            }),
+            GameEventPayloadSerializer.Serialize(
+                "exclusive_content.granted",
+                new
+                {
+                    grantId = grant.Id,
+                    grant.SourceEventId,
+                    grant.ContentKey,
+                    grant.PortalKey,
+                    grant.DialogBranchKey,
+                    grant.RewardKey,
+                    grant.Seed,
+                    grant.ExpiresAtUtc
+                }),
             cancellationToken);
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -115,13 +117,15 @@ public sealed class ExclusiveContentService(
                 grant.GrantEventId,
                 grant.RuleVersion,
                 now),
-            JsonSerializer.Serialize(new
-            {
-                grantId = grant.Id,
-                grant.ContentKey,
-                grant.RewardKey,
-                consumedAtUtc = grant.ConsumedAtUtc
-            }),
+            GameEventPayloadSerializer.Serialize(
+                "exclusive_content.consumed",
+                new
+                {
+                    grantId = grant.Id,
+                    grant.ContentKey,
+                    grant.RewardKey,
+                    consumedAtUtc = grant.ConsumedAtUtc
+                }),
             cancellationToken);
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
