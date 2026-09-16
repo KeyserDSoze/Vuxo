@@ -47,10 +47,12 @@ public sealed class WorldChunkGeneratorTests
         var west = _generator.Generate(seed, new ChunkCoordinate(-3, 5));
         var east = _generator.Generate(seed, new ChunkCoordinate(-2, 5));
 
-        var westGate = Assert.Single(west.Tiles.Where(tile =>
-            tile.LocalX == WorldGenerationRules.ChunkSize - 1 && tile.Kind == TileKind.Path));
-        var eastGate = Assert.Single(east.Tiles.Where(tile =>
-            tile.LocalX == 0 && tile.Kind == TileKind.Path));
+        var westGate = Assert.Single(
+            west.Tiles,
+            tile => tile.LocalX == WorldGenerationRules.ChunkSize - 1 && tile.Kind == TileKind.Path);
+        var eastGate = Assert.Single(
+            east.Tiles,
+            tile => tile.LocalX == 0 && tile.Kind == TileKind.Path);
 
         Assert.Equal(westGate.LocalY, eastGate.LocalY);
         Assert.Equal(westGate.WorldX + 1, eastGate.WorldX);
@@ -66,10 +68,12 @@ public sealed class WorldChunkGeneratorTests
         var north = _generator.Generate(seed, new ChunkCoordinate(6, -4));
         var south = _generator.Generate(seed, new ChunkCoordinate(6, -3));
 
-        var northGate = Assert.Single(north.Tiles.Where(tile =>
-            tile.LocalY == WorldGenerationRules.ChunkSize - 1 && tile.Kind == TileKind.Path));
-        var southGate = Assert.Single(south.Tiles.Where(tile =>
-            tile.LocalY == 0 && tile.Kind == TileKind.Path));
+        var northGate = Assert.Single(
+            north.Tiles,
+            tile => tile.LocalY == WorldGenerationRules.ChunkSize - 1 && tile.Kind == TileKind.Path);
+        var southGate = Assert.Single(
+            south.Tiles,
+            tile => tile.LocalY == 0 && tile.Kind == TileKind.Path);
 
         Assert.Equal(northGate.LocalX, southGate.LocalX);
         Assert.Equal(northGate.WorldY + 1, southGate.WorldY);
