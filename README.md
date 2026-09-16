@@ -56,6 +56,7 @@ docs/
 docker/
 infra/
 .agents/skills/
+.github/ISSUE_TEMPLATE/
 .github/instructions/
 .github/workflows/
 AGENTS.md
@@ -80,6 +81,8 @@ AGENTS.md
 
 `AGENTS.md` è la guida canonica del repository per sviluppatori e coding agent. Prima di modificare il progetto bisogna leggere quella guida, cercare l'implementazione/test esistenti e usare la skill pertinente sotto `.agents/skills/`.
 
+Per aprire una nuova chat nel progetto usare `docs/engineering/chat-handoff-prompt.md`. Il prompt è volutamente compatto e rimanda allo stato vivo della repository. Lo stato sintetico degli sviluppi è in `docs/engineering/development-ledger.md`; il dettaglio operativo resta nelle GitHub Issues.
+
 Sono presenti entrypoint compatibili con più strumenti:
 
 - `.github/copilot-instructions.md` per GitHub Copilot;
@@ -88,7 +91,13 @@ Sono presenti entrypoint compatibili con più strumenti:
 - `.github/instructions/*.instructions.md` per istruzioni Copilot specifiche per path;
 - `.agents/skills/*/SKILL.md` per workflow riutilizzabili.
 
-Le skill iniziali coprono: sviluppo verticale di feature, UI/design system, i18n, testing, release/versioning e integrazione LLM/tool calling. La documentazione operativa è in `docs/engineering/ai-development.md`.
+Le skill iniziali coprono sviluppo verticale di feature, UI/design system, i18n, testing, release/versioning, integrazione LLM/tool calling e lifecycle di feature/bug. La documentazione operativa è in `docs/engineering/`.
+
+## Issue e tracciamento sviluppi
+
+Ogni feature, bugfix o cambiamento non banale deve avere una GitHub Issue e una riga nel development ledger quando entra in lavorazione. Sono disponibili Issue Forms separati per Feature e Bug.
+
+Quando una issue viene chiusa deve contenere una nota finale con cosa è stato fatto, motivo della chiusura, test/CI, versione e patch note, eventuali limiti o debito residuo; per i bug anche causa radice e regression test. Le regole complete sono in `docs/engineering/issue-lifecycle.md`.
 
 ## Avvio dipendenze locali
 
@@ -116,4 +125,4 @@ Il workflow production usa `https://vuxo.quest` come origin CORS predefinita e `
 
 ## Backlog
 
-Il backlog è gestito tramite GitHub Issues. La EPIC `#20` definisce la first playable 0.0.1; `#21` copre design system/temi/i18n, `#22` il runtime LLM locale con tool calling e `#23` handbook/skill multi-LLM.
+Il backlog è gestito tramite GitHub Issues. La EPIC `#20` definisce la first playable 0.0.1; `#21` copre design system/temi/i18n, `#22` il runtime LLM locale con tool calling, `#23` handbook/skill multi-LLM e `#24` handoff/lifecycle/ledger.
