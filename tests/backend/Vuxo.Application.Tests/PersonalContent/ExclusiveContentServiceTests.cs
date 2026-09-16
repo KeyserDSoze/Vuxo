@@ -83,6 +83,7 @@ public sealed class ExclusiveContentServiceTests
 
         Assert.Equal(ExclusiveContentErrorCodes.NotFound, exception.Code);
         Assert.False(grant.IsConsumed);
+        Assert.Equal(0, repository.UpdateCalls);
         Assert.Empty(events.Appended);
         Assert.Equal(0, unitOfWork.SaveCalls);
     }
@@ -102,6 +103,7 @@ public sealed class ExclusiveContentServiceTests
 
         Assert.Equal(ExclusiveContentErrorCodes.Expired, exception.Code);
         Assert.False(grant.IsConsumed);
+        Assert.Equal(0, repository.UpdateCalls);
         Assert.Empty(events.Appended);
         Assert.Equal(0, unitOfWork.SaveCalls);
     }
@@ -119,6 +121,7 @@ public sealed class ExclusiveContentServiceTests
         var consumed = await service.ConsumeAsync("player-a", grant.Id);
 
         Assert.Equal(Now, consumed.ConsumedAtUtc);
+        Assert.Equal(1, repository.UpdateCalls);
         Assert.Equal(1, unitOfWork.SaveCalls);
         var eventRecord = Assert.Single(events.Appended);
         Assert.Equal("exclusive_content.consumed", eventRecord.Envelope.EventType);
@@ -129,6 +132,7 @@ public sealed class ExclusiveContentServiceTests
         var exception = await Assert.ThrowsAsync<ExclusiveContentException>(
             () => service.ConsumeAsync("player-a", grant.Id));
         Assert.Equal(ExclusiveContentErrorCodes.Consumed, exception.Code);
+        Assert.Equal(1, repository.UpdateCalls);
         Assert.Equal(1, unitOfWork.SaveCalls);
     }
 
@@ -191,10 +195,17 @@ public sealed class ExclusiveContentServiceTests
     private sealed class FakeRepository : IExclusiveContentGrantRepository
     {
         public List<ExclusiveContentGrant> Grants { get; } = [];
+        public int UpdateCalls { get; private set; }
 
         public Task AddAsync(ExclusiveContentGrant grant, CancellationToken cancellationToken = default)
         {
             Grants.Add(grant);
+            return Task.CompletedTask;
+        }
+
+        public Task UpdateAsync(ExclusiveContentGrant grant, CancellationToken cancellationToken = default)
+        {
+            UpdateCalls++;
             return Task.CompletedTask;
         }
 
