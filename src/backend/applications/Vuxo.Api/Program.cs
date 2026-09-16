@@ -115,6 +115,21 @@ app.MapGet("/api/meta/version", (IConfiguration configuration) => Results.Ok(new
     environment = app.Environment.EnvironmentName
 }));
 
+app.MapGet("/api/meta/character-appearance", () => Results.Ok(new
+{
+    catalogVersion = CharacterAppearanceCatalog.Version,
+    hairStyles = CharacterAppearanceCatalog.HairStyles,
+    hairColors = CharacterAppearanceCatalog.HairColors,
+    faces = CharacterAppearanceCatalog.Faces,
+    bodyTypes = CharacterAppearanceCatalog.BodyTypes,
+    skinTones = CharacterAppearanceCatalog.SkinTones,
+    topColors = CharacterAppearanceCatalog.TopColors,
+    bottomStyles = CharacterAppearanceCatalog.BottomStyles,
+    bottomColors = CharacterAppearanceCatalog.BottomColors,
+    shoeStyles = CharacterAppearanceCatalog.ShoeStyles,
+    shoeColors = CharacterAppearanceCatalog.ShoeColors
+}));
+
 if (MockAuthentication.IsEnabled(app.Environment, app.Configuration))
 {
     app.MapPost("/api/auth/mock", (MockLoginRequest request, MockTokenService tokens) =>
@@ -157,6 +172,16 @@ app.MapPost("/api/characters", async (CreateCharacterRequest request, ClaimsPrin
         request.Appearance.BottomColor,
         request.Appearance.ShoeStyle,
         request.Appearance.ShoeColor);
+
+    var invalidAppearanceField = CharacterAppearanceCatalog.FindInvalidField(appearance);
+    if (invalidAppearanceField is not null)
+    {
+        return Results.BadRequest(new
+        {
+            code = "character_appearance_option_invalid",
+            field = invalidAppearanceField
+        });
+    }
 
     var command = new CreateCharacterCommand(
         ownerId,
