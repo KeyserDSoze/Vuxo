@@ -1,21 +1,22 @@
 services:
   api:
-    image: ${VUXO_API_IMAGE}
+    image: ${VUXO_API_IMAGE:?VUXO_API_IMAGE is required}
     restart: unless-stopped
+    init: true
     depends_on:
       postgres:
         condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
     environment:
       ASPNETCORE_ENVIRONMENT: Production
-      ConnectionStrings__GameDb: Host=postgres;Port=5432;Database=${VUXO_POSTGRES_DB:-vuxo};Username=${VUXO_POSTGRES_USER:-vuxo};Password=${VUXO_POSTGRES_PASSWORD}
+      ConnectionStrings__GameDb: Host=postgres;Port=5432;Database=${VUXO_POSTGRES_DB:-vuxo};Username=${VUXO_POSTGRES_USER:-vuxo};Password=${VUXO_POSTGRES_PASSWORD:?VUXO_POSTGRES_PASSWORD is required}
       Redis__ConnectionString: redis:6379
       Auth__Jwt__Issuer: Vuxo
       Auth__Jwt__Audience: Vuxo.Web
-      Auth__Jwt__SigningKey: ${VUXO_JWT_SIGNING_KEY}
+      Auth__Jwt__SigningKey: ${VUXO_JWT_SIGNING_KEY:?VUXO_JWT_SIGNING_KEY is required}
       Auth__EnableMockLogin: "false"
-      Cors__AllowedOrigins__0: ${VUXO_ALLOWED_ORIGIN}
+      Cors__AllowedOrigins__0: ${VUXO_ALLOWED_ORIGIN:-https://vuxo.quest}
       Database__ApplyMigrationsOnStartup: "true"
       Build__CommitSha: ${VUXO_COMMIT_SHA:-unknown}
       Build__BuildDateUtc: ${VUXO_BUILD_DATE_UTC:-unknown}
@@ -24,8 +25,9 @@ services:
       Llm__Model: ${VUXO_LLM_MODEL:-qwen3:1.7b}
       Llm__TimeoutSeconds: ${VUXO_LLM_TIMEOUT_SECONDS:-45}
     ports:
-      - "127.0.0.1:8080:8080"
+      - "127.0.0.1:${VUXO_API_PORT:-8080}:8080"
     networks: [vuxo]
+    stop_grace_period: 30s
 
   postgres:
     image: postgres:17-alpine
@@ -33,22 +35,31 @@ services:
     environment:
       POSTGRES_DB: ${VUXO_POSTGRES_DB:-vuxo}
       POSTGRES_USER: ${VUXO_POSTGRES_USER:-vuxo}
-      POSTGRES_PASSWORD: ${VUXO_POSTGRES_PASSWORD}
+      POSTGRES_PASSWORD: ${VUXO_POSTGRES_PASSWORD:?VUXO_POSTGRES_PASSWORD is required}
     volumes:
       - vuxo-postgres:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${VUXO_POSTGRES_USER:-vuxo} -d ${VUXO_POSTGRES_DB:-vuxo}"]
-      interval: 10s
+      interval: 5s
       timeout: 5s
-      retries: 10
+      retries: 12
+      start_period: 5s
+    stop_grace_period: 30s
     networks: [vuxo]
 
   redis:
     image: redis:8-alpine
     restart: unless-stopped
-    command: ["redis-server", "--appendonly", "yes"]
+    command: ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec"]
     volumes:
       - vuxo-redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 3s
+    stop_grace_period: 15s
     networks: [vuxo]
 
   ollama:
@@ -68,6 +79,7 @@ services:
       interval: 15s
       timeout: 5s
       retries: 20
+    stop_grace_period: 30s
     networks: [vuxo]
 
   ollama-model-init:
@@ -82,12 +94,18 @@ services:
     restart: "no"
     networks: [vuxo]
 
+  # Remotely-managed Cloudflare Tunnel. Configure the published application's
+  # Service URL in Cloudflare as http://api:8080; both containers share `vuxo`.
   cloudflared:
     image: cloudflare/cloudflared:latest
     restart: unless-stopped
     profiles: ["edge"]
-    command: tunnel --no-autoupdate run --token ${VUXO_CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      api:
+        condition: service_healthy
+    command: ["tunnel", "--no-autoupdate", "run", "--token", "${VUXO_CLOUDFLARE_TUNNEL_TOKEN:-}"]
     networks: [vuxo]
+    stop_grace_period: 15s
 
 networks:
   vuxo:
