@@ -104,6 +104,7 @@ public sealed class ExclusiveContentService(
             throw new InvalidOperationException("Available grant could not be consumed.");
         }
 
+        await repository.UpdateAsync(grant, cancellationToken);
         await eventStore.AppendAsync(
             new GameEventEnvelope(
                 Guid.NewGuid(),
