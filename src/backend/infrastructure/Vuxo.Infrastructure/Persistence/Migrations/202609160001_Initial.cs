@@ -1,9 +1,12 @@
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
 namespace Vuxo.Infrastructure.Persistence.Migrations;
 
+[DbContext(typeof(VuxoDbContext))]
+[Migration("202609160001_Initial")]
 public partial class Initial : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder)
