@@ -17,13 +17,14 @@ jobs:
         with:
           dotnet-version: 10.0.x
       - name: Validate observability compose overlay
-        env:
-          VUXO_API_IMAGE: vuxo-api:test
-          VUXO_POSTGRES_PASSWORD: test-password
-          VUXO_JWT_SIGNING_KEY: vuxo-ci-signing-key-that-is-long-enough-123456
-          VUXO_ALLOWED_ORIGIN: http://localhost
-          VUXO_GRAFANA_ADMIN_PASSWORD: test-grafana-password
-        run: docker compose -f docker/compose.prod.yml -f docker/compose.observability.yml config >/dev/null
+        shell: bash
+        run: |
+          export VUXO_API_IMAGE=vuxo-api:test
+          export VUXO_POSTGRES_PASSWORD="$(openssl rand -hex 24)"
+          export VUXO_JWT_SIGNING_KEY="$(openssl rand -hex 32)"
+          export VUXO_ALLOWED_ORIGIN=http://localhost
+          export VUXO_GRAFANA_ADMIN_PASSWORD="$(openssl rand -hex 24)"
+          docker compose -f docker/compose.prod.yml -f docker/compose.observability.yml config >/dev/null
       - name: Validate production collector config
         run: |
           docker run -d --name vuxo-otel-config \
@@ -60,6 +61,22 @@ jobs:
           done
           docker logs vuxo-otel-smoke
           exit 1
+      - name: Start PostgreSQL integration database
+        run: |
+          docker run -d --name vuxo-postgres-integration \
+            -e POSTGRES_USER=vuxo \
+            -e POSTGRES_DB=postgres \
+            -e POSTGRES_HOST_AUTH_METHOD=trust \
+            -p 127.0.0.1:55432:5432 \
+            postgres:17-alpine
+          for attempt in $(seq 1 30); do
+            if docker exec vuxo-postgres-integration pg_isready -U vuxo -d postgres >/dev/null 2>&1; then
+              exit 0
+            fi
+            sleep 1
+          done
+          docker logs vuxo-postgres-integration
+          exit 1
       - name: Restore
         run: dotnet restore Vuxo.sln
       - name: Build
@@ -67,14 +84,28 @@ jobs:
       - name: Test
         env:
           Observability__OtlpEndpoint: http://127.0.0.1:4317
+          VUXO_TEST_POSTGRES_CONNECTION_STRING: Host=127.0.0.1;Port=55432;Database=postgres;Username=vuxo;Pooling=false;Include Error Detail=true
         run: dotnet test Vuxo.sln -c Release --no-build --logger trx --results-directory TestResults
+      - name: Verify PostgreSQL backup and restore tooling
+        run: |
+          docker exec vuxo-postgres-integration createdb -U vuxo vuxo_backup_source
+          docker exec vuxo-postgres-integration psql -U vuxo -d vuxo_backup_source -v ON_ERROR_STOP=1 \
+            -c "CREATE TABLE backup_marker (id integer PRIMARY KEY, value text NOT NULL);" \
+            -c "INSERT INTO backup_marker(id, value) VALUES (1, 'persisted-through-backup');" >/dev/null
+          docker exec vuxo-postgres-integration pg_dump -U vuxo -d vuxo_backup_source --format=custom --file=/tmp/vuxo-backup.dump
+          docker exec vuxo-postgres-integration createdb -U vuxo vuxo_backup_restore
+          docker exec vuxo-postgres-integration pg_restore -U vuxo -d vuxo_backup_restore --exit-on-error /tmp/vuxo-backup.dump
+          restored="$(docker exec vuxo-postgres-integration psql -U vuxo -d vuxo_backup_restore -Atc "SELECT value FROM backup_marker WHERE id = 1;" | tr -d '\r')"
+          test "$restored" = "persisted-through-backup"
       - name: Verify OTLP exporter smoke
         run: |
           sleep 3
           docker logs vuxo-otel-smoke 2>&1 | grep -q "vuxo-api"
-      - name: Stop OTLP smoke collector
+      - name: Stop backend integration containers
         if: always()
-        run: docker rm -f vuxo-otel-smoke || true
+        run: |
+          docker rm -f vuxo-postgres-integration || true
+          docker rm -f vuxo-otel-smoke || true
 
   docker-runtime:
     runs-on: ubuntu-latest
