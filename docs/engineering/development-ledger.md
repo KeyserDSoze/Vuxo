@@ -21,7 +21,7 @@ Quando una issue cambia stato in modo significativo, aggiornare la riga corrispo
 | #20 | Epic | 0.0.1 | First playable | In progress | CI foundation verde | Coordinare le issue della first playable |
 | #1 | Feature | 0.0.1 | Repository/quality | In progress | CI backend/frontend attiva | Chiudere solo dopo verifica completa acceptance criteria |
 | #2 | Feature | 0.0.1 | Backend/API | In progress | Build/test backend verdi | Completare health/version/OpenAPI e relativi test |
-| #3 | Feature | 0.0.1 | PostgreSQL/EF | Planned | Pending | Migration iniziale, persistence e integration test |
+| #3 | Feature | 0.0.1 | PostgreSQL/EF | In progress | Integration test PostgreSQL 17 + migration/round-trip/unique/event query + backup/restore in implementazione | Validare il nuovo gate CI su database reale, poi chiudere patch note e guida operativa |
 | #4 | Feature | 0.0.1 | Auth social | Planned | Pending | Microsoft + Google con identità Vuxo |
 | #5 | Feature | 0.0.1 | Mock auth | Done | API integration xUnit + CI backend/frontend + Playwright verdi | Chiuso: mock login solo Development/Test, Production non mappata, ruoli e policy REST/SignalR verificati |
 | #6 | Feature | 0.0.1 | Character | Done | Domain/Application/API xUnit + CI frontend/Playwright verdi | Chiuso: creazione autenticata, owner JWT, livello 0, 10 punti, statistiche derivate, error contract e singolo personaggio per owner |
