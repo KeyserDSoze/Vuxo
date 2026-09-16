@@ -126,6 +126,8 @@ jobs:
           node-version: 24
       - name: Verify release metadata
         run: node ../../scripts/verify-release-metadata.mjs
+      - name: Verify repository foundation
+        run: node ../../scripts/verify-repository-foundation.mjs
       - name: Verify project governance
         run: node ../../scripts/verify-governance.mjs
       - name: Install dependencies
