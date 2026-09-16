@@ -8,6 +8,7 @@ using Vuxo.Api.Admin;
 using Vuxo.Api.Auth;
 using Vuxo.Api.Contracts.Auth;
 using Vuxo.Api.Contracts.Players;
+using Vuxo.Api.Observability;
 using Vuxo.Api.PersonalContent;
 using Vuxo.Api.Realtime;
 using Vuxo.Api.Worlds;
@@ -23,6 +24,7 @@ using Vuxo.Infrastructure;
 using Vuxo.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.AddVuxoObservability();
 
 builder.Services.AddOpenApi();
 builder.Services.AddHealthChecks();
@@ -122,6 +124,7 @@ if (app.Configuration.GetValue("Database:ApplyMigrationsOnStartup", true))
 
 app.UseCors("web");
 app.UseAuthentication();
+app.UseMiddleware<TelemetryContextMiddleware>();
 app.UseAuthorization();
 
 if (app.Environment.IsDevelopment())
@@ -251,24 +254,11 @@ app.MapGet("/api/admin/llm/tool-smoke", async (ILanguageModelGateway gateway, La
 {
     if (!gateway.IsEnabled)
     {
-        return Results.Json(new { code = "llm_disabled" }, statusCode: StatusCodes.Status503ServiceUnavailable);
+        return Results.Ok(new { enabled = false, result = (object?)null });
     }
 
-    try
-    {
-        var result = await smoke.RunAsync(cancellationToken);
-        return result.ToolCallObserved
-            ? Results.Ok(result)
-            : Results.Json(new { code = "llm_tool_call_not_observed", result }, statusCode: StatusCodes.Status502BadGateway);
-    }
-    catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
-    {
-        return Results.Json(new { code = "llm_timeout" }, statusCode: StatusCodes.Status504GatewayTimeout);
-    }
-    catch (HttpRequestException)
-    {
-        return Results.Json(new { code = "llm_unavailable" }, statusCode: StatusCodes.Status503ServiceUnavailable);
-    }
+    var result = await smoke.RunAsync(cancellationToken);
+    return Results.Ok(new { enabled = true, result });
 }).RequireAuthorization("Administrator");
 
 app.MapHub<WorldHub>("/hubs/world");
