@@ -1,0 +1,120 @@
+using System.Security.Claims;
+using Vuxo.Application.PersonalContent;
+using Vuxo.Domain.PersonalContent;
+
+namespace Vuxo.Api.PersonalContent;
+
+public static class PersonalContentEndpoints
+{
+    public static IEndpointRouteBuilder MapPersonalContentEndpoints(this IEndpointRouteBuilder endpoints)
+    {
+        endpoints.MapGet(
+            "/api/personal-content",
+            async (ClaimsPrincipal user, ExclusiveContentService service, CancellationToken cancellationToken) =>
+            {
+                var playerId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrWhiteSpace(playerId)) return Results.Unauthorized();
+
+                var grants = await service.GetAvailableAsync(playerId, cancellationToken);
+                return Results.Ok(grants.Select(ToPlayerResponse));
+            })
+            .RequireAuthorization();
+
+        endpoints.MapPost(
+            "/api/personal-content/{grantId:guid}/consume",
+            async (Guid grantId, ClaimsPrincipal user, ExclusiveContentService service, CancellationToken cancellationToken) =>
+            {
+                var playerId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrWhiteSpace(playerId)) return Results.Unauthorized();
+
+                try
+                {
+                    var grant = await service.ConsumeAsync(playerId, grantId, cancellationToken);
+                    return Results.Ok(new
+                    {
+                        grant.Id,
+                        grant.ContentKey,
+                        grant.RewardKey,
+                        grant.ConsumedAtUtc
+                    });
+                }
+                catch (ExclusiveContentException exception) when (exception.Code == ExclusiveContentErrorCodes.NotFound)
+                {
+                    return Results.NotFound(new { code = exception.Code });
+                }
+                catch (ExclusiveContentException exception)
+                {
+                    return Results.Conflict(new { code = exception.Code });
+                }
+            })
+            .RequireAuthorization();
+
+        endpoints.MapPost(
+            "/api/admin/personal-content/grants",
+            async (GrantExclusiveContentRequest request, ExclusiveContentService service, CancellationToken cancellationToken) =>
+            {
+                try
+                {
+                    var grant = await service.GrantAsync(
+                        new GrantExclusiveContentCommand(
+                            request.SourceEventId,
+                            request.PlayerId,
+                            request.ContentKey,
+                            request.PortalKey,
+                            request.DialogBranchKey,
+                            request.RewardKey,
+                            request.Seed,
+                            request.RuleVersion,
+                            request.CorrelationId,
+                            request.CausationId,
+                            request.ExpiresAtUtc),
+                        cancellationToken);
+
+                    return Results.Created($"/api/admin/personal-content/grants/{grant.Id}", new
+                    {
+                        grant.Id,
+                        grant.GrantEventId,
+                        grant.SourceEventId,
+                        grant.PlayerId,
+                        grant.ContentKey,
+                        grant.Seed,
+                        grant.RuleVersion,
+                        grant.CorrelationId,
+                        grant.CausationId,
+                        grant.CreatedAtUtc,
+                        grant.ExpiresAtUtc
+                    });
+                }
+                catch (ArgumentException exception)
+                {
+                    return Results.BadRequest(new { code = "exclusive_content_grant_invalid", detail = exception.Message });
+                }
+            })
+            .RequireAuthorization("GameMaster");
+
+        return endpoints;
+    }
+
+    private static object ToPlayerResponse(ExclusiveContentGrant grant) => new
+    {
+        grant.Id,
+        grant.ContentKey,
+        grant.PortalKey,
+        grant.DialogBranchKey,
+        grant.RewardKey,
+        grant.ExpiresAtUtc
+    };
+}
+
+public sealed record GrantExclusiveContentRequest(
+    Guid SourceEventId,
+    string PlayerId,
+    string ContentKey,
+    string PortalKey,
+    string DialogBranchKey,
+    string RewardKey,
+    long Seed,
+    string RuleVersion,
+    Guid? CorrelationId,
+    Guid? CausationId,
+    DateTimeOffset? ExpiresAtUtc);
