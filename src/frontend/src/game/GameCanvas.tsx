@@ -3,11 +3,11 @@ import { Box, Chip, IconButton, Stack, Typography } from '@mui/material'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import Phaser from 'phaser'
-import {
-  createWorldRealtimeClient,
-  type WorldConnectionStatus,
-  type WorldPlayerSnapshot,
-  type WorldRealtimeClient,
+import { createWorldRealtimeClient } from '../features/world/createWorldRealtimeClient'
+import type {
+  WorldConnectionStatus,
+  WorldPlayerSnapshot,
+  WorldRealtimeClient,
 } from '../features/world/worldRealtime'
 import { WorldScene } from './WorldScene'
 
@@ -81,7 +81,16 @@ export function GameCanvas() {
         </Stack>
         <Stack data-testid="world-presence" direction="row" spacing={0.75} sx={{ flexWrap: 'wrap' }}>
           {players.map(player => (
-            <Chip key={player.playerId} size="small" variant="outlined" label={player.characterName} data-player-id={player.playerId} />
+            <Chip
+              key={player.playerId}
+              size="small"
+              variant="outlined"
+              label={player.characterName}
+              data-player-id={player.playerId}
+              data-player-x={player.x}
+              data-player-y={player.y}
+              data-player-revision={player.revision}
+            />
           ))}
         </Stack>
       </Stack>
