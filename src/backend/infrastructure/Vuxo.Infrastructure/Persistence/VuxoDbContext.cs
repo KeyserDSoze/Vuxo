@@ -8,6 +8,8 @@ public sealed class VuxoDbContext(DbContextOptions<VuxoDbContext> options) : DbC
 {
     public DbSet<PlayerCharacterEntity> PlayerCharacters => Set<PlayerCharacterEntity>();
     public DbSet<GameEventEntity> GameEvents => Set<GameEventEntity>();
+    public DbSet<WorldDefinitionEntity> WorldDefinitions => Set<WorldDefinitionEntity>();
+    public DbSet<WorldChunkEntity> WorldChunks => Set<WorldChunkEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -28,6 +30,26 @@ public sealed class VuxoDbContext(DbContextOptions<VuxoDbContext> options) : DbC
             entity.Property(x => x.EventType).HasMaxLength(200);
             entity.Property(x => x.RuleVersion).HasMaxLength(100);
             entity.Property(x => x.PayloadJson).HasColumnType("jsonb");
+        });
+
+        modelBuilder.Entity<WorldDefinitionEntity>(entity =>
+        {
+            entity.ToTable("world_definitions");
+            entity.HasKey(x => x.WorldId);
+            entity.Property(x => x.WorldId).HasMaxLength(100);
+        });
+
+        modelBuilder.Entity<WorldChunkEntity>(entity =>
+        {
+            entity.ToTable("world_chunks");
+            entity.HasKey(x => new { x.WorldId, x.ChunkX, x.ChunkY });
+            entity.Property(x => x.WorldId).HasMaxLength(100);
+            entity.Property(x => x.Fingerprint).HasMaxLength(64);
+            entity
+                .HasOne<WorldDefinitionEntity>()
+                .WithMany()
+                .HasForeignKey(x => x.WorldId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }
