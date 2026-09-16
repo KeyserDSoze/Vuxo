@@ -7,22 +7,24 @@
 3. Il job `deploy` gira sul runner GitHub self-hosted con label `vuxo-prod`.
 4. Il runner esegue `docker compose pull` e `docker compose up -d --remove-orphans`.
 5. L'API applica le migration EF all'avvio nella prima fase del progetto.
-6. La pipeline verifica `http://127.0.0.1:8080/health`.
-7. Cloudflare Tunnel espone il servizio pubblico.
+6. La pipeline verifica sia `http://127.0.0.1:8080/health` sia l'endpoint pubblico `https://api.vuxoapi.xyz/health` attraverso Cloudflare Tunnel.
+7. La pipeline verifica che tutti i servizi persistenti abbiano restart policy `unless-stopped`.
 
 ## Bootstrap consigliato
 
 Per una macchina Linux nuova usare `infra/self-hosted/bootstrap-linux.sh`. Lo script è idempotente e prepara automaticamente:
 
-- Docker Engine e servizio Docker;
+- Docker Engine con servizio abilitato all'avvio del sistema;
 - Docker Compose v2;
 - utente dedicato `vuxo-runner` con accesso al socket Docker;
 - directory `/opt/vuxo`, `/opt/vuxo/backups` e `/opt/vuxo/deploy-state`;
 - ultima versione del GitHub Actions self-hosted runner;
 - registrazione repository-level con label `vuxo-prod`;
-- servizio `systemd` del runner abilitato e avviato;
+- servizio `systemd` del runner installato e avviato;
 - verifica finale di Docker, Compose, runner, GitHub e GHCR;
 - workaround `needrestart` sulle distribuzioni Debian-based, per evitare riavvii del runner durante i workflow.
+
+Il bootstrap prepara l'host. I container applicativi, PostgreSQL, Redis, Ollama e Cloudflare Tunnel vengono invece creati dal primo deploy GitHub Actions, usando i secret dell'environment `production`.
 
 Il workflow production corrente usa la label `x64`, quindi il bootstrap accetta host `x86_64/amd64`. Prima di supportare ARM64 bisogna rendere multi-arch anche la build dell'immagine API e il targeting del workflow.
 
@@ -63,9 +65,46 @@ Prima del primo deploy creare/proteggere l'environment GitHub `production` e ins
 - `VUXO_JWT_SIGNING_KEY`
 - `VUXO_CLOUDFLARE_TUNNEL_TOKEN`
 
-Non salvare questi valori sulla repository o in file versionati. Il workflow crea un environment file temporaneo durante il deploy e lo elimina sempre alla fine.
+Variabili production opzionali:
+
+- `VUXO_ALLOWED_ORIGIN`, default `https://vuxo.quest`;
+- `VUXO_PUBLIC_API_URL`, default `https://api.vuxoapi.xyz`;
+- `VUXO_LLM_MODEL`, default `qwen3:1.7b`.
+
+Non salvare questi valori sulla repository o in file versionati. Il workflow crea un environment file temporaneo durante il deploy e lo elimina sempre alla fine. I secret dell'environment sono disponibili soltanto al job che referenzia `production` e dopo le eventuali protection rules configurate su GitHub.
 
 Dopo bootstrap e configurazione dei secret non serve più entrare nel server per i normali deploy: un cambiamento backend su `main` passa da test/build, viene pubblicato su GHCR e viene applicato dal runner `vuxo-prod`.
+
+## Cloudflare Tunnel
+
+Vuxo usa un tunnel Cloudflare gestito remotamente. Non installare `cloudflared` direttamente sull'host: `docker/compose.prod.yml` contiene il servizio `cloudflared` e GitHub Actions lo avvia insieme allo stack production.
+
+Configurazione una tantum lato Cloudflare:
+
+1. creare/selezionare il tunnel production nel dashboard Cloudflare;
+2. configurare il public hostname `api.vuxoapi.xyz`;
+3. configurare come origin service `http://api:8080` perché `cloudflared` e `api` condividono la rete Docker `vuxo`;
+4. copiare il tunnel token nell'environment secret GitHub `VUXO_CLOUDFLARE_TUNNEL_TOKEN`;
+5. non salvare il token sulla repository o nello script di bootstrap.
+
+Il primo deploy esegue il container `cloudflared` con quel token. La pipeline considera il deploy riuscito solo se l'API risponde localmente e successivamente anche attraverso `https://api.vuxoapi.xyz/health`.
+
+## Comportamento dopo un riavvio del server
+
+Il server non dipende da GitHub Actions per ripartire dopo un reboot normale.
+
+- `systemd` avvia Docker al boot;
+- Docker conserva i container creati dall'ultimo deploy;
+- `api`, `postgres`, `redis`, `ollama` e `cloudflared` hanno `restart: unless-stopped` e ripartono automaticamente;
+- PostgreSQL rimonta il volume host Docker `vuxo-postgres`;
+- Redis rimonta `vuxo-redis`;
+- Ollama rimonta `vuxo-ollama`, quindi i modelli già scaricati restano disponibili;
+- `ollama-model-init` è volutamente one-shot e non deve restare in esecuzione;
+- il GitHub Actions runner riparte come servizio `systemd` ed è pronto per i deploy successivi.
+
+I nomi production della rete e dei volumi sono espliciti (`vuxo`, `vuxo-postgres`, `vuxo-redis`, `vuxo-ollama`) e non dipendono dalla directory di checkout del runner.
+
+Il file `/tmp/vuxo.env` non è necessario al reboot: serve soltanto a creare/aggiornare i container durante un deploy e viene eliminato al termine. I container già creati conservano la configurazione necessaria al proprio restart. Un successivo deploy riceverà nuovamente i secret da GitHub Environment e potrà ricreare lo stack.
 
 ## Sicurezza
 
