@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Vuxo.Infrastructure.Persistence;
+using Xunit;
 
 namespace Vuxo.Infrastructure.Tests.Persistence;
 
