@@ -1,5 +1,7 @@
 # Server self-hosted Vuxo
 
+> **Prima installazione?** Segui la guida completa step-by-step in [`SETUP.md`](./SETUP.md). Parte da una macchina Linux minimale e una repository privata e arriva fino al primo deploy, Cloudflare Tunnel e test di reboot/persistenza.
+
 ## Modello di deploy
 
 1. GitHub Actions testa backend e frontend.
