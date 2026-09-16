@@ -7,9 +7,11 @@ using Microsoft.IdentityModel.Tokens;
 using Vuxo.Api.Auth;
 using Vuxo.Api.Contracts.Auth;
 using Vuxo.Api.Contracts.Players;
+using Vuxo.Api.PersonalContent;
 using Vuxo.Api.Realtime;
 using Vuxo.Api.Worlds;
 using Vuxo.Application.AI;
+using Vuxo.Application.PersonalContent;
 using Vuxo.Application.Players;
 using Vuxo.Application.Worlds;
 using Vuxo.Application.Worlds.Realtime;
@@ -26,6 +28,7 @@ builder.Services.AddVuxoInfrastructure(builder.Configuration);
 builder.Services.AddScoped<CharacterService>();
 builder.Services.AddScoped<LanguageModelSmokeService>();
 builder.Services.AddScoped<WorldService>();
+builder.Services.AddScoped<ExclusiveContentService>();
 builder.Services.AddSingleton<WorldChunkGenerator>();
 builder.Services.AddSingleton<TimeProvider>(TimeProvider.System);
 builder.Services.AddSingleton(provider =>
@@ -238,6 +241,7 @@ app.MapPost("/api/characters", async (CreateCharacterRequest request, ClaimsPrin
 }).RequireAuthorization();
 
 app.MapWorldEndpoints();
+app.MapPersonalContentEndpoints();
 
 app.MapGet("/api/admin/llm/tool-smoke", async (ILanguageModelGateway gateway, LanguageModelSmokeService smoke, CancellationToken cancellationToken) =>
 {
