@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
+using Vuxo.Api.Observability;
 using Vuxo.Application.Worlds;
 using Vuxo.Application.Worlds.Realtime;
 using Vuxo.Domain.Players;
@@ -29,20 +30,25 @@ public sealed class WorldHub(
     public async Task<WorldJoinResult> JoinWorld()
     {
         var playerId = Context.User?.FindFirstValue(ClaimTypes.NameIdentifier);
+        using var activity = VuxoTelemetry.StartActivity("world.join", playerId);
         if (string.IsNullOrWhiteSpace(playerId))
         {
+            activity?.SetStatus(System.Diagnostics.ActivityStatusCode.Error, "world_identity_required");
             throw new HubException("world_identity_required");
         }
 
         var character = await characters.GetByOwnerIdAsync(playerId, Context.ConnectionAborted);
         if (character is null)
         {
+            activity?.SetStatus(System.Diagnostics.ActivityStatusCode.Error, "world_character_required");
             throw new HubException("world_character_required");
         }
 
         var spawn = await runtimeMap.GetSpawnPointAsync(Context.ConnectionAborted);
         var result = simulation.Join(Context.ConnectionId, playerId, character, spawn);
         var groupName = GetGroupName(bootstrap.WorldId);
+        activity?.SetTag("vuxo.world.id", bootstrap.WorldId);
+        activity?.SetTag("vuxo.world.reconnect", result.IsReconnect);
 
         await Groups.AddToGroupAsync(Context.ConnectionId, groupName, Context.ConnectionAborted);
 
@@ -74,6 +80,7 @@ public sealed class WorldHub(
         var result = simulation.SubmitIntent(Context.ConnectionId, horizontal, vertical, sequence);
         if (!result.Accepted)
         {
+            VuxoTelemetry.RecordRejectedWorldInput(result.ErrorCode);
             throw new HubException(result.ErrorCode ?? "world_input_rejected");
         }
 
@@ -82,6 +89,8 @@ public sealed class WorldHub(
 
     public async Task LeaveWorld()
     {
+        var playerId = Context.User?.FindFirstValue(ClaimTypes.NameIdentifier);
+        using var activity = VuxoTelemetry.StartActivity("world.leave", playerId);
         var departed = simulation.Leave(Context.ConnectionId);
         var groupName = GetGroupName(bootstrap.WorldId);
         await Groups.RemoveFromGroupAsync(Context.ConnectionId, groupName, Context.ConnectionAborted);
