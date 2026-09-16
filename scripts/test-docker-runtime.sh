@@ -7,14 +7,18 @@ cd "$ROOT_DIR"
 command -v docker >/dev/null 2>&1 || { echo "docker is required" >&2; exit 1; }
 docker compose version >/dev/null
 
+generate_test_secret() {
+  printf 'vuxo-ci-%s-%s-%s-%s-%s-%s' "$RANDOM" "$RANDOM" "$RANDOM" "$RANDOM" "$RANDOM" "$RANDOM"
+}
+
 export VUXO_API_IMAGE="${VUXO_API_IMAGE:-vuxo-api:runtime-ci}"
 export VUXO_API_PORT="${VUXO_API_PORT:-18080}"
 export VUXO_POSTGRES_DB="${VUXO_POSTGRES_DB:-vuxo_runtime_ci}"
 export VUXO_POSTGRES_USER="${VUXO_POSTGRES_USER:-vuxo}"
-export VUXO_POSTGRES_PASSWORD="${VUXO_POSTGRES_PASSWORD:-runtime-ci-postgres-password}"
-export VUXO_JWT_SIGNING_KEY="${VUXO_JWT_SIGNING_KEY:-runtime-ci-signing-key-that-is-at-least-32-characters}"
+export VUXO_POSTGRES_PASSWORD="${VUXO_POSTGRES_PASSWORD:-$(generate_test_secret)}"
+export VUXO_JWT_SIGNING_KEY="${VUXO_JWT_SIGNING_KEY:-$(generate_test_secret)}"
 export VUXO_ALLOWED_ORIGIN="${VUXO_ALLOWED_ORIGIN:-http://localhost}"
-export VUXO_CLOUDFLARE_TUNNEL_TOKEN="${VUXO_CLOUDFLARE_TUNNEL_TOKEN:-runtime-ci-unused-token}"
+export VUXO_CLOUDFLARE_TUNNEL_TOKEN="${VUXO_CLOUDFLARE_TUNNEL_TOKEN:-$(generate_test_secret)}"
 export VUXO_LLM_ENABLED="false"
 export VUXO_POSTGRES_DEV_PORT="${VUXO_POSTGRES_DEV_PORT:-15432}"
 export VUXO_REDIS_DEV_PORT="${VUXO_REDIS_DEV_PORT:-16379}"
