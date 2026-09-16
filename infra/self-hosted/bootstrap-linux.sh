@@ -252,6 +252,9 @@ install_runner_service() {
     if [[ ! -f .service ]]; then
       ./svc.sh install "$RUNNER_USER"
     fi
+    local runner_service
+    runner_service="$(cat .service)"
+    systemctl enable "$runner_service"
     ./svc.sh start || true
     ./svc.sh status
   )
@@ -271,12 +274,14 @@ verify_host() {
   docker --version
   docker compose version
   systemctl is-active --quiet docker || die "Docker service is not active."
+  systemctl is-enabled --quiet docker || die "Docker service is not enabled for boot."
   sudo -u "$RUNNER_USER" docker info >/dev/null 2>&1 || die "Runner user ${RUNNER_USER} cannot access the Docker daemon."
 
   if [[ -f "$RUNNER_DIR/.service" ]]; then
     local runner_service
     runner_service="$(cat "$RUNNER_DIR/.service")"
     systemctl is-active --quiet "$runner_service" || die "GitHub Actions runner service ${runner_service} is not active."
+    systemctl is-enabled --quiet "$runner_service" || die "GitHub Actions runner service ${runner_service} is not enabled for boot."
   else
     die "GitHub Actions runner service marker is missing."
   fi
@@ -304,9 +309,9 @@ print_summary() {
  Runner directory: ${RUNNER_DIR}
  Deploy state:     ${DEPLOY_DIR}
 
-Docker and Docker Compose are running and the GitHub Actions runner is
-installed as a systemd service. The existing VUXO workflow can now select
-this machine with:
+Docker and Docker Compose are running and Docker is enabled at boot.
+The GitHub Actions runner is installed as an enabled systemd service.
+The existing VUXO workflow can now select this machine with:
 
   runs-on: [self-hosted, linux, x64, vuxo-prod]
 
@@ -316,6 +321,12 @@ Before the first production deployment, the GitHub Environment named
   VUXO_POSTGRES_PASSWORD
   VUXO_JWT_SIGNING_KEY
   VUXO_CLOUDFLARE_TUNNEL_TOKEN
+
+The Cloudflare tunnel itself is remotely managed. Configure
+api.vuxoapi.xyz -> http://api:8080 once in Cloudflare, then put only the
+tunnel token in the GitHub production environment. The first deployment
+creates the API, PostgreSQL, Redis, Ollama and cloudflared containers.
+Their restart policies make them come back automatically after a reboot.
 
 After that, a backend change merged/pushed to main triggers the normal
 build -> test -> GHCR -> self-hosted deploy pipeline automatically.
