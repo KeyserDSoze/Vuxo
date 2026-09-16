@@ -1,0 +1,66 @@
+name: Feature
+summary: Proponi o pianifica una nuova funzionalità Vuxo
+description: Usa questo form per feature di gioco, piattaforma, infrastruttura o tooling.
+title: "[versione] "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Prima di iniziare verifica AGENTS.md, il development ledger e le issue esistenti per evitare duplicati.
+  - type: input
+    id: version
+    attributes:
+      label: Versione target
+      placeholder: 0.0.1
+    validations:
+      required: true
+  - type: input
+    id: area
+    attributes:
+      label: Area
+      placeholder: world, auth, character, UI, infra, observability...
+    validations:
+      required: true
+  - type: textarea
+    id: goal
+    attributes:
+      label: Obiettivo
+      description: Quale problema risolve o quale capacità aggiunge?
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: Cosa deve essere incluso? Indica anche fuori-scope quando utile.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Elenco verificabile dei criteri di completamento.
+      placeholder: "- [ ] ..."
+    validations:
+      required: true
+  - type: textarea
+    id: tests
+    attributes:
+      label: Strategia di test
+      description: xUnit Theory/integrazione/contract/Playwright/determinismo, secondo il rischio.
+    validations:
+      required: true
+  - type: textarea
+    id: crosscutting
+    attributes:
+      label: Impatti trasversali
+      description: UI/theme, i18n, audit/telemetria, database/migration, SignalR, LLM, sicurezza, release/patch note.
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Note e dipendenze
+      description: Issue collegate, blocchi, decisioni già prese o riferimenti architetturali.
