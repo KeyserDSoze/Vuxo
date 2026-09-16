@@ -17,10 +17,10 @@ Il frontend è pubblicato tramite GitHub Pages sul dominio custom `vuxo.quest`. 
 - Frontend: React + TypeScript + Phaser + MUI
 - UI: design system responsive, tema system/light/dark, i18n con italiano e inglese
 - LLM locale: Ollama containerizzato dietro `ILanguageModelGateway`, modello configurabile e tool calling server-side
-- Test backend: xUnit, con test parametrizzati dove applicabile
+- Test backend: xUnit, con integration test PostgreSQL reali e test parametrizzati dove applicabile
 - Test frontend/E2E: Playwright
 - Container: Docker + Docker Compose
-- Observability: OpenTelemetry + stack Grafana (backlog 0.0.1)
+- Observability: OpenTelemetry + stack opzionale Grafana/Prometheus/Loki/Tempo
 - Frontend hosting: GitHub Pages
 - Backend hosting: server self-hosted esposto tramite Cloudflare Tunnel
 - CI/CD: GitHub Actions + GHCR + GitHub self-hosted runner
@@ -61,6 +61,12 @@ infra/
 .github/workflows/
 AGENTS.md
 ```
+
+## Quality gate della repository
+
+La CI tratta la struttura e le convenzioni della foundation come un contratto verificabile, non come semplice documentazione. `scripts/verify-repository-foundation.mjs` controlla le directory canoniche, .NET 10 con warning trattati come errori, dipendenze React/MUI/Phaser/Playwright, servizi PostgreSQL/Redis, presenza dei comandi CI essenziali e assenza di file `.env` reali o directory `secrets/` tracciati da Git.
+
+Il gate foundation viene eseguito insieme ai controlli di release metadata e governance prima della build frontend. La CI completa include inoltre build/test backend Release, integration test PostgreSQL, restore drill, runtime Docker production-like, build frontend e Playwright.
 
 ## Principi architetturali
 
