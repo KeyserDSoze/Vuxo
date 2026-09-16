@@ -28,6 +28,9 @@ public sealed class VuxoDbContext(DbContextOptions<VuxoDbContext> options) : DbC
             entity.ToTable("game_events");
             entity.HasKey(x => x.EventId);
             entity.HasIndex(x => new { x.PlayerId, x.OccurredAtUtc });
+            entity.HasIndex(x => x.OccurredAtUtc);
+            entity.HasIndex(x => new { x.EventType, x.OccurredAtUtc });
+            entity.HasIndex(x => x.CorrelationId);
             entity.Property(x => x.EventType).HasMaxLength(200);
             entity.Property(x => x.RuleVersion).HasMaxLength(100);
             entity.Property(x => x.PayloadJson).HasColumnType("jsonb");
