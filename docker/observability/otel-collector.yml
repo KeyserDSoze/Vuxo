@@ -23,6 +23,10 @@ processors:
         action: delete
       - key: db.connection_string
         action: delete
+      - key: db.query.text
+        action: delete
+      - key: db.statement
+        action: delete
   batch:
     timeout: 2s
     send_batch_size: 512
