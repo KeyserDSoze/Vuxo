@@ -8,6 +8,7 @@ using Vuxo.Api.Auth;
 using Vuxo.Api.Contracts.Auth;
 using Vuxo.Api.Contracts.Players;
 using Vuxo.Api.Realtime;
+using Vuxo.Application.AI;
 using Vuxo.Application.Players;
 using Vuxo.Domain.Players;
 using Vuxo.Infrastructure;
@@ -19,6 +20,7 @@ builder.Services.AddOpenApi();
 builder.Services.AddHealthChecks();
 builder.Services.AddVuxoInfrastructure(builder.Configuration);
 builder.Services.AddScoped<CharacterService>();
+builder.Services.AddScoped<LanguageModelSmokeService>();
 builder.Services.AddSingleton<MockTokenService>();
 
 var signingKey = builder.Configuration["Auth:Jwt:SigningKey"];
@@ -166,6 +168,30 @@ app.MapPost("/api/characters", async (CreateCharacterRequest request, ClaimsPrin
         character.Attributes.MovementSpeedMultiplier
     });
 }).RequireAuthorization();
+
+app.MapGet("/api/admin/llm/tool-smoke", async (ILanguageModelGateway gateway, LanguageModelSmokeService smoke, CancellationToken cancellationToken) =>
+{
+    if (!gateway.IsEnabled)
+    {
+        return Results.Json(new { code = "llm_disabled" }, statusCode: StatusCodes.Status503ServiceUnavailable);
+    }
+
+    try
+    {
+        var result = await smoke.RunAsync(cancellationToken);
+        return result.ToolCallObserved
+            ? Results.Ok(result)
+            : Results.Json(new { code = "llm_tool_call_not_observed", result }, statusCode: StatusCodes.Status502BadGateway);
+    }
+    catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+    {
+        return Results.Json(new { code = "llm_timeout" }, statusCode: StatusCodes.Status504GatewayTimeout);
+    }
+    catch (HttpRequestException)
+    {
+        return Results.Json(new { code = "llm_unavailable" }, statusCode: StatusCodes.Status503ServiceUnavailable);
+    }
+}).RequireAuthorization("Administrator");
 
 app.MapHub<WorldHub>("/hubs/world");
 

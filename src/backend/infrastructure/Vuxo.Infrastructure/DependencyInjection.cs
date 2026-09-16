@@ -1,9 +1,11 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Vuxo.Application.AI;
 using Vuxo.Domain.Common;
 using Vuxo.Domain.Events;
 using Vuxo.Domain.Players;
+using Vuxo.Infrastructure.AI;
 using Vuxo.Infrastructure.Persistence;
 
 namespace Vuxo.Infrastructure;
@@ -19,6 +21,23 @@ public static class DependencyInjection
         services.AddScoped<IPlayerCharacterRepository, PlayerCharacterRepository>();
         services.AddScoped<IGameEventStore, GameEventStore>();
         services.AddScoped<IUnitOfWork>(provider => provider.GetRequiredService<VuxoDbContext>());
+
+        var llmEnabled = configuration.GetValue("Llm:Enabled", false);
+        var llmBaseUrl = configuration["Llm:BaseUrl"] ?? "http://ollama:11434/v1";
+        var llmModel = configuration["Llm:Model"] ?? "qwen3:1.7b";
+        var llmTimeoutSeconds = Math.Clamp(configuration.GetValue("Llm:TimeoutSeconds", 45), 5, 300);
+
+        services.AddSingleton<ILanguageModelGateway>(_ =>
+        {
+            var httpClient = new HttpClient
+            {
+                BaseAddress = new Uri(llmBaseUrl.TrimEnd('/') + "/"),
+                Timeout = TimeSpan.FromSeconds(llmTimeoutSeconds)
+            };
+
+            return new OllamaLanguageModelGateway(httpClient, llmModel, llmEnabled);
+        });
+
         return services;
     }
 }
