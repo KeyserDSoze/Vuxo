@@ -1,3 +1,5 @@
+name: vuxo
+
 services:
   api:
     image: ${VUXO_API_IMAGE}
@@ -91,8 +93,12 @@ services:
 
 networks:
   vuxo:
+    name: vuxo
 
 volumes:
   vuxo-postgres:
+    name: vuxo-postgres
   vuxo-redis:
+    name: vuxo-redis
   vuxo-ollama:
+    name: vuxo-ollama
