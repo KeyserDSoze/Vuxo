@@ -22,10 +22,13 @@ public static class DependencyInjection
         services.AddScoped<IGameEventStore, GameEventStore>();
         services.AddScoped<IUnitOfWork>(provider => provider.GetRequiredService<VuxoDbContext>());
 
-        var llmEnabled = configuration.GetValue("Llm:Enabled", false);
+        var llmEnabled = bool.TryParse(configuration["Llm:Enabled"], out var enabled) && enabled;
         var llmBaseUrl = configuration["Llm:BaseUrl"] ?? "http://ollama:11434/v1";
         var llmModel = configuration["Llm:Model"] ?? "qwen3:1.7b";
-        var llmTimeoutSeconds = Math.Clamp(configuration.GetValue("Llm:TimeoutSeconds", 45), 5, 300);
+        var configuredTimeout = int.TryParse(configuration["Llm:TimeoutSeconds"], out var timeoutSeconds)
+            ? timeoutSeconds
+            : 45;
+        var llmTimeoutSeconds = Math.Clamp(configuredTimeout, 5, 300);
 
         services.AddSingleton<ILanguageModelGateway>(_ =>
         {
