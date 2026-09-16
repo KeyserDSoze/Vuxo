@@ -29,6 +29,9 @@ internal sealed class VuxoApiFactory(
             {
                 ["ConnectionStrings:GameDb"] = "Host=localhost;Database=vuxo_tests;Username=vuxo;Password=vuxo",
                 ["Database:ApplyMigrationsOnStartup"] = "false",
+                ["World:Id"] = "vuxo-test-world",
+                ["World:Seed"] = "424242",
+                ["World:GeneratorVersion"] = "1",
                 ["Auth:EnableMockLogin"] = enableMockLogin.ToString(),
                 ["Auth:Jwt:Issuer"] = "Vuxo.Tests",
                 ["Auth:Jwt:Audience"] = "Vuxo.Tests",
