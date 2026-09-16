@@ -34,7 +34,7 @@ Quando una issue cambia stato in modo significativo, aggiornare la riga corrispo
 | #13 | Feature | 0.0.1 | Observability | Planned | Pending | OpenTelemetry + stack self-hosted |
 | #14 | Feature | 0.0.1 | Docker/IaC | In progress | Compose foundation presente | Completare runtime production e verifiche persistenti |
 | #15 | Feature | 0.0.1 | CI/Pages | In progress | CI + Playwright verdi | Completare/validare deploy pubblico su vuxo.quest |
-| #16 | Feature | 0.0.1 | Deploy backend | In progress | Bootstrap Linux aggiunto; `bash -n` verde; GHCR workflow predisposto | Eseguire bootstrap sul server, registrare runner `vuxo-prod` e validare deploy reale/rollback |
+| #16 | Feature | 0.0.1 | Deploy backend | In progress | Bootstrap Linux + reboot policy/tunnel checks predisposti; CI in verifica | Eseguire bootstrap sul server, configurare tunnel/secrets production e validare deploy reale, reboot e rollback |
 | #17 | Feature | 0.0.1 | Release/versioning | In progress | Quality gate VERSION/package/patch note verde | Completare About/version metadata end-to-end |
 | #21 | Feature | 0.0.1 | UI/i18n | In progress | Build + Playwright tema/lingua verdi | Consolidare design system durante le prossime UI |
 | #22 | Feature | 0.0.1 | Local LLM | In progress | Adapter/test foundation presenti | Validare smoke tool-calling sul server reale |
