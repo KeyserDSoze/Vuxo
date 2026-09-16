@@ -11,10 +11,16 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
     "@microsoft/signalr": "^10.0.0",
+    "@mui/icons-material": "^9.4.0",
+    "@mui/material": "^9.4.0",
+    "i18next": "^26.4.2",
     "phaser": "^3.90.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
+    "react-i18next": "^17.0.14",
     "react-router-dom": "^7.8.0"
   },
   "devDependencies": {

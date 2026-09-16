@@ -23,6 +23,31 @@ services:
     volumes:
       - vuxo-redis-dev:/data
 
+  ollama:
+    image: ${VUXO_OLLAMA_IMAGE:-ollama/ollama:latest}
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:11434:11434"
+    volumes:
+      - vuxo-ollama-dev:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  ollama-model-init:
+    image: ${VUXO_OLLAMA_IMAGE:-ollama/ollama:latest}
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["ollama pull ${VUXO_LLM_MODEL:-qwen3:1.7b}"]
+    restart: "no"
+
 volumes:
   vuxo-postgres-dev:
   vuxo-redis-dev:
+  vuxo-ollama-dev:

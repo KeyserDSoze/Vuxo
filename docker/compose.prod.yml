@@ -19,6 +19,10 @@ services:
       Database__ApplyMigrationsOnStartup: "true"
       Build__CommitSha: ${VUXO_COMMIT_SHA:-unknown}
       Build__BuildDateUtc: ${VUXO_BUILD_DATE_UTC:-unknown}
+      Llm__Enabled: ${VUXO_LLM_ENABLED:-true}
+      Llm__BaseUrl: http://ollama:11434/v1
+      Llm__Model: ${VUXO_LLM_MODEL:-qwen3:1.7b}
+      Llm__TimeoutSeconds: ${VUXO_LLM_TIMEOUT_SECONDS:-45}
     ports:
       - "127.0.0.1:8080:8080"
     networks: [vuxo]
@@ -47,6 +51,30 @@ services:
       - vuxo-redis:/data
     networks: [vuxo]
 
+  ollama:
+    image: ${VUXO_OLLAMA_IMAGE:-ollama/ollama:latest}
+    restart: unless-stopped
+    volumes:
+      - vuxo-ollama:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+    networks: [vuxo]
+
+  ollama-model-init:
+    image: ${VUXO_OLLAMA_IMAGE:-ollama/ollama:latest}
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["ollama pull ${VUXO_LLM_MODEL:-qwen3:1.7b}"]
+    restart: "no"
+    networks: [vuxo]
+
   cloudflared:
     image: cloudflare/cloudflared:latest
     restart: unless-stopped
@@ -60,3 +88,4 @@ networks:
 volumes:
   vuxo-postgres:
   vuxo-redis:
+  vuxo-ollama:

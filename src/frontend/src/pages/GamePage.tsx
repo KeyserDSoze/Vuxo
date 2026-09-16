@@ -1,11 +1,19 @@
+import { Paper, Stack, Typography } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import { GameCanvas } from '../game/GameCanvas';
 
 export function GamePage() {
+  const { t } = useTranslation();
+
   return (
-    <section className="page">
-      <h1>World prototype</h1>
-      <p>Placeholder originale generato da codice. Usa WASD o le frecce per muoverti.</p>
-      <GameCanvas />
-    </section>
+    <Stack spacing={3}>
+      <div>
+        <Typography variant="h2" component="h1">{t('game.title')}</Typography>
+        <Typography color="text.secondary" sx={{ mt: 1 }}>{t('game.description')}</Typography>
+      </div>
+      <Paper variant="outlined" sx={{ p: { xs: 1, sm: 2 }, overflow: 'hidden' }}>
+        <GameCanvas />
+      </Paper>
+    </Stack>
   );
 }

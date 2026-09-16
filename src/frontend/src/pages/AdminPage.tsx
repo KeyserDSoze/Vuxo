@@ -1,8 +1,15 @@
+import { Paper, Stack, Typography } from '@mui/material';
+import { useTranslation } from 'react-i18next';
+
 export function AdminPage() {
+  const { t } = useTranslation();
+
   return (
-    <section className="page">
-      <h1>Amministrazione</h1>
-      <p>Questa vista ospiterà health, giocatori online, audit degli eventi, contenuti esclusivi e collegamenti alla telemetria.</p>
-    </section>
+    <Stack spacing={3}>
+      <Typography variant="h2" component="h1">{t('admin.title')}</Typography>
+      <Paper variant="outlined" sx={{ p: 3 }}>
+        <Typography color="text.secondary">{t('admin.description')}</Typography>
+      </Paper>
+    </Stack>
   );
 }
