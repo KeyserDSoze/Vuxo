@@ -24,6 +24,26 @@ jobs:
           VUXO_ALLOWED_ORIGIN: http://localhost
           VUXO_GRAFANA_ADMIN_PASSWORD: test-grafana-password
         run: docker compose -f docker/compose.prod.yml -f docker/compose.observability.yml config >/dev/null
+      - name: Validate production collector config
+        run: |
+          docker run -d --name vuxo-otel-config \
+            -p 13134:13133 \
+            -v "$PWD/docker/observability/otel-collector.yml:/etc/otelcol-contrib/config.yaml:ro" \
+            otel/opentelemetry-collector-contrib:0.161.0 \
+            --config=/etc/otelcol-contrib/config.yaml
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:13134/ >/dev/null; then
+              docker rm -f vuxo-otel-config >/dev/null
+              exit 0
+            fi
+            if ! docker ps --format '{{.Names}}' | grep -q '^vuxo-otel-config$'; then
+              docker logs vuxo-otel-config
+              exit 1
+            fi
+            sleep 1
+          done
+          docker logs vuxo-otel-config
+          exit 1
       - name: Start OTLP smoke collector
         run: |
           docker run -d --name vuxo-otel-smoke \
