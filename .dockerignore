@@ -1,0 +1,14 @@
+**/bin
+**/obj
+**/node_modules
+**/dist
+.git
+.github
+.vs
+.vscode
+.idea
+TestResults
+playwright-report
+.env
+.env.*
+!docker/.env.example

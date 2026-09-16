@@ -1,0 +1,38 @@
+---
+- name: Provision Vuxo deployment host
+  hosts: vuxo
+  become: true
+  vars:
+    vuxo_runner_user: vuxo-runner
+  tasks:
+    - name: Install Docker and utilities
+      ansible.builtin.apt:
+        name:
+          - docker.io
+          - docker-compose-v2
+          - curl
+          - ca-certificates
+        state: present
+        update_cache: true
+
+    - name: Ensure Docker is enabled
+      ansible.builtin.service:
+        name: docker
+        state: started
+        enabled: true
+
+    - name: Create runner user
+      ansible.builtin.user:
+        name: "{{ vuxo_runner_user }}"
+        create_home: true
+        shell: /bin/bash
+        groups: docker
+        append: true
+
+    - name: Create deployment directory
+      ansible.builtin.file:
+        path: /opt/vuxo
+        state: directory
+        owner: "{{ vuxo_runner_user }}"
+        group: "{{ vuxo_runner_user }}"
+        mode: '0750'

@@ -1,0 +1,39 @@
+# .NET
+**/bin/
+**/obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Node
+node_modules/
+dist/
+.vite/
+playwright-report/
+test-results/
+
+# IDE
+.vs/
+.vscode/
+.idea/
+*.DotSettings.user
+
+# Local environment / secrets
+.env
+.env.*
+!.env.example
+secrets/
+
+# Docker/runtime data
+*.pid
+*.log
+docker/data/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Coverage
+coverage/
+TestResults/

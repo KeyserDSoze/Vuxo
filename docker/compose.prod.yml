@@ -1,0 +1,62 @@
+services:
+  api:
+    image: ${VUXO_API_IMAGE}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__GameDb: Host=postgres;Port=5432;Database=${VUXO_POSTGRES_DB:-vuxo};Username=${VUXO_POSTGRES_USER:-vuxo};Password=${VUXO_POSTGRES_PASSWORD}
+      Redis__ConnectionString: redis:6379
+      Auth__Jwt__Issuer: Vuxo
+      Auth__Jwt__Audience: Vuxo.Web
+      Auth__Jwt__SigningKey: ${VUXO_JWT_SIGNING_KEY}
+      Auth__EnableMockLogin: "false"
+      Cors__AllowedOrigins__0: ${VUXO_ALLOWED_ORIGIN}
+      Database__ApplyMigrationsOnStartup: "true"
+      Build__CommitSha: ${VUXO_COMMIT_SHA:-unknown}
+      Build__BuildDateUtc: ${VUXO_BUILD_DATE_UTC:-unknown}
+    ports:
+      - "127.0.0.1:8080:8080"
+    networks: [vuxo]
+
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${VUXO_POSTGRES_DB:-vuxo}
+      POSTGRES_USER: ${VUXO_POSTGRES_USER:-vuxo}
+      POSTGRES_PASSWORD: ${VUXO_POSTGRES_PASSWORD}
+    volumes:
+      - vuxo-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${VUXO_POSTGRES_USER:-vuxo} -d ${VUXO_POSTGRES_DB:-vuxo}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [vuxo]
+
+  redis:
+    image: redis:8-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - vuxo-redis:/data
+    networks: [vuxo]
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    profiles: ["edge"]
+    command: tunnel --no-autoupdate run --token ${VUXO_CLOUDFLARE_TUNNEL_TOKEN}
+    networks: [vuxo]
+
+networks:
+  vuxo:
+
+volumes:
+  vuxo-postgres:
+  vuxo-redis:

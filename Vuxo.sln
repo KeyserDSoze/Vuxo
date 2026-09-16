@@ -1,0 +1,48 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Vuxo.Domain", "src\backend\domains\Vuxo.Domain\Vuxo.Domain.csproj", "{9B49D71B-AB73-4EC9-8171-6E10C59C1A01}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Vuxo.Application", "src\backend\business\Vuxo.Application\Vuxo.Application.csproj", "{84F6D1B2-6D93-4B50-98C3-C5F1A3DC4B02}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Vuxo.Infrastructure", "src\backend\infrastructure\Vuxo.Infrastructure\Vuxo.Infrastructure.csproj", "{B91784BA-1E81-4D32-A117-9A602B037C03}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Vuxo.Api", "src\backend\applications\Vuxo.Api\Vuxo.Api.csproj", "{4E9CB6C6-40EA-427E-99BE-C49511E6AD04}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Vuxo.Domain.Tests", "tests\backend\Vuxo.Domain.Tests\Vuxo.Domain.Tests.csproj", "{21A41295-EAA4-4E88-A036-77A99D2D8E05}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Vuxo.Application.Tests", "tests\backend\Vuxo.Application.Tests\Vuxo.Application.Tests.csproj", "{871F6899-0C76-4F8C-9213-AD0B78278F06}"
+EndProject
+Global
+  GlobalSection(SolutionConfigurationPlatforms) = preSolution
+    Debug|Any CPU = Debug|Any CPU
+    Release|Any CPU = Release|Any CPU
+  EndGlobalSection
+  GlobalSection(ProjectConfigurationPlatforms) = postSolution
+    {9B49D71B-AB73-4EC9-8171-6E10C59C1A01}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+    {9B49D71B-AB73-4EC9-8171-6E10C59C1A01}.Debug|Any CPU.Build.0 = Debug|Any CPU
+    {9B49D71B-AB73-4EC9-8171-6E10C59C1A01}.Release|Any CPU.ActiveCfg = Release|Any CPU
+    {9B49D71B-AB73-4EC9-8171-6E10C59C1A01}.Release|Any CPU.Build.0 = Release|Any CPU
+    {84F6D1B2-6D93-4B50-98C3-C5F1A3DC4B02}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+    {84F6D1B2-6D93-4B50-98C3-C5F1A3DC4B02}.Debug|Any CPU.Build.0 = Debug|Any CPU
+    {84F6D1B2-6D93-4B50-98C3-C5F1A3DC4B02}.Release|Any CPU.ActiveCfg = Release|Any CPU
+    {84F6D1B2-6D93-4B50-98C3-C5F1A3DC4B02}.Release|Any CPU.Build.0 = Release|Any CPU
+    {B91784BA-1E81-4D32-A117-9A602B037C03}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+    {B91784BA-1E81-4D32-A117-9A602B037C03}.Debug|Any CPU.Build.0 = Debug|Any CPU
+    {B91784BA-1E81-4D32-A117-9A602B037C03}.Release|Any CPU.ActiveCfg = Release|Any CPU
+    {B91784BA-1E81-4D32-A117-9A602B037C03}.Release|Any CPU.Build.0 = Release|Any CPU
+    {4E9CB6C6-40EA-427E-99BE-C49511E6AD04}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+    {4E9CB6C6-40EA-427E-99BE-C49511E6AD04}.Debug|Any CPU.Build.0 = Debug|Any CPU
+    {4E9CB6C6-40EA-427E-99BE-C49511E6AD04}.Release|Any CPU.ActiveCfg = Release|Any CPU
+    {4E9CB6C6-40EA-427E-99BE-C49511E6AD04}.Release|Any CPU.Build.0 = Release|Any CPU
+    {21A41295-EAA4-4E88-A036-77A99D2D8E05}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+    {21A41295-EAA4-4E88-A036-77A99D2D8E05}.Debug|Any CPU.Build.0 = Debug|Any CPU
+    {21A41295-EAA4-4E88-A036-77A99D2D8E05}.Release|Any CPU.ActiveCfg = Release|Any CPU
+    {21A41295-EAA4-4E88-A036-77A99D2D8E05}.Release|Any CPU.Build.0 = Release|Any CPU
+    {871F6899-0C76-4F8C-9213-AD0B78278F06}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+    {871F6899-0C76-4F8C-9213-AD0B78278F06}.Debug|Any CPU.Build.0 = Debug|Any CPU
+    {871F6899-0C76-4F8C-9213-AD0B78278F06}.Release|Any CPU.ActiveCfg = Release|Any CPU
+    {871F6899-0C76-4F8C-9213-AD0B78278F06}.Release|Any CPU.Build.0 = Release|Any CPU
+  EndGlobalSection
+EndGlobal
