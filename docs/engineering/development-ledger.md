@@ -25,7 +25,7 @@ Quando una issue cambia stato in modo significativo, aggiornare la riga corrispo
 | #4 | Feature | 0.0.1 | Auth social | Planned | Pending | Microsoft + Google con identità Vuxo |
 | #5 | Feature | 0.0.1 | Mock auth | Done | API integration xUnit + CI backend/frontend + Playwright verdi | Chiuso: mock login solo Development/Test, Production non mappata, ruoli e policy REST/SignalR verificati |
 | #6 | Feature | 0.0.1 | Character | Done | Domain/Application/API xUnit + CI frontend/Playwright verdi | Chiuso: creazione autenticata, owner JWT, livello 0, 10 punti, statistiche derivate, error contract e singolo personaggio per owner |
-| #7 | Feature | 0.0.1 | Character UI | In progress | Catalogo/backend validation/editor/Playwright in implementazione | Catalogo ID canonico backend, preview 2D originale, editor MUI responsive e persistenza via API |
+| #7 | Feature | 0.0.1 | Character UI | Done | Domain/API xUnit + build frontend + 7 Playwright verdi | Chiuso: catalogo ID canonico validato dal backend, editor MUI responsive, preview SVG originale, draft persistito e submit autenticato |
 | #8 | Feature | 0.0.1 | World generation | Planned | Pending | Primo chunk deterministico e persistence metadata |
 | #9 | Feature | 0.0.1 | SignalR/MMO | Planned | Pending | Host server-authoritative e presence |
 | #10 | Feature | 0.0.1 | Phaser multiplayer | Planned | Smoke Phaser esistente | Due browser devono vedersi e muoversi |
