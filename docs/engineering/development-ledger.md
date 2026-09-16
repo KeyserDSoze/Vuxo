@@ -28,8 +28,8 @@ Quando una issue cambia stato in modo significativo, aggiornare la riga corrispo
 | #7 | Feature | 0.0.1 | Character UI | Done | Domain/API xUnit + build frontend + 7 Playwright verdi | Chiuso: catalogo ID canonico validato dal backend, editor MUI responsive, preview SVG originale, draft persistito e submit autenticato |
 | #8 | Feature | 0.0.1 | World generation | Done | Domain/Application/API xUnit + migration discovery + CI backend/frontend + 7 Playwright verdi | Chiuso: generatore v1 deterministico 16×16, bordi compatibili, walkability server-side, seed/versione persistiti, fingerprint chunk e API autenticata |
 | #28 | Bug | 0.0.1 | PostgreSQL/EF | Done | CI backend build/test + frontend build + 7 Playwright verdi | Chiuso: metadata EF espliciti sulla migration iniziale e regression test offline su `Database.GetMigrations()` |
-| #9 | Feature | 0.0.1 | SignalR/MMO | In progress | Simulation core e realtime integration in implementazione | Host server-authoritative stateless via Hub, tick/presence/collision server-side, reconnect idempotente e test multi-client |
-| #10 | Feature | 0.0.1 | Phaser multiplayer | Planned | Smoke Phaser esistente | Due browser devono vedersi e muoversi usando la geometria server-side di #8 |
+| #9 | Feature | 0.0.1 | SignalR/MMO | Done | Application xUnit + SignalR multi-client integration + CI backend/frontend verdi | Chiuso: Hub stateless, presence/reconnect, tick 20 Hz, input intent/rate-limit/sequence, velocità da Destrezza, collisioni su chunk #8 e delta server-side |
+| #10 | Feature | 0.0.1 | Phaser multiplayer | Planned | Smoke Phaser esistente | Collegare Phaser a `JoinWorld`, input intent e `world.delta`; due browser devono vedersi e muoversi |
 | #11 | Feature | 0.0.1 | Personal content | Planned | Pending | Grant, portali/dialoghi/ricompense personali auditabili |
 | #12 | Feature | 0.0.1 | Audit/Admin | Planned | Pending | Event store e vista amministrativa |
 | #13 | Feature | 0.0.1 | Observability | Planned | Pending | OpenTelemetry + stack self-hosted |
