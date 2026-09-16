@@ -119,7 +119,9 @@ L'API .NET raggiunge Ollama solo sulla rete Docker interna tramite endpoint Open
 
 La pipeline pubblica l'immagine API su GitHub Container Registry. Un GitHub Actions self-hosted runner installato sul server di deploy esegue `docker compose pull` e `docker compose up -d`. Il server apre connessioni verso GitHub; Cloudflare Tunnel espone l'API e non viene usato come canale di amministrazione/deploy.
 
-Il provisioning del server è in `infra/self-hosted/` e il runtime in `docker/compose.prod.yml`. `docker/compose.gpu.yml` abilita esplicitamente l'accesso GPU a Ollama solo quando la macchina lo supporta e i benchmark mostrano un beneficio.
+Il provisioning del server è in `infra/self-hosted/` e il runtime in `docker/compose.prod.yml`. Il bootstrap consigliato è `infra/self-hosted/bootstrap-linux.sh`: abilita Docker e il runner GitHub all'avvio della macchina. Il primo deploy crea API, PostgreSQL, Redis, Ollama e `cloudflared`; i servizi persistenti usano restart policy Docker e ripartono automaticamente dopo un reboot. I secret runtime, incluso il tunnel token, vivono nell'environment GitHub `production` e non nello script di bootstrap.
+
+`docker/compose.gpu.yml` abilita esplicitamente l'accesso GPU a Ollama solo quando la macchina lo supporta e i benchmark mostrano un beneficio.
 
 Il workflow production usa `https://vuxo.quest` come origin CORS predefinita e `https://api.vuxoapi.xyz` come endpoint API del build frontend. Le variabili GitHub possono sovrascrivere questi default quando serve una migrazione controllata.
 
