@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Vuxo.Application.AI;
 using Vuxo.Domain.Common;
 using Vuxo.Domain.Events;
+using Vuxo.Domain.PersonalContent;
 using Vuxo.Domain.Players;
 using Vuxo.Domain.Worlds;
 using Vuxo.Infrastructure.AI;
@@ -22,6 +23,7 @@ public static class DependencyInjection
         services.AddScoped<IPlayerCharacterRepository, PlayerCharacterRepository>();
         services.AddScoped<IGameEventStore, GameEventStore>();
         services.AddScoped<IWorldRepository, WorldRepository>();
+        services.AddScoped<IExclusiveContentGrantRepository, ExclusiveContentGrantRepository>();
         services.AddScoped<IUnitOfWork>(provider => provider.GetRequiredService<VuxoDbContext>());
 
         var llmEnabled = bool.TryParse(configuration["Llm:Enabled"], out var enabled) && enabled;
