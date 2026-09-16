@@ -27,15 +27,15 @@ test('appearance selection updates preview and persists across reload', async ({
   await expect(page.getByRole('heading', { name: /costruisci il tuo vuxian/i })).toBeVisible()
   await expect(page.getByTestId('character-preview')).toBeVisible()
 
-  await page.getByTestId('hairStyle-select').click()
+  await page.getByTestId('hairStyle-select').getByRole('combobox').click()
   await page.getByRole('option', { name: 'Lunghi' }).click()
-  await page.getByTestId('bottomStyle-select').click()
+  await page.getByTestId('bottomStyle-select').getByRole('combobox').click()
   await page.getByRole('option', { name: 'Gonna' }).click()
 
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('vuxo.character.draft') ?? '{}').appearance?.hairStyle)).toBe('hair-3')
   await page.reload()
-  await expect(page.getByTestId('hairStyle-select')).toHaveValue('hair-3')
-  await expect(page.getByTestId('bottomStyle-select')).toHaveValue('skirt')
+  await expect(page.getByTestId('hairStyle-select').getByRole('combobox')).toHaveText('Lunghi')
+  await expect(page.getByTestId('bottomStyle-select').getByRole('combobox')).toHaveText('Gonna')
 })
 
 test('authenticated submit sends canonical ids and bearer token', async ({ page }) => {
@@ -50,9 +50,9 @@ test('authenticated submit sends canonical ids and bearer token', async ({ page 
   })
 
   await page.goto('./#/character')
-  await page.getByTestId('hairStyle-select').click()
+  await page.getByTestId('hairStyle-select').getByRole('combobox').click()
   await page.getByRole('option', { name: 'Ricci' }).click()
-  await page.getByTestId('shoeStyle-select').click()
+  await page.getByTestId('shoeStyle-select').getByRole('combobox').click()
   await page.getByRole('option', { name: 'Stivaletti' }).click()
   await page.getByTestId('create-character').click()
 
@@ -67,8 +67,8 @@ test('editor remains usable on a narrow mobile viewport', async ({ page }) => {
   await page.goto('./#/character')
 
   await expect(page.getByTestId('character-preview')).toBeVisible()
-  await expect(page.getByLabel('Nome')).toBeVisible()
-  await expect(page.getByLabel('Capelli')).toBeVisible()
+  await expect(page.getByLabel('Nome', { exact: true })).toBeVisible()
+  await expect(page.getByRole('combobox', { name: 'Capelli', exact: true })).toBeVisible()
   const hasHorizontalOverflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)
   expect(hasHorizontalOverflow).toBe(false)
 })
