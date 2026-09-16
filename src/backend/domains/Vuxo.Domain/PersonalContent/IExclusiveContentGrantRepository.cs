@@ -4,6 +4,8 @@ public interface IExclusiveContentGrantRepository
 {
     Task AddAsync(ExclusiveContentGrant grant, CancellationToken cancellationToken = default);
 
+    Task UpdateAsync(ExclusiveContentGrant grant, CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<ExclusiveContentGrant>> GetAvailableForPlayerAsync(
         string playerId,
         DateTimeOffset now,
