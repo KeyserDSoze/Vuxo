@@ -18,7 +18,21 @@ void i18n.use(initReactI18next).init({
           description: 'Esplora un mondo 2D condiviso, crea il tuo personaggio e preparati a un universo che cresce insieme ai giocatori.',
           cta: 'Entra nel prototipo'
         },
-        game: { title: 'Prototipo del mondo', description: 'Placeholder originale generato da codice. Usa WASD o le frecce per muoverti.' },
+        game: {
+          title: 'Mondo condiviso',
+          description: 'Il movimento è autoritativo lato server. Usa WASD, le frecce o i controlli touch per inviare i tuoi intenti.',
+          playersOnline: 'Giocatori online: {{count}}',
+          connection: {
+            idle: 'Offline',
+            connecting: 'Connessione…',
+            connected: 'Online',
+            reconnecting: 'Riconnessione…',
+            disconnected: 'Disconnesso',
+            error: 'Errore',
+            genericError: 'La connessione al mondo non è disponibile.'
+          },
+          controls: { up: 'Muovi su', down: 'Muovi giù', left: 'Muovi a sinistra', right: 'Muovi a destra' }
+        },
         admin: { title: 'Amministrazione', description: 'Health, giocatori online, audit degli eventi, contenuti esclusivi e telemetria saranno raccolti qui.' },
         version: { title: 'Versione', frontend: 'Frontend', commit: 'Commit', buildUtc: 'Build UTC', unknown: 'sconosciuto' },
         character: {
@@ -65,7 +79,13 @@ void i18n.use(initReactI18next).init({
           character_attribute_allocation_invalid: 'Devi assegnare esattamente 10 punti.',
           character_appearance_required: 'Scegli un aspetto per il personaggio.',
           character_appearance_option_invalid: 'Una scelta dell’aspetto non è più valida. Ricarica il catalogo.',
-          character_already_exists: 'Questo account possiede già un personaggio.'
+          character_already_exists: 'Questo account possiede già un personaggio.',
+          world_authentication_required: 'Accedi a Vuxo prima di entrare nel mondo condiviso.',
+          world_character_required: 'Crea prima un personaggio Vuxo.',
+          world_connection_failed: 'Non è stato possibile connettersi al mondo.',
+          world_reconnect_failed: 'La riconnessione al mondo non è riuscita.',
+          world_session_replaced: 'Questa sessione è stata sostituita da una nuova connessione.',
+          world_input_rejected: 'Il server ha rifiutato un input di movimento.'
         }
       }
     },
@@ -80,7 +100,21 @@ void i18n.use(initReactI18next).init({
           description: 'Explore a shared 2D world, create your character and get ready for a universe that grows together with its players.',
           cta: 'Enter the prototype'
         },
-        game: { title: 'World prototype', description: 'Original code-generated placeholder. Use WASD or arrow keys to move.' },
+        game: {
+          title: 'Shared world',
+          description: 'Movement is server-authoritative. Use WASD, arrow keys or touch controls to send your movement intent.',
+          playersOnline: 'Players online: {{count}}',
+          connection: {
+            idle: 'Offline',
+            connecting: 'Connecting…',
+            connected: 'Online',
+            reconnecting: 'Reconnecting…',
+            disconnected: 'Disconnected',
+            error: 'Error',
+            genericError: 'The world connection is unavailable.'
+          },
+          controls: { up: 'Move up', down: 'Move down', left: 'Move left', right: 'Move right' }
+        },
         admin: { title: 'Administration', description: 'Health, online players, event audit, exclusive content and telemetry will live here.' },
         version: { title: 'Version', frontend: 'Frontend', commit: 'Commit', buildUtc: 'Build UTC', unknown: 'unknown' },
         character: {
@@ -127,7 +161,13 @@ void i18n.use(initReactI18next).init({
           character_attribute_allocation_invalid: 'You must assign exactly 10 points.',
           character_appearance_required: 'Choose a character appearance.',
           character_appearance_option_invalid: 'An appearance choice is no longer valid. Reload the catalog.',
-          character_already_exists: 'This account already owns a character.'
+          character_already_exists: 'This account already owns a character.',
+          world_authentication_required: 'Sign in to Vuxo before entering the shared world.',
+          world_character_required: 'Create a Vuxo character first.',
+          world_connection_failed: 'Could not connect to the world.',
+          world_reconnect_failed: 'Could not reconnect to the world.',
+          world_session_replaced: 'This session was replaced by a newer connection.',
+          world_input_rejected: 'The server rejected a movement input.'
         }
       }
     }

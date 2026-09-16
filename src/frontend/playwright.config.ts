@@ -10,7 +10,7 @@ export default defineConfig({
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } }
   ],
   webServer: {
-    command: 'npm run build && npm run preview -- --host 127.0.0.1 --port 4173',
+    command: 'VITE_E2E_REALTIME=true npm run build && VITE_E2E_REALTIME=true npm run preview -- --host 127.0.0.1 --port 4173',
     url: 'http://127.0.0.1:4173/Vuxo/',
     reuseExistingServer: !process.env.CI
   }
