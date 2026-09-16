@@ -7,7 +7,7 @@ namespace Vuxo.Infrastructure.Tests.Persistence;
 public sealed class MigrationDiscoveryTests
 {
     [Fact]
-    public void InitialMigration_IsDiscoveredByEfCore()
+    public void ApplicationMigrations_AreDiscoveredByEfCore()
     {
         var options = new DbContextOptionsBuilder<VuxoDbContext>()
             .UseNpgsql("Host=localhost;Database=vuxo_migration_discovery;Username=vuxo;Password=vuxo")
@@ -15,8 +15,9 @@ public sealed class MigrationDiscoveryTests
 
         using var dbContext = new VuxoDbContext(options);
 
-        var migrations = dbContext.Database.GetMigrations();
+        var migrations = dbContext.Database.GetMigrations().ToArray();
 
         Assert.Contains("202609160001_Initial", migrations);
+        Assert.Contains("202609160002_WorldGeneration", migrations);
     }
 }

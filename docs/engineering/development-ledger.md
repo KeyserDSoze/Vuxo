@@ -26,10 +26,10 @@ Quando una issue cambia stato in modo significativo, aggiornare la riga corrispo
 | #5 | Feature | 0.0.1 | Mock auth | Done | API integration xUnit + CI backend/frontend + Playwright verdi | Chiuso: mock login solo Development/Test, Production non mappata, ruoli e policy REST/SignalR verificati |
 | #6 | Feature | 0.0.1 | Character | Done | Domain/Application/API xUnit + CI frontend/Playwright verdi | Chiuso: creazione autenticata, owner JWT, livello 0, 10 punti, statistiche derivate, error contract e singolo personaggio per owner |
 | #7 | Feature | 0.0.1 | Character UI | Done | Domain/API xUnit + build frontend + 7 Playwright verdi | Chiuso: catalogo ID canonico validato dal backend, editor MUI responsive, preview SVG originale, draft persistito e submit autenticato |
-| #8 | Feature | 0.0.1 | World generation | In progress | #28 risolto; domain/persistence tests da implementare | Implementare generatore deterministico a chunk, metadata persistenti e regression fixtures |
+| #8 | Feature | 0.0.1 | World generation | Done | Domain/Application/API xUnit + migration discovery + CI backend/frontend + 7 Playwright verdi | Chiuso: generatore v1 deterministico 16×16, bordi compatibili, walkability server-side, seed/versione persistiti, fingerprint chunk e API autenticata |
 | #28 | Bug | 0.0.1 | PostgreSQL/EF | Done | CI backend build/test + frontend build + 7 Playwright verdi | Chiuso: metadata EF espliciti sulla migration iniziale e regression test offline su `Database.GetMigrations()` |
-| #9 | Feature | 0.0.1 | SignalR/MMO | Planned | Pending | Host server-authoritative e presence |
-| #10 | Feature | 0.0.1 | Phaser multiplayer | Planned | Smoke Phaser esistente | Due browser devono vedersi e muoversi |
+| #9 | Feature | 0.0.1 | SignalR/MMO | Planned | Pending | Host server-authoritative e presence; gestire anche la concorrenza sulla prima materializzazione dei chunk |
+| #10 | Feature | 0.0.1 | Phaser multiplayer | Planned | Smoke Phaser esistente | Due browser devono vedersi e muoversi usando la geometria server-side di #8 |
 | #11 | Feature | 0.0.1 | Personal content | Planned | Pending | Grant, portali/dialoghi/ricompense personali auditabili |
 | #12 | Feature | 0.0.1 | Audit/Admin | Planned | Pending | Event store e vista amministrativa |
 | #13 | Feature | 0.0.1 | Observability | Planned | Pending | OpenTelemetry + stack self-hosted |

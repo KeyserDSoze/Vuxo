@@ -8,9 +8,12 @@ using Vuxo.Api.Auth;
 using Vuxo.Api.Contracts.Auth;
 using Vuxo.Api.Contracts.Players;
 using Vuxo.Api.Realtime;
+using Vuxo.Api.Worlds;
 using Vuxo.Application.AI;
 using Vuxo.Application.Players;
+using Vuxo.Application.Worlds;
 using Vuxo.Domain.Players;
+using Vuxo.Domain.Worlds;
 using Vuxo.Infrastructure;
 using Vuxo.Infrastructure.Persistence;
 
@@ -21,6 +24,18 @@ builder.Services.AddHealthChecks();
 builder.Services.AddVuxoInfrastructure(builder.Configuration);
 builder.Services.AddScoped<CharacterService>();
 builder.Services.AddScoped<LanguageModelSmokeService>();
+builder.Services.AddScoped<WorldService>();
+builder.Services.AddSingleton<WorldChunkGenerator>();
+builder.Services.AddSingleton<TimeProvider>(TimeProvider.System);
+builder.Services.AddSingleton(provider =>
+{
+    var configuration = provider.GetRequiredService<IConfiguration>();
+    var worldId = configuration["World:Id"] ?? "vuxo-prime";
+    var seed = configuration.GetValue<long?>("World:Seed") ?? 9_162_026_001L;
+    var generatorVersion = configuration.GetValue<int?>("World:GeneratorVersion")
+        ?? WorldGenerationRules.CurrentGeneratorVersion;
+    return new WorldBootstrapSpec(worldId, seed, generatorVersion);
+});
 builder.Services.AddSingleton<MockTokenService>();
 
 var signingKey = builder.Configuration["Auth:Jwt:SigningKey"];
@@ -217,6 +232,8 @@ app.MapPost("/api/characters", async (CreateCharacterRequest request, ClaimsPrin
         return Results.BadRequest(new { code = exception.Code });
     }
 }).RequireAuthorization();
+
+app.MapWorldEndpoints();
 
 app.MapGet("/api/admin/llm/tool-smoke", async (ILanguageModelGateway gateway, LanguageModelSmokeService smoke, CancellationToken cancellationToken) =>
 {
