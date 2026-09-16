@@ -11,6 +11,13 @@ public sealed class ExclusiveContentGrantRepository(VuxoDbContext dbContext) : I
         await dbContext.ExclusiveContentGrants.AddAsync(ToEntity(grant), cancellationToken);
     }
 
+    public async Task UpdateAsync(ExclusiveContentGrant grant, CancellationToken cancellationToken = default)
+    {
+        var entity = await dbContext.ExclusiveContentGrants
+            .SingleAsync(x => x.Id == grant.Id && x.PlayerId == grant.PlayerId, cancellationToken);
+        entity.ConsumedAtUtc = grant.ConsumedAtUtc;
+    }
+
     public async Task<IReadOnlyList<ExclusiveContentGrant>> GetAvailableForPlayerAsync(
         string playerId,
         DateTimeOffset now,
@@ -34,6 +41,7 @@ public sealed class ExclusiveContentGrantRepository(VuxoDbContext dbContext) : I
         CancellationToken cancellationToken = default)
     {
         var entity = await dbContext.ExclusiveContentGrants
+            .AsNoTracking()
             .SingleOrDefaultAsync(x => x.Id == grantId && x.PlayerId == playerId, cancellationToken);
 
         return entity is null ? null : Rehydrate(entity);
