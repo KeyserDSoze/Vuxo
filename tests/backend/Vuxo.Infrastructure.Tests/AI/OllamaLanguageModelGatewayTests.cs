@@ -163,7 +163,7 @@ public sealed class OllamaLanguageModelGatewayTests
     }
 
     private static OllamaLanguageModelGateway CreateGateway(
-        SequenceHandler handler,
+        HttpMessageHandler handler,
         OllamaResilienceOptions? resilience = null)
     {
         var client = new HttpClient(handler)
