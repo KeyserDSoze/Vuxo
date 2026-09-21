@@ -57,7 +57,10 @@ test('shell controls expose accessible labels and visible keyboard focus', async
   await expect(page.getByTestId('language-toggle')).toHaveAttribute('aria-label', /Lingua:/);
 
   const home = page.getByRole('link', { name: 'Home' });
-  await home.focus();
+  await page.keyboard.press('Tab');
   await expect(home).toBeFocused();
-  await expect.poll(() => home.evaluate(element => getComputedStyle(element).outlineWidth)).not.toBe('0px');
+  await expect.poll(() => home.evaluate(element => ({
+    focusVisible: element.matches(':focus-visible'),
+    outlineWidth: getComputedStyle(element).outlineWidth,
+  }))).toEqual({ focusVisible: true, outlineWidth: '3px' });
 });
