@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using Vuxo.Application.AI;
 using Vuxo.Infrastructure.AI;
+using Xunit;
 
 namespace Vuxo.Infrastructure.Tests.AI;
 
