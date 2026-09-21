@@ -84,6 +84,23 @@ test('expired provider credential is localized and mobile layout remains usable'
   await expect(page.getByTestId('auth-microsoft')).toHaveText('Sign in with Microsoft');
 });
 
+test('missing translation key falls back to localized generic auth error', async ({ page }) => {
+  await page.route('**/api/auth/providers', route => route.fulfill({
+    contentType: 'application/json',
+    body: JSON.stringify(providerConfiguration()),
+  }));
+  await page.route('**/api/auth/social', route => route.fulfill({
+    status: 500,
+    contentType: 'application/json',
+    body: JSON.stringify({ code: 'unknown_future_auth_error' }),
+  }));
+
+  await page.goto('./#/auth');
+  await page.getByTestId('auth-microsoft').click();
+
+  await expect(page.getByTestId('auth-error')).toHaveText('Non è stato possibile completare l’accesso.');
+});
+
 async function installAuthRoutes(
   page: Page,
   onSocial: (route: Route) => Promise<void>,
