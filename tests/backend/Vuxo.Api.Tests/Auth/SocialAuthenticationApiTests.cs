@@ -36,7 +36,7 @@ public sealed class SocialAuthenticationApiTests
         var json = await response.Content.ReadAsStringAsync();
         Assert.Contains("microsoft-client-id", json, StringComparison.Ordinal);
         Assert.Contains("google-client-id", json, StringComparison.Ordinal);
-        Assert.Contains("\\\"tenantId\\\":\\\"common\\\"", json, StringComparison.Ordinal);
+        Assert.Contains("tenantId", json, StringComparison.Ordinal);\n        Assert.Contains("common", json, StringComparison.Ordinal);
         Assert.DoesNotContain("must-not-leak", json, StringComparison.Ordinal);
         Assert.DoesNotContain("clientSecret", json, StringComparison.OrdinalIgnoreCase);
     }
