@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { HashRouter } from 'react-router-dom';
 import { App } from './App';
 import './i18n';
+import './i18n/registerNamespaces';
 import './styles.css';
 import { VuxoThemeProvider } from './theme/VuxoThemeProvider';
 import { BuildInfoProvider } from './features/version/BuildInfoProvider';
