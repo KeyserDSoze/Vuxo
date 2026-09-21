@@ -36,7 +36,7 @@ Quando una issue cambia stato in modo significativo, aggiornare la riga corrispo
 | #14 | Feature | 0.0.1 | Docker/IaC | Done | CI Docker runtime smoke + backend + frontend/Playwright verdi | Chiuso: runtime-only API image, dev/prod health, DB/cache privati, Cloudflare `api:8080`, named-volume persistence verificata dopo recreate |
 | #15 | Feature | 0.0.1 | CI/Pages | In progress | CI + Playwright verdi | Completare/validare deploy pubblico su vuxo.quest |
 | #16 | Feature | 0.0.1 | Deploy backend | In progress | Build/push GHCR predisposti | Registrare runner `vuxo-prod` e validare deploy reale |
-| #17 | Feature | 0.0.1 | Release/versioning | In progress | Quality gate VERSION/package/patch note verde | Completare About/version metadata end-to-end |
+| #17 | Feature | 0.0.1 | Release/versioning | Done | Release/foundation gate + built version.json + Version/About + update notifier Playwright + CI completa verdi | Chiuso: VERSION canonico, metadata frontend/backend visibili, SemVer documentato, local fallback e nuova-build notification senza refresh forzato |
 | #21 | Feature | 0.0.1 | UI/i18n | In progress | Build + Playwright tema/lingua verdi | Consolidare design system durante le prossime UI |
 | #22 | Feature | 0.0.1 | Local LLM | In progress | Adapter/test foundation presenti | Validare smoke tool-calling sul server reale |
 | #23 | Feature | 0.0.1 | Agent handbook | Done | CI completa verde | Chiuso: AGENTS/skills/multi-LLM governance completati |
