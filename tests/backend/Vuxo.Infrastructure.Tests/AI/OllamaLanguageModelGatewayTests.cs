@@ -128,6 +128,26 @@ public sealed class OllamaLanguageModelGatewayTests
     }
 
     [Fact]
+    public async Task ChatAsync_CallerCancellation_IsNotRetried()
+    {
+        var handler = new CancellingHandler();
+        var gateway = CreateGateway(
+            handler,
+            OllamaResilienceOptions.Create(
+                maxRetries: 2,
+                failureThreshold: 3,
+                breakSeconds: 30,
+                retryDelayMilliseconds: 0));
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => gateway.ChatAsync(Request(), cancellation.Token));
+
+        Assert.Equal(1, handler.RequestCount);
+    }
+
+    [Fact]
     public async Task ProbeAsync_DisabledGateway_DoesNotCallProvider()
     {
         var handler = new SequenceHandler();
@@ -178,6 +198,20 @@ public sealed class OllamaLanguageModelGatewayTests
         {
             Content = new StringContent(json, Encoding.UTF8, "application/json")
         };
+
+    private sealed class CancellingHandler : HttpMessageHandler
+    {
+        public int RequestCount { get; private set; }
+
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            RequestCount++;
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromException<HttpResponseMessage>(new OperationCanceledException(cancellationToken));
+        }
+    }
 
     private sealed class SequenceHandler(params HttpResponseMessage[] responses) : HttpMessageHandler
     {
