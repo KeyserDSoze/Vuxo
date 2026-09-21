@@ -19,7 +19,7 @@ Quando una issue cambia stato in modo significativo, aggiornare la riga corrispo
 | Issue | Tipo | Versione | Area | Stato | Test/Stato verifica | Risoluzione / prossimo passo |
 |---|---|---:|---|---|---|---|
 | #20 | Epic | 0.0.1 | First playable | In progress | CI foundation verde | Coordinare le issue della first playable |
-| #1 | Feature | 0.0.1 | Repository/quality | In progress | CI backend/frontend attiva | Chiudere solo dopo verifica completa acceptance criteria |
+| #1 | Feature | 0.0.1 | Repository/quality | Done | Foundation gate + backend/xUnit/PostgreSQL + Docker runtime + frontend/Playwright verdi | Chiuso: struttura monorepo, stack, warnings-as-errors, CI, README/version metadata e guard sui file locali sensibili sono verificati automaticamente |
 | #2 | Feature | 0.0.1 | Backend/API | Done | API integration health/version/OpenAPI + PostgreSQL/OTLP + Docker runtime + frontend/Playwright verdi | Chiuso: Release build, health/version contract, OpenAPI Development-only, fail-fast DB config, migration startup production-like e Production senza mock auth verificati |
 | #3 | Feature | 0.0.1 | PostgreSQL/EF | Done | PostgreSQL 17 integration + migration/round-trip/unique/event query + pg_dump/pg_restore + CI completa verdi | Chiuso: DB vuoto migra allo schema corrente, personaggio/eventi persistono su PostgreSQL reale, vincolo owner verificato e backup/restore documentato e provato |
 | #4 | Feature | 0.0.1 | Auth social | Planned | Pending | Microsoft + Google con identità Vuxo |
