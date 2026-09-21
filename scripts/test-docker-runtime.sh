@@ -53,6 +53,26 @@ echo "==> Validating Compose models"
 "${PROD[@]}" config >/dev/null
 "${EDGE[@]}" config >/dev/null
 
+echo "==> Verifying Ollama stays backend-only in production"
+prod_json="$("${PROD[@]}" config --format json)"
+PROD_JSON="$prod_json" python3 - <<'PY'
+import json
+import os
+config = json.loads(os.environ["PROD_JSON"])
+ollama = config["services"]["ollama"]
+ports = ollama.get("ports") or []
+if ports:
+    raise SystemExit(f"Ollama unexpectedly exposes production ports: {ports}")
+networks = ollama.get("networks") or {}
+if "vuxo" not in networks:
+    raise SystemExit("Ollama must stay on the private vuxo Docker network")
+PY
+
+if grep -R -n -E 'ollama:11434|localhost:11434|127\.0\.0\.1:11434' src/frontend --exclude-dir=node_modules --exclude-dir=dist; then
+  echo "Frontend must not reference Ollama directly" >&2
+  exit 1
+fi
+
 echo "==> Building production API image"
 docker build --file docker/Dockerfile.api --tag "$VUXO_API_IMAGE" .
 
