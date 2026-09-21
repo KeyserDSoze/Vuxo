@@ -24,7 +24,7 @@ public sealed class OllamaLanguageModelGatewayTests
                     "type": "function",
                     "function": {
                       "name": "get_world_context",
-                      "arguments": "{"worldId":"vuxo-prime"}"
+                      "arguments": "{\"worldId\":\"vuxo-prime\"}"
                     }
                   }]
                 }
