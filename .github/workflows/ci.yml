@@ -136,6 +136,8 @@ jobs:
         env:
           VITE_BASE_PATH: /Vuxo/
         run: npm run build
+      - name: Verify built frontend metadata
+        run: node ../../scripts/verify-built-version.mjs
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
       - name: Playwright

@@ -17,6 +17,11 @@ if (frontendPackage.version !== version) {
   throw new Error(`Version mismatch: VERSION=${version}, src/frontend/package.json=${frontendPackage.version}`);
 }
 
+const releaseGuide = join(root, 'docs', 'engineering', 'release-versioning.md');
+if (!existsSync(releaseGuide)) {
+  throw new Error('Missing release/versioning convention: docs/engineering/release-versioning.md');
+}
+
 const patchNote = join(root, 'docs', 'patch-notes', `${version}.md`);
 if (!existsSync(patchNote)) {
   throw new Error(`Missing patch note for ${version}: docs/patch-notes/${version}.md`);

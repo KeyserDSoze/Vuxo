@@ -37,7 +37,7 @@ Le patch note sono versionate in `docs/patch-notes/`. Ogni nuova versione deve i
 4. test verdi;
 5. eventuali note operative per migrazioni/configurazione/deploy.
 
-Ogni build espone versione, commit e data di build.
+Ogni build espone versione, commit e data di build. La convenzione SemVer, i metadata locali/CI e il rilevamento di nuove build frontend sono documentati in `docs/engineering/release-versioning.md`.
 
 ## Struttura
 
