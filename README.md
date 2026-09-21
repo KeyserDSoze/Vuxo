@@ -119,7 +119,7 @@ Questo avvia PostgreSQL, Redis e Ollama. Il servizio di init scarica il modello 
 
 L'API .NET raggiunge Ollama solo sulla rete Docker interna tramite endpoint OpenAI-compatible. In produzione Ollama non espone porte pubbliche. La configurazione low-resource limita di default modello caricato, parallelismo, context e coda. Vedi `docs/architecture/local-llm.md`.
 
-È presente uno smoke amministrativo protetto in `/api/admin/llm/tool-smoke`: verifica che il modello riesca a produrre una tool call strutturata. L'esecuzione generale dei tool sarà implementata con registry server-side allow-listed e audit completo.
+È presente uno smoke amministrativo protetto in `/api/admin/llm/tool-smoke`: il modello propone `get_world_context`, il backend valida/autorizza il tool tramite registry allow-list, lo esegue server-side, restituisce il risultato al modello e audita l'operazione. `/health/llm` espone lo stato LLM separatamente dalla readiness core `/health`.
 
 ## Deploy self-hosted
 
