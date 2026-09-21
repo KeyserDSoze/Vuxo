@@ -7,6 +7,8 @@ import { CharacterEditorPage } from './pages/CharacterEditorPage';
 import { GamePage } from './pages/GamePage';
 import { HomePage } from './pages/HomePage';
 import { VersionPage } from './pages/VersionPage';
+import { BuildUpdateNotifier } from './features/version/BuildUpdateNotifier';
+import { useBuildInfo } from './features/version/BuildInfoProvider';
 import { useVuxoTheme } from './theme/VuxoThemeProvider';
 
 const navItems = [
@@ -20,6 +22,7 @@ const navItems = [
 export function App() {
   const { t, i18n } = useTranslation();
   const { mode, cycleMode } = useVuxoTheme();
+  const { build } = useBuildInfo();
   const language = i18n.resolvedLanguage?.startsWith('en') ? 'en' : 'it';
   const ThemeIcon = mode === 'system' ? SettingsBrightness : mode === 'light' ? LightMode : DarkMode;
 
@@ -32,7 +35,7 @@ export function App() {
       <AppBar position="sticky" elevation={0} color="transparent" sx={{ backdropFilter: 'blur(18px)', borderBottom: 1, borderColor: 'divider' }}>
         <Toolbar sx={{ gap: 1.5, minHeight: 68 }}>
           <Typography variant="h6" sx={{ fontWeight: 900, letterSpacing: '-0.04em' }}>VUXO</Typography>
-          <Chip size="small" label={t('shell.version', { version: '0.0.1' })} sx={{ display: { xs: 'none', md: 'inline-flex' } }} />
+          <Chip data-testid="shell-version" size="small" label={t('shell.version', { version: build?.version ?? '…' })} sx={{ display: { xs: 'none', md: 'inline-flex' } }} />
           <Stack component="nav" direction="row" spacing={0.5} sx={{ ml: { xs: 0, sm: 2 }, overflowX: 'auto' }}>
             {navItems.map(item => (
               <Button key={item.to} component={RouterLink} to={item.to} color="inherit" size="small">
@@ -62,6 +65,7 @@ export function App() {
           <Route path="/version" element={<VersionPage />} />
         </Routes>
       </Container>
+      <BuildUpdateNotifier />
     </Box>
   );
 }

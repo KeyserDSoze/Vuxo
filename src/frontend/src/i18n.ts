@@ -13,7 +13,7 @@ void i18n.use(initReactI18next).init({
         shell: { theme: 'Tema', language: 'Lingua', version: 'Versione {{version}}' },
         theme: { system: 'Sistema', light: 'Chiaro', dark: 'Scuro' },
         home: {
-          eyebrow: 'Versione 0.0.1 · First playable',
+          eyebrow: 'Versione {{version}} · First playable',
           title: 'Il primo mondo di Vuxo sta nascendo.',
           description: 'Esplora un mondo 2D condiviso, crea il tuo personaggio e preparati a un universo che cresce insieme ai giocatori.',
           cta: 'Entra nel prototipo'
@@ -34,7 +34,23 @@ void i18n.use(initReactI18next).init({
           controls: { up: 'Muovi su', down: 'Muovi giù', left: 'Muovi a sinistra', right: 'Muovi a destra' }
         },
         admin: { title: 'Amministrazione', description: 'Health, giocatori online, audit degli eventi, contenuti esclusivi e telemetria saranno raccolti qui.' },
-        version: { title: 'Versione', frontend: 'Frontend', commit: 'Commit', buildUtc: 'Build UTC', unknown: 'sconosciuto' },
+        version: {
+          title: 'Versione e build',
+          description: 'Identifica la build frontend caricata e il backend a cui è connessa.',
+          frontend: 'Frontend',
+          backend: 'Backend',
+          application: 'Applicazione',
+          version: 'Versione',
+          commit: 'Commit',
+          buildUtc: 'Build UTC',
+          informationalVersion: 'Versione informativa',
+          environment: 'Ambiente',
+          unknown: 'sconosciuto',
+          unavailable: 'non disponibile',
+          frontendUnavailable: 'I metadata della build frontend non sono disponibili.',
+          backendUnavailable: 'I metadata del backend non sono disponibili.',
+          update: { available: 'È disponibile una nuova build Vuxo ({{version}}).', reload: 'Ricarica' }
+        },
         character: {
           editor: {
             eyebrow: 'Creazione personaggio',
@@ -95,7 +111,7 @@ void i18n.use(initReactI18next).init({
         shell: { theme: 'Theme', language: 'Language', version: 'Version {{version}}' },
         theme: { system: 'System', light: 'Light', dark: 'Dark' },
         home: {
-          eyebrow: 'Version 0.0.1 · First playable',
+          eyebrow: 'Version {{version}} · First playable',
           title: 'The first world of Vuxo is coming to life.',
           description: 'Explore a shared 2D world, create your character and get ready for a universe that grows together with its players.',
           cta: 'Enter the prototype'
@@ -116,7 +132,23 @@ void i18n.use(initReactI18next).init({
           controls: { up: 'Move up', down: 'Move down', left: 'Move left', right: 'Move right' }
         },
         admin: { title: 'Administration', description: 'Health, online players, event audit, exclusive content and telemetry will live here.' },
-        version: { title: 'Version', frontend: 'Frontend', commit: 'Commit', buildUtc: 'Build UTC', unknown: 'unknown' },
+        version: {
+          title: 'Version and build',
+          description: 'Identify the loaded frontend build and the backend it is connected to.',
+          frontend: 'Frontend',
+          backend: 'Backend',
+          application: 'Application',
+          version: 'Version',
+          commit: 'Commit',
+          buildUtc: 'Build UTC',
+          informationalVersion: 'Informational version',
+          environment: 'Environment',
+          unknown: 'unknown',
+          unavailable: 'unavailable',
+          frontendUnavailable: 'Frontend build metadata is unavailable.',
+          backendUnavailable: 'Backend build metadata is unavailable.',
+          update: { available: 'A new Vuxo build is available ({{version}}).', reload: 'Reload' }
+        },
         character: {
           editor: {
             eyebrow: 'Character creation',

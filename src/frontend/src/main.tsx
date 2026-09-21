@@ -5,13 +5,16 @@ import { App } from './App';
 import './i18n';
 import './styles.css';
 import { VuxoThemeProvider } from './theme/VuxoThemeProvider';
+import { BuildInfoProvider } from './features/version/BuildInfoProvider';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <VuxoThemeProvider>
-      <HashRouter>
-        <App />
-      </HashRouter>
+      <BuildInfoProvider>
+        <HashRouter>
+          <App />
+        </HashRouter>
+      </BuildInfoProvider>
     </VuxoThemeProvider>
   </React.StrictMode>
 );
