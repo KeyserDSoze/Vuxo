@@ -1,55 +1,50 @@
-using System.Text.Json;
+using Vuxo.Application.Worlds;
 
 namespace Vuxo.Application.AI;
 
 public sealed record LanguageModelSmokeResult(
-    bool ToolCallObserved,
+    bool ToolExecuted,
     string? Model,
     string? Content,
-    IReadOnlyList<LanguageModelToolCall> ToolCalls);
+    int ToolRounds,
+    Guid CorrelationId,
+    IReadOnlyList<LanguageModelToolReceipt> ExecutedTools);
 
-public sealed class LanguageModelSmokeService(ILanguageModelGateway gateway)
+public sealed class LanguageModelSmokeService(
+    LanguageModelOrchestrator orchestrator,
+    WorldBootstrapSpec bootstrap)
 {
-    public async Task<LanguageModelSmokeResult> RunAsync(CancellationToken cancellationToken = default)
+    public async Task<LanguageModelSmokeResult> RunAsync(
+        string actorId,
+        bool isAdministrator,
+        CancellationToken cancellationToken = default)
     {
-        var parameters = JsonSerializer.SerializeToElement(new
+        var correlationId = Guid.NewGuid();
+        var messages = new LanguageModelMessage[]
         {
-            type = "object",
-            properties = new
-            {
-                worldId = new
-                {
-                    type = "string",
-                    description = "World identifier to inspect."
-                }
-            },
-            required = new[] { "worldId" },
-            additionalProperties = false
-        });
+            new(
+                "system",
+                "You are the local Vuxo orchestration model. Tools are proposals only. Use authoritative tool results instead of inventing game state."),
+            new(
+                "user",
+                $"Call {GetWorldContextTool.ToolName} with worldId {bootstrap.WorldId}. Then summarize only the returned authoritative context.")
+        };
 
-        var request = new LanguageModelRequest(
-            [
-                new LanguageModelMessage(
-                    "system",
-                    "You are the local Vuxo orchestration model. When a tool is appropriate, return a structured tool call instead of inventing data."),
-                new LanguageModelMessage(
-                    "user",
-                    "Call get_world_context with worldId bootstrap. Do not answer from memory and do not invent world data.")
-            ],
-            [
-                new LanguageModelTool(
-                    "get_world_context",
-                    "Returns the authoritative context for a Vuxo world.",
-                    parameters)
-            ]);
-
-        var response = await gateway.ChatAsync(request, cancellationToken);
-        var toolObserved = response.ToolCalls.Any(call => string.Equals(call.Name, "get_world_context", StringComparison.Ordinal));
+        var result = await orchestrator.RunAsync(
+            messages,
+            new LanguageModelToolExecutionContext(
+                actorId,
+                isAdministrator,
+                correlationId),
+            cancellationToken);
 
         return new LanguageModelSmokeResult(
-            toolObserved,
-            response.Model,
-            response.Content,
-            response.ToolCalls);
+            result.ExecutedTools.Any(tool =>
+                string.Equals(tool.ToolName, GetWorldContextTool.ToolName, StringComparison.Ordinal)),
+            result.Model,
+            result.Content,
+            result.ToolRounds,
+            correlationId,
+            result.ExecutedTools);
     }
 }

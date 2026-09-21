@@ -119,7 +119,7 @@ Questo avvia PostgreSQL, Redis e Ollama. Il servizio di init scarica il modello 
 
 L'API .NET raggiunge Ollama solo sulla rete Docker interna tramite endpoint OpenAI-compatible. In produzione Ollama non espone porte pubbliche. La configurazione low-resource limita di default modello caricato, parallelismo, context e coda. Vedi `docs/architecture/local-llm.md`.
 
-È presente uno smoke amministrativo protetto in `/api/admin/llm/tool-smoke`: verifica che il modello riesca a produrre una tool call strutturata. L'esecuzione generale dei tool sarà implementata con registry server-side allow-listed e audit completo.
+È presente uno smoke amministrativo protetto in `/api/admin/llm/tool-smoke`: il modello propone `get_world_context`, il backend valida/autorizza il tool tramite registry allow-list, lo esegue server-side, restituisce il risultato al modello e audita l'operazione. `/health/llm` espone lo stato LLM separatamente dalla readiness core `/health`.
 
 ## Deploy self-hosted
 
@@ -131,4 +131,4 @@ Il workflow production usa `https://vuxo.quest` come origin CORS predefinita e `
 
 ## Backlog
 
-Il backlog è gestito tramite GitHub Issues. La EPIC `#20` definisce la first playable 0.0.1; `#21` copre design system/temi/i18n, `#22` il runtime LLM locale con tool calling, `#23` handbook/skill multi-LLM e `#24` handoff/lifecycle/ledger.
+Il backlog è gestito tramite GitHub Issues. La EPIC `#20` definisce la first playable 0.0.1; le foundation UI/i18n (#21), LLM/tool calling (#22), handbook (#23) e handoff/lifecycle (#24) sono completate. Restano tracciate separatamente le validazioni di deploy pubblico #15/#16 e le evoluzioni post-0.0.1.

@@ -35,11 +35,19 @@ Questi valori sono configurabili tramite `docker/.env.example`. Vanno aumentati 
 
 L'LLM non esegue tool direttamente. Produce esclusivamente una richiesta strutturata. Il backend Vuxo mantiene un registry allow-list, valida JSON Schema, autorizzazione e limiti, esegue il tool e restituisce l'esito al modello. Database, filesystem, rete interna e secret non vengono mai consegnati direttamente al modello.
 
-Ogni ciclo LLM/tool dovrà essere tracciato tramite correlation ID e audit funzionale con almeno: modello, versione/configurazione, hash del contesto, tool richiesto, argomenti validati, risultato/errore, durata e relazione causale con l'evento di gioco.
+Ogni ciclo LLM/tool viene tracciato tramite correlation ID e audit funzionale con context hash, modello, tool richiesto, argomenti validati, result reference/errore, durata, round e relazione causale. Il prompt raw non viene scritto nell'audit.
+
+## Orchestrazione tool
+
+`LanguageModelToolRegistry` contiene esclusivamente handler registrati server-side. La 0.0.1 abilita il solo `get_world_context`: accetta esattamente `worldId`, richiede contesto Administrator e rifiuta world ID diversi da quello configurato.
+
+Il flusso è bounded da `VUXO_LLM_MAX_TOOL_ROUNDS` (default 2, clamp 1..4). Ogni proposta viene validata e autorizzata prima dell'esecuzione; tool sconosciuti, argomenti invalidi e autorizzazioni insufficienti producono error code stabili e audit di rifiuto.
 
 ## Affidabilità
 
-L'LLM non appartiene alla readiness critica della first playable: se è offline il login, il mondo, il movimento e il gameplay autoritativo devono continuare a funzionare. Il backend applica timeout/cancellation e usa fake deterministici negli unit test.
+L'LLM non appartiene alla readiness critica della first playable: se è offline il login, il mondo, il movimento e il gameplay autoritativo continuano a funzionare. `/health` resta indipendente; `/health/llm` segnala disabled/healthy/unavailable separatamente.
+
+L'adapter applica timeout/cancellation, retry transitorio limitato e circuit breaker configurabile. I default production sono un retry, soglia circuit 3 fallimenti e apertura per 30 secondi. I test normali usano fake deterministici; il modello reale resta uno smoke operativo separato.
 
 ## Avvio locale
 
@@ -50,3 +58,14 @@ docker compose --env-file docker/.env -f docker/compose.dev.yml up -d
 ```
 
 Il servizio `ollama-model-init` scarica il modello configurato nel volume persistente al primo avvio.
+
+
+## Configurazione orchestrazione/resilienza
+
+- `VUXO_LLM_MAX_TOOL_ROUNDS` — default `2`, massimo `4`;
+- `VUXO_LLM_MAX_RETRIES` — default `1`, massimo `2`;
+- `VUXO_LLM_RETRY_DELAY_MILLISECONDS` — default `100`;
+- `VUXO_LLM_CIRCUIT_FAILURE_THRESHOLD` — default `3`;
+- `VUXO_LLM_CIRCUIT_BREAK_SECONDS` — default `30`.
+
+In produzione Ollama non pubblica porte host. Il runtime smoke CI valida sia l'assenza di porte production sia l'assenza di riferimenti diretti a Ollama nel frontend.

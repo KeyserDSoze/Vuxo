@@ -20,6 +20,7 @@ export VUXO_JWT_SIGNING_KEY="${VUXO_JWT_SIGNING_KEY:-$(generate_test_secret)}"
 export VUXO_ALLOWED_ORIGIN="${VUXO_ALLOWED_ORIGIN:-http://localhost}"
 export VUXO_CLOUDFLARE_TUNNEL_TOKEN="${VUXO_CLOUDFLARE_TUNNEL_TOKEN:-$(generate_test_secret)}"
 export VUXO_LLM_ENABLED="false"
+export VUXO_LLM_MODEL="${VUXO_LLM_MODEL:-qwen3:ci-contract}"
 export VUXO_POSTGRES_DEV_PORT="${VUXO_POSTGRES_DEV_PORT:-15432}"
 export VUXO_REDIS_DEV_PORT="${VUXO_REDIS_DEV_PORT:-16379}"
 
@@ -52,6 +53,44 @@ echo "==> Validating Compose models"
 "${DEV[@]}" config >/dev/null
 "${PROD[@]}" config >/dev/null
 "${EDGE[@]}" config >/dev/null
+
+echo "==> Verifying Ollama stays backend-only in production"
+prod_json="$("${PROD[@]}" config --format json)"
+PROD_JSON="$prod_json" python3 - <<'PY'
+import json
+import os
+config = json.loads(os.environ["PROD_JSON"])
+ollama = config["services"]["ollama"]
+ports = ollama.get("ports") or []
+if ports:
+    raise SystemExit(f"Ollama unexpectedly exposes production ports: {ports}")
+networks = ollama.get("networks") or {}
+if "vuxo" not in networks:
+    raise SystemExit("Ollama must stay on the private vuxo Docker network")
+
+volume_targets = {
+    mount.get("target")
+    for mount in (ollama.get("volumes") or [])
+    if isinstance(mount, dict)
+}
+if "/root/.ollama" not in volume_targets:
+    raise SystemExit("Ollama model storage must use a persistent /root/.ollama volume")
+
+expected_model = os.environ["VUXO_LLM_MODEL"]
+api_environment = config["services"]["api"].get("environment") or {}
+if api_environment.get("Llm__Model") != expected_model:
+    raise SystemExit("Configured LLM model is not propagated to the API")
+
+model_init = config["services"]["ollama-model-init"]
+command = " ".join(model_init.get("command") or [])
+if expected_model not in command:
+    raise SystemExit("Configured LLM model is not propagated to ollama-model-init")
+PY
+
+if grep -R -n -E 'ollama:11434|localhost:11434|127\.0\.0\.1:11434' src/frontend --exclude-dir=node_modules --exclude-dir=dist; then
+  echo "Frontend must not reference Ollama directly" >&2
+  exit 1
+fi
 
 echo "==> Building production API image"
 docker build --file docker/Dockerfile.api --tag "$VUXO_API_IMAGE" .
