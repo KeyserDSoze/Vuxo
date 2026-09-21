@@ -34,6 +34,15 @@ builder.Services.AddHealthChecks();
 builder.Services.AddVuxoInfrastructure(builder.Configuration);
 builder.Services.AddScoped<CharacterService>();
 builder.Services.AddScoped<LanguageModelSmokeService>();
+builder.Services.AddSingleton<ILanguageModelToolHandler, GetWorldContextTool>();
+builder.Services.AddSingleton<LanguageModelToolRegistry>();
+builder.Services.AddScoped<LanguageModelOrchestrator>();
+builder.Services.AddSingleton(provider =>
+{
+    var configuration = provider.GetRequiredService<IConfiguration>();
+    var configuredMaxRounds = configuration.GetValue<int?>("Llm:MaxToolRounds") ?? 2;
+    return LanguageModelOrchestrationOptions.Create(configuredMaxRounds);
+});
 builder.Services.AddScoped<WorldService>();
 builder.Services.AddScoped<ExclusiveContentService>();
 builder.Services.AddScoped<GameEventAuditService>();
@@ -273,27 +282,76 @@ app.MapWorldEndpoints();
 app.MapPersonalContentEndpoints();
 app.MapAuditEndpoints();
 
-app.MapGet("/api/admin/llm/tool-smoke", async (ILanguageModelGateway gateway, LanguageModelSmokeService smoke, CancellationToken cancellationToken) =>
+app.MapGet("/health/llm", async (ILanguageModelHealthProbe healthProbe, CancellationToken cancellationToken) =>
+{
+    var status = await healthProbe.ProbeAsync(cancellationToken);
+    if (!status.Enabled)
+    {
+        return Results.Ok(status);
+    }
+
+    return status.Healthy
+        ? Results.Ok(status)
+        : Results.Json(status, statusCode: StatusCodes.Status503ServiceUnavailable);
+});
+
+app.MapGet("/api/admin/llm/tool-smoke", async (
+    ClaimsPrincipal user,
+    ILanguageModelGateway gateway,
+    LanguageModelSmokeService smoke,
+    CancellationToken cancellationToken) =>
 {
     if (!gateway.IsEnabled)
     {
         return Results.Json(new { code = "llm_disabled" }, statusCode: StatusCodes.Status503ServiceUnavailable);
     }
 
+    var actorId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+    if (string.IsNullOrWhiteSpace(actorId))
+    {
+        return Results.Unauthorized();
+    }
+
     try
     {
-        var result = await smoke.RunAsync(cancellationToken);
-        return result.ToolCallObserved
+        var result = await smoke.RunAsync(
+            actorId,
+            user.IsInRole("Administrator"),
+            cancellationToken);
+
+        return result.ToolExecuted
             ? Results.Ok(result)
-            : Results.Json(new { code = "llm_tool_call_not_observed", result }, statusCode: StatusCodes.Status502BadGateway);
+            : Results.Json(
+                new { code = "llm_tool_not_executed", result },
+                statusCode: StatusCodes.Status502BadGateway);
+    }
+    catch (LanguageModelToolException exception)
+    {
+        return Results.BadRequest(new { code = exception.Code });
+    }
+    catch (LanguageModelProtocolException exception)
+    {
+        return Results.Json(
+            new { code = exception.Code },
+            statusCode: StatusCodes.Status502BadGateway);
+    }
+    catch (LanguageModelCircuitOpenException)
+    {
+        return Results.Json(
+            new { code = "llm_circuit_open" },
+            statusCode: StatusCodes.Status503ServiceUnavailable);
     }
     catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
     {
-        return Results.Json(new { code = "llm_timeout" }, statusCode: StatusCodes.Status504GatewayTimeout);
+        return Results.Json(
+            new { code = "llm_timeout" },
+            statusCode: StatusCodes.Status504GatewayTimeout);
     }
     catch (HttpRequestException)
     {
-        return Results.Json(new { code = "llm_unavailable" }, statusCode: StatusCodes.Status503ServiceUnavailable);
+        return Results.Json(
+            new { code = "llm_unavailable" },
+            statusCode: StatusCodes.Status503ServiceUnavailable);
     }
 }).RequireAuthorization("Administrator");
 
