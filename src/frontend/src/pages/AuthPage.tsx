@@ -131,7 +131,7 @@ export function AuthPage() {
       ) : (
         <Paper variant="outlined" sx={{ p: { xs: 2.5, sm: 4 } }}>
           {loadingConfiguration ? (
-            <Stack direction="row" spacing={2} alignItems="center">
+            <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
               <CircularProgress size={28} />
               <Typography>{t('auth.loadingProviders')}</Typography>
             </Stack>
