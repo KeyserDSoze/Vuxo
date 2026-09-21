@@ -170,6 +170,7 @@ public sealed class SocialAuthenticationApiTests
     [InlineData("consumers", "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", false)]
     [InlineData("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", true)]
     [InlineData("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", false)]
+    [InlineData("common", "not-a-guid", false)]
     public void MicrosoftTenantPolicy_RestrictsConfiguredAudience(
         string configuredTenant,
         string tokenTenant,

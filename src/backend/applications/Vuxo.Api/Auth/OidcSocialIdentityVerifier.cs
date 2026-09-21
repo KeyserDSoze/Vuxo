@@ -68,20 +68,38 @@ public sealed class OidcSocialIdentityVerifier : ISocialIdentityVerifier
         CancellationToken cancellationToken)
     {
         var clientId = configuration["Auth:Microsoft:ClientId"];
-        var tenant = configuration["Auth:Microsoft:TenantId"];
-        if (string.IsNullOrWhiteSpace(clientId) || string.IsNullOrWhiteSpace(tenant))
+        var configuredTenant = configuration["Auth:Microsoft:TenantId"];
+        if (string.IsNullOrWhiteSpace(clientId) || string.IsNullOrWhiteSpace(configuredTenant))
         {
             throw new SocialIdentityVerificationException(SocialIdentityErrorCodes.ProviderNotConfigured);
         }
 
-        tenant = tenant.Trim();
-        var manager = GetMicrosoftConfiguration(tenant);
+        JwtSecurityToken unvalidatedToken;
+        try
+        {
+            unvalidatedToken = handler.ReadJwtToken(credential);
+        }
+        catch (Exception exception) when (exception is ArgumentException or SecurityTokenException)
+        {
+            throw new SocialIdentityVerificationException(SocialIdentityErrorCodes.CredentialInvalid, exception);
+        }
+
+        var tenantId = unvalidatedToken.Claims.FirstOrDefault(claim => claim.Type == "tid")?.Value;
+        if (string.IsNullOrWhiteSpace(tenantId)
+            || !MicrosoftTenantPolicy.IsAllowed(configuredTenant.Trim(), tenantId))
+        {
+            throw new SocialIdentityVerificationException(SocialIdentityErrorCodes.CredentialInvalid);
+        }
+
+        var expectedIssuer = $"https://login.microsoftonline.com/{tenantId}/v2.0";
+        var manager = GetMicrosoftConfiguration(tenantId);
         var validated = await ValidateAsync(
             manager,
             credential,
             new TokenValidationParameters
             {
-                ValidateIssuer = false,
+                ValidateIssuer = true,
+                ValidIssuer = expectedIssuer,
                 ValidateAudience = true,
                 ValidAudience = clientId,
                 ValidateLifetime = true,
@@ -92,7 +110,12 @@ public sealed class OidcSocialIdentityVerifier : ISocialIdentityVerifier
             },
             cancellationToken);
 
-        ValidateMicrosoftIssuer(tenant, validated.Token, validated.Principal);
+        var validatedTenant = validated.Principal.FindFirst("tid")?.Value;
+        if (!string.Equals(validatedTenant, tenantId, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new SocialIdentityVerificationException(SocialIdentityErrorCodes.CredentialInvalid);
+        }
+
         return ToVerifiedIdentity(SocialIdentityProviders.Microsoft, validated.Principal);
     }
 
@@ -169,42 +192,19 @@ public sealed class OidcSocialIdentityVerifier : ISocialIdentityVerifier
         return new VerifiedSocialIdentity(provider, subject.Trim(), name, email);
     }
 
-    private static void ValidateMicrosoftIssuer(
-        string configuredTenant,
-        JwtSecurityToken token,
-        System.Security.Claims.ClaimsPrincipal principal)
-    {
-        var tenantId = principal.FindFirst("tid")?.Value;
-        if (string.IsNullOrWhiteSpace(tenantId))
-        {
-            throw new SocialIdentityVerificationException(SocialIdentityErrorCodes.CredentialInvalid);
-        }
-
-        if (!MicrosoftTenantPolicy.IsAllowed(configuredTenant, tenantId))
-        {
-            throw new SocialIdentityVerificationException(SocialIdentityErrorCodes.CredentialInvalid);
-        }
-
-        var expectedIssuer = $"https://login.microsoftonline.com/{tenantId}/v2.0";
-        if (!string.Equals(token.Issuer, expectedIssuer, StringComparison.OrdinalIgnoreCase))
-        {
-            throw new SocialIdentityVerificationException(SocialIdentityErrorCodes.CredentialInvalid);
-        }
-    }
-
-    private ConfigurationManager<OpenIdConnectConfiguration> GetMicrosoftConfiguration(string tenant)
+    private ConfigurationManager<OpenIdConnectConfiguration> GetMicrosoftConfiguration(string tenantId)
     {
         lock (microsoftConfigurations)
         {
-            if (microsoftConfigurations.TryGetValue(tenant, out var existing))
+            if (microsoftConfigurations.TryGetValue(tenantId, out var existing))
             {
                 return existing;
             }
 
-            var escapedTenant = Uri.EscapeDataString(tenant);
+            var escapedTenant = Uri.EscapeDataString(tenantId);
             var created = CreateConfigurationManager(
                 $"https://login.microsoftonline.com/{escapedTenant}/v2.0/.well-known/openid-configuration");
-            microsoftConfigurations[tenant] = created;
+            microsoftConfigurations[tenantId] = created;
             return created;
         }
     }
@@ -226,7 +226,9 @@ public static class MicrosoftTenantPolicy
 
     public static bool IsAllowed(string configuredTenant, string tokenTenantId)
     {
-        if (string.IsNullOrWhiteSpace(configuredTenant) || string.IsNullOrWhiteSpace(tokenTenantId))
+        if (string.IsNullOrWhiteSpace(configuredTenant)
+            || string.IsNullOrWhiteSpace(tokenTenantId)
+            || !Guid.TryParse(tokenTenantId, out _))
         {
             return false;
         }
