@@ -38,7 +38,7 @@ Quando una issue cambia stato in modo significativo, aggiornare la riga corrispo
 | #16 | Feature | 0.0.1 | Deploy backend | In progress | Build/push GHCR predisposti | Registrare runner `vuxo-prod` e validare deploy reale |
 | #17 | Feature | 0.0.1 | Release/versioning | Done | Release/foundation gate + built version.json + Version/About + update notifier Playwright + CI completa verdi | Chiuso: VERSION canonico, metadata frontend/backend visibili, SemVer documentato, local fallback e nuova-build notification senza refresh forzato |
 | #21 | Feature | 0.0.1 | UI/i18n | Done | MUI token + theme/lang persistence + namespace i18n + accessibility + API locale contract + narrative localization tests + CI verde | Chiuso: design system/i18n foundation end-to-end; storage/cache narrativa resta al futuro quest engine |
-| #22 | Feature | 0.0.1 | Local LLM | In progress | Adapter/test foundation presenti | Validare smoke tool-calling sul server reale |
+| #22 | Feature | 0.0.1 | Local LLM | Done | Application/API/Infrastructure xUnit + Docker privacy/model contract + CI frontend/Playwright verdi | Chiuso: Ollama replaceable, tool allow-list server-side, audit, bounded rounds, resilience e graceful degradation; live-model smoke resta operativo/non deterministico |
 | #23 | Feature | 0.0.1 | Agent handbook | Done | CI completa verde | Chiuso: AGENTS/skills/multi-LLM governance completati |
 | #24 | Feature | 0.0.1 | Handoff/issue lifecycle | Done | Governance check + backend xUnit + frontend build/Playwright verdi | Chiuso: prompt <=8000, ledger, Issue Forms, lifecycle, skill e AGENTS completati |
 | #18 | Feature | post-0.0.1 | React Native/shared TS | Deferred | N/A | Riprendere dopo first playable |
