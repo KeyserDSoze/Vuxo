@@ -180,10 +180,7 @@ public sealed class OidcSocialIdentityVerifier : ISocialIdentityVerifier
             throw new SocialIdentityVerificationException(SocialIdentityErrorCodes.CredentialInvalid);
         }
 
-        var tenantIsFlexible = configuredTenant.Equals("common", StringComparison.OrdinalIgnoreCase)
-            || configuredTenant.Equals("organizations", StringComparison.OrdinalIgnoreCase)
-            || configuredTenant.Equals("consumers", StringComparison.OrdinalIgnoreCase);
-        if (!tenantIsFlexible && !configuredTenant.Equals(tenantId, StringComparison.OrdinalIgnoreCase))
+        if (!MicrosoftTenantPolicy.IsAllowed(configuredTenant, tenantId))
         {
             throw new SocialIdentityVerificationException(SocialIdentityErrorCodes.CredentialInvalid);
         }
@@ -221,4 +218,34 @@ public sealed class OidcSocialIdentityVerifier : ISocialIdentityVerifier
     private sealed record ValidatedToken(
         System.Security.Claims.ClaimsPrincipal Principal,
         JwtSecurityToken Token);
+}
+
+public static class MicrosoftTenantPolicy
+{
+    public const string ConsumerTenantId = "9188040d-6c67-4c5b-b112-36a304b66dad";
+
+    public static bool IsAllowed(string configuredTenant, string tokenTenantId)
+    {
+        if (string.IsNullOrWhiteSpace(configuredTenant) || string.IsNullOrWhiteSpace(tokenTenantId))
+        {
+            return false;
+        }
+
+        if (configuredTenant.Equals("common", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (configuredTenant.Equals("organizations", StringComparison.OrdinalIgnoreCase))
+        {
+            return !tokenTenantId.Equals(ConsumerTenantId, StringComparison.OrdinalIgnoreCase);
+        }
+
+        if (configuredTenant.Equals("consumers", StringComparison.OrdinalIgnoreCase))
+        {
+            return tokenTenantId.Equals(ConsumerTenantId, StringComparison.OrdinalIgnoreCase);
+        }
+
+        return configuredTenant.Equals(tokenTenantId, StringComparison.OrdinalIgnoreCase);
+    }
 }

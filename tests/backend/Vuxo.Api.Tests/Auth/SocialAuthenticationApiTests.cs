@@ -36,7 +36,7 @@ public sealed class SocialAuthenticationApiTests
         var json = await response.Content.ReadAsStringAsync();
         Assert.Contains("microsoft-client-id", json, StringComparison.Ordinal);
         Assert.Contains("google-client-id", json, StringComparison.Ordinal);
-        Assert.Contains(""tenantId":"common"", json, StringComparison.Ordinal);
+        Assert.Contains("\\\"tenantId\\\":\\\"common\\\"", json, StringComparison.Ordinal);
         Assert.DoesNotContain("must-not-leak", json, StringComparison.Ordinal);
         Assert.DoesNotContain("clientSecret", json, StringComparison.OrdinalIgnoreCase);
     }
@@ -156,6 +156,22 @@ public sealed class SocialAuthenticationApiTests
 
         var logout = await client.PostAsync("/api/auth/logout", content: null);
         Assert.Equal(HttpStatusCode.NoContent, logout.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("common", "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", true)]
+    [InlineData("organizations", "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", true)]
+    [InlineData("organizations", MicrosoftTenantPolicy.ConsumerTenantId, false)]
+    [InlineData("consumers", MicrosoftTenantPolicy.ConsumerTenantId, true)]
+    [InlineData("consumers", "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", false)]
+    [InlineData("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", true)]
+    [InlineData("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", false)]
+    public void MicrosoftTenantPolicy_RestrictsConfiguredAudience(
+        string configuredTenant,
+        string tokenTenant,
+        bool expected)
+    {
+        Assert.Equal(expected, MicrosoftTenantPolicy.IsAllowed(configuredTenant, tokenTenant));
     }
 
     private static async Task<LoginResponse> LoginAsync(
