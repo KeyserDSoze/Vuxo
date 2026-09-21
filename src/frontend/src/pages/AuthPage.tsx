@@ -21,7 +21,8 @@ import { acquireMicrosoftIdToken } from '../features/auth/microsoftAuth';
 type Provider = 'microsoft' | 'google';
 
 export function AuthPage() {
-  const { t } = useTranslation();
+  const { t: tAuth } = useTranslation('auth');
+  const { t: tErrors } = useTranslation('errors');
   const [configuration, setConfiguration] = useState<SocialProviderConfiguration | null>(null);
   const [session, setSession] = useState<VuxoSession | null>(() => readStoredSession());
   const [loadingConfiguration, setLoadingConfiguration] = useState(true);
@@ -103,28 +104,28 @@ export function AuthPage() {
   return (
     <Stack spacing={3} data-testid="auth-page">
       <Stack spacing={1}>
-        <Typography variant="h2" component="h1">{t('auth.title')}</Typography>
-        <Typography color="text.secondary">{t('auth.description')}</Typography>
+        <Typography variant="h2" component="h1">{tAuth('title')}</Typography>
+        <Typography color="text.secondary">{tAuth('description')}</Typography>
       </Stack>
 
       {errorCode ? (
         <Alert data-testid="auth-error" severity="error">
-          {t(`errors.${errorCode}`, { defaultValue: t('auth.genericError') })}
+          {tErrors(errorCode, { defaultValue: tAuth('genericError') })}
         </Alert>
       ) : null}
 
       {session ? (
         <Paper variant="outlined" sx={{ p: { xs: 2.5, sm: 4 } }}>
           <Stack spacing={2}>
-            <Typography variant="h5">{t('auth.signedIn')}</Typography>
+            <Typography variant="h5">{tAuth('signedIn')}</Typography>
             <Typography data-testid="auth-user" sx={{ fontWeight: 700 }}>{session.user.displayName}</Typography>
             {session.user.email ? <Typography color="text.secondary">{session.user.email}</Typography> : null}
             <Typography variant="body2" color="text.secondary">
-              {t('auth.sessionExpiry', { date: new Date(session.expiresAtUtc).toLocaleString() })}
+              {tAuth('sessionExpiry', { date: new Date(session.expiresAtUtc).toLocaleString() })}
             </Typography>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-              <Button component={RouterLink} to="/character" variant="contained">{t('auth.continue')}</Button>
-              <Button data-testid="auth-logout" variant="outlined" onClick={() => void logout()}>{t('auth.logout')}</Button>
+              <Button component={RouterLink} to="/character" variant="contained">{tAuth('continue')}</Button>
+              <Button data-testid="auth-logout" variant="outlined" onClick={() => void logout()}>{tAuth('logout')}</Button>
             </Stack>
           </Stack>
         </Paper>
@@ -133,10 +134,10 @@ export function AuthPage() {
           {loadingConfiguration ? (
             <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
               <CircularProgress size={28} />
-              <Typography>{t('auth.loadingProviders')}</Typography>
+              <Typography>{tAuth('loadingProviders')}</Typography>
             </Stack>
           ) : noProviders ? (
-            <Alert severity="info">{t('auth.noProviders')}</Alert>
+            <Alert severity="info">{tAuth('noProviders')}</Alert>
           ) : (
             <Stack spacing={2} sx={{ maxWidth: 420 }}>
               {configuration?.microsoft.enabled
@@ -149,7 +150,7 @@ export function AuthPage() {
                     disabled={providerBusy}
                     onClick={() => void loginMicrosoft()}
                   >
-                    {busyProvider === 'microsoft' ? t('auth.signingIn') : t('auth.microsoft')}
+                    {busyProvider === 'microsoft' ? tAuth('signingIn') : tAuth('microsoft')}
                   </Button>
                 ) : null}
 
@@ -163,7 +164,7 @@ export function AuthPage() {
               ) : null}
 
               <Box>
-                <Typography variant="body2" color="text.secondary">{t('auth.privacy')}</Typography>
+                <Typography variant="body2" color="text.secondary">{tAuth('privacy')}</Typography>
               </Box>
             </Stack>
           )}
