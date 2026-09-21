@@ -58,7 +58,13 @@ export function VuxoThemeProvider({ children }: PropsWithChildren) {
       components: {
         MuiButton: {
           styleOverrides: {
-            root: { borderRadius: vuxoDesignTokens.radius.pill },
+            root: {
+              borderRadius: vuxoDesignTokens.radius.pill,
+              '&.Mui-focusVisible': {
+                outline: `3px solid ${palette.focusRing}`,
+                outlineOffset: 2,
+              },
+            },
           },
         },
         MuiPaper: {
