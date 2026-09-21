@@ -9,7 +9,7 @@ void i18n.use(initReactI18next).init({
   resources: {
     it: {
       translation: {
-        nav: { home: 'Home', character: 'Personaggio', game: 'Gioco', admin: 'Admin', version: 'Versione' },
+        nav: { home: 'Home', auth: 'Account', character: 'Personaggio', game: 'Gioco', admin: 'Admin', version: 'Versione' },
         shell: { theme: 'Tema', language: 'Lingua', version: 'Versione {{version}}' },
         theme: { system: 'Sistema', light: 'Chiaro', dark: 'Scuro' },
         home: {
@@ -17,6 +17,22 @@ void i18n.use(initReactI18next).init({
           title: 'Il primo mondo di Vuxo sta nascendo.',
           description: 'Esplora un mondo 2D condiviso, crea il tuo personaggio e preparati a un universo che cresce insieme ai giocatori.',
           cta: 'Entra nel prototipo'
+        },
+        auth: {
+          title: 'Accedi a Vuxo',
+          description: 'Usa Microsoft o Google. Il provider conferma la tua identità, poi Vuxo crea una sessione propria per gioco e realtime.',
+          microsoft: 'Accedi con Microsoft',
+          google: 'Accedi con Google',
+          loadingProviders: 'Caricamento provider di accesso…',
+          loadingProvider: 'Caricamento accesso Google',
+          noProviders: 'Nessun provider social è configurato su questo ambiente.',
+          signingIn: 'Accesso…',
+          signedIn: 'Sessione Vuxo attiva',
+          sessionExpiry: 'La sessione scade: {{date}}',
+          continue: 'Continua al personaggio',
+          logout: 'Esci',
+          privacy: 'Vuxo non usa il token del provider come identità permanente: dopo la verifica conserva soltanto la propria sessione.',
+          genericError: 'Non è stato possibile completare l’accesso.'
         },
         game: {
           title: 'Mondo condiviso',
@@ -89,6 +105,16 @@ void i18n.use(initReactI18next).init({
           }
         },
         errors: {
+          social_provider_configuration_unavailable: 'La configurazione dei provider di accesso non è disponibile.',
+          social_provider_invalid: 'Provider di accesso non valido.',
+          social_provider_not_configured: 'Questo provider non è configurato sul server Vuxo.',
+          social_credential_invalid: 'La credenziale del provider non è valida.',
+          social_credential_expired: 'La credenziale del provider è scaduta. Accedi di nuovo.',
+          social_credential_audience_invalid: 'La credenziale è destinata a un’altra applicazione.',
+          social_provider_unavailable: 'Il provider di accesso non è raggiungibile. Riprova.',
+          social_login_cancelled: 'Accesso annullato o non completato.',
+          social_login_failed: 'Non è stato possibile completare l’accesso social.',
+          social_logout_failed: 'Non è stato possibile contattare il server durante l’uscita.',
           character_name_required: 'Inserisci un nome.',
           character_name_length_invalid: 'Il nome deve avere tra 3 e 24 caratteri.',
           character_attributes_negative: 'Gli attributi non possono essere negativi.',
@@ -107,7 +133,7 @@ void i18n.use(initReactI18next).init({
     },
     en: {
       translation: {
-        nav: { home: 'Home', character: 'Character', game: 'Game', admin: 'Admin', version: 'Version' },
+        nav: { home: 'Home', auth: 'Account', character: 'Character', game: 'Game', admin: 'Admin', version: 'Version' },
         shell: { theme: 'Theme', language: 'Language', version: 'Version {{version}}' },
         theme: { system: 'System', light: 'Light', dark: 'Dark' },
         home: {
@@ -115,6 +141,22 @@ void i18n.use(initReactI18next).init({
           title: 'The first world of Vuxo is coming to life.',
           description: 'Explore a shared 2D world, create your character and get ready for a universe that grows together with its players.',
           cta: 'Enter the prototype'
+        },
+        auth: {
+          title: 'Sign in to Vuxo',
+          description: 'Use Microsoft or Google. The provider confirms your identity, then Vuxo creates its own session for gameplay and realtime.',
+          microsoft: 'Sign in with Microsoft',
+          google: 'Sign in with Google',
+          loadingProviders: 'Loading sign-in providers…',
+          loadingProvider: 'Loading Google sign-in',
+          noProviders: 'No social sign-in provider is configured in this environment.',
+          signingIn: 'Signing in…',
+          signedIn: 'Vuxo session active',
+          sessionExpiry: 'Session expires: {{date}}',
+          continue: 'Continue to character',
+          logout: 'Sign out',
+          privacy: 'Vuxo does not use the provider token as a permanent identity: after verification it keeps only its own session.',
+          genericError: 'Sign-in could not be completed.'
         },
         game: {
           title: 'Shared world',
@@ -187,6 +229,16 @@ void i18n.use(initReactI18next).init({
           }
         },
         errors: {
+          social_provider_configuration_unavailable: 'Sign-in provider configuration is unavailable.',
+          social_provider_invalid: 'Invalid sign-in provider.',
+          social_provider_not_configured: 'This provider is not configured on the Vuxo server.',
+          social_credential_invalid: 'The provider credential is invalid.',
+          social_credential_expired: 'The provider credential has expired. Sign in again.',
+          social_credential_audience_invalid: 'The credential was issued for a different application.',
+          social_provider_unavailable: 'The sign-in provider is unavailable. Try again.',
+          social_login_cancelled: 'Sign-in was cancelled or not completed.',
+          social_login_failed: 'Social sign-in could not be completed.',
+          social_logout_failed: 'The server could not be reached while signing out.',
           character_name_required: 'Enter a name.',
           character_name_length_invalid: 'The name must be between 3 and 24 characters.',
           character_attributes_negative: 'Attributes cannot be negative.',

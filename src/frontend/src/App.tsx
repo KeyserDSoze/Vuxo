@@ -3,6 +3,7 @@ import { AppBar, Box, Button, Chip, Container, Stack, Toolbar, Tooltip, Typograp
 import { useTranslation } from 'react-i18next';
 import { Link as RouterLink, Route, Routes } from 'react-router-dom';
 import { AdminRoute } from './pages/AdminRoute';
+import { AuthPage } from './pages/AuthPage';
 import { CharacterEditorPage } from './pages/CharacterEditorPage';
 import { GamePage } from './pages/GamePage';
 import { HomePage } from './pages/HomePage';
@@ -13,6 +14,7 @@ import { useVuxoTheme } from './theme/VuxoThemeProvider';
 
 const navItems = [
   { to: '/', key: 'nav.home' },
+  { to: '/auth', key: 'nav.auth' },
   { to: '/character', key: 'nav.character' },
   { to: '/game', key: 'nav.game' },
   { to: '/admin', key: 'nav.admin' },
@@ -59,6 +61,7 @@ export function App() {
       <Container component="main" maxWidth="xl" sx={{ py: { xs: 3, md: 6 } }}>
         <Routes>
           <Route path="/" element={<HomePage />} />
+          <Route path="/auth" element={<AuthPage />} />
           <Route path="/character" element={<CharacterEditorPage />} />
           <Route path="/game" element={<GamePage />} />
           <Route path="/admin" element={<AdminRoute />} />

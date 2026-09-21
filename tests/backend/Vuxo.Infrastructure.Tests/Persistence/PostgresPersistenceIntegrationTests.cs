@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using Vuxo.Domain.Events;
+using Vuxo.Domain.Identity;
 using Vuxo.Domain.Players;
 using Vuxo.Infrastructure.Persistence;
 using Xunit;
@@ -28,6 +29,7 @@ public sealed class PostgresPersistenceIntegrationTests
         Assert.Contains("202609160002_WorldGeneration", applied);
         Assert.Contains("202609160003_ExclusiveContent", applied);
         Assert.Contains("202609160004_AuditQueries", applied);
+        Assert.Contains("202609210001_SocialIdentity", applied);
 
         await using var command = db.Database.GetDbConnection().CreateCommand();
         await db.Database.OpenConnectionAsync();
@@ -35,7 +37,7 @@ public sealed class PostgresPersistenceIntegrationTests
             SELECT table_name
             FROM information_schema.tables
             WHERE table_schema = 'public'
-              AND table_name IN ('player_characters', 'game_events', 'world_definitions', 'world_chunks', 'exclusive_content_grants')
+              AND table_name IN ('player_characters', 'game_events', 'world_definitions', 'world_chunks', 'exclusive_content_grants', 'vuxo_users', 'external_identities')
             ORDER BY table_name;
             """;
 
@@ -47,7 +49,7 @@ public sealed class PostgresPersistenceIntegrationTests
         }
 
         Assert.Equal(
-            ["exclusive_content_grants", "game_events", "player_characters", "world_chunks", "world_definitions"],
+            ["exclusive_content_grants", "external_identities", "game_events", "player_characters", "vuxo_users", "world_chunks", "world_definitions"],
             tables);
     }
 
@@ -112,6 +114,51 @@ public sealed class PostgresPersistenceIntegrationTests
             var exception = await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync());
             var postgres = Assert.IsType<PostgresException>(exception.InnerException);
             Assert.Equal(PostgresErrorCodes.UniqueViolation, postgres.SqlState);
+        }
+    }
+
+    [PostgresIntegrationFact]
+    public async Task VuxoIdentityRepository_RoundTripsExternalIdentity_AndUpdatesLogin()
+    {
+        await using var database = await PostgresDatabaseScope.CreateAsync();
+        var createdAt = BaseTime;
+        var secondLogin = BaseTime.AddHours(2);
+        var user = VuxoUser.Create("Social Player", "player@example.test", createdAt);
+
+        await using (var db = database.CreateDbContext())
+        {
+            await db.Database.MigrateAsync();
+            var repository = new VuxoIdentityRepository(db);
+            await repository.AddAsync(user, "google", "provider-subject-1", createdAt);
+            await db.SaveChangesAsync();
+        }
+
+        await using (var db = database.CreateDbContext())
+        {
+            var repository = new VuxoIdentityRepository(db);
+            var persisted = await repository.GetByExternalIdentityAsync("google", "provider-subject-1");
+            Assert.NotNull(persisted);
+            Assert.Equal(user.Id, persisted.Id);
+            Assert.Equal("Social Player", persisted.DisplayName);
+            Assert.Equal("player@example.test", persisted.Email);
+
+            persisted.RecordLogin("Updated Player", "updated@example.test", secondLogin);
+            await repository.UpdateLoginAsync(
+                persisted,
+                "google",
+                "provider-subject-1",
+                secondLogin);
+            await db.SaveChangesAsync();
+        }
+
+        await using (var db = database.CreateDbContext())
+        {
+            var repository = new VuxoIdentityRepository(db);
+            var updated = await repository.GetByExternalIdentityAsync("google", "provider-subject-1");
+            Assert.NotNull(updated);
+            Assert.Equal("Updated Player", updated.DisplayName);
+            Assert.Equal("updated@example.test", updated.Email);
+            Assert.Equal(secondLogin, updated.LastLoginAtUtc);
         }
     }
 
