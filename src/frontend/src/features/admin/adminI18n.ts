@@ -147,4 +147,5 @@ const resources = {
 
 for (const language of ['it', 'en'] as const) {
   i18n.addResourceBundle(language, 'translation', resources[language], true, true)
+  i18n.addResourceBundle(language, 'admin', resources[language].admin, true, true)
 }

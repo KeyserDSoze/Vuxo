@@ -71,7 +71,7 @@ export function GoogleSignInButton({
   onCredential: (credential: string) => void;
   onError: () => void;
 }) {
-  const { t, i18n } = useTranslation();
+  const { t, i18n } = useTranslation('auth');
   const containerRef = useRef<HTMLDivElement>(null);
   const [loadingSdk, setLoadingSdk] = useState(import.meta.env.VITE_E2E_AUTH !== 'true');
 
@@ -128,14 +128,14 @@ export function GoogleSignInButton({
         disabled={disabled}
         onClick={() => onCredential('e2e-google-id-token')}
       >
-        {t('auth.google')}
+        {t('google')}
       </Button>
     );
   }
 
   return (
     <Box data-testid="auth-google" sx={{ minHeight: 44, display: 'flex', alignItems: 'center' }}>
-      {loadingSdk ? <CircularProgress size={28} aria-label={t('auth.loadingProvider')} /> : null}
+      {loadingSdk ? <CircularProgress size={28} aria-label={t('loadingProvider')} /> : null}
       <Box ref={containerRef} sx={{ display: disabled ? 'none' : 'block' }} />
     </Box>
   );

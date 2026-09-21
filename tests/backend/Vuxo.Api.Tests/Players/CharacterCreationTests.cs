@@ -98,6 +98,32 @@ public sealed class CharacterCreationTests
         Assert.Equal(expectedCode, await ReadCodeAsync(response));
     }
 
+    [Theory]
+    [InlineData("it-IT")]
+    [InlineData("en-US")]
+    public async Task CreateCharacter_ErrorCode_IsInvariantAcrossAcceptLanguage(string language)
+    {
+        using var factory = CreateFactory(out _, out _);
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, "player-language");
+        client.DefaultRequestHeaders.AcceptLanguage.ParseAdd(language);
+
+        var response = await client.PostAsJsonAsync("/api/characters", new
+        {
+            name = "AB",
+            strength = 2,
+            dexterity = 3,
+            intelligence = 1,
+            constitution = 2,
+            luck = 1,
+            faith = 1,
+            appearance = AppearanceRequest()
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("character_name_length_invalid", await ReadCodeAsync(response));
+    }
+
     [Fact]
     public async Task CreateCharacter_WhenAppearanceIsMissing_ReturnsBadRequest()
     {
