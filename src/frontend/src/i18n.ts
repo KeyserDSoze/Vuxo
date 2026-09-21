@@ -1,16 +1,15 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
+import { readLanguagePreference, writeLanguagePreference, type SupportedLanguage } from './preferences/uiPreferences';
 
-const STORAGE_KEY = 'vuxo.language';
-const storedLanguage = localStorage.getItem(STORAGE_KEY);
-const browserLanguage = navigator.language.toLowerCase().startsWith('en') ? 'en' : 'it';
+const initialLanguage = readLanguagePreference(navigator.language);
 
-void i18n.use(initReactI18next).init({
+const initialization = i18n.use(initReactI18next).init({
   resources: {
     it: {
       translation: {
         nav: { home: 'Home', auth: 'Account', character: 'Personaggio', game: 'Gioco', admin: 'Admin', version: 'Versione' },
-        shell: { theme: 'Tema', language: 'Lingua', version: 'Versione {{version}}' },
+        shell: { theme: 'Tema', language: 'Lingua', navigation: 'Navigazione principale', version: 'Versione {{version}}' },
         theme: { system: 'Sistema', light: 'Chiaro', dark: 'Scuro' },
         home: {
           eyebrow: 'Versione {{version}} · First playable',
@@ -134,7 +133,7 @@ void i18n.use(initReactI18next).init({
     en: {
       translation: {
         nav: { home: 'Home', auth: 'Account', character: 'Character', game: 'Game', admin: 'Admin', version: 'Version' },
-        shell: { theme: 'Theme', language: 'Language', version: 'Version {{version}}' },
+        shell: { theme: 'Theme', language: 'Language', navigation: 'Main navigation', version: 'Version {{version}}' },
         theme: { system: 'System', light: 'Light', dark: 'Dark' },
         home: {
           eyebrow: 'Version {{version}} · First playable',
@@ -256,12 +255,23 @@ void i18n.use(initReactI18next).init({
       }
     }
   },
-  lng: storedLanguage ?? browserLanguage,
+  lng: initialLanguage,
   fallbackLng: 'it',
   supportedLngs: ['it', 'en'],
   interpolation: { escapeValue: false }
 });
 
-i18n.on('languageChanged', language => localStorage.setItem(STORAGE_KEY, language));
+function normalizeLanguage(language: string | undefined): SupportedLanguage {
+  return language?.toLowerCase().startsWith('en') ? 'en' : 'it';
+}
+
+function synchronizeLanguage(language: string | undefined): void {
+  const normalized = normalizeLanguage(language);
+  writeLanguagePreference(normalized);
+  document.documentElement.lang = normalized;
+}
+
+void initialization.then(() => synchronizeLanguage(i18n.resolvedLanguage));
+i18n.on('languageChanged', language => synchronizeLanguage(language));
 
 export { i18n };
