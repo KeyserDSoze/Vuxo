@@ -62,8 +62,11 @@ public sealed class SocialAuthenticationApiTests
 
         var jwt = new JwtSecurityTokenHandler().ReadJwtToken(first.AccessToken);
         Assert.Equal(first.User.Id.ToString("D"), jwt.Subject);
-        Assert.Contains(jwt.Claims, claim => claim.Type is "role" or "http://schemas.microsoft.com/ws/2008/06/identity/claims/role"
-            && claim.Value == "User");
+        Assert.Contains(
+            jwt.Claims,
+            claim => (claim.Type == "role"
+                || claim.Type == "http://schemas.microsoft.com/ws/2008/06/identity/claims/role")
+                && claim.Value == "User");
         Assert.Equal(2, verifier.CallCount);
         Assert.Single(repository.Users);
     }
