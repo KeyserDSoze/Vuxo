@@ -131,4 +131,4 @@ Il workflow production usa `https://vuxo.quest` come origin CORS predefinita e `
 
 ## Backlog
 
-Il backlog è gestito tramite GitHub Issues. La EPIC `#20` definisce la first playable 0.0.1; `#21` copre design system/temi/i18n, `#22` il runtime LLM locale con tool calling, `#23` handbook/skill multi-LLM e `#24` handoff/lifecycle/ledger.
+Il backlog è gestito tramite GitHub Issues. La EPIC `#20` definisce la first playable 0.0.1; le foundation UI/i18n (#21), LLM/tool calling (#22), handbook (#23) e handoff/lifecycle (#24) sono completate. Restano tracciate separatamente le validazioni di deploy pubblico #15/#16 e le evoluzioni post-0.0.1.
