@@ -66,3 +66,15 @@ The SPA stores only the Vuxo access token plus non-sensitive Vuxo user/session m
 ## Production CORS
 
 The existing production origin remains `https://vuxo.quest`. The API continues to be reached through `https://api.vuxoapi.xyz`/Cloudflare Tunnel; no provider callback is sent to the API domain because Microsoft/GIS authenticate in the SPA and the backend only verifies the resulting ID token.
+
+
+## GitHub deploy configuration
+
+For the self-hosted production workflow, configure these **Environment Variables** on GitHub Environment `production`:
+
+- `VUXO_MICROSOFT_CLIENT_ID`;
+- `VUXO_MICROSOFT_TENANT_ID` (default `common`);
+- `VUXO_GOOGLE_CLIENT_ID`;
+- optionally `VUXO_JWT_LIFETIME_MINUTES` (default `480`).
+
+These values are public application configuration, not provider client secrets. Existing sensitive values such as `VUXO_JWT_SIGNING_KEY`, PostgreSQL password and Cloudflare tunnel token remain GitHub Environment **Secrets**.
