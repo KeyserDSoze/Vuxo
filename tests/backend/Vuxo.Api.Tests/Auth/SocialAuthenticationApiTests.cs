@@ -4,6 +4,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Vuxo.Api.Auth;
 using Vuxo.Application.Identity;
 using Vuxo.Domain.Common;
 using Vuxo.Domain.Events;
