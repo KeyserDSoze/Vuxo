@@ -51,3 +51,9 @@ public interface ILanguageModelHealthProbe
 
 public sealed class LanguageModelCircuitOpenException()
     : HttpRequestException("The language model circuit breaker is open.");
+
+public sealed class LanguageModelProtocolException(string code, Exception? innerException = null)
+    : Exception(code, innerException)
+{
+    public string Code { get; } = code;
+}
