@@ -1,7 +1,9 @@
 import { CssBaseline, ThemeProvider, createTheme, useMediaQuery } from '@mui/material';
 import { createContext, useContext, useEffect, useMemo, useState, type PropsWithChildren } from 'react';
+import { readThemePreference, writeThemePreference, type ThemePreference } from '../preferences/uiPreferences';
+import { vuxoDesignTokens } from './tokens';
 
-export type VuxoThemeMode = 'system' | 'light' | 'dark';
+export type VuxoThemeMode = ThemePreference;
 
 type ThemeModeContextValue = {
   mode: VuxoThemeMode;
@@ -10,46 +12,63 @@ type ThemeModeContextValue = {
   cycleMode: () => void;
 };
 
-const STORAGE_KEY = 'vuxo.theme';
 const ThemeModeContext = createContext<ThemeModeContextValue | null>(null);
-
-function readStoredMode(): VuxoThemeMode {
-  const stored = localStorage.getItem(STORAGE_KEY);
-  return stored === 'light' || stored === 'dark' || stored === 'system' ? stored : 'system';
-}
 
 export function VuxoThemeProvider({ children }: PropsWithChildren) {
   const prefersDark = useMediaQuery('(prefers-color-scheme: dark)', { noSsr: true });
-  const [mode, setMode] = useState<VuxoThemeMode>(readStoredMode);
+  const [mode, setMode] = useState<VuxoThemeMode>(readThemePreference);
   const effectiveMode = mode === 'system' ? (prefersDark ? 'dark' : 'light') : mode;
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, mode);
+    writeThemePreference(mode);
+    const palette = vuxoDesignTokens.palette[effectiveMode];
     document.documentElement.dataset.theme = effectiveMode;
     document.documentElement.style.colorScheme = effectiveMode;
+    document.documentElement.style.setProperty('--vuxo-focus-ring', palette.focusRing);
+    document.documentElement.style.setProperty('--vuxo-game-canvas-bg', palette.gameCanvas);
   }, [mode, effectiveMode]);
 
-  const theme = useMemo(() => createTheme({
-    palette: {
-      mode: effectiveMode,
-      primary: { main: effectiveMode === 'dark' ? '#8ab4ff' : '#3157d5' },
-      secondary: { main: effectiveMode === 'dark' ? '#ffcc66' : '#b96d00' },
-      background: effectiveMode === 'dark'
-        ? { default: '#070b14', paper: '#101827' }
-        : { default: '#f5f7fb', paper: '#ffffff' }
-    },
-    shape: { borderRadius: 14 },
-    typography: {
-      fontFamily: 'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-      h1: { fontWeight: 800, letterSpacing: '-0.045em' },
-      h2: { fontWeight: 750, letterSpacing: '-0.03em' },
-      button: { textTransform: 'none', fontWeight: 700 }
-    },
-    components: {
-      MuiButton: { styleOverrides: { root: { borderRadius: 999 } } },
-      MuiPaper: { styleOverrides: { root: { backgroundImage: 'none' } } }
-    }
-  }), [effectiveMode]);
+  const theme = useMemo(() => {
+    const palette = vuxoDesignTokens.palette[effectiveMode];
+    return createTheme({
+      spacing: vuxoDesignTokens.spacing,
+      breakpoints: { values: vuxoDesignTokens.breakpoints },
+      palette: {
+        mode: effectiveMode,
+        primary: { main: palette.primary },
+        secondary: { main: palette.secondary },
+        background: { default: palette.background, paper: palette.paper },
+      },
+      shape: { borderRadius: vuxoDesignTokens.radius.surface },
+      typography: {
+        fontFamily: vuxoDesignTokens.typography.fontFamily,
+        h1: {
+          fontWeight: vuxoDesignTokens.typography.h1Weight,
+          letterSpacing: vuxoDesignTokens.typography.h1LetterSpacing,
+        },
+        h2: {
+          fontWeight: vuxoDesignTokens.typography.h2Weight,
+          letterSpacing: vuxoDesignTokens.typography.h2LetterSpacing,
+        },
+        button: {
+          textTransform: 'none',
+          fontWeight: vuxoDesignTokens.typography.buttonWeight,
+        },
+      },
+      components: {
+        MuiButton: {
+          styleOverrides: {
+            root: { borderRadius: vuxoDesignTokens.radius.pill },
+          },
+        },
+        MuiPaper: {
+          styleOverrides: {
+            root: { backgroundImage: 'none' },
+          },
+        },
+      },
+    });
+  }, [effectiveMode]);
 
   const context = useMemo<ThemeModeContextValue>(() => ({
     mode,
