@@ -11,6 +11,8 @@ public sealed class VuxoDbContext(DbContextOptions<VuxoDbContext> options) : DbC
     public DbSet<WorldDefinitionEntity> WorldDefinitions => Set<WorldDefinitionEntity>();
     public DbSet<WorldChunkEntity> WorldChunks => Set<WorldChunkEntity>();
     public DbSet<ExclusiveContentGrantEntity> ExclusiveContentGrants => Set<ExclusiveContentGrantEntity>();
+    public DbSet<VuxoUserEntity> VuxoUsers => Set<VuxoUserEntity>();
+    public DbSet<ExternalIdentityEntity> ExternalIdentities => Set<ExternalIdentityEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -53,6 +55,28 @@ public sealed class VuxoDbContext(DbContextOptions<VuxoDbContext> options) : DbC
                 .HasOne<WorldDefinitionEntity>()
                 .WithMany()
                 .HasForeignKey(x => x.WorldId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<VuxoUserEntity>(entity =>
+        {
+            entity.ToTable("vuxo_users");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.DisplayName).HasMaxLength(200);
+            entity.Property(x => x.Email).HasMaxLength(320);
+        });
+
+        modelBuilder.Entity<ExternalIdentityEntity>(entity =>
+        {
+            entity.ToTable("external_identities");
+            entity.HasKey(x => new { x.Provider, x.Subject });
+            entity.HasIndex(x => x.VuxoUserId);
+            entity.Property(x => x.Provider).HasMaxLength(32);
+            entity.Property(x => x.Subject).HasMaxLength(255);
+            entity
+                .HasOne<VuxoUserEntity>()
+                .WithMany()
+                .HasForeignKey(x => x.VuxoUserId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 

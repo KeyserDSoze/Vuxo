@@ -2,6 +2,8 @@ using System.Reflection;
 using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.RateLimiting;
+using System.Threading.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Vuxo.Api.Admin;
@@ -14,6 +16,7 @@ using Vuxo.Api.Realtime;
 using Vuxo.Api.Worlds;
 using Vuxo.Application.AI;
 using Vuxo.Application.Events;
+using Vuxo.Application.Identity;
 using Vuxo.Application.PersonalContent;
 using Vuxo.Application.Players;
 using Vuxo.Application.Worlds;
@@ -49,6 +52,23 @@ builder.Services.AddSingleton<WorldSimulation>();
 builder.Services.AddSingleton<WorldRuntimeMap>();
 builder.Services.AddHostedService<WorldSimulationTicker>();
 builder.Services.AddSingleton<MockTokenService>();
+builder.Services.AddSingleton<VuxoTokenService>();
+builder.Services.AddSingleton<ISocialIdentityVerifier, OidcSocialIdentityVerifier>();
+builder.Services.AddScoped<SocialAuthenticationService>();
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy("auth-social", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
+});
 
 var signingKey = builder.Configuration["Auth:Jwt:SigningKey"];
 if (string.IsNullOrWhiteSpace(signingKey) || signingKey.Length < 32)
@@ -123,6 +143,7 @@ if (app.Configuration.GetValue("Database:ApplyMigrationsOnStartup", true))
 }
 
 app.UseCors("web");
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseMiddleware<TelemetryContextMiddleware>();
 app.UseAuthorization();
@@ -157,6 +178,8 @@ app.MapGet("/api/meta/character-appearance", () => Results.Ok(new
     shoeStyles = CharacterAppearanceCatalog.ShoeStyles,
     shoeColors = CharacterAppearanceCatalog.ShoeColors
 }));
+
+app.MapSocialAuthEndpoints();
 
 if (MockAuthentication.IsEnabled(app.Environment, app.Configuration))
 {
