@@ -39,17 +39,39 @@ public static class DependencyInjection
             : 45;
         var llmTimeoutSeconds = Math.Clamp(configuredTimeout, 5, 300);
 
-        services.AddSingleton<ILanguageModelGateway>(_ =>
+        var maxRetries = ParseInt(configuration["Llm:MaxRetries"], 1);
+        var failureThreshold = ParseInt(configuration["Llm:CircuitFailureThreshold"], 3);
+        var circuitBreakSeconds = ParseInt(configuration["Llm:CircuitBreakSeconds"], 30);
+        var retryDelayMilliseconds = ParseInt(configuration["Llm:RetryDelayMilliseconds"], 100);
+        var resilience = OllamaResilienceOptions.Create(
+            maxRetries,
+            failureThreshold,
+            circuitBreakSeconds,
+            retryDelayMilliseconds);
+
+        services.AddSingleton<OllamaLanguageModelGateway>(provider =>
         {
             var httpClient = new HttpClient
             {
                 BaseAddress = new Uri(llmBaseUrl.TrimEnd('/') + "/"),
                 Timeout = TimeSpan.FromSeconds(llmTimeoutSeconds)
             };
-
-            return new OllamaLanguageModelGateway(httpClient, llmModel, llmEnabled);
+            var timeProvider = provider.GetService<TimeProvider>() ?? TimeProvider.System;
+            return new OllamaLanguageModelGateway(
+                httpClient,
+                llmModel,
+                llmEnabled,
+                resilience,
+                timeProvider);
         });
+        services.AddSingleton<ILanguageModelGateway>(provider =>
+            provider.GetRequiredService<OllamaLanguageModelGateway>());
+        services.AddSingleton<ILanguageModelHealthProbe>(provider =>
+            provider.GetRequiredService<OllamaLanguageModelGateway>());
 
         return services;
     }
+
+    private static int ParseInt(string? value, int fallback) =>
+        int.TryParse(value, out var parsed) ? parsed : fallback;
 }
