@@ -41,8 +41,8 @@ public sealed class OllamaLanguageModelGatewayTests
         Assert.Equal("vuxo-prime", call.Arguments.GetProperty("worldId").GetString());
 
         var body = Assert.Single(handler.Bodies);
-        Assert.Contains(""tools"", body, StringComparison.Ordinal);
-        Assert.Contains(""get_world_context"", body, StringComparison.Ordinal);
+        Assert.Contains("\"tools\"", body, StringComparison.Ordinal);
+        Assert.Contains("\"get_world_context\"", body, StringComparison.Ordinal);
     }
 
     [Fact]
