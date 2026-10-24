@@ -63,3 +63,25 @@ jobs:
           assert data['services']['api']['environment']['Auth__EnableMockLogin'] == 'true'
           print('Local-only port binding and development environment verified')
           PY
+
+  full-docker-smoke:
+    name: Full local Docker smoke (Linux)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Initialize isolated local environment
+        run: node scripts/dev.mjs init
+      - name: Boot API, React, PostgreSQL and Redis in Docker
+        run: node scripts/dev.mjs up
+      - name: Verify both local HTTP endpoints
+        run: node scripts/dev.mjs smoke
+      - name: Dump container diagnostics on failure
+        if: failure()
+        run: docker compose -p vuxo-local --env-file docker/.env.local -f docker/compose.dev.yml -f docker/compose.local.yml logs --no-color --tail 150
+      - name: Stop containers without removing volumes
+        if: always()
+        run: node scripts/dev.mjs down
