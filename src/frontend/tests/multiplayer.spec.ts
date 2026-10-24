@@ -1,7 +1,9 @@
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 
-const previewOrigin = 'http://127.0.0.1:4173';
-const gameUrl = `${previewOrigin}/Vuxo/#/game`;
+const previewOrigin = `http://127.0.0.1:${process.env.VUXO_E2E_PORT ?? '4173'}`;
+const rawBase = process.env.VITE_BASE_PATH ?? '/Vuxo/';
+const basePath = `${rawBase.startsWith('/') ? '' : '/'}${rawBase.endsWith('/') ? rawBase : rawBase + '/'}`;
+const gameUrl = `${previewOrigin}${basePath}#/game`;
 
 test.beforeEach(async ({ request }) => {
   const response = await request.post(`${previewOrigin}/__vuxo_e2e/world/reset`);
