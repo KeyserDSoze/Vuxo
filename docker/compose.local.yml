@@ -1,0 +1,70 @@
+# Overlay for docker/compose.dev.yml. Never deploy this overlay to production.
+services:
+  postgres:
+    networks: [vuxo]
+  redis:
+    networks: [vuxo]
+  ollama:
+    networks: [vuxo]
+  ollama-model-init:
+    networks: [vuxo]
+  api:
+    image: mcr.microsoft.com/dotnet/sdk:10.0
+    working_dir: /workspace
+    command: ["dotnet", "watch", "--non-interactive", "--project", "src/backend/applications/Vuxo.Api/Vuxo.Api.csproj", "run", "--no-launch-profile", "--urls", "http://0.0.0.0:8080"]
+    restart: unless-stopped
+    init: true
+    volumes:
+      - ../:/workspace
+      - vuxo-nuget-local:/root/.nuget/packages
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      DOTNET_USE_POLLING_FILE_WATCHER: "true"
+      DOTNET_WATCH_SUPPRESS_LAUNCH_BROWSER: "true"
+      ConnectionStrings__GameDb: "Host=postgres;Port=5432;Database=${VUXO_POSTGRES_DB:-vuxo};Username=${VUXO_POSTGRES_USER:-vuxo};Password=${VUXO_POSTGRES_PASSWORD:?local PostgreSQL password required}"
+      Redis__ConnectionString: redis:6379
+      Auth__Jwt__Issuer: Vuxo
+      Auth__Jwt__Audience: Vuxo.Web
+      Auth__Jwt__SigningKey: ${VUXO_JWT_SIGNING_KEY:?local JWT key required}
+      Auth__EnableMockLogin: "true"
+      Auth__Microsoft__ClientId: ${VUXO_MICROSOFT_CLIENT_ID:-}
+      Auth__Microsoft__TenantId: ${VUXO_MICROSOFT_TENANT_ID:-common}
+      Auth__Google__ClientId: ${VUXO_GOOGLE_CLIENT_ID:-}
+      Cors__AllowedOrigins__0: "http://localhost:${VUXO_FRONTEND_PORT:-5173}"
+      Cors__AllowedOrigins__1: "http://127.0.0.1:${VUXO_FRONTEND_PORT:-5173}"
+      Database__ApplyMigrationsOnStartup: "true"
+      Llm__Enabled: ${VUXO_LLM_ENABLED:-false}
+      Llm__BaseUrl: http://ollama:11434/v1
+      Llm__Model: ${VUXO_LLM_MODEL:-qwen3:1.7b}
+    ports:
+      - "127.0.0.1:${VUXO_API_PORT:-8080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks: [vuxo]
+  frontend:
+    image: node:24-alpine
+    working_dir: /workspace
+    command: ["sh", "-c", "npm install --no-audit --no-fund && npm run dev -- --host 0.0.0.0 --port 5173 --strictPort"]
+    init: true
+    restart: unless-stopped
+    volumes:
+      - ../src/frontend:/workspace
+      - vuxo-node-local:/workspace/node_modules
+    environment:
+      VITE_BASE_PATH: /
+      VITE_API_BASE_URL: "http://127.0.0.1:${VUXO_API_PORT:-8080}"
+      VITE_HMR_CLIENT_PORT: ${VUXO_FRONTEND_PORT:-5173}
+      CHOKIDAR_USEPOLLING: "true"
+    ports:
+      - "127.0.0.1:${VUXO_FRONTEND_PORT:-5173}:5173"
+    depends_on:
+      - api
+    networks: [vuxo]
+networks:
+  vuxo:
+volumes:
+  vuxo-nuget-local:
+  vuxo-node-local:
