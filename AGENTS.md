@@ -211,6 +211,18 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
+Local cross-platform development (Node 24 + Docker Compose):
+
+```bash
+node scripts/dev.mjs init
+node scripts/dev.mjs up       # full Docker stack
+node scripts/dev.mjs debug    # Docker DB/cache; API and Vite on the host for breakpoints
+node scripts/dev.mjs test     # Node + xUnit/PostgreSQL + Playwright
+node scripts/dev.mjs down     # preserve volumes
+```
+
+Use `docker/.env.local` (generated from `docker/local.env.example`) for local ports and secrets, never production deployment secrets. See `docs/operations/local-development.md`. Production-only Linux runner setup stays under `infra/self-hosted/`. Do not close issue #45 until real Windows/Linux verification and CI are green.
+
 Local infrastructure:
 
 ```bash
