@@ -149,7 +149,9 @@ async function debug(config) {
   };
   process.once('SIGINT', shutdown);
   process.once('SIGTERM', shutdown);
-  await Promise.race(processes.map(child => new Promise(resolve => child.once('exit', resolve))));
+  const firstExit = await Promise.race(processes.map(child => new Promise(resolve =>
+    child.once('exit', (code, signal) => resolve({ code, signal })) )));
+  if (!stopping && firstExit.code !== 0) process.exitCode = firstExit.code ?? 1;
   shutdown();
   await Promise.all(processes.map(child => new Promise(resolve => {
     if (child.exitCode !== null || child.signalCode !== null) resolve();
@@ -174,7 +176,7 @@ function doctor(config) {
 function tests(config) {
   startInfrastructure(config);
   const environment = { ...process.env, ...config, ...hostEnvironment(config) };
-  execute('node', ['--test', 'tests/dev/*.test.mjs'], { env: environment });
+  execute('node', ['--test', 'tests/dev/local-dev.test.mjs'], { env: environment });
   execute('dotnet', ['restore', 'Vuxo.sln'], { env: environment });
   execute('dotnet', ['build', 'Vuxo.sln', '-c', 'Release', '--no-restore'], { env: environment });
   execute('dotnet', ['test', 'Vuxo.sln', '-c', 'Release', '--no-build'], { env: environment });
