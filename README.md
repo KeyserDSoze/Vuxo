@@ -129,6 +129,19 @@ Il provisioning del server è in `infra/self-hosted/` e il runtime in `docker/co
 
 Il workflow production usa `https://vuxo.quest` come origin CORS predefinita e `https://api.vuxoapi.xyz` come endpoint API del build frontend. Le variabili GitHub possono sovrascrivere questi default quando serve una migrazione controllata.
 
+## Sviluppo locale Windows/Linux (Docker + debug)
+
+Per avviare l'intero progetto dalla propria postazione (Windows PowerShell o Linux) basta Node 24 + Docker Compose v2:
+
+```sh
+node scripts/dev.mjs init
+node scripts/dev.mjs up
+```
+
+Il file privato `docker/.env.local` definisce porte e credenziali locali generate automaticamente; i container API .NET 10, React/Vite, PostgreSQL/Redis sono isolati dalla produzione. Per breakpoint nel proprio IDE (backend e frontend sull'host), usare `node scripts/dev.mjs debug`. Per xUnit con PostgreSQL reale e Playwright usare `node scripts/dev.mjs test`. `node scripts/dev.mjs down` arresta i container **senza** cancellare i volumi. Il setup del server Linux `infra/self-hosted/` è separato: non è necessario in locale.
+
+Guida completa: [Sviluppo locale Windows/Linux](docs/operations/local-development.md) (issue #45).
+
 ## Backlog
 
 Il backlog è gestito tramite GitHub Issues. La EPIC `#20` definisce la first playable 0.0.1; le foundation UI/i18n (#21), LLM/tool calling (#22), handbook (#23) e handoff/lifecycle (#24) sono completate. Restano tracciate separatamente le validazioni di deploy pubblico #15/#16 e le evoluzioni post-0.0.1.
