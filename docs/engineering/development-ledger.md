@@ -18,6 +18,7 @@ Quando una issue cambia stato in modo significativo, aggiornare la riga corrispo
 
 | Issue | Tipo | Versione | Area | Stato | Test/Stato verifica | Risoluzione / prossimo passo |
 |---|---|---:|---|---|---|---|
+| #45 | Feature | 0.0.1 | Local DevEx Windows/Linux | In progress | Script/Compose/Node regression + CI matrix Windows/Linux predisposti; test su workstation e CI da verificare | Completare verifica reale Docker full, breakpoint IDE e Playwright; PR feature/local-cross-platform-docker-debug |
 | #20 | Epic | 0.0.1 | First playable | In progress | CI foundation verde | Coordinare le issue della first playable |
 | #1 | Feature | 0.0.1 | Repository/quality | Done | Foundation gate + backend/xUnit/PostgreSQL + Docker runtime + frontend/Playwright verdi | Chiuso: struttura monorepo, stack, warnings-as-errors, CI, README/version metadata e guard sui file locali sensibili sono verificati automaticamente |
 | #2 | Feature | 0.0.1 | Backend/API | Done | API integration health/version/OpenAPI + PostgreSQL/OTLP + Docker runtime + frontend/Playwright verdi | Chiuso: Release build, health/version contract, OpenAPI Development-only, fail-fast DB config, migration startup production-like e Production senza mock auth verificati |
