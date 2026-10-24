@@ -132,6 +132,12 @@ function normalizeAxis(value: unknown): number {
 
 export default defineConfig({
   base: process.env.VITE_BASE_PATH ?? '/Vuxo/',
+  server: {
+    // Docker host-port overrides must also update the Vite HMR websocket client port.
+    ...(process.env.VITE_HMR_CLIENT_PORT
+      ? { hmr: { clientPort: Number(process.env.VITE_HMR_CLIENT_PORT) } }
+      : {}),
+  },
   plugins: [
     react(),
     ...(process.env.VITE_E2E_REALTIME === 'true' ? [e2eWorldPlugin()] : []),
