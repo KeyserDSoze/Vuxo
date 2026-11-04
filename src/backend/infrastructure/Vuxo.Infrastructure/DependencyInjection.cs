@@ -5,6 +5,7 @@ using Vuxo.Application.AI;
 using Vuxo.Domain.Common;
 using Vuxo.Domain.Events;
 using Vuxo.Domain.Identity;
+using Vuxo.Domain.Inventory;
 using Vuxo.Domain.PersonalContent;
 using Vuxo.Domain.Players;
 using Vuxo.Domain.Worlds;
