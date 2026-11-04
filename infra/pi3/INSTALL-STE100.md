@@ -231,16 +231,13 @@ exit
 
 **Work location: Raspberry Pi, normal administration account.**
 
-Install the runner as a system service.
+Install the runner as a system service. The administrative account cannot normally enter the private home directory of `vuxorunner`. Run each service operation inside a root shell that changes to the runner directory first. Using an absolute path to `svc.sh` without changing directory causes the error `Must run from runner root`.
 
 ~~~sh
-cd /home/vuxorunner/actions-runner
-sudo ./svc.sh install vuxorunner
-sudo ./svc.sh start
-sudo ./svc.sh status
+sudo bash -c 'cd /home/vuxorunner/actions-runner && ./svc.sh install vuxorunner && ./svc.sh start && ./svc.sh status'
 ~~~
 
-**Expected result:** The runner service is active.
+**Expected result:** The runner service is `active (running)` and `enabled`.
 
 **Work location: GitHub website.**
 
