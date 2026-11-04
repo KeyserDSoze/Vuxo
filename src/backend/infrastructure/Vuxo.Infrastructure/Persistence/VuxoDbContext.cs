@@ -86,6 +86,7 @@ public sealed class VuxoDbContext(DbContextOptions<VuxoDbContext> options) : DbC
         {
             entity.ToTable("player_inventory_awards");
             entity.HasKey(x => x.GrantId);
+            entity.HasAlternateKey(x => new { x.GrantId, x.PlayerId });
             entity.HasIndex(x => x.AwardEventId).IsUnique();
             entity.HasIndex(x => new { x.PlayerId, x.AwardedAtUtc });
             entity.Property(x => x.PlayerId).HasMaxLength(200);
