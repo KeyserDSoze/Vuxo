@@ -75,6 +75,17 @@ export function validateLocalEnv(config) {
   return config;
 }
 
+// Explicit, deterministic plan for infra/debug/test: stop only app services before
+// binding their published ports on the host, without removing any named volumes.
+export function infrastructurePlan(config) {
+  const withLlm = config.VUXO_LLM_ENABLED === 'true';
+  return {
+    stop: ['frontend', 'api'],
+    start: ['postgres', 'redis', ...(withLlm ? ['ollama'] : [])],
+    initializeModel: withLlm,
+  };
+}
+
 export function hostEnvironment(config) {
   return {
     ASPNETCORE_ENVIRONMENT: 'Development',
