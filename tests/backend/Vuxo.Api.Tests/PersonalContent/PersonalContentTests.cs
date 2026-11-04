@@ -165,6 +165,31 @@ public sealed class PersonalContentTests
         Assert.Single(events.Appended);
     }
 
+    [Fact]
+    public async Task Challenge_EnforcesServerSideRateLimitOnRepeatedInvalidAttempts()
+    {
+        var grant = CreateGrant("player-a", portalKey: PortalSequenceRules.PortalKey);
+        using var factory = CreateFactory(out var repository, out var events, out _);
+        repository.Grants.Add(grant);
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, "player-a", "User");
+
+        for (var attempt = 0; attempt < 12; attempt++)
+        {
+            var rejected = await client.PostAsJsonAsync(
+                $"/api/personal-content/{grant.Id}/challenge/attempt",
+                new { sequence = new[] { "invalid" } });
+            Assert.Equal(HttpStatusCode.BadRequest, rejected.StatusCode);
+        }
+
+        var throttled = await client.PostAsJsonAsync(
+            $"/api/personal-content/{grant.Id}/challenge/attempt",
+            new { sequence = new[] { "invalid" } });
+        Assert.Equal(HttpStatusCode.TooManyRequests, throttled.StatusCode);
+        Assert.False(grant.IsConsumed);
+        Assert.Empty(events.Appended);
+    }
+
     private static VuxoApiFactory CreateFactory(
         out FakeRepository repository,
         out FakeEventStore events,
