@@ -24,7 +24,7 @@ test('real browser to ASP.NET/PostgreSQL: GameMaster grant, failed attempt, solv
       contentKey: 'portal.live.memory',
       portalKey: 'challenge.sequence.v1',
       dialogBranchKey: 'dialog.live',
-      rewardKey: 'reward.reference',
+      rewardKey: 'item.rune_shard.v1',
       seed: 42024,
       ruleVersion: 'personal-content-v1',
       correlationId: randomUUID(),
@@ -78,6 +78,18 @@ test('real browser to ASP.NET/PostgreSQL: GameMaster grant, failed attempt, solv
   }
   await page.getByTestId('portal-submit').click();
   await expect(page.getByTestId('portal-complete')).toBeVisible();
+  await expect(page.getByTestId('portal-award')).toContainText('Frammento di runa');
+
+  const inventory = await request.get(api + '/api/inventory', { headers: userHeaders });
+  expect(inventory.status()).toBe(200);
+  const awards = (await inventory.json()) as Array<{ grantId: string; itemKey: string; quantity: number }>;
+  expect(awards).toMatchObject([{
+    grantId, itemKey: 'item.rune_shard.v1', quantity: 1,
+    awardedAtUtc: expect.any(String),
+  }]);
+
+  await page.goto('./#/inventory');
+  await expect(page.getByTestId('inventory-item')).toContainText('Frammento di runa');
 
   const remaining = await request.get(api + '/api/personal-content', { headers: userHeaders });
   expect(remaining.ok()).toBeTruthy();
