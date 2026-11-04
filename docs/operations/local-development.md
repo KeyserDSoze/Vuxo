@@ -35,7 +35,7 @@ VUXO_GRAFANA_PORT=13000
 VUXO_E2E_PORT=14173
 ```
 
-Le porte host devono essere **distinte**. Il comando `doctor` verifica le porte, la sintassi Compose e gli strumenti: `node scripts/dev.mjs doctor`. Le porte di PostgreSQL, Redis, API, Vite, Ollama e Grafana sono esposte solo su `127.0.0.1`.
+Le porte host devono essere **distinte**. Il project name deve essere `vuxo-local` oppure `vuxo-local-<nome>` per evitare collisioni con il deployment production. La password PostgreSQL locale deve contenere almeno 16 caratteri alfanumerici/`_`/`-` (senza `;`), e anche quella Grafana almeno 16 caratteri. Il nome del modello Ollama non deve contenere spazi o metacaratteri shell. Il comando `doctor` verifica le porte, la sintassi Compose e gli strumenti: `node scripts/dev.mjs doctor`. Le porte di PostgreSQL, Redis, API, Vite, Ollama e Grafana sono esposte solo su `127.0.0.1`.
 
 ## 3. Modalità Full Docker
 
@@ -62,6 +62,8 @@ node scripts/dev.mjs smoke
 ```sh
 node scripts/dev.mjs debug
 ```
+
+Se hai già eseguito `up`, `infra`, `debug` e `test` arrestano automaticamente i soli container frontend/API del progetto locale, liberando le porte per il debug o i test senza perdere i volumi dati. Dopo aver fermato i processi host con CTRL+C, puoi tornare alla modalità Docker con `node scripts/dev.mjs up`.
 
 Parte PostgreSQL + Redis in Docker; `dotnet watch` e Vite vengono avviati **sulla macchina host**, con config locale applicata automaticamente: JWT, stringa PostgreSQL, Redis, CORS, Base URL frontend e porte. I breakpoint si impostano sul processo `Vuxo.Api` con Visual Studio, Rider o VS Code usando **Attach to .NET Process**; il frontend è debuggabile normalmente dal browser. CTRL+C interrompe i processi host, **non cancella i volumi Docker**.
 
