@@ -25,6 +25,20 @@ test('keyboard sends movement intent and authoritative position comes back', asy
   await expect.poll(() => numericAttribute(player, 'data-player-x')).toBeGreaterThan(initialX);
 });
 
+test('world HUD reflects the same authoritative speed as the player snapshot', async ({ page }) => {
+  await configurePlayer(page, 'speed-hud-player', 'Speed Vuxian');
+  await page.goto(gameUrl);
+  await expectConnected(page);
+
+  const self = page.locator('[data-player-id="speed-hud-player"]');
+  const speed = page.getByTestId('world-speed');
+  await expect(self).toBeVisible();
+  await expect(speed).toBeVisible();
+  await expect.poll(async () => speed.getAttribute('data-speed'))
+    .toBe(await self.getAttribute('data-player-speed'));
+  await expect(speed).toContainText('Velocità in tempo reale');
+});
+
 test('client re-joins after a simulated reconnect without losing presence', async ({ page }) => {
   await configurePlayer(page, 'reconnect-player', 'Reconnect Vuxian');
   await page.goto(gameUrl);
