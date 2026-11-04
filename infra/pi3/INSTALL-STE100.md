@@ -356,6 +356,8 @@ The legacy x64 workflow is disabled unless repository variable `VUXO_X64_DEPLOY_
 
 **NOTE:** The installation branch is not a substitute for an approved main release.
 
+The ARM64 build can run before Raspberry deployment is enabled. Keep the repository variable VUXO_PI3_DEPLOY_ENABLED set to false. A successful main CI run then publishes an ARM64 image to GHCR. The production deployment job does not start.
+
 The ARM64 workflow uses this sequence:
 
 1. GitHub CI tests main.
