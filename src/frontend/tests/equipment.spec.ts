@@ -37,7 +37,7 @@ async function mockEquipment(page: Page) {
       slot: 'relic', grantId: awardA, itemKey: rune,
       equippedAtUtc: '2026-11-04T12:00:00Z',
     }] : [],
-    stats: stats(), ruleVersion: 'equipment-v1',
+    stats: stats(), ruleVersion: 'equipment-v2',
   });
   await page.route('**/api/inventory', route => fulfill(route, [{
     grantId: awardA, itemKey: rune, quantity: 1, awardedAtUtc: '2026-11-04T11:00:00Z',
@@ -91,7 +91,7 @@ test('English mobile loadout is responsive and shows stat preview disclaimer', a
   await expect(page.getByRole('heading', { name: 'Inventory' })).toBeVisible();
   await expect(page.getByTestId('inventory-stack')).toContainText('Owned copies: 2');
   await expect(page.getByTestId('inventory-equip')).toHaveText('Equip');
-  await expect(page.getByTestId('equipment-stats')).toContainText('Bonuses do not change base allocation');
+  await expect(page.getByTestId('equipment-stats')).toContainText('Equipped Dexterity now affects live multiplayer movement.');
 });
 
 test('anonymous clients cannot read stack or equipment endpoints', async ({ page }) => {
