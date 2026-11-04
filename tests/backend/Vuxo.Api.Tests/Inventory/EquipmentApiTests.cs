@@ -9,6 +9,7 @@ using Vuxo.Domain.Common;
 using Vuxo.Domain.Events;
 using Vuxo.Domain.Inventory;
 using Vuxo.Domain.Players;
+using Vuxo.Application.Worlds.Realtime;
 
 namespace Vuxo.Api.Tests.Inventory;
 
@@ -98,6 +99,53 @@ public sealed class EquipmentApiTests
         Assert.Single(equipment.Items, x => x.Slot == EquipmentRules.Charm);
     }
 
+    [Fact]
+    public async Task Equip_OnlyCommittedOwnerDexterityChangesAuthoritativeOnlineMovementSpeed()
+    {
+        using var factory = CreateFactory(out var inventory, out _, out _, out _);
+        using var client = factory.CreateClient();
+        await LoginAsync(client, "player-a");
+
+        var simulation = factory.Services.GetRequiredService<WorldSimulation>();
+        var character = PlayerCharacter.Create("player-a", "Speed Hero",
+            PlayerAttributes.Create(2, 2, 2, 2, 1, 1),
+            new CharacterAppearance("hair-1", "black", "face-1", "body-1",
+                "skin-1", "blue", "bottom-1", "black", "shoe-1", "white"));
+        var joined = simulation.Join("speed-connection", "player-a", character,
+            new WorldSpawnPoint(0.5, 0.5));
+        Assert.Equal(1.2d, joined.Self.SpeedMultiplier, 8);
+
+        var award = Assert.Single(inventory.Awards,
+            x => x.ItemKey == InventoryItemCatalog.SwiftFeather);
+
+        using var other = factory.CreateClient();
+        await LoginAsync(other, "player-b");
+        var denied = await other.PostAsJsonAsync(
+            $"/api/equipment/{award.GrantId}/equip",
+            new { speedMultiplier = 900, playerId = "player-a" });
+        Assert.Equal(HttpStatusCode.NotFound, denied.StatusCode);
+        Assert.Equal(1.2d, Assert.Single(simulation.Snapshot()).SpeedMultiplier, 8);
+
+        var equip = await client.PostAsJsonAsync(
+            $"/api/equipment/{award.GrantId}/equip",
+            new { speedMultiplier = 900, dexterity = 900, ownerId = "player-b" });
+        Assert.Equal(HttpStatusCode.OK, equip.StatusCode);
+        var boosted = Assert.Single(simulation.Snapshot());
+        Assert.Equal(1.3d, boosted.SpeedMultiplier, 8);
+        Assert.True(boosted.Revision > joined.Self.Revision);
+        Assert.Equal(joined.Self.X, boosted.X);
+
+        var replay = await client.PostAsync($"/api/equipment/{award.GrantId}/equip", null);
+        Assert.Equal(HttpStatusCode.Conflict, replay.StatusCode);
+        Assert.Equal(boosted.Revision, Assert.Single(simulation.Snapshot()).Revision);
+
+        var removed = await client.DeleteAsync("/api/equipment/charm");
+        Assert.Equal(HttpStatusCode.OK, removed.StatusCode);
+        var normal = Assert.Single(simulation.Snapshot());
+        Assert.Equal(1.2d, normal.SpeedMultiplier, 8);
+        Assert.True(normal.Revision > boosted.Revision);
+    }
+
     private static VuxoApiFactory CreateFactory(
         out FakeInventory inventory,
         out FakeEquipment equipment,
@@ -152,7 +200,8 @@ public sealed class EquipmentApiTests
             NewAward(InventoryItemCatalog.RuneShard),
             NewAward(InventoryItemCatalog.RuneShard),
             NewAward(InventoryItemCatalog.GroveSeed),
-            NewAward(InventoryItemCatalog.TidalPearl)
+            NewAward(InventoryItemCatalog.TidalPearl),
+            NewAward(InventoryItemCatalog.SwiftFeather)
         }.ToList();
 
         private static PlayerInventoryAward NewAward(string key) =>
