@@ -9,7 +9,7 @@ const initialization = i18n.use(initReactI18next).init({
     it: {
       translation: {
         nav: { home: 'Home', auth: 'Account', character: 'Personaggio', game: 'Gioco', portals: 'Portali', inventory: 'Inventario', admin: 'Admin', version: 'Versione' },
-        shell: { theme: 'Tema', language: 'Lingua', navigation: 'Navigazione principale', openMenu: 'Apri menu', closeMenu: 'Chiudi', version: 'Versione {{version}}' },
+        shell: { theme: 'Tema', language: 'Lingua', navigation: 'Navigazione principale', openMenu: 'Apri menu', closeMenu: 'Chiudi', loadingPage: 'Caricamento pagina…', version: 'Versione {{version}}' },
         theme: { system: 'Sistema', light: 'Chiaro', dark: 'Scuro' },
         home: {
           eyebrow: 'Versione {{version}} · First playable',
@@ -226,7 +226,7 @@ const initialization = i18n.use(initReactI18next).init({
     en: {
       translation: {
         nav: { home: 'Home', auth: 'Account', character: 'Character', game: 'Game', portals: 'Portals', inventory: 'Inventory', admin: 'Admin', version: 'Version' },
-        shell: { theme: 'Theme', language: 'Language', navigation: 'Main navigation', openMenu: 'Open menu', closeMenu: 'Close', version: 'Version {{version}}' },
+        shell: { theme: 'Theme', language: 'Language', navigation: 'Main navigation', openMenu: 'Open menu', closeMenu: 'Close', loadingPage: 'Loading page…', version: 'Version {{version}}' },
         theme: { system: 'System', light: 'Light', dark: 'Dark' },
         home: {
           eyebrow: 'Version {{version}} · First playable',
