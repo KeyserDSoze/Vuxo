@@ -2,6 +2,8 @@
 
 Vuxo è un gioco online 2D di esplorazione, collezione e combattimento strategico in un mondo procedurale persistente. La prima milestone (`0.0.1`) porta il giocatore da login e creazione del personaggio all'ingresso in un mondo condiviso, con movimento realtime server-authoritative e presenza degli altri giocatori.
 
+La nuova guida Raspberry Pi 3, scritta in inglese tecnico controllato secondo i principi ASD-STE100, è disponibile in [`infra/pi3/INSTALL-STE100.md`](infra/pi3/INSTALL-STE100.md). La procedura hardware è ancora da verificare sulla macchina reale.
+
 ## Endpoint production canonici
 
 - Frontend: `https://vuxo.app`
