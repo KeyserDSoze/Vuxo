@@ -37,7 +37,9 @@ export function generateLocalEnv(template, generateSecret) {
 
 export function validateLocalEnv(config) {
   const project = config.VUXO_COMPOSE_PROJECT ?? '';
-  if (!/^[a-z][a-z0-9_-]*$/.test(project)) throw new Error('VUXO_COMPOSE_PROJECT must use lower-case letters, numbers, hyphens or underscores');
+  if (!/^vuxo-local(?:-[a-z0-9]+)*$/.test(project)) {
+    throw new Error('VUXO_COMPOSE_PROJECT must be vuxo-local or vuxo-local-<name> to avoid production collisions');
+  }
   const known = new Map();
   for (const key of portKeys) {
     const raw = config[key];
@@ -52,7 +54,18 @@ export function validateLocalEnv(config) {
       throw new Error(key + ' must contain a generated local secret (run init)');
     }
   }
+  // These values enter the PostgreSQL connection-string and Ollama's shell-based model pull.
+  // Reject delimiters/injection syntax rather than silently constructing a different command.
+  if (!/^[A-Za-z0-9_-]{16,}$/.test(config.VUXO_POSTGRES_PASSWORD)) {
+    throw new Error('VUXO_POSTGRES_PASSWORD must have at least 16 URL-safe characters');
+  }
+  if (config.VUXO_GRAFANA_ADMIN_PASSWORD.length < 16) {
+    throw new Error('VUXO_GRAFANA_ADMIN_PASSWORD must have at least 16 characters');
+  }
   if (config.VUXO_JWT_SIGNING_KEY.length < 32) throw new Error('VUXO_JWT_SIGNING_KEY must contain at least 32 characters');
+  if (!/^[A-Za-z0-9][A-Za-z0-9_.:/-]*$/.test(config.VUXO_LLM_MODEL ?? '')) {
+    throw new Error('VUXO_LLM_MODEL must be an Ollama model identifier without shell metacharacters');
+  }
   for (const key of ['VUXO_LLM_ENABLED', 'VUXO_OBSERVABILITY_ENABLED']) {
     if (!['true', 'false'].includes(config[key])) throw new Error(key + ' must be true or false');
   }
