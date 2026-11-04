@@ -99,6 +99,23 @@ const initialization = i18n.use(initReactI18next).init({
           owned: 'Oggetti ottenuti: {{count}}',
           awardedAt: 'Ottenuto il {{date}}',
           quantity: 'Quantità: {{count}}',
+          stacksTitle: 'Pile di oggetti',
+          stackQuantity: 'Copie possedute: {{count}}',
+          equippedQuantity: 'Equipaggiate: {{count}}',
+          equip: 'Equipaggia',
+          unequip: 'Rimuovi',
+          slots: { relic: 'Reliquia', charm: 'Amuleto' },
+          effectiveStats: 'Statistiche con equipaggiamento',
+          statsPreviewNote: 'Anteprima del carico equipaggiato. I bonus non modificano i punti base e non alterano ancora il movimento multiplayer.',
+          maxHealth: 'Salute massima teorica: {{value}}',
+          stats: {
+            strength: 'Forza: {{value}} (+{{bonus}})',
+            dexterity: 'Destrezza: {{value}} (+{{bonus}})',
+            intelligence: 'Intelligenza: {{value}} (+{{bonus}})',
+            constitution: 'Costituzione: {{value}} (+{{bonus}})',
+            luck: 'Fortuna: {{value}} (+{{bonus}})',
+            faith: 'Fede: {{value}} (+{{bonus}})'
+          },
           items: {
             runeShard: 'Frammento di runa',
             groveSeed: 'Seme del bosco',
@@ -106,7 +123,15 @@ const initialization = i18n.use(initReactI18next).init({
           },
           errors: {
             inventory_authentication_required: 'Accedi per vedere il tuo inventario.',
-            inventory_request_failed: 'Impossibile caricare l’inventario. Riprova.'
+            inventory_request_failed: 'Impossibile caricare l’inventario. Riprova.',
+            equipment_item_not_owned: 'Questo oggetto non appartiene al tuo inventario.',
+            equipment_item_not_equippable: 'Questo oggetto non può essere equipaggiato.',
+            equipment_item_already_equipped: 'Questo oggetto è già equipaggiato.',
+            equipment_slot_occupied: 'Slot occupato. Rimuovi prima l’oggetto equipaggiato.',
+            equipment_character_required: 'Crea un personaggio prima di equipaggiare un oggetto.',
+            equipment_invalid_slot: 'Slot di equipaggiamento non valido.',
+            equipment_slot_empty: 'Questo slot è già vuoto.',
+            equipment_conflict: 'Equipaggiamento modificato da un’altra richiesta. Ricarica la pagina.'
           }
         },
         admin: { title: 'Amministrazione', description: 'Health, giocatori online, audit degli eventi, contenuti esclusivi e telemetria saranno raccolti qui.' },
@@ -284,6 +309,23 @@ const initialization = i18n.use(initReactI18next).init({
           owned: 'Items earned: {{count}}',
           awardedAt: 'Earned on {{date}}',
           quantity: 'Quantity: {{count}}',
+          stacksTitle: 'Item stacks',
+          stackQuantity: 'Owned copies: {{count}}',
+          equippedQuantity: 'Equipped: {{count}}',
+          equip: 'Equip',
+          unequip: 'Unequip',
+          slots: { relic: 'Relic', charm: 'Charm' },
+          effectiveStats: 'Equipment-adjusted stats',
+          statsPreviewNote: 'Equipment preview only. Bonuses do not change base allocation or live multiplayer movement yet.',
+          maxHealth: 'Projected maximum health: {{value}}',
+          stats: {
+            strength: 'Strength: {{value}} (+{{bonus}})',
+            dexterity: 'Dexterity: {{value}} (+{{bonus}})',
+            intelligence: 'Intelligence: {{value}} (+{{bonus}})',
+            constitution: 'Constitution: {{value}} (+{{bonus}})',
+            luck: 'Luck: {{value}} (+{{bonus}})',
+            faith: 'Faith: {{value}} (+{{bonus}})'
+          },
           items: {
             runeShard: 'Rune Shard',
             groveSeed: 'Grove Seed',
@@ -291,7 +333,15 @@ const initialization = i18n.use(initReactI18next).init({
           },
           errors: {
             inventory_authentication_required: 'Sign in to see your inventory.',
-            inventory_request_failed: 'Unable to load inventory. Please try again.'
+            inventory_request_failed: 'Unable to load inventory. Please try again.',
+            equipment_item_not_owned: 'This item does not belong to your inventory.',
+            equipment_item_not_equippable: 'This item cannot be equipped.',
+            equipment_item_already_equipped: 'This item is already equipped.',
+            equipment_slot_occupied: 'Slot occupied. Unequip its current item first.',
+            equipment_character_required: 'Create a character before equipping an item.',
+            equipment_invalid_slot: 'Invalid equipment slot.',
+            equipment_slot_empty: 'This slot is already empty.',
+            equipment_conflict: 'Equipment changed during another request. Reload the page.'
           }
         },
         admin: { title: 'Administration', description: 'Health, online players, event audit, exclusive content and telemetry will live here.' },

@@ -12,6 +12,7 @@ public sealed class VuxoDbContext(DbContextOptions<VuxoDbContext> options) : DbC
     public DbSet<WorldChunkEntity> WorldChunks => Set<WorldChunkEntity>();
     public DbSet<ExclusiveContentGrantEntity> ExclusiveContentGrants => Set<ExclusiveContentGrantEntity>();
     public DbSet<PlayerInventoryAwardEntity> PlayerInventoryAwards => Set<PlayerInventoryAwardEntity>();
+    public DbSet<PlayerEquippedItemEntity> PlayerEquippedItems => Set<PlayerEquippedItemEntity>();
     public DbSet<VuxoUserEntity> VuxoUsers => Set<VuxoUserEntity>();
     public DbSet<ExternalIdentityEntity> ExternalIdentities => Set<ExternalIdentityEntity>();
 
@@ -85,6 +86,7 @@ public sealed class VuxoDbContext(DbContextOptions<VuxoDbContext> options) : DbC
         {
             entity.ToTable("player_inventory_awards");
             entity.HasKey(x => x.GrantId);
+            entity.HasAlternateKey(x => new { x.GrantId, x.PlayerId });
             entity.HasIndex(x => x.AwardEventId).IsUnique();
             entity.HasIndex(x => new { x.PlayerId, x.AwardedAtUtc });
             entity.Property(x => x.PlayerId).HasMaxLength(200);
@@ -92,6 +94,20 @@ public sealed class VuxoDbContext(DbContextOptions<VuxoDbContext> options) : DbC
             entity.HasOne<ExclusiveContentGrantEntity>()
                 .WithMany()
                 .HasForeignKey(x => x.GrantId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<PlayerEquippedItemEntity>(entity =>
+        {
+            entity.ToTable("player_equipped_items");
+            entity.HasKey(x => new { x.PlayerId, x.Slot });
+            entity.Property(x => x.PlayerId).HasMaxLength(200);
+            entity.Property(x => x.Slot).HasMaxLength(32);
+            entity.HasIndex(x => x.GrantId).IsUnique();
+            entity.HasOne<PlayerInventoryAwardEntity>()
+                .WithMany()
+                .HasForeignKey(x => new { x.GrantId, x.PlayerId })
+                .HasPrincipalKey(x => new { x.GrantId, x.PlayerId })
                 .OnDelete(DeleteBehavior.Restrict);
         });
 

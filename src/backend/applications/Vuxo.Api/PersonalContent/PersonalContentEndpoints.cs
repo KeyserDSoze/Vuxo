@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.RateLimiting;
 using Vuxo.Application.PersonalContent;
+using Vuxo.Application.Inventory;
 using Vuxo.Domain.PersonalContent;
 using Vuxo.Domain.Inventory;
 
@@ -28,6 +29,92 @@ public static class PersonalContentEndpoints
                 }));
             })
             .RequireAuthorization();
+
+        endpoints.MapGet(
+            "/api/inventory/stacks",
+            async (ClaimsPrincipal user, PlayerEquipmentService service, CancellationToken cancellationToken) =>
+            {
+                var playerId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrWhiteSpace(playerId)) return Results.Unauthorized();
+                return Results.Ok(await service.GetStacksAsync(playerId, cancellationToken));
+            })
+            .RequireAuthorization();
+
+        endpoints.MapGet(
+            "/api/equipment",
+            async (ClaimsPrincipal user, PlayerEquipmentService service, CancellationToken cancellationToken) =>
+            {
+                var playerId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrWhiteSpace(playerId)) return Results.Unauthorized();
+                return Results.Ok(ToEquipmentResponse(await service.GetEquipmentAsync(
+                    playerId, cancellationToken)));
+            })
+            .RequireAuthorization();
+
+        endpoints.MapPost(
+            "/api/equipment/{grantId:guid}/equip",
+            async (Guid grantId, ClaimsPrincipal user, PlayerEquipmentService service,
+                CancellationToken cancellationToken) =>
+            {
+                var playerId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrWhiteSpace(playerId)) return Results.Unauthorized();
+                try
+                {
+                    var result = await service.EquipAsync(playerId, grantId, cancellationToken);
+                    return Results.Ok(ToEquipmentResponse(result));
+                }
+                catch (EquipmentException ex) when (ex.Code == EquipmentErrorCodes.NotOwned)
+                {
+                    return Results.NotFound(new { code = ex.Code });
+                }
+                catch (EquipmentException ex) when (ex.Code == EquipmentErrorCodes.NotEquippable
+                    || ex.Code == EquipmentErrorCodes.InvalidSlot)
+                {
+                    return Results.BadRequest(new { code = ex.Code });
+                }
+                catch (EquipmentException ex)
+                {
+                    return Results.Conflict(new { code = ex.Code });
+                }
+                catch (DbUpdateConcurrencyException)
+                {
+                    return Results.Conflict(new { code = "equipment_conflict" });
+                }
+                catch (DbUpdateException)
+                {
+                    return Results.Conflict(new { code = "equipment_conflict" });
+                }
+            })
+            .RequireAuthorization()
+            .RequireRateLimiting("portal-challenge");
+
+        endpoints.MapDelete(
+            "/api/equipment/{slot}",
+            async (string slot, ClaimsPrincipal user, PlayerEquipmentService service,
+                CancellationToken cancellationToken) =>
+            {
+                var playerId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrWhiteSpace(playerId)) return Results.Unauthorized();
+                try
+                {
+                    var result = await service.UnequipAsync(playerId, slot, cancellationToken);
+                    return Results.Ok(ToEquipmentResponse(result));
+                }
+                catch (EquipmentException ex) when (ex.Code == EquipmentErrorCodes.InvalidSlot)
+                {
+                    return Results.BadRequest(new { code = ex.Code });
+                }
+                catch (EquipmentException ex)
+                {
+                    return Results.Conflict(new { code = ex.Code });
+                }
+                catch (DbUpdateConcurrencyException)
+                {
+                    return Results.Conflict(new { code = "equipment_conflict" });
+                }
+            })
+            .RequireAuthorization()
+            .RequireRateLimiting("portal-challenge");
 
         endpoints.MapGet(
             "/api/personal-content",
@@ -224,6 +311,19 @@ public static class PersonalContentEndpoints
 
         return endpoints;
     }
+
+    private static object ToEquipmentResponse(EquipmentView view) => new
+    {
+        items = view.Items.Select(x => new
+        {
+            x.Slot,
+            x.GrantId,
+            x.ItemKey,
+            x.EquippedAtUtc
+        }),
+        stats = view.Stats,
+        ruleVersion = EquipmentRules.Version
+    };
 
     private static object ToPlayerResponse(ExclusiveContentGrant grant) => new
     {

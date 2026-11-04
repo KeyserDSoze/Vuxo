@@ -16,6 +16,7 @@ using Vuxo.Api.Realtime;
 using Vuxo.Api.Worlds;
 using Vuxo.Application.AI;
 using Vuxo.Application.Events;
+using Vuxo.Application.Inventory;
 using Vuxo.Application.Identity;
 using Vuxo.Application.PersonalContent;
 using Vuxo.Application.Players;
@@ -45,6 +46,7 @@ builder.Services.AddSingleton(provider =>
 });
 builder.Services.AddScoped<WorldService>();
 builder.Services.AddScoped<ExclusiveContentService>();
+builder.Services.AddScoped<PlayerEquipmentService>();
 builder.Services.AddScoped<WorldPortalService>();
 builder.Services.AddScoped<GameEventAuditService>();
 builder.Services.AddSingleton<WorldChunkGenerator>();

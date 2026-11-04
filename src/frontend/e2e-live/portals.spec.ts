@@ -16,6 +16,20 @@ async function login(request: APIRequestContext, subject: string, role: string):
 test('real browser to ASP.NET/PostgreSQL: GameMaster grant, failed attempt, solved challenge, audit and replay guard', async ({ page, request }) => {
   const gmToken = await login(request, 'portal-live-gm', 'GameMaster');
   const playerToken = await login(request, playerId, 'User');
+  const characterResponse = await request.post(api + '/api/characters', {
+    headers: { Authorization: 'Bearer ' + playerToken },
+    data: {
+      name: 'Inventory Hero', strength: 2, dexterity: 2,
+      intelligence: 2, constitution: 2, luck: 1, faith: 1,
+      appearance: {
+        hairStyle: 'hair-1', hairColor: 'black', face: 'face-1',
+        bodyType: 'body-1', skinTone: 'skin-1', topColor: 'blue',
+        bottomStyle: 'shorts', bottomColor: 'black',
+        shoeStyle: 'shoe-1', shoeColor: 'white',
+      },
+    },
+  });
+  expect(characterResponse.status(), 'Player character required for equipment').toBe(201);
   const grantResponse = await request.post(api + '/api/admin/personal-content/grants', {
     headers: { Authorization: 'Bearer ' + gmToken },
     data: {
@@ -90,6 +104,30 @@ test('real browser to ASP.NET/PostgreSQL: GameMaster grant, failed attempt, solv
 
   await page.goto('./#/inventory');
   await expect(page.getByTestId('inventory-item')).toContainText('Frammento di runa');
+  await expect(page.getByTestId('inventory-stack')).toContainText('Copie possedute: 1');
+  await page.getByTestId('inventory-equip').click();
+  await expect(page.getByTestId('inventory-unequip')).toBeVisible();
+  await expect(page.getByTestId('equipment-stats')).toContainText('Intelligenza: 3 (+1)');
+
+  const equipmentResponse = await request.get(api + '/api/equipment', { headers: userHeaders });
+  expect(equipmentResponse.status()).toBe(200);
+  const loadout = (await equipmentResponse.json()) as {
+    items: Array<{ grantId: string; slot: string }>;
+    stats: { intelligence: number; bonuses: { intelligence: number } };
+  };
+  expect(loadout.items).toMatchObject([{ grantId, slot: 'relic' }]);
+  expect(loadout.stats.intelligence).toBe(3);
+  expect(loadout.stats.bonuses.intelligence).toBe(1);
+  const repeatEquip = await request.post(
+    api + '/api/equipment/' + grantId + '/equip', { headers: userHeaders }
+  );
+  expect(repeatEquip.status()).toBe(409);
+
+  await page.getByTestId('inventory-unequip').click();
+  await expect(page.getByTestId('inventory-equip')).toBeVisible();
+  await expect(page.getByTestId('equipment-stats')).toContainText('Intelligenza: 2 (+0)');
+  const afterUnequip = await request.get(api + '/api/equipment', { headers: userHeaders });
+  expect(((await afterUnequip.json()) as { items: unknown[] }).items).toEqual([]);
 
   const remaining = await request.get(api + '/api/personal-content', { headers: userHeaders });
   expect(remaining.ok()).toBeTruthy();
