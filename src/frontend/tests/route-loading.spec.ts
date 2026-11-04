@@ -11,10 +11,10 @@ test('home does not eagerly download Phaser route; navigating to game fetches it
   await page.goto('./#/');
   await expect(page.getByTestId('home-hero')).toBeVisible();
   expect(gameChunks).toHaveLength(0);
-  await page.getByTestId('desktop-nav').getByRole('link', { name: 'Gioco' }).click();
+  await page.getByTestId('desktop-nav').locator('a[href="#/game"]').click();
   await expect(page.getByTestId('game-canvas').locator('canvas')).toBeVisible();
   expect(gameChunks.length).toBeGreaterThan(0);
-  await page.getByTestId('desktop-nav').getByRole('link', { name: 'Home' }).click();
+  await page.getByTestId('desktop-nav').locator('a[href="#/"]').click();
   await expect(page.getByTestId('home-hero')).toBeVisible();
 });
 
