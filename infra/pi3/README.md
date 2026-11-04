@@ -88,6 +88,8 @@ ssh -L 8090:127.0.0.1:8090 <user>@<pi-host>
 ~~~
 Then browse http://localhost:8090, create an admin account, and add a system with Unix socket path **/beszel_socket/beszel.sock**. Beszel provides CPU, RAM, disk and container status, not an enterprise log search engine. Hub and agent consume additional RAM: measure before keeping them on the Pi.
 
+**Docker logs UI (optional)**: docker/compose.pi3.logs.yml uses authenticated Dozzle on host loopback port 8088. Create a private directory (such as $HOME/vuxo-dozzle-data) with permissions 0700, set VUXO_DOZZLE_DATA_DIR to that absolute path in your local configuration, and generate a bcrypt password using the official Dozzle 'generate' command to prepare its users.yml with restrictive permissions. Without users.yml the simple-auth startup must not be treated as configured. Use an SSH tunnel to 8088, and do not enable shell/actions or expose the Docker socket outside the host. Dozzle shows container logs, while Beszel shows resource/health charts; run either one only after checking free RAM.
+
 **Queue (optional, separate capacity test)**: docker/compose.pi3.rabbitmq.yml contains RabbitMQ management; admin at loopback 15672 (SSH forward required). API message production/consumption is **not yet implemented**. Do not enable RabbitMQ just to display an empty broker, and avoid running it on the 1 GiB Pi concurrently with Beszel unless measured.
 
 **Azure Storage emulator (development/test only)**: docker/compose.pi3.azurite.yml with Blob/Queue/Table loopback ports 10000/10001/10002. Azurite is *not* a production storage system. For production game files choose supported local object storage on adequate hardware, or managed Azure Blob Storage; implement an application adapter before considering that complete.
