@@ -37,6 +37,13 @@ const initialization = i18n.use(initReactI18next).init({
           title: 'Mondo condiviso',
           description: 'Il movimento è autoritativo lato server. Usa WASD, le frecce o i controlli touch per inviare i tuoi intenti.',
           playersOnline: 'Giocatori online: {{count}}',
+          portal: {
+            available: 'Portali personali nel mondo: {{count}}',
+            enter: 'Entra nel portale {{number}}',
+            moveCloser: 'Avvicinati a un portale per entrare. Puoi anche selezionare il suo simbolo sulla mappa.',
+            challenge: 'Sfida del portale',
+            genericError: 'Non è stato possibile entrare nel portale.'
+          },
           connection: {
             idle: 'Offline',
             connecting: 'Connessione…',
@@ -74,6 +81,8 @@ const initialization = i18n.use(initReactI18next).init({
             portal_challenge_required: 'Devi completare la sfida prima di usare il portale.',
             portal_challenge_invalid_answer: 'La sequenza inserita non è valida.',
             portal_challenge_incorrect: 'Sequenza errata. Riprova.',
+            world_portal_not_joined: 'Entra nel mondo condiviso prima di utilizzare il portale.',
+            world_portal_too_far: 'Sei troppo lontano dal portale: avvicinati e riprova.',
             exclusive_content_not_found: 'Questo portale non è disponibile per il tuo personaggio.',
             exclusive_content_expired: 'Questo portale è scaduto.',
             exclusive_content_consumed: 'Questa sfida è già stata completata.'
@@ -192,6 +201,13 @@ const initialization = i18n.use(initReactI18next).init({
           title: 'Shared world',
           description: 'Movement is server-authoritative. Use WASD, arrow keys or touch controls to send your movement intent.',
           playersOnline: 'Players online: {{count}}',
+          portal: {
+            available: 'Personal portals in the world: {{count}}',
+            enter: 'Enter portal {{number}}',
+            moveCloser: 'Move closer to a portal to enter. You can also select its marker on the map.',
+            challenge: 'Portal challenge',
+            genericError: 'Could not enter the portal.'
+          },
           connection: {
             idle: 'Offline',
             connecting: 'Connecting…',
@@ -229,6 +245,8 @@ const initialization = i18n.use(initReactI18next).init({
             portal_challenge_required: 'Complete the challenge before using this portal.',
             portal_challenge_invalid_answer: 'That rune sequence is invalid.',
             portal_challenge_incorrect: 'Wrong sequence. Try again.',
+            world_portal_not_joined: 'Join the shared world before entering this portal.',
+            world_portal_too_far: 'You are too far from this portal. Move closer and try again.',
             exclusive_content_not_found: 'This portal is unavailable for your character.',
             exclusive_content_expired: 'This portal has expired.',
             exclusive_content_consumed: 'This challenge has already been completed.'
