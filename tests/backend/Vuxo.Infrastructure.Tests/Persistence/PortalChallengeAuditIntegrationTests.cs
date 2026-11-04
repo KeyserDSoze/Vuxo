@@ -30,7 +30,8 @@ public sealed class PortalChallengeAuditIntegrationTests
         await using (var db = database.CreateDbContext())
         {
             var service = new ExclusiveContentService(
-                new ExclusiveContentGrantRepository(db), new GameEventStore(db), db, TimeProvider.System);
+                new ExclusiveContentGrantRepository(db), new GameEventStore(db), db, TimeProvider.System,
+                new PlayerInventoryRepository(db));
             var puzzle = await service.GetChallengeAsync("player-a", grant.Id);
             var done = await service.SubmitChallengeAsync("player-a", grant.Id, puzzle.Sequence);
             Assert.True(done.IsConsumed);
