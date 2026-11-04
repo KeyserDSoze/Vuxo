@@ -12,6 +12,7 @@ export const inventoryItemLabelKeys: Readonly<Record<string, string>> = {
   'item.rune_shard.v1': 'runeShard',
   'item.grove_seed.v1': 'groveSeed',
   'item.tidal_pearl.v1': 'tidalPearl',
+  'item.swift_feather.v1': 'swiftFeather',
 };
 
 export class InventoryApiError extends Error {
