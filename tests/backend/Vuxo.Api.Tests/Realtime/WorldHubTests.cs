@@ -71,7 +71,51 @@ public sealed class WorldHubTests
         Assert.Equal("player-b", left.PlayerId);
     }
 
-    private static VuxoApiFactory CreateFactory()
+    [Fact]
+    public async Task WorldHub_TwoClientsObserveEffectiveEquipmentSpeed_AndReconnectPreservesIt()
+    {
+        var feather = new EquippedInventoryItem(
+            "player-a", EquipmentRules.Charm, Guid.NewGuid(),
+            InventoryItemCatalog.SwiftFeather, Guid.NewGuid(),
+            Guid.NewGuid(), DateTimeOffset.UtcNow);
+        using var factory = CreateFactory(new FakePlayerEquipment([feather]));
+        using var http = factory.CreateClient();
+        var tokenA = await AuthenticateAsync(http, "player-a");
+        var tokenB = await AuthenticateAsync(http, "player-b");
+
+        await using var a = CreateConnection(factory, tokenA);
+        await using var b = CreateConnection(factory, tokenB);
+        await using var reconnectedA = CreateConnection(factory, tokenA);
+        var observed = new TaskCompletionSource<WorldPlayerSnapshot>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        b.On<WorldPlayerSnapshot>("world.playerJoined", snapshot =>
+        {
+            if (snapshot.PlayerId == "player-a") observed.TrySetResult(snapshot);
+        });
+
+        await b.StartAsync();
+        await a.StartAsync();
+        await b.InvokeAsync<WorldJoinResult>("JoinWorld");
+        var first = await a.InvokeAsync<WorldJoinResult>("JoinWorld");
+        var peer = await observed.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Equal(1.3d, first.Self.SpeedMultiplier, 8);
+        Assert.Equal(1.3d, peer.SpeedMultiplier, 8);
+        Assert.True(first.Players.Any(x => x.PlayerId == "player-b"));
+        Assert.False(first.IsReconnect);
+
+        await reconnectedA.StartAsync();
+        var refreshed = await reconnectedA.InvokeAsync<WorldJoinResult>("JoinWorld");
+        Assert.True(refreshed.IsReconnect);
+        Assert.NotNull(refreshed.ReplacedConnectionId);
+        Assert.Equal(1.3d, refreshed.Self.SpeedMultiplier, 8);
+        Assert.True(refreshed.Self.Revision > first.Self.Revision);
+        Assert.Equal(first.Self.X, refreshed.Self.X);
+        Assert.Equal(first.Self.Y, refreshed.Self.Y);
+        var simulation = factory.Services.GetRequiredService<WorldSimulation>();
+        Assert.False(simulation.SubmitIntent(refreshed.ReplacedConnectionId, 1, 0, 1).Accepted);
+    }
+
+    private static VuxoApiFactory CreateFactory(FakePlayerEquipment? equipment = null)
     {
         var players = new FakePlayerRepository(
             CreateCharacter("player-a", "Alpha", 2),
@@ -86,7 +130,7 @@ public sealed class WorldHubTests
             services.RemoveAll<IWorldRepository>();
             services.RemoveAll<IUnitOfWork>();
             services.AddSingleton<IPlayerCharacterRepository>(players);
-            services.AddSingleton<IPlayerEquipmentRepository>(new FakePlayerEquipment());
+            services.AddSingleton<IPlayerEquipmentRepository>(equipment ?? new FakePlayerEquipment());
             services.AddSingleton<IWorldRepository>(worlds);
             services.AddSingleton<IUnitOfWork>(unitOfWork);
         });
@@ -148,11 +192,12 @@ public sealed class WorldHubTests
             => throw new NotSupportedException();
     }
 
-    private sealed class FakePlayerEquipment : IPlayerEquipmentRepository
+    private sealed class FakePlayerEquipment(IReadOnlyList<EquippedInventoryItem>? initial = null) : IPlayerEquipmentRepository
     {
         public Task<IReadOnlyList<EquippedInventoryItem>> GetForPlayerAsync(
             string playerId, CancellationToken cancellationToken = default) =>
-            Task.FromResult<IReadOnlyList<EquippedInventoryItem>>([]);
+            Task.FromResult<IReadOnlyList<EquippedInventoryItem>>(
+                (initial ?? []).Where(item => item.PlayerId == playerId).ToArray());
         public Task EquipAsync(EquippedInventoryItem item, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
         public Task UnequipAsync(string playerId, string slot, CancellationToken cancellationToken = default)
