@@ -50,6 +50,12 @@ export function GameCanvas() {
           setPortalErrorCode(error instanceof PortalApiError
             ? error.code : 'portal_request_failed')
         })
+    }, count => {
+      // The Playwright-only readiness signal is emitted after Phaser installs
+      // the portal hit areas, not merely after the API returns portal data.
+      if (import.meta.env.VITE_E2E_REALTIME === 'true') {
+        host.current?.setAttribute('data-rendered-portals', String(count))
+      }
     })
     worldScene.current = scene
 

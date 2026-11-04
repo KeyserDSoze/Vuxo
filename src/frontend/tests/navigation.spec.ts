@@ -51,16 +51,15 @@ test('invalid JWT and expired session cannot reveal the admin link', async ({ pa
   await expect(page.getByTestId('admin-access-denied')).toContainText('sessione Vuxo autenticata');
 });
 
-test('JWT and persisted session expiry independently hide admin navigation', async ({ page }) => {
+test('expired JWT cannot reveal admin navigation even with a future stored session expiry', async ({ page }) => {
   await seedSession(page, makeJwt('Administrator', 1_000), '2099-01-01T00:00:00Z');
   await page.goto('./#/');
   await expect(page.getByTestId('desktop-nav').getByRole('link', { name: 'Admin' })).toHaveCount(0);
+});
 
-  await page.evaluate(token => {
-    localStorage.setItem('vuxo.accessToken', token);
-    localStorage.setItem('vuxo.auth.expiresAtUtc', '2000-01-01T00:00:00Z');
-  }, makeJwt('Administrator'));
-  await page.reload();
+test('expired stored session cannot reveal admin navigation even with a valid JWT', async ({ page }) => {
+  await seedSession(page, makeJwt('Administrator'), '2000-01-01T00:00:00Z');
+  await page.goto('./#/');
   await expect(page.getByTestId('desktop-nav').getByRole('link', { name: 'Admin' })).toHaveCount(0);
 });
 

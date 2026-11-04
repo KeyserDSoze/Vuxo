@@ -33,6 +33,7 @@ export class WorldScene extends Phaser.Scene {
   constructor(
     private readonly realtime: WorldRealtimeClient,
     private readonly onPortalClick?: (grantId: string) => void,
+    private readonly onPortalsRendered?: (count: number) => void,
   ) {
     super('world')
   }
@@ -88,6 +89,7 @@ export class WorldScene extends Phaser.Scene {
       ring.on('pointerdown', () => this.onPortalClick?.(portal.id))
       this.portalVisuals.set(portal.id, { ring, center })
     }
+    this.onPortalsRendered?.(this.portalVisuals.size)
   }
 
   update(time: number, delta: number) {

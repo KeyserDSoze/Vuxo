@@ -110,9 +110,11 @@ test('clicking a visible Phaser portal marker opens the in-world dialog', async 
   await expect(page.getByTestId('world-portal-enter')).toBeEnabled();
   const canvas = page.getByTestId('game-canvas').locator('canvas');
   await expect(canvas).toBeVisible();
-  // Phaser's follow camera centers the local player; this test marker shares
-  // that server-authoritative tile so the marker is at the canvas center.
-  await page.waitForTimeout(600);
+  // Wait for Phaser to install the marker's interactive hit area, rather
+  // than relying on a fixed timeout after the React portal list appears.
+  await expect(page.getByTestId('game-canvas')).toHaveAttribute('data-rendered-portals', '1');
+  // Phaser's follow camera centers the local player; this marker shares
+  // that authoritative tile, so it is at the canvas center.
   const box = await canvas.boundingBox();
   if (!box) throw new Error('World canvas is not mounted');
   await canvas.click({ position: { x: box.width / 2, y: box.height / 2 } });
