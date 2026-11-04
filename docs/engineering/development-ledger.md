@@ -18,7 +18,7 @@ Quando una issue cambia stato in modo significativo, aggiornare la riga corrispo
 
 | Issue | Tipo | Versione | Area | Stato | Test/Stato verifica | Risoluzione / prossimo passo |
 |---|---|---:|---|---|---|---|
-| #50 | Feature | 0.0.1 | Personal portal challenges | In progress | Domain/API/UI test matrix da implementare; CI non ancora eseguita | Prima sfida memoria di 4 rune, seed deterministico, grant owner-only e consumo con audit, UI MUI IT/EN; PR da aprire |
+| #50 | Feature | 0.0.1 | Personal portal challenges | In progress | CI 41819671937 verde: 222 backend xUnit, 30 Playwright, Docker runtime; nuovi 2 PostgreSQL integration tests concorrenti/audit in verifica | PR #51 draft: sfida memoria con 4 rune seed-based, UI MUI IT/EN, API owner-only/rate-limit, blocco bypass; dopo CI verificare merge e smoke con grant reale |
 | #47 | Bug | 0.0.1 | NuGet SignalR/MessagePack audit | Done | PR #48 CI verde: backend xUnit, frontend Playwright e Docker runtime; commit main fe8de782 con pacchetti ASP.NET Core/SignalR 10.0.13 verificati | Chiuso dopo porting del fix su main; audit NuGet con warnings-as-errors mantenuto |
 | #20 | Epic | 0.0.1 | First playable | In progress | CI foundation verde | Coordinare le issue della first playable |
 | #1 | Feature | 0.0.1 | Repository/quality | Done | Foundation gate + backend/xUnit/PostgreSQL + Docker runtime + frontend/Playwright verdi | Chiuso: struttura monorepo, stack, warnings-as-errors, CI, README/version metadata e guard sui file locali sensibili sono verificati automaticamente |
