@@ -1,0 +1,149 @@
+name: Deploy VUXO to Raspberry Pi 3 ARM64
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vuxo-pi3-production
+  cancel-in-progress: false
+
+jobs:
+  build-arm64:
+    # Never promote a PR or stale/unverified CI result with production secrets.
+    if: >-
+      vars.VUXO_PI3_DEPLOY_ENABLED == 'true' &&
+      (
+        (github.event_name == 'workflow_run' &&
+         github.event.workflow_run.conclusion == 'success' &&
+         github.event.workflow_run.event == 'push' &&
+         github.event.workflow_run.head_branch == 'main' &&
+         github.event.workflow_run.head_repository.full_name == github.repository)
+        ||
+        (github.event_name == 'workflow_dispatch' &&
+         github.ref == 'refs/heads/main')
+      )
+    runs-on: ubuntu-24.04-arm
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.image.outputs.image }}
+      source_sha: ${{ steps.revision.outputs.source_sha }}
+    steps:
+      - name: Select verified source revision
+        id: revision
+        env:
+          SOURCE_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+        run: echo "source_sha=$SOURCE_SHA" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.revision.outputs.source_sha }}
+          persist-credentials: true
+      - name: Reject stale revision
+        env:
+          SOURCE_SHA: ${{ steps.revision.outputs.source_sha }}
+        run: |
+          test "$(git ls-remote origin refs/heads/main | cut -f1)" = "$SOURCE_SHA"
+      - uses: docker/setup-buildx-action@v3
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Image tag
+        id: image
+        env:
+          SOURCE_SHA: ${{ steps.revision.outputs.source_sha }}
+        run: echo "image=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/vuxo-api:$SOURCE_SHA" >> "$GITHUB_OUTPUT"
+      - name: Publish linux/arm64 API after green CI
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile.api
+          platforms: linux/arm64
+          push: true
+          tags: ${{ steps.image.outputs.image }}
+
+  deploy-pi3:
+    needs: build-arm64
+    runs-on: [self-hosted, linux, ARM64, vuxo-pi3]
+    environment: production
+    permissions:
+      contents: read
+      packages: read
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.build-arm64.outputs.source_sha }}
+      - name: Reject stale revision before production update
+        env:
+          SOURCE_SHA: ${{ needs.build-arm64.outputs.source_sha }}
+        run: |
+          test "$(git ls-remote https://github.com/$GITHUB_REPOSITORY.git refs/heads/main | cut -f1)" = "$SOURCE_SHA"
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Generate transient private environment
+        id: envfile
+        shell: bash
+        env:
+          API_IMAGE: ${{ needs.build-arm64.outputs.image }}
+          POSTGRES_PASSWORD: ${{ secrets.VUXO_POSTGRES_PASSWORD }}
+          JWT_SIGNING_KEY: ${{ secrets.VUXO_JWT_SIGNING_KEY }}
+          CLOUDFLARE_TOKEN: ${{ secrets.VUXO_CLOUDFLARE_TUNNEL_TOKEN }}
+          ALLOWED_ORIGIN: ${{ vars.VUXO_ALLOWED_ORIGIN || 'https://vuxo.app' }}
+          MICROSOFT_CLIENT_ID: ${{ vars.VUXO_MICROSOFT_CLIENT_ID }}
+          MICROSOFT_TENANT_ID: ${{ vars.VUXO_MICROSOFT_TENANT_ID || 'common' }}
+          GOOGLE_CLIENT_ID: ${{ vars.VUXO_GOOGLE_CLIENT_ID }}
+          SOURCE_SHA: ${{ needs.build-arm64.outputs.source_sha }}
+        run: |
+          umask 077
+          file="$(mktemp "$RUNNER_TEMP/vuxo-pi3-XXXXXXXX.env")"
+          echo "file=$file" >> "$GITHUB_OUTPUT"
+          export VUXO_PI3_ENV_FILE="$file"
+          python3 - <<'PY'
+          import os
+          keys = {
+              "VUXO_API_IMAGE": "API_IMAGE",
+              "VUXO_POSTGRES_PASSWORD": "POSTGRES_PASSWORD",
+              "VUXO_JWT_SIGNING_KEY": "JWT_SIGNING_KEY",
+              "VUXO_CLOUDFLARE_TUNNEL_TOKEN": "CLOUDFLARE_TOKEN",
+              "VUXO_ALLOWED_ORIGIN": "ALLOWED_ORIGIN",
+              "VUXO_MICROSOFT_CLIENT_ID": "MICROSOFT_CLIENT_ID",
+              "VUXO_MICROSOFT_TENANT_ID": "MICROSOFT_TENANT_ID",
+              "VUXO_GOOGLE_CLIENT_ID": "GOOGLE_CLIENT_ID",
+              "VUXO_COMMIT_SHA": "SOURCE_SHA",
+          }
+          with open(os.environ["VUXO_PI3_ENV_FILE"], "w", encoding="utf-8") as stream:
+              for key, source in keys.items():
+                  value = os.environ.get(source, "")
+                  if any(char in value for char in "\r\n"):
+                      raise SystemExit(f"Invalid line break in {key}")
+                  if key in ("VUXO_POSTGRES_PASSWORD", "VUXO_JWT_SIGNING_KEY", "VUXO_CLOUDFLARE_TUNNEL_TOKEN") and not value:
+                      raise SystemExit(f"Required secret {key} is missing")
+                  stream.write(f"{key}={value}\n")
+              stream.write("VUXO_API_PORT=8080\n")
+              stream.write("VUXO_LLM_ENABLED=false\n")
+          PY
+      - name: Deploy, backup and verify
+        run: bash infra/pi3/deploy.sh "${{ steps.envfile.outputs.file }}"
+      - name: Clean up transient environment
+        if: always()
+        shell: bash
+        env:
+          FILE: ${{ steps.envfile.outputs.file }}
+        run: |
+          if [[ -n "$FILE" && -f "$FILE" ]]; then
+            shred -u "$FILE" 2>/dev/null || rm -f "$FILE"
+          fi
