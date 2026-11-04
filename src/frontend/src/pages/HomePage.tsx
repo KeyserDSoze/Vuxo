@@ -59,7 +59,7 @@ export function HomePage() {
             <Paper variant="outlined" sx={{ p: { xs: 2.5, md: 3 }, height: '100%' }}>
               <Stack spacing={1}>
                 <Typography variant="overline" color="primary.main">{String(index + 1).padStart(2, '0')}</Typography>
-                <Typography variant="h6" component="h2" fontWeight={800}>{t('home.features.' + highlight + '.title')}</Typography>
+                <Typography variant="h6" component="h2" sx={{ fontWeight: 800 }}>{t('home.features.' + highlight + '.title')}</Typography>
                 <Typography color="text.secondary">{t('home.features.' + highlight + '.description')}</Typography>
               </Stack>
             </Paper>
