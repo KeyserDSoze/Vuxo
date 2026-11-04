@@ -7,6 +7,20 @@ bash -n infra/pi3/deploy.sh
 bash -n infra/pi3/bootstrap.sh
 bash -n infra/pi3/preflight.sh
 
+# Build the ARM64 image on trusted green main CI without triggering the Pi.
+# Production deployment still requires a separate explicit repository flag.
+python3 - <<'PY'
+from pathlib import Path
+workflow = Path('.github/workflows/deploy-pi3.yml').read_text()
+assert "  build-arm64:" in workflow and "  deploy-pi3:" in workflow
+build = workflow.split('  build-arm64:', 1)[1].split('  deploy-pi3:', 1)[0]
+deploy = workflow.split('  deploy-pi3:', 1)[1]
+assert "VUXO_PI3_DEPLOY_ENABLED" not in build, 'ARM64 build must not depend on hardware deploy flag'
+assert "if: vars.VUXO_PI3_DEPLOY_ENABLED == 'true'" in deploy, 'Production deploy must be opt-in'
+legacy = Path('.github/workflows/deploy-server.yml').read_text()
+assert "if: vars.VUXO_X64_DEPLOY_ENABLED == 'true'" in legacy, 'Old x64 deploy must be opt-in'
+PY
+
 export VUXO_API_IMAGE=ghcr.io/keyserdsoze/vuxo-api:pi3-0123456789abcdef0123456789abcdef01234567
 export VUXO_POSTGRES_PASSWORD=ci-only-random-value
 export VUXO_JWT_SIGNING_KEY=ci-only-0123456789abcdef0123456789abcdef
