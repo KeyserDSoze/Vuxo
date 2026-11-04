@@ -5,6 +5,7 @@ export const vuxoI18nNamespaces = [
   'auth',
   'character',
   'game',
+  'portals',
   'admin',
   'errors',
 ] as const;
@@ -24,7 +25,7 @@ function registerNamespaces(): void {
       version: translation.version,
     }, true, true);
 
-    for (const namespace of ['auth', 'character', 'game', 'errors'] as const) {
+    for (const namespace of ['auth', 'character', 'game', 'portals', 'errors'] as const) {
       const bundle = translation[namespace];
       if (bundle) i18n.addResourceBundle(language, namespace, bundle, true, true);
     }
