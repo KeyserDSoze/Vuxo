@@ -1,5 +1,7 @@
 # VUXO on Raspberry Pi 3 (ARM64) — installation and operations
 
+For the step-by-step controlled-English procedure, read **[INSTALL-STE100.md](INSTALL-STE100.md)**. The procedure follows ASD-STE100 writing principles. It is not certified.
+
 Status: **proposal / hardware validation pending**. Track issue #59 and the draft PR.
 The Pi 3 1 GiB target is experimental: API + PostgreSQL + Redis + Cloudflare are the only default services. Do not assume that all optional services can fit in RAM.
 
