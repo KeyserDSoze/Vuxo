@@ -19,7 +19,7 @@ body:
     id: environment
     attributes:
       label: Ambiente
-      placeholder: local, CI, vuxo.quest, api.vuxoapi.xyz, browser/OS...
+      placeholder: local, CI, vuxo.app, api.vuxoapi.xyz, browser/OS...
     validations:
       required: true
   - type: dropdown

@@ -20,7 +20,7 @@ services:
       Auth__Microsoft__ClientId: ${VUXO_MICROSOFT_CLIENT_ID:-}
       Auth__Microsoft__TenantId: ${VUXO_MICROSOFT_TENANT_ID:-common}
       Auth__Google__ClientId: ${VUXO_GOOGLE_CLIENT_ID:-}
-      Cors__AllowedOrigins__0: ${VUXO_ALLOWED_ORIGIN:-https://vuxo.quest}
+      Cors__AllowedOrigins__0: ${VUXO_ALLOWED_ORIGIN:-https://vuxo.app}
       Database__ApplyMigrationsOnStartup: "true"
       Build__CommitSha: ${VUXO_COMMIT_SHA:-unknown}
       Build__BuildDateUtc: ${VUXO_BUILD_DATE_UTC:-unknown}

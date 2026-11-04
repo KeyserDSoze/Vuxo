@@ -73,7 +73,7 @@ Quando si crea una nuova versione si usa la skill `vuxo-release`: bump, metadata
 
 ## Domini production
 
-- Frontend: `https://vuxo.quest`
+- Frontend: `https://vuxo.app`
 - API: `https://api.vuxoapi.xyz`
 
 Il frontend viene pubblicato con GitHub Pages e custom domain, quindi il build production usa base path `/`. Il backend è pubblicato attraverso Cloudflare Tunnel; il tunnel è esposizione applicativa, non un canale di deploy/amministrazione.

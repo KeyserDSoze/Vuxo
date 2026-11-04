@@ -1,0 +1,18 @@
+# Optional local-only Docker log viewer. Requires manual setup of a protected users.yml.
+# Dozzle has root-equivalent Docker socket access. NEVER expose this directly online.
+services:
+  dozzle:
+    image: amir20/dozzle:latest
+    restart: unless-stopped
+    mem_limit: 64m
+    pids_limit: 64
+    environment:
+      DOZZLE_AUTH_PROVIDER: simple
+      DOZZLE_ENABLE_ACTIONS: "false"
+      DOZZLE_ENABLE_SHELL: "false"
+      DOZZLE_AUTO_UPDATE: "off"
+    ports:
+      - "127.0.0.1:${VUXO_DOZZLE_PORT:-8088}:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ${VUXO_DOZZLE_DATA_DIR:?Set an absolute protected host folder containing users.yml}:/data

@@ -1,0 +1,16 @@
+# Development/test emulator only. Microsoft does NOT support Azurite for production data.
+# Do not attach this overlay to the public/production deployment.
+services:
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite:latest
+    restart: unless-stopped
+    command: ["azurite", "--location", "/data", "--blobHost", "0.0.0.0", "--queueHost", "0.0.0.0", "--tableHost", "0.0.0.0"]
+    ports:
+      - "127.0.0.1:10000:10000"
+      - "127.0.0.1:10001:10001"
+      - "127.0.0.1:10002:10002"
+    volumes:
+      - vuxo-azurite:/data
+    networks: [vuxo]
+volumes:
+  vuxo-azurite:

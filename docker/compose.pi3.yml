@@ -1,0 +1,74 @@
+# Resource-limited production overlay for Raspberry Pi 3 (Linux ARM64, 1 GiB RAM).
+# Usage: docker compose -p vuxo -f docker/compose.prod.yml -f docker/compose.pi3.yml --profile edge up -d
+# Keep database and Redis volumes from compose.prod.yml intact; NEVER run down -v.
+services:
+  api:
+    mem_limit: 320m
+    mem_reservation: 128m
+    pids_limit: 160
+    environment:
+      # Pi 3 cannot reliably serve an interactive multimodal local model alongside the game.
+      # A remote OpenAI-compatible endpoint can be supplied after a security review.
+      Llm__Enabled: ${VUXO_LLM_ENABLED:-false}
+      Llm__BaseUrl: ${VUXO_LLM_BASE_URL:-http://ollama:11434/v1}
+      Llm__Model: ${VUXO_LLM_MODEL:-qwen3:0.6b}
+      DOTNET_GCConserveMemory: "9"
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+  postgres:
+    mem_limit: 192m
+    mem_reservation: 64m
+    command:
+      - postgres
+      - -c
+      - shared_buffers=32MB
+      - -c
+      - max_connections=20
+      - -c
+      - work_mem=2MB
+      - -c
+      - maintenance_work_mem=24MB
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+  redis:
+    mem_limit: 80m
+    mem_reservation: 20m
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --appendfsync
+      - everysec
+      - --maxmemory
+      - 48mb
+      - --maxmemory-policy
+      - allkeys-lru
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+  cloudflared:
+    mem_limit: 64m
+    mem_reservation: 16m
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+  # Explicit experimental opt-in only, NOT part of the Pi 3 default runtime.
+  ollama:
+    profiles: [local-ai]
+
+  ollama-model-init:
+    profiles: [local-ai]

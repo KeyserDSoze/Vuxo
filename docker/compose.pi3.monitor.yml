@@ -1,0 +1,34 @@
+# Optional lightweight system dashboard. Local-only; never publish Docker API or admin UI.
+services:
+  beszel:
+    image: henrygd/beszel:latest
+    restart: unless-stopped
+    mem_limit: 96m
+    environment:
+      APP_URL: http://localhost:8090
+    ports:
+      - "127.0.0.1:${VUXO_BESZEL_PORT:-8090}:8090"
+    volumes:
+      - vuxo-beszel-data:/beszel_data
+      - vuxo-beszel-socket:/beszel_socket
+
+  beszel-agent:
+    image: henrygd/beszel-agent:latest
+    restart: unless-stopped
+    network_mode: host
+    mem_limit: 64m
+    environment:
+      LISTEN: /beszel_socket/beszel.sock
+      HUB_URL: http://127.0.0.1:8090
+      KEY: ${VUXO_BESZEL_KEY:?Set the Beszel public key from the hub}
+      TOKEN: ${VUXO_BESZEL_TOKEN:?Set the Beszel agent token from the hub}
+    volumes:
+      - vuxo-beszel-socket:/beszel_socket
+      - vuxo-beszel-agent:/var/lib/beszel-agent
+      # Docker socket grants high privilege despite :ro; install only on a trusted host.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+volumes:
+  vuxo-beszel-data:
+  vuxo-beszel-socket:
+  vuxo-beszel-agent:
