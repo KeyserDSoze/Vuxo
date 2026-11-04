@@ -50,7 +50,9 @@ systemctl enable --now docker
 # Membership grants root-equivalent Docker daemon access. Use a dedicated,
 # trusted account with no untrusted workflow jobs, not an Internet-facing user.
 usermod -aG docker "$runner_user"
-install -d -o "$runner_user" -g "$runner_user" -m 0700 "/home/$runner_user/vuxo-backups"
+runner_home="$(getent passwd "$runner_user" | cut -d: -f6)"
+runner_group="$(id -gn "$runner_user")"
+install -d -o "$runner_user" -g "$runner_group" -m 0700 "$runner_home/vuxo-backups"
 echo "Host ready. Re-login as $runner_user to refresh docker-group membership."
 echo "Next: register the repository-level GitHub ARM64 runner and install it with svc.sh."
 echo "No application containers or live data were modified."
