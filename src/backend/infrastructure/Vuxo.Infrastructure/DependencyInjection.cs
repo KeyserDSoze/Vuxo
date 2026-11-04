@@ -29,6 +29,7 @@ public static class DependencyInjection
         services.AddScoped<IGameEventStore, GameEventStore>();
         services.AddScoped<IWorldRepository, WorldRepository>();
         services.AddScoped<IExclusiveContentGrantRepository, ExclusiveContentGrantRepository>();
+        services.AddScoped<IPlayerInventoryRepository, PlayerInventoryRepository>();
         services.AddScoped<IVuxoIdentityRepository, VuxoIdentityRepository>();
         services.AddScoped<IUnitOfWork>(provider => provider.GetRequiredService<VuxoDbContext>());
 
