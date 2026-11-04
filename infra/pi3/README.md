@@ -49,7 +49,7 @@ GitHub's production environment protection rules and branch restrictions should 
 
 ## 3. Public endpoints
 
-Frontend domain stated for this migration: **https://vuxo.app** on GitHub Pages. Existing repository content still declares https://vuxo.quest, and its Pages workflow still publishes that URL. Finish the frontend domain migration in GitHub Pages, update the Pages workflow/documentation, verify DNS/TLS, configure CORS and update allowed Microsoft/Google auth redirect URLs/origins before expecting login to succeed.
+Frontend domain stated for this migration: **https://vuxo.app** on GitHub Pages. This branch updates the repository's canonical frontend URL, GitHub Pages workflow URL and API CORS defaults from https://vuxo.quest to https://vuxo.app. GitHub Pages custom-domain DNS/TLS configuration and allowed Microsoft/Google OAuth redirect URLs/origins must still be verified in their external dashboards before login can be relied upon.
 
 The existing API host is **https://api.vuxoapi.xyz** until a new API domain is explicitly configured. The Cloudflare published service URL must be **http://api:8080** when cloudflared and the API share the Compose network. Do not point Cloudflare to localhost inside its container. Never open 5432, 6379, 11434, the Docker socket or admin dashboard to the public internet.
 
