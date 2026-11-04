@@ -10,6 +10,7 @@ using Vuxo.Application.Worlds.Realtime;
 using Vuxo.Domain.Players;
 using Vuxo.Domain.Events;
 using Vuxo.Domain.PersonalContent;
+using Vuxo.Domain.Inventory;
 
 namespace Vuxo.Api.Tests.PersonalContent;
 
