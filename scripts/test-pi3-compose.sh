@@ -5,6 +5,7 @@ cd "$(dirname "$0")/.."
 
 bash -n infra/pi3/deploy.sh
 bash -n infra/pi3/bootstrap.sh
+bash -n infra/pi3/preflight.sh
 
 export VUXO_API_IMAGE=ghcr.io/keyserdsoze/vuxo-api:pi3-0123456789abcdef0123456789abcdef01234567
 export VUXO_POSTGRES_PASSWORD=ci-only-random-value
