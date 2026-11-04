@@ -66,7 +66,7 @@ jobs:
           POSTGRES_PASSWORD: ${{ secrets.VUXO_POSTGRES_PASSWORD }}
           JWT_SIGNING_KEY: ${{ secrets.VUXO_JWT_SIGNING_KEY }}
           CLOUDFLARE_TOKEN: ${{ secrets.VUXO_CLOUDFLARE_TUNNEL_TOKEN }}
-          ALLOWED_ORIGIN: ${{ vars.VUXO_ALLOWED_ORIGIN || 'https://vuxo.quest' }}
+          ALLOWED_ORIGIN: ${{ vars.VUXO_ALLOWED_ORIGIN || 'https://vuxo.app' }}
           LLM_MODEL: ${{ vars.VUXO_LLM_MODEL || 'qwen3:1.7b' }}
           LLM_MAX_TOOL_ROUNDS: ${{ vars.VUXO_LLM_MAX_TOOL_ROUNDS || '2' }}
           LLM_MAX_RETRIES: ${{ vars.VUXO_LLM_MAX_RETRIES || '1' }}
