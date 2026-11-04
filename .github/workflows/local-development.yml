@@ -1,0 +1,87 @@
+name: Local development (Windows and Linux)
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  local-cli:
+    name: Node CLI contracts (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Initialize local example
+        run: node scripts/dev.mjs init
+      - name: Run orchestration regression tests
+        run: node --test tests/dev/local-dev.test.mjs
+      - name: Validate CLI help and private environment
+        shell: bash
+        run: |
+          node scripts/dev.mjs help
+          test -f docker/.env.local
+          git check-ignore -q docker/.env.local
+
+  local-compose:
+    name: Local Docker Compose contracts (Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Initialize local example
+        run: node scripts/dev.mjs init
+      - name: Render local development Compose
+        run: docker compose -p vuxo-local --env-file docker/.env.local -f docker/compose.dev.yml -f docker/compose.local.yml config --quiet
+      - name: Render optional observability overlay
+        run: docker compose -p vuxo-local --env-file docker/.env.local -f docker/compose.dev.yml -f docker/compose.local.yml -f docker/compose.observability.yml config --quiet
+      - name: Verify no published non-loopback endpoints
+        run: |
+          python3 - <<'PY'
+          import json, subprocess
+          args = ['docker','compose','-p','vuxo-local','--env-file','docker/.env.local',
+                  '-f','docker/compose.dev.yml','-f','docker/compose.local.yml',
+                  '-f','docker/compose.observability.yml']
+          data = json.loads(subprocess.check_output(args + ['config','--format','json']))
+          for name, service in data['services'].items():
+              for item in service.get('ports', []):
+                  assert item.get('host_ip') == '127.0.0.1', (name, item)
+          for name in ('api','postgres','redis','frontend'):
+              assert name in data['services'], name
+          assert data['services']['api']['environment']['ASPNETCORE_ENVIRONMENT'] == 'Development'
+          assert data['services']['api']['environment']['Auth__EnableMockLogin'] == 'true'
+          print('Local-only port binding and development environment verified')
+          PY
+
+  full-docker-smoke:
+    name: Full local Docker smoke (Linux)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Initialize isolated local environment
+        run: node scripts/dev.mjs init
+      - name: Boot API, React, PostgreSQL and Redis in Docker
+        run: node scripts/dev.mjs up
+      - name: Verify both local HTTP endpoints
+        run: node scripts/dev.mjs smoke
+      - name: Dump container diagnostics on failure
+        if: failure()
+        run: docker compose -p vuxo-local --env-file docker/.env.local -f docker/compose.dev.yml -f docker/compose.local.yml logs --no-color --tail 150
+      - name: Stop containers without removing volumes
+        if: always()
+        run: node scripts/dev.mjs down

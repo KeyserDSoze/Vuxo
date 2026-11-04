@@ -18,6 +18,8 @@ Quando una issue cambia stato in modo significativo, aggiornare la riga corrispo
 
 | Issue | Tipo | Versione | Area | Stato | Test/Stato verifica | Risoluzione / prossimo passo |
 |---|---|---:|---|---|---|---|
+| #47 | Bug | 0.0.1 | Backend NuGet security | Done | CI 41810913558: restore, build, 205 xUnit e 27 Playwright verdi; CI 41810913512 full Docker smoke verde, audit senza NU1902/NU1903 | Risolto allineando pacchetti API/test ASP.NET Core/SignalR a 10.0.13 (MessagePack transitivo >=2.5.303); NuGet audit resta bloccante |
+| #45 | Feature | 0.0.1 | Local DevEx Windows/Linux | In progress | CI 41810913512: CLI Node Windows/Linux, Compose Linux, full Docker API/frontend smoke verdi; CI 41810913558: 205 xUnit, 27 Playwright, Docker runtime verdi | PR #46 draft: validare breakpoint IDE e switch up/infra/debug su vere postazioni Windows/Linux; non chiudere prima dei test manuali |
 | #20 | Epic | 0.0.1 | First playable | In progress | CI foundation verde | Coordinare le issue della first playable |
 | #1 | Feature | 0.0.1 | Repository/quality | Done | Foundation gate + backend/xUnit/PostgreSQL + Docker runtime + frontend/Playwright verdi | Chiuso: struttura monorepo, stack, warnings-as-errors, CI, README/version metadata e guard sui file locali sensibili sono verificati automaticamente |
 | #2 | Feature | 0.0.1 | Backend/API | Done | API integration health/version/OpenAPI + PostgreSQL/OTLP + Docker runtime + frontend/Playwright verdi | Chiuso: Release build, health/version contract, OpenAPI Development-only, fail-fast DB config, migration startup production-like e Production senza mock auth verificati |

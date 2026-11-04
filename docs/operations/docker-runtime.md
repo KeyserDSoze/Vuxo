@@ -11,6 +11,10 @@ Questa guida descrive il runtime Docker della 0.0.1. Il principio principale è 
 - `docker/.env.example` — elenco delle variabili supportate, senza secret reali;
 - `scripts/test-docker-runtime.sh` — smoke/integration test canonico del runtime.
 
+## Avvio multipiattaforma Windows/Linux (issue #45)
+
+Per l'ambiente integrato usare `node scripts/dev.mjs init`, quindi `node scripts/dev.mjs up` (tutto Docker) oppure `node scripts/dev.mjs debug` (dipendenze Docker con API/React sull'host). `node scripts/dev.mjs test` esegue i test Node, .NET con PostgreSQL reale e Playwright. La configurazione è in `docker/.env.local`, generata da `docker/local.env.example`; Compose è dato da `docker/compose.dev.yml` + `docker/compose.local.yml`. Questo overlay non deve essere usato in produzione. I volumi sono conservati da `node scripts/dev.mjs down`. Vedi [guida completa](local-development.md).
+
 ## Sviluppo locale
 
 Creare un file env privato partendo da `docker/.env.example` e impostare almeno `VUXO_POSTGRES_PASSWORD`.
