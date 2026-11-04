@@ -76,11 +76,11 @@ public static class PersonalContentEndpoints
                 {
                     return Results.Conflict(new { code = ex.Code });
                 }
-                catch (DbUpdateException)
+                catch (DbUpdateConcurrencyException)
                 {
                     return Results.Conflict(new { code = "equipment_conflict" });
                 }
-                catch (DbUpdateConcurrencyException)
+                catch (DbUpdateException)
                 {
                     return Results.Conflict(new { code = "equipment_conflict" });
                 }
