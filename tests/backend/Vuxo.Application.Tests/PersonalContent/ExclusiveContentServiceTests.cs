@@ -1,6 +1,7 @@
 using Vuxo.Application.PersonalContent;
 using Vuxo.Domain.Common;
 using Vuxo.Domain.Events;
+using Vuxo.Domain.Inventory;
 using Vuxo.Domain.PersonalContent;
 using Xunit;
 
