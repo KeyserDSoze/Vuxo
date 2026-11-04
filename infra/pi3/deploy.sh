@@ -19,8 +19,8 @@ ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 ENV_FILE="$(realpath "$1")"
 COMPOSE=(docker compose -p vuxo --env-file "$ENV_FILE" -f "$ROOT/docker/compose.prod.yml" -f "$ROOT/docker/compose.pi3.yml" --profile edge)
 API_IMAGE="$(sed -n 's/^VUXO_API_IMAGE=//p' "$ENV_FILE" | tail -1)"
-if [[ ! "$API_IMAGE" =~ ^ghcr\.io/keyserdsoze/vuxo-api:[a-f0-9]{40}$ ]]; then
-  echo "VUXO_API_IMAGE must be ghcr.io/keyserdsoze/vuxo-api:<40-char-commit-sha>." >&2
+if [[ ! "$API_IMAGE" =~ ^ghcr\.io/keyserdsoze/vuxo-api:pi3-[a-f0-9]{40}$ ]]; then
+  echo "VUXO_API_IMAGE must be ghcr.io/keyserdsoze/vuxo-api:pi3-<40-char-commit-sha>." >&2
   exit 2
 fi
 for required in VUXO_POSTGRES_PASSWORD VUXO_JWT_SIGNING_KEY VUXO_CLOUDFLARE_TUNNEL_TOKEN; do
@@ -38,7 +38,7 @@ if [[ -n "$old_container" ]]; then
 fi
 
 # Do not change volume namespace, remove volumes, or restart the Docker daemon.
-"${COMPOSE[@]}" up -d postgres redis
+"${COMPOSE[@]}" up -d --wait --wait-timeout 120 postgres redis
 
 # PostgreSQL is backed up before EF migrations can run in the new API.
 # Transfer backups to external storage; microSD-only copies are not disaster recovery.
