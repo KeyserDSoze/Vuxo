@@ -293,6 +293,24 @@ public sealed class PersonalContentTests
             (await replay.Content.ReadFromJsonAsync<ErrorResponse>())?.Code);
     }
 
+    [Fact]
+    public async Task WorldPortals_ChooseReachableTileNotDisconnectedWalkableIsland()
+    {
+        var grant = CreateGrant("player-a", PortalSequenceRules.PortalKey);
+        using var factory = CreateFactory(out var repository, out _, out _, new IslandPortalMap());
+        repository.Grants.Add(grant);
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, "player-a", "User");
+        factory.Services.GetRequiredService<WorldSimulation>().Join(
+            "reachable-connection", "player-a", CreateWorldCharacter("player-a"),
+            new WorldSpawnPoint(0.5, 0.5));
+
+        var response = await client.GetFromJsonAsync<JsonElement>("/api/personal-content/world-portals");
+        var marker = Assert.Single(response.EnumerateArray().ToArray());
+        Assert.Equal(2.5d, marker.GetProperty("x").GetDouble());
+        Assert.Equal(0.5d, marker.GetProperty("y").GetDouble());
+    }
+
     private static PlayerCharacter CreateWorldCharacter(string ownerId) =>
         PlayerCharacter.Create(
             ownerId, "Portal Vuxian", PlayerAttributes.Create(0, 2, 0, 8, 0, 0),
@@ -303,7 +321,8 @@ public sealed class PersonalContentTests
     private static VuxoApiFactory CreateFactory(
         out FakeRepository repository,
         out FakeEventStore events,
-        out FakeUnitOfWork unitOfWork)
+        out FakeUnitOfWork unitOfWork,
+        IWorldPortalMap? portalMap = null)
     {
         repository = new FakeRepository();
         events = new FakeEventStore();
@@ -321,7 +340,7 @@ public sealed class PersonalContentTests
             services.AddSingleton<IExclusiveContentGrantRepository>(repositoryInstance);
             services.AddSingleton<IGameEventStore>(eventsInstance);
             services.AddSingleton<IUnitOfWork>(unitOfWorkInstance);
-            services.AddSingleton<IWorldPortalMap>(new FakePortalMap());
+            services.AddSingleton<IWorldPortalMap>(portalMap ?? new FakePortalMap());
         });
     }
 
@@ -417,6 +436,19 @@ public sealed class PersonalContentTests
             Appended.Add((envelope, payloadJson));
             return Task.CompletedTask;
         }
+    }
+
+    private sealed class IslandPortalMap : IWorldPortalMap
+    {
+        public Task<WorldSpawnPoint> GetSpawnPointAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult(new WorldSpawnPoint(0.5, 0.5));
+
+        public ValueTask<bool> IsWalkableAsync(
+            double worldX, double worldY, CancellationToken cancellationToken = default)
+            => ValueTask.FromResult(
+                (worldX == 1.5 && worldY == 0.5)
+                || (worldX == 2.5 && worldY == 0.5)
+                || (worldX == 0.5 && worldY == 3.5));
     }
 
     private sealed class FakePortalMap : IWorldPortalMap
