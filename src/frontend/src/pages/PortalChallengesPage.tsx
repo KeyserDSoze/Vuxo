@@ -130,7 +130,7 @@ export function PortalChallengesPage() {
           <Typography variant="h5">{t('available')}</Typography>
           {grants.map(grant => (
             <Paper key={grant.id} variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ sm: 'center' }} justifyContent="space-between">
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between' }}>
                 <Typography sx={{ overflowWrap: 'anywhere' }}>{grant.contentKey}</Typography>
                 <Button
                   data-testid="portal-start"
@@ -153,13 +153,13 @@ export function PortalChallengesPage() {
             ) : showing ? (
               <>
                 <Typography>{t('memorize')}</Typography>
-                <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" data-testid="portal-preview">
+                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }} data-testid="portal-preview">
                   {challenge.sequence.map((rune, index) => (
                     <Paper key={index} variant="outlined" sx={{ p: 2, minWidth: 64, textAlign: 'center' }}>
-                      <Typography fontWeight={700}>{t('runes.' + rune)}</Typography>
+                      <Typography sx={{ fontWeight: 700 }}>{t('runes.' + rune)}</Typography>
                     </Paper>
                   ))}
-                </Stack>
+                </Box>
               </>
             ) : (
               <>
@@ -178,7 +178,7 @@ export function PortalChallengesPage() {
                     >{t('runes.' + rune)}</Button>
                   ))}
                 </Box>
-                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems="start">
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ alignItems: 'flex-start' }}>
                   <Button
                     data-testid="portal-submit"
                     variant="contained"
