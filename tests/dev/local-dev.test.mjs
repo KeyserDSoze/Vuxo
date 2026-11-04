@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
-import { parseEnv, generateLocalEnv, hostEnvironment, validateLocalEnv } from '../../scripts/dev-lib.mjs';
+import { parseEnv, generateLocalEnv, hostEnvironment, infrastructurePlan, validateLocalEnv } from '../../scripts/dev-lib.mjs';
 
 const example = readFileSync(new URL('../../docker/local.env.example', import.meta.url), 'utf8');
 const valid = () => validateLocalEnv(parseEnv(generateLocalEnv(example, () => 'test-local-secret-1234567890-abcdefghijklmnopqrstuvwxyz')));
@@ -39,6 +39,20 @@ test('rejects port conflicts and invalid project names', () => {
   env.VUXO_REDIS_DEV_PORT = '6379';
   env.VUXO_COMPOSE_PROJECT = '../production';
   assert.throws(() => validateLocalEnv(env), /PROJECT/);
+});
+
+test('infra/debug/test switch safely away from full Docker without removing volumes', () => {
+  const env = valid();
+  const normal = infrastructurePlan(env);
+  assert.deepEqual(normal.stop, ['frontend', 'api']);
+  assert.deepEqual(normal.start, ['postgres', 'redis']);
+  assert.equal(normal.initializeModel, false);
+  env.VUXO_LLM_ENABLED = 'true';
+  const withLlm = infrastructurePlan(env);
+  assert.deepEqual(withLlm.stop, ['frontend', 'api']);
+  assert.deepEqual(withLlm.start, ['postgres', 'redis', 'ollama']);
+  assert.equal(withLlm.initializeModel, true);
+  assert.equal('removeVolumes' in withLlm, false);
 });
 
 test('isolates the Compose project from production even with environment overrides', () => {
