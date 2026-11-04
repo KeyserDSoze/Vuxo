@@ -1,6 +1,7 @@
 using Vuxo.Application.Events;
 using Vuxo.Domain.Common;
 using Vuxo.Domain.Events;
+using Vuxo.Domain.Inventory;
 using Vuxo.Domain.PersonalContent;
 
 namespace Vuxo.Application.PersonalContent;
@@ -9,7 +10,8 @@ public sealed class ExclusiveContentService(
     IExclusiveContentGrantRepository repository,
     IGameEventStore eventStore,
     IUnitOfWork unitOfWork,
-    TimeProvider timeProvider)
+    TimeProvider timeProvider,
+    IPlayerInventoryRepository inventoryRepository)
 {
     public async Task<ExclusiveContentGrant> GrantAsync(
         GrantExclusiveContentCommand command,
@@ -69,6 +71,14 @@ public sealed class ExclusiveContentService(
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return grant;
+    }
+
+    public Task<IReadOnlyList<PlayerInventoryAward>> GetInventoryAsync(
+        string playerId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(playerId);
+        return inventoryRepository.GetForPlayerAsync(playerId.Trim(), cancellationToken);
     }
 
     public Task<IReadOnlyList<ExclusiveContentGrant>> GetAvailableAsync(
@@ -166,9 +176,10 @@ public sealed class ExclusiveContentService(
         }
 
         await repository.UpdateAsync(grant, cancellationToken);
+        var consumptionEventId = Guid.NewGuid();
         await eventStore.AppendAsync(
             new GameEventEnvelope(
-                Guid.NewGuid(),
+                consumptionEventId,
                 "exclusive_content.consumed",
                 GameEventVisibilityScope.Player,
                 grant.PlayerId,
@@ -188,6 +199,36 @@ public sealed class ExclusiveContentService(
                     consumedAtUtc = grant.ConsumedAtUtc
                 }),
             cancellationToken);
+
+        // Each canonical item award, its provenance event and the grant consumption
+        // share one EF DbContext/SaveChanges transaction. GrantId is the inventory
+        // primary key; parallel attempts cannot create two awards.
+        if (InventoryItemCatalog.IsSupported(grant.RewardKey))
+        {
+            var award = PlayerInventoryAward.FromConsumedGrant(
+                grant, consumptionEventId, Guid.NewGuid(), now);
+            await inventoryRepository.AddAsync(award, cancellationToken);
+            await eventStore.AppendAsync(
+                new GameEventEnvelope(
+                    award.AwardEventId,
+                    "inventory.item_awarded",
+                    GameEventVisibilityScope.Player,
+                    award.PlayerId,
+                    award.CorrelationId,
+                    award.CausationId,
+                    grant.RuleVersion,
+                    now),
+                GameEventPayloadSerializer.Serialize(
+                    "inventory.item_awarded",
+                    new
+                    {
+                        grantId = award.GrantId,
+                        itemKey = award.ItemKey,
+                        quantity = PlayerInventoryAward.Quantity,
+                        awardedAtUtc = award.AwardedAtUtc
+                    }),
+                cancellationToken);
+        }
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return grant;

@@ -10,6 +10,7 @@ using Vuxo.Application.Worlds.Realtime;
 using Vuxo.Domain.Players;
 using Vuxo.Domain.Events;
 using Vuxo.Domain.PersonalContent;
+using Vuxo.Domain.Inventory;
 
 namespace Vuxo.Api.Tests.PersonalContent;
 
@@ -318,6 +319,49 @@ public sealed class PersonalContentTests
                 "hair-1", "black", "face-1", "body-1", "skin-1",
                 "blue", "bottom-1", "black", "shoe-1", "black"));
 
+    [Fact]
+    public async Task Inventory_RequiresAuthenticationAndNeverShowsAnotherPlayersAward()
+    {
+        using var factory = CreateFactory(out var grants, out _, out _);
+        using var client = factory.CreateClient();
+        var unauth = await client.GetAsync("/api/inventory");
+        Assert.Equal(HttpStatusCode.Unauthorized, unauth.StatusCode);
+
+        var grant = CreateGrant("player-a", PortalSequenceRules.PortalKey,
+            InventoryItemCatalog.RuneShard);
+        grants.Grants.Add(grant);
+        await AuthenticateAsync(client, "player-a", "User");
+        var puzzle = await client.GetFromJsonAsync<JsonElement>(
+            $"/api/personal-content/{grant.Id}/challenge");
+        var answer = puzzle.GetProperty("sequence")
+            .EnumerateArray().Select(x => x.GetString()!).ToArray();
+        var success = await client.PostAsJsonAsync(
+            $"/api/personal-content/{grant.Id}/challenge/attempt", new { sequence = answer });
+        Assert.Equal(HttpStatusCode.OK, success.StatusCode);
+        using var receipt = JsonDocument.Parse(await success.Content.ReadAsStringAsync());
+        Assert.Equal(InventoryItemCatalog.RuneShard, receipt.RootElement.GetProperty("itemKey").GetString());
+
+        var inventory = await client.GetFromJsonAsync<JsonElement>("/api/inventory");
+        var item = Assert.Single(inventory.EnumerateArray().ToArray());
+        Assert.Equal(grant.Id, item.GetProperty("grantId").GetGuid());
+        Assert.Equal(InventoryItemCatalog.RuneShard, item.GetProperty("itemKey").GetString());
+        Assert.Equal(1, item.GetProperty("quantity").GetInt32());
+        Assert.False(item.TryGetProperty("correlationId", out _));
+        Assert.False(item.TryGetProperty("causationId", out _));
+        Assert.False(item.TryGetProperty("playerId", out _));
+
+        using var otherClient = factory.CreateClient();
+        await AuthenticateAsync(otherClient, "player-b", "User");
+        var empty = await otherClient.GetFromJsonAsync<JsonElement>("/api/inventory");
+        Assert.Empty(empty.EnumerateArray());
+
+        var replay = await client.PostAsJsonAsync(
+            $"/api/personal-content/{grant.Id}/challenge/attempt", new { sequence = answer });
+        Assert.Equal(HttpStatusCode.Conflict, replay.StatusCode);
+        var afterReplay = await client.GetFromJsonAsync<JsonElement>("/api/inventory");
+        Assert.Single(afterReplay.EnumerateArray().ToArray());
+    }
+
     private static VuxoApiFactory CreateFactory(
         out FakeRepository repository,
         out FakeEventStore events,
@@ -334,10 +378,12 @@ public sealed class PersonalContentTests
         return new VuxoApiFactory(configureServices: services =>
         {
             services.RemoveAll<IExclusiveContentGrantRepository>();
+            services.RemoveAll<IPlayerInventoryRepository>();
             services.RemoveAll<IGameEventStore>();
             services.RemoveAll<IUnitOfWork>();
             services.RemoveAll<IWorldPortalMap>();
             services.AddSingleton<IExclusiveContentGrantRepository>(repositoryInstance);
+            services.AddSingleton<IPlayerInventoryRepository>(new FakeInventoryRepository());
             services.AddSingleton<IGameEventStore>(eventsInstance);
             services.AddSingleton<IUnitOfWork>(unitOfWorkInstance);
             services.AddSingleton<IWorldPortalMap>(portalMap ?? new FakePortalMap());
@@ -373,7 +419,10 @@ public sealed class PersonalContentTests
         expiresAtUtc = DateTimeOffset.UtcNow.AddHours(1)
     };
 
-    private static ExclusiveContentGrant CreateGrant(string playerId, string portalKey = "portal-key") =>
+    private static ExclusiveContentGrant CreateGrant(
+        string playerId,
+        string portalKey = "portal-key",
+        string rewardKey = "reward-key") =>
         ExclusiveContentGrant.Create(
             Guid.NewGuid(),
             Guid.NewGuid(),
@@ -381,13 +430,34 @@ public sealed class PersonalContentTests
             "content-key",
             portalKey,
             "dialog-key",
-            "reward-key",
+            rewardKey,
             42,
             "rules-v1",
             Guid.NewGuid(),
             Guid.NewGuid(),
             DateTimeOffset.UtcNow.AddMinutes(-5),
             DateTimeOffset.UtcNow.AddHours(1));
+
+    private sealed class FakeInventoryRepository : IPlayerInventoryRepository
+    {
+        private readonly List<PlayerInventoryAward> _awards = [];
+
+        public Task AddAsync(PlayerInventoryAward award, CancellationToken cancellationToken = default)
+        {
+            if (_awards.Any(x => x.GrantId == award.GrantId))
+                throw new InvalidOperationException("Duplicate award");
+            _awards.Add(award);
+            return Task.CompletedTask;
+        }
+
+        public Task<IReadOnlyList<PlayerInventoryAward>> GetForPlayerAsync(
+            string playerId, CancellationToken cancellationToken = default)
+        {
+            IReadOnlyList<PlayerInventoryAward> owned = _awards
+                .Where(x => x.PlayerId == playerId).ToArray();
+            return Task.FromResult(owned);
+        }
+    }
 
     private sealed class FakeRepository : IExclusiveContentGrantRepository
     {

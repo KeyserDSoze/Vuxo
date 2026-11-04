@@ -8,6 +8,7 @@ import { AuthPage } from './pages/AuthPage';
 import { CharacterEditorPage } from './pages/CharacterEditorPage';
 import { GamePage } from './pages/GamePage';
 import { PortalChallengesPage } from './pages/PortalChallengesPage';
+import { InventoryPage } from './pages/InventoryPage';
 import { HomePage } from './pages/HomePage';
 import { VersionPage } from './pages/VersionPage';
 import { BuildUpdateNotifier } from './features/version/BuildUpdateNotifier';
@@ -21,6 +22,7 @@ const navItems = [
   { to: '/character', key: 'nav.character' },
   { to: '/game', key: 'nav.game' },
   { to: '/portals', key: 'nav.portals' },
+  { to: '/inventory', key: 'nav.inventory' },
   { to: '/admin', key: 'nav.admin' },
   { to: '/version', key: 'nav.version' }
 ];
@@ -70,6 +72,7 @@ export function App() {
           <Route path="/character" element={<CharacterEditorPage />} />
           <Route path="/game" element={<GamePage />} />
           <Route path="/portals" element={<PortalChallengesPage />} />
+          <Route path="/inventory" element={<InventoryPage />} />
           <Route path="/admin" element={<AdminRoute />} />
           <Route path="/version" element={<VersionPage />} />
         </Routes>

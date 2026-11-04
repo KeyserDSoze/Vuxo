@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link as RouterLink } from 'react-router-dom';
 import { readStoredSession } from '../features/auth/authSession';
+import { inventoryItemLabelKeys } from '../features/inventory/inventoryApi';
 import {
   fetchPortalChallenge,
   fetchPortalGrants,
@@ -27,6 +28,7 @@ export function PortalChallengesPage({
   onExit,
 }: PortalChallengesPageProps = {}) {
   const { t } = useTranslation('portals');
+  const { t: inventoryText } = useTranslation('inventory');
   const autoStarted = useRef(false);
   const [grants, setGrants] = useState<PortalGrant[]>([]);
   const [selected, setSelected] = useState<PortalGrant | null>(null);
@@ -37,6 +39,7 @@ export function PortalChallengesPage({
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [completed, setCompleted] = useState(false);
+  const [rewardedItemKey, setRewardedItemKey] = useState<string | null>(null);
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const session = readStoredSession();
 
@@ -72,6 +75,7 @@ export function PortalChallengesPage({
     setErrorCode(null);
     setAnswer([]);
     setCompleted(false);
+    setRewardedItemKey(null);
     setSelected(null);
     setChallenge(null);
     try {
@@ -100,7 +104,8 @@ export function PortalChallengesPage({
     setBusy(true);
     setErrorCode(null);
     try {
-      await submitPortalChallenge(selected.id, answer);
+      const receipt = await submitPortalChallenge(selected.id, answer);
+      setRewardedItemKey(receipt.itemKey ?? null);
       setCompleted(true);
       setGrants(items => items.filter(grant => grant.id !== selected.id));
       onCompleted?.(selected.id);
@@ -169,7 +174,16 @@ export function PortalChallengesPage({
           <Stack spacing={2.5}>
             <Typography variant="h5">{t('memoryTitle')}</Typography>
             {completed ? (
-              <Alert severity="success" data-testid="portal-complete">{t('completed')}</Alert>
+              <>
+                <Alert severity="success" data-testid="portal-complete">{t('completed')}</Alert>
+                {rewardedItemKey && inventoryItemLabelKeys[rewardedItemKey] && (
+                  <Alert severity="success" data-testid="portal-award">
+                    {t('awardReceived', {
+                      item: inventoryText('items.' + inventoryItemLabelKeys[rewardedItemKey])
+                    })}
+                  </Alert>
+                )}
+              </>
             ) : showing ? (
               <>
                 <Typography>{t('memorize')}</Typography>

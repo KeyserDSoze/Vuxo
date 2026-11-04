@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.RateLimiting;
 using Vuxo.Application.PersonalContent;
 using Vuxo.Domain.PersonalContent;
+using Vuxo.Domain.Inventory;
 
 namespace Vuxo.Api.PersonalContent;
 
@@ -10,6 +11,24 @@ public static class PersonalContentEndpoints
 {
     public static IEndpointRouteBuilder MapPersonalContentEndpoints(this IEndpointRouteBuilder endpoints)
     {
+        endpoints.MapGet(
+            "/api/inventory",
+            async (ClaimsPrincipal user, ExclusiveContentService service, CancellationToken cancellationToken) =>
+            {
+                var playerId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrWhiteSpace(playerId)) return Results.Unauthorized();
+
+                var awards = await service.GetInventoryAsync(playerId, cancellationToken);
+                return Results.Ok(awards.Select(award => new
+                {
+                    award.GrantId,
+                    award.ItemKey,
+                    quantity = PlayerInventoryAward.Quantity,
+                    award.AwardedAtUtc
+                }));
+            })
+            .RequireAuthorization();
+
         endpoints.MapGet(
             "/api/personal-content",
             async (ClaimsPrincipal user, ExclusiveContentService service, CancellationToken cancellationToken) =>
@@ -75,6 +94,7 @@ public static class PersonalContentEndpoints
                         grant.Id,
                         grant.ContentKey,
                         grant.RewardKey,
+                        itemKey = InventoryItemCatalog.IsSupported(grant.RewardKey) ? grant.RewardKey : null,
                         grant.ConsumedAtUtc
                     });
                 }
@@ -127,7 +147,13 @@ public static class PersonalContentEndpoints
                 try
                 {
                     var grant = await service.SubmitChallengeAsync(playerId, grantId, request.Sequence, cancellationToken);
-                    return Results.Ok(new { grant.Id, grant.ContentKey, grant.ConsumedAtUtc });
+                    return Results.Ok(new
+                    {
+                        grant.Id,
+                        grant.ContentKey,
+                        itemKey = InventoryItemCatalog.IsSupported(grant.RewardKey) ? grant.RewardKey : null,
+                        grant.ConsumedAtUtc
+                    });
                 }
                 catch (ExclusiveContentException exception) when (exception.Code == ExclusiveContentErrorCodes.NotFound)
                 {

@@ -84,8 +84,8 @@ export function fetchPortalChallenge(grantId: string): Promise<PortalChallenge> 
   );
 }
 
-export function submitPortalChallenge(grantId: string, sequence: string[]): Promise<{ id: string }> {
-  return portalRequest<{ id: string }>(
+export function submitPortalChallenge(grantId: string, sequence: string[]): Promise<{ id: string; itemKey?: string | null }> {
+  return portalRequest<{ id: string; itemKey?: string | null }>(
     `/api/personal-content/${encodeURIComponent(grantId)}/challenge/attempt`,
     'POST', sequence,
   );

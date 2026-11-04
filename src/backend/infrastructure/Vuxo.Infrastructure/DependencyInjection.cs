@@ -5,6 +5,7 @@ using Vuxo.Application.AI;
 using Vuxo.Domain.Common;
 using Vuxo.Domain.Events;
 using Vuxo.Domain.Identity;
+using Vuxo.Domain.Inventory;
 using Vuxo.Domain.PersonalContent;
 using Vuxo.Domain.Players;
 using Vuxo.Domain.Worlds;
@@ -28,6 +29,7 @@ public static class DependencyInjection
         services.AddScoped<IGameEventStore, GameEventStore>();
         services.AddScoped<IWorldRepository, WorldRepository>();
         services.AddScoped<IExclusiveContentGrantRepository, ExclusiveContentGrantRepository>();
+        services.AddScoped<IPlayerInventoryRepository, PlayerInventoryRepository>();
         services.AddScoped<IVuxoIdentityRepository, VuxoIdentityRepository>();
         services.AddScoped<IUnitOfWork>(provider => provider.GetRequiredService<VuxoDbContext>());
 

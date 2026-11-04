@@ -22,5 +22,6 @@ public sealed class MigrationDiscoveryTests
         Assert.Contains("202609160003_ExclusiveContent", migrations);
         Assert.Contains("202609160004_AuditQueries", migrations);
         Assert.Contains("202609210001_SocialIdentity", migrations);
+        Assert.Contains("202611040001_PlayerInventoryAwards", migrations);
     }
 }

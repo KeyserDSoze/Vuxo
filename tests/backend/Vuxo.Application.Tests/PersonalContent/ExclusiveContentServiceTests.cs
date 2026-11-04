@@ -1,6 +1,7 @@
 using Vuxo.Application.PersonalContent;
 using Vuxo.Domain.Common;
 using Vuxo.Domain.Events;
+using Vuxo.Domain.Inventory;
 using Vuxo.Domain.PersonalContent;
 using Xunit;
 
@@ -231,22 +232,102 @@ public sealed class ExclusiveContentServiceTests
         Assert.Equal(ExclusiveContentErrorCodes.ChallengeNotAvailable, otherError.Code);
     }
 
+    [Fact]
+    public async Task Challenge_ValidCanonicalItem_AwardsOnlyOnCorrectSequence_OnceWithCausalAudit()
+    {
+        var repository = new FakeRepository();
+        var events = new FakeEventStore();
+        var inventory = new FakeInventoryRepository();
+        var service = CreateService(repository, events, inventory: inventory);
+        var grant = CreateGrant("player-a", Now.AddHours(1),
+            portalKey: PortalSequenceRules.PortalKey,
+            rewardKey: InventoryItemCatalog.RuneShard);
+        repository.Grants.Add(grant);
+
+        var puzzle = await service.GetChallengeAsync("player-a", grant.Id);
+        var wrong = puzzle.Sequence.ToArray();
+        wrong[0] = wrong[0] == "sun" ? "moon" : "sun";
+        var bad = await Assert.ThrowsAsync<ExclusiveContentException>(
+            () => service.SubmitChallengeAsync("player-a", grant.Id, wrong));
+        Assert.Equal(ExclusiveContentErrorCodes.ChallengeIncorrect, bad.Code);
+        Assert.Empty(inventory.Awards);
+        Assert.Empty(events.Appended);
+
+        await service.SubmitChallengeAsync("player-a", grant.Id, puzzle.Sequence);
+        var award = Assert.Single(inventory.Awards);
+        Assert.Equal(grant.Id, award.GrantId);
+        Assert.Equal(InventoryItemCatalog.RuneShard, award.ItemKey);
+        Assert.Equal(Now, award.AwardedAtUtc);
+        Assert.Equal(grant.CorrelationId, award.CorrelationId);
+        var consumption = Assert.Single(events.Appended, x => x.Envelope.EventType == "exclusive_content.consumed");
+        var itemEvent = Assert.Single(events.Appended, x => x.Envelope.EventType == "inventory.item_awarded");
+        Assert.Equal(consumption.Envelope.EventId, itemEvent.Envelope.CausationId);
+        Assert.Equal(award.AwardEventId, itemEvent.Envelope.EventId);
+        Assert.Equal(award.CausationId, itemEvent.Envelope.CausationId);
+
+        var owned = Assert.Single(await service.GetInventoryAsync("player-a"));
+        Assert.Equal(award, owned);
+        Assert.Empty(await service.GetInventoryAsync("player-b"));
+
+        var repeat = await Assert.ThrowsAsync<ExclusiveContentException>(
+            () => service.SubmitChallengeAsync("player-a", grant.Id, puzzle.Sequence));
+        Assert.Equal(ExclusiveContentErrorCodes.Consumed, repeat.Code);
+        Assert.Single(inventory.Awards);
+        Assert.Equal(2, events.Appended.Count);
+    }
+
+    [Fact]
+    public async Task Consume_LegacyRewardKey_DoesNotInventAnItem()
+    {
+        var repo = new FakeRepository();
+        var events = new FakeEventStore();
+        var inventory = new FakeInventoryRepository();
+        var service = CreateService(repo, events, inventory: inventory);
+        var grant = CreateGrant("player-a", Now.AddHours(1), rewardKey: "legacy.unknown-key");
+        repo.Grants.Add(grant);
+
+        await service.ConsumeAsync("player-a", grant.Id);
+        Assert.Empty(inventory.Awards);
+        Assert.Equal("exclusive_content.consumed", Assert.Single(events.Appended).Envelope.EventType);
+    }
+
+    [Fact]
+    public async Task Challenge_OtherPlayerAndExpiredGrant_CannotProduceInventoryAwards()
+    {
+        var repo = new FakeRepository();
+        var inventory = new FakeInventoryRepository();
+        var service = CreateService(repo, inventory: inventory);
+        var grant = CreateGrant("player-a", Now.AddSeconds(-1),
+            portalKey: PortalSequenceRules.PortalKey, rewardKey: InventoryItemCatalog.GroveSeed);
+        repo.Grants.Add(grant);
+        var other = await Assert.ThrowsAsync<ExclusiveContentException>(
+            () => service.SubmitChallengeAsync("player-b", grant.Id, ["sun", "moon", "star", "wave"]));
+        Assert.Equal(ExclusiveContentErrorCodes.NotFound, other.Code);
+        var expired = await Assert.ThrowsAsync<ExclusiveContentException>(
+            () => service.SubmitChallengeAsync("player-a", grant.Id, ["sun", "moon", "star", "wave"]));
+        Assert.Equal(ExclusiveContentErrorCodes.Expired, expired.Code);
+        Assert.Empty(inventory.Awards);
+    }
+
     private static ExclusiveContentService CreateService(
         FakeRepository repository,
         FakeEventStore? events = null,
-        FakeUnitOfWork? unitOfWork = null) =>
+        FakeUnitOfWork? unitOfWork = null,
+        FakeInventoryRepository? inventory = null) =>
         new(
             repository,
             events ?? new FakeEventStore(),
             unitOfWork ?? new FakeUnitOfWork(),
-            new FixedTimeProvider(Now));
+            new FixedTimeProvider(Now),
+            inventory ?? new FakeInventoryRepository());
 
     private static ExclusiveContentGrant CreateGrant(
         string playerId,
         DateTimeOffset? expiresAtUtc,
         long seed = 42,
         string ruleVersion = "rules-v1",
-        string portalKey = "portal-key") =>
+        string portalKey = "portal-key",
+        string rewardKey = "reward-key") =>
         ExclusiveContentGrant.Create(
             Guid.NewGuid(),
             Guid.NewGuid(),
@@ -254,7 +335,7 @@ public sealed class ExclusiveContentServiceTests
             "content-key",
             portalKey,
             "dialog-key",
-            "reward-key",
+            rewardKey,
             seed,
             ruleVersion,
             Guid.NewGuid(),
@@ -308,6 +389,26 @@ public sealed class ExclusiveContentServiceTests
         {
             Appended.Add((envelope, payloadJson));
             return Task.CompletedTask;
+        }
+    }
+
+    private sealed class FakeInventoryRepository : IPlayerInventoryRepository
+    {
+        public List<PlayerInventoryAward> Awards { get; } = [];
+
+        public Task AddAsync(PlayerInventoryAward award, CancellationToken cancellationToken = default)
+        {
+            if (Awards.Any(item => item.GrantId == award.GrantId))
+                throw new InvalidOperationException("Duplicate award for grant");
+            Awards.Add(award);
+            return Task.CompletedTask;
+        }
+
+        public Task<IReadOnlyList<PlayerInventoryAward>> GetForPlayerAsync(
+            string playerId, CancellationToken cancellationToken = default)
+        {
+            IReadOnlyList<PlayerInventoryAward> result = Awards.Where(x => x.PlayerId == playerId).ToArray();
+            return Task.FromResult(result);
         }
     }
 

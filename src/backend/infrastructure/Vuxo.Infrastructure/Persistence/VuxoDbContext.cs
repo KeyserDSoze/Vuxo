@@ -11,6 +11,7 @@ public sealed class VuxoDbContext(DbContextOptions<VuxoDbContext> options) : DbC
     public DbSet<WorldDefinitionEntity> WorldDefinitions => Set<WorldDefinitionEntity>();
     public DbSet<WorldChunkEntity> WorldChunks => Set<WorldChunkEntity>();
     public DbSet<ExclusiveContentGrantEntity> ExclusiveContentGrants => Set<ExclusiveContentGrantEntity>();
+    public DbSet<PlayerInventoryAwardEntity> PlayerInventoryAwards => Set<PlayerInventoryAwardEntity>();
     public DbSet<VuxoUserEntity> VuxoUsers => Set<VuxoUserEntity>();
     public DbSet<ExternalIdentityEntity> ExternalIdentities => Set<ExternalIdentityEntity>();
 
@@ -78,6 +79,20 @@ public sealed class VuxoDbContext(DbContextOptions<VuxoDbContext> options) : DbC
                 .WithMany()
                 .HasForeignKey(x => x.VuxoUserId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<PlayerInventoryAwardEntity>(entity =>
+        {
+            entity.ToTable("player_inventory_awards");
+            entity.HasKey(x => x.GrantId);
+            entity.HasIndex(x => x.AwardEventId).IsUnique();
+            entity.HasIndex(x => new { x.PlayerId, x.AwardedAtUtc });
+            entity.Property(x => x.PlayerId).HasMaxLength(200);
+            entity.Property(x => x.ItemKey).HasMaxLength(200);
+            entity.HasOne<ExclusiveContentGrantEntity>()
+                .WithMany()
+                .HasForeignKey(x => x.GrantId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<ExclusiveContentGrantEntity>(entity =>
