@@ -18,7 +18,7 @@ Quando una issue cambia stato in modo significativo, aggiornare la riga corrispo
 
 | Issue | Tipo | Versione | Area | Stato | Test/Stato verifica | Risoluzione / prossimo passo |
 |---|---|---:|---|---|---|---|
-| #47 | Bug | 0.0.1 | NuGet SignalR/MessagePack audit | In progress | Pacchetti ASP.NET Core/SignalR aggiornati a 10.0.13 su branch fix/nuget-security-main-0.0.1; CI su PR indipendente da verificare | Eseguire restore/build/xUnit/Playwright e Docker runtime; portare fix su main prima di considerare bug chiuso |
+| #47 | Bug | 0.0.1 | NuGet SignalR/MessagePack audit | Done | PR #48 CI verde: backend xUnit, frontend Playwright e Docker runtime; commit main fe8de782 con pacchetti ASP.NET Core/SignalR 10.0.13 verificati | Chiuso dopo porting del fix su main; audit NuGet con warnings-as-errors mantenuto |
 | #20 | Epic | 0.0.1 | First playable | In progress | CI foundation verde | Coordinare le issue della first playable |
 | #1 | Feature | 0.0.1 | Repository/quality | Done | Foundation gate + backend/xUnit/PostgreSQL + Docker runtime + frontend/Playwright verdi | Chiuso: struttura monorepo, stack, warnings-as-errors, CI, README/version metadata e guard sui file locali sensibili sono verificati automaticamente |
 | #2 | Feature | 0.0.1 | Backend/API | Done | API integration health/version/OpenAPI + PostgreSQL/OTLP + Docker runtime + frontend/Playwright verdi | Chiuso: Release build, health/version contract, OpenAPI Development-only, fail-fast DB config, migration startup production-like e Production senza mock auth verificati |
