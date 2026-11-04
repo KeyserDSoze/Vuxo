@@ -1,0 +1,24 @@
+# OPTIONAL: Do not enable on a 1 GiB Pi 3 until memory has been measured.
+# API integration with the broker is a separate feature; this deploys only the broker.
+services:
+  rabbitmq:
+    image: rabbitmq:4.4-management-alpine
+    restart: unless-stopped
+    mem_limit: 256m
+    environment:
+      RABBITMQ_DEFAULT_USER: ${VUXO_RABBITMQ_USER:-vuxo}
+      RABBITMQ_DEFAULT_PASS: ${VUXO_RABBITMQ_PASSWORD:?Required strong RabbitMQ password}
+      RABBITMQ_VM_MEMORY_HIGH_WATERMARK_ABSOLUTE: 128MiB
+    ports:
+      - "127.0.0.1:${VUXO_RABBITMQ_UI_PORT:-15672}:15672"
+    volumes:
+      - vuxo-rabbitmq:/var/lib/rabbitmq
+    networks: [vuxo]
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 20s
+      timeout: 10s
+      retries: 10
+
+volumes:
+  vuxo-rabbitmq:
