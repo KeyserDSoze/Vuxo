@@ -8,7 +8,7 @@ const initialization = i18n.use(initReactI18next).init({
   resources: {
     it: {
       translation: {
-        nav: { home: 'Home', auth: 'Account', character: 'Personaggio', game: 'Gioco', portals: 'Portali', admin: 'Admin', version: 'Versione' },
+        nav: { home: 'Home', auth: 'Account', character: 'Personaggio', game: 'Gioco', portals: 'Portali', inventory: 'Inventario', admin: 'Admin', version: 'Versione' },
         shell: { theme: 'Tema', language: 'Lingua', navigation: 'Navigazione principale', version: 'Versione {{version}}' },
         theme: { system: 'Sistema', light: 'Chiaro', dark: 'Scuro' },
         home: {
@@ -72,7 +72,8 @@ const initialization = i18n.use(initReactI18next).init({
           reset: 'Ricomincia',
           showAgain: 'Mostra di nuovo',
           back: 'Torna ai portali',
-          completed: 'Sfida completata! Il tuo grant personale è stato consumato. Non è stato ancora aggiunto alcun oggetto all’inventario.',
+          completed: 'Sfida completata! Il risultato è stato salvato.',
+          awardReceived: 'Oggetto ottenuto: {{item}}. Lo trovi nel tuo inventario.',
           runes: { sun: 'Sole', moon: 'Luna', star: 'Stella', wave: 'Onda' },
           errors: {
             portal_authentication_required: 'Devi accedere per giocare.',
@@ -86,6 +87,26 @@ const initialization = i18n.use(initReactI18next).init({
             exclusive_content_not_found: 'Questo portale non è disponibile per il tuo personaggio.',
             exclusive_content_expired: 'Questo portale è scaduto.',
             exclusive_content_consumed: 'Questa sfida è già stata completata.'
+          }
+        },
+        inventory: {
+          title: 'Inventario',
+          description: 'Gli oggetti ottenuti superando le sfide personali sono salvati sul server.',
+          authenticationRequired: 'Accedi al tuo account Vuxo per consultare il tuo inventario.',
+          signIn: 'Accedi',
+          loading: 'Caricamento inventario…',
+          empty: 'Non hai ancora oggetti. Completa un portale con una ricompensa per ottenerne uno.',
+          owned: 'Oggetti ottenuti: {{count}}',
+          awardedAt: 'Ottenuto il {{date}}',
+          quantity: 'Quantità: {{count}}',
+          items: {
+            runeShard: 'Frammento di runa',
+            groveSeed: 'Seme del bosco',
+            tidalPearl: 'Perla delle maree'
+          },
+          errors: {
+            inventory_authentication_required: 'Accedi per vedere il tuo inventario.',
+            inventory_request_failed: 'Impossibile caricare l’inventario. Riprova.'
           }
         },
         admin: { title: 'Amministrazione', description: 'Health, giocatori online, audit degli eventi, contenuti esclusivi e telemetria saranno raccolti qui.' },
@@ -172,7 +193,7 @@ const initialization = i18n.use(initReactI18next).init({
     },
     en: {
       translation: {
-        nav: { home: 'Home', auth: 'Account', character: 'Character', game: 'Game', portals: 'Portals', admin: 'Admin', version: 'Version' },
+        nav: { home: 'Home', auth: 'Account', character: 'Character', game: 'Game', portals: 'Portals', inventory: 'Inventory', admin: 'Admin', version: 'Version' },
         shell: { theme: 'Theme', language: 'Language', navigation: 'Main navigation', version: 'Version {{version}}' },
         theme: { system: 'System', light: 'Light', dark: 'Dark' },
         home: {
@@ -236,7 +257,8 @@ const initialization = i18n.use(initReactI18next).init({
           reset: 'Reset',
           showAgain: 'Show again',
           back: 'Back to portals',
-          completed: 'Challenge complete! Your personal grant has been consumed. No inventory item has been added yet.',
+          completed: 'Challenge complete! Your result has been saved.',
+          awardReceived: 'Item earned: {{item}}. It is now in your inventory.',
           runes: { sun: 'Sun', moon: 'Moon', star: 'Star', wave: 'Wave' },
           errors: {
             portal_authentication_required: 'You must sign in to play.',
@@ -250,6 +272,26 @@ const initialization = i18n.use(initReactI18next).init({
             exclusive_content_not_found: 'This portal is unavailable for your character.',
             exclusive_content_expired: 'This portal has expired.',
             exclusive_content_consumed: 'This challenge has already been completed.'
+          }
+        },
+        inventory: {
+          title: 'Inventory',
+          description: 'Items earned through personal challenges are securely stored on the server.',
+          authenticationRequired: 'Sign in to your Vuxo account to see your inventory.',
+          signIn: 'Sign in',
+          loading: 'Loading inventory…',
+          empty: 'You have no items yet. Complete a portal with an item reward to earn one.',
+          owned: 'Items earned: {{count}}',
+          awardedAt: 'Earned on {{date}}',
+          quantity: 'Quantity: {{count}}',
+          items: {
+            runeShard: 'Rune Shard',
+            groveSeed: 'Grove Seed',
+            tidalPearl: 'Tidal Pearl'
+          },
+          errors: {
+            inventory_authentication_required: 'Sign in to see your inventory.',
+            inventory_request_failed: 'Unable to load inventory. Please try again.'
           }
         },
         admin: { title: 'Administration', description: 'Health, online players, event audit, exclusive content and telemetry will live here.' },
