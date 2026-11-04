@@ -13,6 +13,7 @@ export VUXO_CLOUDFLARE_TUNNEL_TOKEN=ci-only-token
 export VUXO_ALLOWED_ORIGIN=https://vuxo.app
 export VUXO_BESZEL_KEY=ci-only-key
 export VUXO_BESZEL_TOKEN=ci-only-token
+export VUXO_DOZZLE_DATA_DIR=/tmp/vuxo-dozzle-ci
 export VUXO_RABBITMQ_PASSWORD=ci-only-random-rabbitmq-password
 
 base=(docker compose -p vuxo -f docker/compose.prod.yml -f docker/compose.pi3.yml)
@@ -31,6 +32,7 @@ done
 
 # Compose renders every opt-in overlay without starting or exposing it.
 "${base[@]}" -f docker/compose.pi3.monitor.yml config --quiet
+"${base[@]}" -f docker/compose.pi3.logs.yml config --quiet
 "${base[@]}" -f docker/compose.pi3.rabbitmq.yml config --quiet
 "${base[@]}" -f docker/compose.pi3.azurite.yml config --quiet
 
@@ -48,7 +50,7 @@ required = [
 ]
 for value in required:
     assert value in text, f"Missing resource or optional-AI contract: {value}"
-for path in ["docker/compose.pi3.monitor.yml", "docker/compose.pi3.rabbitmq.yml", "docker/compose.pi3.azurite.yml"]:
+for path in ["docker/compose.pi3.monitor.yml", "docker/compose.pi3.rabbitmq.yml", "docker/compose.pi3.azurite.yml", "docker/compose.pi3.logs.yml"]:
     body = Path(path).read_text()
     assert "127.0.0.1:" in body, f"Admin ports must bind loopback: {path}"
 assert "down -v" not in Path("infra/pi3/deploy.sh").read_text().replace("Never run down -v", "")
