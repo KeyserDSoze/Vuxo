@@ -41,6 +41,36 @@ test('rejects port conflicts and invalid project names', () => {
   assert.throws(() => validateLocalEnv(env), /PROJECT/);
 });
 
+test('isolates the Compose project from production even with environment overrides', () => {
+  const env = valid();
+  env.VUXO_COMPOSE_PROJECT = 'vuxo-local-alice';
+  assert.equal(validateLocalEnv(env).VUXO_COMPOSE_PROJECT, 'vuxo-local-alice');
+  for (const name of ['vuxo', 'production', 'vuxo-prod', 'vuxo_local']) {
+    env.VUXO_COMPOSE_PROJECT = name;
+    assert.throws(() => validateLocalEnv(env), /VUXO_COMPOSE_PROJECT/);
+  }
+});
+
+test('rejects PostgreSQL connection-string and model pull command injection', () => {
+  const env = valid();
+  env.VUXO_POSTGRES_PASSWORD = 'safePassword1234;Host=malicious';
+  assert.throws(() => validateLocalEnv(env), /VUXO_POSTGRES_PASSWORD/);
+  env.VUXO_POSTGRES_PASSWORD = 'safePassword1234';
+  env.VUXO_LLM_MODEL = 'qwen3:1.7b;echo-injection';
+  assert.throws(() => validateLocalEnv(env), /VUXO_LLM_MODEL/);
+  env.VUXO_LLM_MODEL = 'library/qwen3:1.7b';
+  assert.equal(validateLocalEnv(env).VUXO_LLM_MODEL, 'library/qwen3:1.7b');
+});
+
+test('rejects weak local PostgreSQL and Grafana credentials', () => {
+  const env = valid();
+  env.VUXO_POSTGRES_PASSWORD = 'too-short';
+  assert.throws(() => validateLocalEnv(env), /at least 16/);
+  env.VUXO_POSTGRES_PASSWORD = 'safePassword1234';
+  env.VUXO_GRAFANA_ADMIN_PASSWORD = 'weak';
+  assert.throws(() => validateLocalEnv(env), /at least 16/);
+});
+
 test('rejects invalid JWT and missing or malformed toggles', () => {
   const env = valid();
   env.VUXO_JWT_SIGNING_KEY = 'short';
