@@ -1,4 +1,5 @@
 using Vuxo.Domain.Players;
+using Vuxo.Domain.Inventory;
 
 namespace Vuxo.Application.Worlds.Realtime;
 
@@ -13,7 +14,8 @@ public sealed class WorldSimulation(TimeProvider timeProvider)
         string connectionId,
         string playerId,
         PlayerCharacter character,
-        WorldSpawnPoint spawn)
+        WorldSpawnPoint spawn,
+        IReadOnlyList<EquippedInventoryItem>? equipment = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(connectionId);
         ArgumentException.ThrowIfNullOrWhiteSpace(playerId);
@@ -29,6 +31,15 @@ public sealed class WorldSimulation(TimeProvider timeProvider)
         {
             throw new InvalidOperationException("Authenticated player id must match the character owner id.");
         }
+
+        var equipped = equipment ?? [];
+        if (equipped.Any(item => !string.Equals(item.PlayerId, normalizedPlayerId, StringComparison.Ordinal)))
+        {
+            throw new InvalidOperationException("Equipment must belong to the connected character.");
+        }
+        // Effective movement speed is derived exclusively from server-owned
+        // character attributes and persisted, validated equipment.
+        var effectiveSpeed = EquipmentRules.Evaluate(character.Attributes, equipped).MovementSpeedMultiplier;
 
         lock (_gate)
         {
@@ -48,7 +59,8 @@ public sealed class WorldSimulation(TimeProvider timeProvider)
                     normalizedPlayerId,
                     character.Id,
                     character.Name,
-                    character.Attributes.MovementSpeedMultiplier,
+                    character.Attributes,
+                    effectiveSpeed,
                     spawn.X,
                     spawn.Y);
                 _players.Add(normalizedPlayerId, session);
@@ -60,7 +72,9 @@ public sealed class WorldSimulation(TimeProvider timeProvider)
                 session.ConnectionId = connectionId;
                 session.CharacterId = character.Id;
                 session.CharacterName = character.Name;
-                session.SpeedMultiplier = character.Attributes.MovementSpeedMultiplier;
+                session.BaseAttributes = character.Attributes;
+                session.SpeedMultiplier = effectiveSpeed;
+                session.Revision++;
                 session.HorizontalIntent = 0;
                 session.VerticalIntent = 0;
                 session.LastAcceptedIntentAt = null;
@@ -76,6 +90,35 @@ public sealed class WorldSimulation(TimeProvider timeProvider)
                 .ToArray();
 
             return new WorldJoinResult(self, players, isReconnect, replacedConnectionId);
+        }
+    }
+
+    /// <summary>
+    /// Apply a committed owner-scoped equipment loadout to an online session.
+    /// The caller must retrieve equipment from the server repository after the DB
+    /// commit, not from a client payload. Revision protects in-flight tick snapshots.
+    /// </summary>
+    public WorldPlayerSnapshot? RefreshEquipment(
+        string playerId, IReadOnlyList<EquippedInventoryItem> equipment)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(playerId);
+        ArgumentNullException.ThrowIfNull(equipment);
+        var normalizedId = playerId.Trim();
+        if (equipment.Any(item => !string.Equals(item.PlayerId, normalizedId, StringComparison.Ordinal)))
+        {
+            throw new InvalidOperationException("Equipment must belong to the online player.");
+        }
+
+        lock (_gate)
+        {
+            if (!_players.TryGetValue(normalizedId, out var session)) return null;
+
+            var speed = EquipmentRules.Evaluate(session.BaseAttributes, equipment).MovementSpeedMultiplier;
+            if (speed == session.SpeedMultiplier) return null;
+
+            session.SpeedMultiplier = speed;
+            session.Revision++;
+            return SnapshotUnsafe(session);
         }
     }
 
@@ -247,6 +290,7 @@ public sealed class WorldSimulation(TimeProvider timeProvider)
         string playerId,
         Guid characterId,
         string characterName,
+        PlayerAttributes baseAttributes,
         double speedMultiplier,
         double x,
         double y)
@@ -255,6 +299,7 @@ public sealed class WorldSimulation(TimeProvider timeProvider)
         public string PlayerId { get; } = playerId;
         public Guid CharacterId { get; set; } = characterId;
         public string CharacterName { get; set; } = characterName;
+        public PlayerAttributes BaseAttributes { get; set; } = baseAttributes;
         public double SpeedMultiplier { get; set; } = speedMultiplier;
         public double X { get; set; } = x;
         public double Y { get; set; } = y;

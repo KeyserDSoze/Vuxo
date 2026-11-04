@@ -1,5 +1,6 @@
 using Vuxo.Application.Worlds.Realtime;
 using Vuxo.Domain.Players;
+using Vuxo.Domain.Inventory;
 
 namespace Vuxo.Application.Tests.Worlds.Realtime;
 
@@ -120,6 +121,101 @@ public sealed class WorldSimulationTests
         var moved = Assert.Single(delta.Players);
         var distance = Math.Sqrt((moved.X * moved.X) + (moved.Y * moved.Y));
         Assert.Equal(0.3d, distance, 10);
+    }
+
+    [Fact]
+    public async Task Tick_UsesCommittedSwiftFeatherDexterity_AndRevertsOnUnequip()
+    {
+        var simulation = new WorldSimulation(new ManualTimeProvider());
+        var character = CreateCharacter("player-a", 2);
+        var noEquipment = simulation.Join("socket-a", "player-a", character,
+            new WorldSpawnPoint(0.5, 0.5));
+        Assert.Equal(1.2d, noEquipment.Self.SpeedMultiplier, 8);
+
+        var feather = SwiftFeather("player-a");
+        var changed = simulation.RefreshEquipment("player-a", [feather]);
+        Assert.NotNull(changed);
+        Assert.Equal(1.3d, changed.SpeedMultiplier, 8);
+        Assert.True(changed.Revision > noEquipment.Self.Revision);
+        Assert.Null(simulation.RefreshEquipment("player-a", [feather]));
+
+        Assert.True(simulation.SubmitIntent("socket-a", 1, 0, 1).Accepted);
+        var moved = await simulation.TickAsync(
+            TimeSpan.FromMilliseconds(100), new StubWalkabilityMap(true));
+        Assert.Equal(0.89d, Assert.Single(moved.Players).X, 8);
+
+        var restored = simulation.RefreshEquipment("player-a", []);
+        Assert.NotNull(restored);
+        Assert.Equal(1.2d, restored.SpeedMultiplier, 8);
+        Assert.True(restored.Revision > changed.Revision);
+        var next = await simulation.TickAsync(
+            TimeSpan.FromMilliseconds(100), new StubWalkabilityMap(true));
+        Assert.Equal(1.25d, Assert.Single(next.Players).X, 8);
+    }
+
+    [Fact]
+    public void Join_ReconnectReloadsServerLoadoutAndRejectsOldConnection()
+    {
+        var sim = new WorldSimulation(new ManualTimeProvider());
+        var character = CreateCharacter("player-a", 2);
+        var feather = SwiftFeather("player-a");
+        var first = sim.Join("old-connection", "player-a", character,
+            new WorldSpawnPoint(4.5, 4.5), [feather]);
+        Assert.Equal(1.3d, first.Self.SpeedMultiplier, 8);
+
+        var reconnect = sim.Join("new-connection", "player-a", character,
+            new WorldSpawnPoint(99.5, 99.5), []);
+        Assert.True(reconnect.IsReconnect);
+        Assert.Equal("old-connection", reconnect.ReplacedConnectionId);
+        Assert.Equal(1.2d, reconnect.Self.SpeedMultiplier, 8);
+        Assert.Equal(4.5d, reconnect.Self.X, 8);
+        Assert.True(reconnect.Self.Revision > first.Self.Revision);
+        Assert.Null(sim.Leave("old-connection"));
+        Assert.False(sim.SubmitIntent("old-connection", 1, 0, 1).Accepted);
+        Assert.True(sim.SubmitIntent("new-connection", 1, 0, 1).Accepted);
+
+        Assert.Null(sim.RefreshEquipment("offline-player", [SwiftFeather("offline-player")]));
+        Assert.Throws<InvalidOperationException>(() =>
+            sim.RefreshEquipment("player-a", [SwiftFeather("player-b")]));
+    }
+
+    [Fact]
+    public async Task EquipmentChangeInvalidatesInFlightOldSpeedTick()
+    {
+        var sim = new WorldSimulation(new ManualTimeProvider());
+        sim.Join("socket-a", "player-a", CreateCharacter("player-a", 2),
+            new WorldSpawnPoint(0.5, 0.5));
+        Assert.True(sim.SubmitIntent("socket-a", 1, 0, 1).Accepted);
+        var map = new PausedWalkabilityMap();
+        var oldTick = sim.TickAsync(TimeSpan.FromMilliseconds(100), map);
+        await map.Entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        sim.RefreshEquipment("player-a", [SwiftFeather("player-a")]);
+        map.Release.TrySetResult(true);
+
+        Assert.Empty((await oldTick).Players);
+        var fresh = await sim.TickAsync(
+            TimeSpan.FromMilliseconds(100), new StubWalkabilityMap(true));
+        Assert.Equal(0.89d, Assert.Single(fresh.Players).X, 8);
+    }
+
+    private static EquippedInventoryItem SwiftFeather(string playerId)
+        => new(playerId, EquipmentRules.Charm, Guid.NewGuid(),
+            InventoryItemCatalog.SwiftFeather, Guid.NewGuid(),
+            Guid.NewGuid(), DateTimeOffset.UtcNow);
+
+    private sealed class PausedWalkabilityMap : IWorldWalkabilityMap
+    {
+        public TaskCompletionSource<bool> Entered { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource<bool> Release { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public async ValueTask<bool> IsWalkableAsync(double x, double y,
+            CancellationToken cancellationToken = default)
+        {
+            Entered.TrySetResult(true);
+            return await Release.Task.WaitAsync(cancellationToken);
+        }
     }
 
     private static PlayerCharacter CreateCharacter(string ownerId, int dexterity)

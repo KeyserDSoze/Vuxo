@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.RateLimiting;
 using Vuxo.Application.PersonalContent;
 using Vuxo.Application.Inventory;
+using Vuxo.Api.Realtime;
 using Vuxo.Domain.PersonalContent;
 using Vuxo.Domain.Inventory;
 
@@ -54,13 +55,15 @@ public static class PersonalContentEndpoints
         endpoints.MapPost(
             "/api/equipment/{grantId:guid}/equip",
             async (Guid grantId, ClaimsPrincipal user, PlayerEquipmentService service,
-                CancellationToken cancellationToken) =>
+                WorldEquipmentNotifier notifier, CancellationToken cancellationToken) =>
             {
                 var playerId = user.FindFirstValue(ClaimTypes.NameIdentifier);
                 if (string.IsNullOrWhiteSpace(playerId)) return Results.Unauthorized();
                 try
                 {
                     var result = await service.EquipAsync(playerId, grantId, cancellationToken);
+                    // Only update/broadcast world speed after the database transaction commits.
+                    await notifier.RefreshAsync(playerId, cancellationToken);
                     return Results.Ok(ToEquipmentResponse(result));
                 }
                 catch (EquipmentException ex) when (ex.Code == EquipmentErrorCodes.NotOwned)
@@ -91,13 +94,14 @@ public static class PersonalContentEndpoints
         endpoints.MapDelete(
             "/api/equipment/{slot}",
             async (string slot, ClaimsPrincipal user, PlayerEquipmentService service,
-                CancellationToken cancellationToken) =>
+                WorldEquipmentNotifier notifier, CancellationToken cancellationToken) =>
             {
                 var playerId = user.FindFirstValue(ClaimTypes.NameIdentifier);
                 if (string.IsNullOrWhiteSpace(playerId)) return Results.Unauthorized();
                 try
                 {
                     var result = await service.UnequipAsync(playerId, slot, cancellationToken);
+                    await notifier.RefreshAsync(playerId, cancellationToken);
                     return Results.Ok(ToEquipmentResponse(result));
                 }
                 catch (EquipmentException ex) when (ex.Code == EquipmentErrorCodes.InvalidSlot)

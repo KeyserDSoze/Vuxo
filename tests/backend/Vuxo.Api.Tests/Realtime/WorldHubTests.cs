@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Net.Http.Json;
+using System.Net.Http.Headers;
 using Microsoft.AspNetCore.Http.Connections;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.DependencyInjection;
@@ -7,6 +8,8 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Vuxo.Api.Tests.Infrastructure;
 using Vuxo.Application.Worlds.Realtime;
 using Vuxo.Domain.Common;
+using Vuxo.Domain.Inventory;
+using Vuxo.Domain.Events;
 using Vuxo.Domain.Players;
 using Vuxo.Domain.Worlds;
 
@@ -70,7 +73,102 @@ public sealed class WorldHubTests
         Assert.Equal("player-b", left.PlayerId);
     }
 
-    private static VuxoApiFactory CreateFactory()
+    [Fact]
+    public async Task WorldHub_TwoClientsObserveEffectiveEquipmentSpeed_AndReconnectPreservesIt()
+    {
+        var feather = new EquippedInventoryItem(
+            "player-a", EquipmentRules.Charm, Guid.NewGuid(),
+            InventoryItemCatalog.SwiftFeather, Guid.NewGuid(),
+            Guid.NewGuid(), DateTimeOffset.UtcNow);
+        using var factory = CreateFactory(new FakePlayerEquipment([feather]));
+        using var http = factory.CreateClient();
+        var tokenA = await AuthenticateAsync(http, "player-a");
+        var tokenB = await AuthenticateAsync(http, "player-b");
+
+        await using var a = CreateConnection(factory, tokenA);
+        await using var b = CreateConnection(factory, tokenB);
+        await using var reconnectedA = CreateConnection(factory, tokenA);
+        var observed = new TaskCompletionSource<WorldPlayerSnapshot>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        b.On<WorldPlayerSnapshot>("world.playerJoined", snapshot =>
+        {
+            if (snapshot.PlayerId == "player-a") observed.TrySetResult(snapshot);
+        });
+
+        await b.StartAsync();
+        await a.StartAsync();
+        await b.InvokeAsync<WorldJoinResult>("JoinWorld");
+        var first = await a.InvokeAsync<WorldJoinResult>("JoinWorld");
+        var peer = await observed.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Equal(1.3d, first.Self.SpeedMultiplier, 8);
+        Assert.Equal(1.3d, peer.SpeedMultiplier, 8);
+        Assert.Contains(first.Players, x => x.PlayerId == "player-b");
+        Assert.False(first.IsReconnect);
+
+        await reconnectedA.StartAsync();
+        var refreshed = await reconnectedA.InvokeAsync<WorldJoinResult>("JoinWorld");
+        Assert.True(refreshed.IsReconnect);
+        Assert.NotNull(refreshed.ReplacedConnectionId);
+        Assert.Equal(1.3d, refreshed.Self.SpeedMultiplier, 8);
+        Assert.True(refreshed.Self.Revision > first.Self.Revision);
+        Assert.Equal(first.Self.X, refreshed.Self.X);
+        Assert.Equal(first.Self.Y, refreshed.Self.Y);
+        var simulation = factory.Services.GetRequiredService<WorldSimulation>();
+        Assert.False(simulation.SubmitIntent(refreshed.ReplacedConnectionId, 1, 0, 1).Accepted);
+    }
+
+    [Fact]
+    public async Task WorldHub_PeersReceiveLiveSpeedAfterCommittedEquipAndUnequip()
+    {
+        var award = new PlayerInventoryAward(
+            Guid.NewGuid(), Guid.NewGuid(), "player-a",
+            InventoryItemCatalog.SwiftFeather, DateTimeOffset.UtcNow,
+            Guid.NewGuid(), Guid.NewGuid());
+        using var factory = CreateFactory(award: award);
+        using var http = factory.CreateClient();
+        var tokenA = await AuthenticateAsync(http, "player-a");
+        var tokenB = await AuthenticateAsync(http, "player-b");
+        await using var a = CreateConnection(factory, tokenA);
+        await using var b = CreateConnection(factory, tokenB);
+
+        var faster = new TaskCompletionSource<WorldPlayerSnapshot>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var slower = new TaskCompletionSource<WorldPlayerSnapshot>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        b.On<WorldPlayerSnapshot>("world.playerUpdated", updated =>
+        {
+            if (updated.PlayerId != "player-a") return;
+            if (updated.SpeedMultiplier > 1.2d)
+                faster.TrySetResult(updated);
+            else
+                slower.TrySetResult(updated);
+        });
+
+        await a.StartAsync();
+        await b.StartAsync();
+        var joined = await a.InvokeAsync<WorldJoinResult>("JoinWorld");
+        await b.InvokeAsync<WorldJoinResult>("JoinWorld");
+        Assert.Equal(1.2d, joined.Self.SpeedMultiplier, 8);
+
+        http.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", tokenA);
+        var equip = await http.PostAsJsonAsync(
+            $"/api/equipment/{award.GrantId}/equip",
+            new { speedMultiplier = 999d, dexterity = 999 });
+        Assert.True(equip.IsSuccessStatusCode);
+        var boosted = await faster.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Equal(1.3d, boosted.SpeedMultiplier, 8);
+        Assert.True(boosted.Revision > joined.Self.Revision);
+
+        var unequip = await http.DeleteAsync("/api/equipment/charm");
+        Assert.True(unequip.IsSuccessStatusCode);
+        var restored = await slower.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Equal(1.2d, restored.SpeedMultiplier, 8);
+        Assert.True(restored.Revision > boosted.Revision);
+        Assert.Equal(boosted.X, restored.X);
+    }
+
+    private static VuxoApiFactory CreateFactory(FakePlayerEquipment? equipment = null, PlayerInventoryAward? award = null)
     {
         var players = new FakePlayerRepository(
             CreateCharacter("player-a", "Alpha", 2),
@@ -81,9 +179,18 @@ public sealed class WorldHubTests
         return new VuxoApiFactory(configureServices: services =>
         {
             services.RemoveAll<IPlayerCharacterRepository>();
+            services.RemoveAll<IPlayerEquipmentRepository>();
             services.RemoveAll<IWorldRepository>();
             services.RemoveAll<IUnitOfWork>();
             services.AddSingleton<IPlayerCharacterRepository>(players);
+            services.AddSingleton<IPlayerEquipmentRepository>(equipment ?? new FakePlayerEquipment());
+            if (award is not null)
+            {
+                services.RemoveAll<IPlayerInventoryRepository>();
+                services.RemoveAll<IGameEventStore>();
+                services.AddSingleton<IPlayerInventoryRepository>(new SingleAwardInventory(award));
+                services.AddSingleton<IGameEventStore>(new FakeEventStore());
+            }
             services.AddSingleton<IWorldRepository>(worlds);
             services.AddSingleton<IUnitOfWork>(unitOfWork);
         });
@@ -143,6 +250,42 @@ public sealed class WorldHubTests
 
         public Task AddAsync(PlayerCharacter character, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
+    }
+
+    private sealed class FakePlayerEquipment(IReadOnlyList<EquippedInventoryItem>? initial = null) : IPlayerEquipmentRepository
+    {
+        private readonly List<EquippedInventoryItem> _items = (initial ?? []).ToList();
+        public Task<IReadOnlyList<EquippedInventoryItem>> GetForPlayerAsync(
+            string playerId, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<EquippedInventoryItem>>(
+                _items.Where(item => item.PlayerId == playerId).ToArray());
+        public Task EquipAsync(EquippedInventoryItem item, CancellationToken cancellationToken = default)
+        {
+            _items.Add(item);
+            return Task.CompletedTask;
+        }
+        public Task UnequipAsync(string playerId, string slot, CancellationToken cancellationToken = default)
+        {
+            _items.RemoveAll(item => item.PlayerId == playerId && item.Slot == slot);
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class SingleAwardInventory(PlayerInventoryAward award) : IPlayerInventoryRepository
+    {
+        public Task AddAsync(PlayerInventoryAward item, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public Task<IReadOnlyList<PlayerInventoryAward>> GetForPlayerAsync(
+            string playerId, CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<PlayerInventoryAward>>(
+                playerId == award.PlayerId ? [award] : []);
+    }
+
+    private sealed class FakeEventStore : IGameEventStore
+    {
+        public Task AppendAsync(GameEventEnvelope envelope, string payloadJson,
+            CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 
     private sealed class FakeWorldRepository : IWorldRepository

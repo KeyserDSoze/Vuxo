@@ -3,12 +3,12 @@ using Vuxo.Domain.Players;
 namespace Vuxo.Domain.Inventory;
 
 /// <summary>
-/// v1 server-owned item slots and additive bonuses. This is a loadout/stat
-/// projection only: the live world movement simulation is not changed here.
+/// Server-owned equipment slots and additive bonuses. Movement speed is
+/// calculated by the world authority using this same versioned rule set.
 /// </summary>
 public static class EquipmentRules
 {
-    public const string Version = "equipment-v1";
+    public const string Version = "equipment-v2";
     public const string Relic = "relic";
     public const string Charm = "charm";
 
@@ -17,6 +17,7 @@ public static class EquipmentRules
         InventoryItemCatalog.RuneShard => Relic,
         InventoryItemCatalog.GroveSeed => Charm,
         InventoryItemCatalog.TidalPearl => Charm,
+        InventoryItemCatalog.SwiftFeather => Charm,
         _ => null
     };
 
@@ -25,6 +26,7 @@ public static class EquipmentRules
         InventoryItemCatalog.RuneShard => new(Intelligence: 1),
         InventoryItemCatalog.GroveSeed => new(Constitution: 1),
         InventoryItemCatalog.TidalPearl => new(Luck: 1),
+        InventoryItemCatalog.SwiftFeather => new(Dexterity: 1),
         _ => throw new ArgumentException("Item has no equipment bonus.", nameof(itemKey))
     };
 

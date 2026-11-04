@@ -9,6 +9,7 @@ public sealed class PlayerInventoryAwardTests
     [InlineData(InventoryItemCatalog.RuneShard)]
     [InlineData(InventoryItemCatalog.GroveSeed)]
     [InlineData(InventoryItemCatalog.TidalPearl)]
+    [InlineData(InventoryItemCatalog.SwiftFeather)]
     public void CanonicalAward_UsesGrantAsStableIdempotencyKey(string rewardKey)
     {
         var grant = CreateGrant(rewardKey);
