@@ -18,6 +18,7 @@ Quando una issue cambia stato in modo significativo, aggiornare la riga corrispo
 
 | Issue | Tipo | Versione | Area | Stato | Test/Stato verifica | Risoluzione / prossimo passo |
 |---|---|---:|---|---|---|---|
+| #52 | Feature | 0.0.1 | Portali interattivi Phaser | In progress | Issue e branch dedicato; implementazione/test in corso | Marker personali walkable, prossimità validata server, overlay sfida #50, Playwright, patch note IT/EN e CI |
 | #50 | Feature | 0.0.1 | Personal portal challenges | Done | PR #51: CI 41820932823 verde (224 xUnit, 30 Playwright, Docker runtime, 0 warning/error); live browser/API/PostgreSQL 41820932878 verde | Mergiata su main come 50a7d154: sfida 4 rune seed-based, API owner-only, replay/consume bypass bloccati, UI IT/EN responsive, audit e consumo persistente; prossimi sviluppi: portali Phaser e inventario |
 | #47 | Bug | 0.0.1 | NuGet SignalR/MessagePack audit | Done | PR #48 CI verde: backend xUnit, frontend Playwright e Docker runtime; commit main fe8de782 con pacchetti ASP.NET Core/SignalR 10.0.13 verificati | Chiuso dopo porting del fix su main; audit NuGet con warnings-as-errors mantenuto |
 | #20 | Epic | 0.0.1 | First playable | In progress | CI foundation verde | Coordinare le issue della first playable |

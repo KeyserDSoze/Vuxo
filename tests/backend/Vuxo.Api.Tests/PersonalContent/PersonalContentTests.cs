@@ -6,6 +6,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Vuxo.Api.Tests.Infrastructure;
 using Vuxo.Domain.Common;
+using Vuxo.Application.Worlds.Realtime;
+using Vuxo.Domain.Players;
 using Vuxo.Domain.Events;
 using Vuxo.Domain.PersonalContent;
 
@@ -190,10 +192,137 @@ public sealed class PersonalContentTests
         Assert.Empty(events.Appended);
     }
 
+    [Fact]
+    public async Task WorldPortals_RequireAuthenticationAndRevealOnlyJoinedOwnersMarkers()
+    {
+        var grantA = CreateGrant("player-a", PortalSequenceRules.PortalKey);
+        var grantB = CreateGrant("player-b", PortalSequenceRules.PortalKey);
+        using var factory = CreateFactory(out var repository, out _, out _);
+        repository.Grants.AddRange([grantA, grantB]);
+        using var client = factory.CreateClient();
+
+        var unauthorized = await client.GetAsync("/api/personal-content/world-portals");
+        Assert.Equal(HttpStatusCode.Unauthorized, unauthorized.StatusCode);
+        await AuthenticateAsync(client, "player-a", "User");
+        var beforeJoin = await client.GetFromJsonAsync<JsonElement>("/api/personal-content/world-portals");
+        Assert.Empty(beforeJoin.EnumerateArray());
+
+        var simulation = factory.Services.GetRequiredService<WorldSimulation>();
+        simulation.Join("portal-connection-a", "player-a", CreateWorldCharacter("player-a"),
+            new WorldSpawnPoint(0.5, 0.5));
+        var response = await client.GetAsync("/api/personal-content/world-portals");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var item = Assert.Single(json.RootElement.EnumerateArray().ToArray());
+        Assert.Equal(grantA.Id, item.GetProperty("id").GetGuid());
+        Assert.True(item.GetProperty("x").GetDouble() is >= -5.5 and <= 5.5);
+        Assert.False(item.TryGetProperty("seed", out _));
+        Assert.False(item.TryGetProperty("rewardKey", out _));
+        Assert.False(item.TryGetProperty("playerId", out _));
+
+        using var otherClient = factory.CreateClient();
+        await AuthenticateAsync(otherClient, "player-b", "User");
+        simulation.Join("portal-connection-b", "player-b", CreateWorldCharacter("player-b"),
+            new WorldSpawnPoint(0.5, 0.5));
+        var otherMarkers = await otherClient.GetFromJsonAsync<JsonElement>("/api/personal-content/world-portals");
+        var onlyB = Assert.Single(otherMarkers.EnumerateArray().ToArray());
+        Assert.Equal(grantB.Id, onlyB.GetProperty("id").GetGuid());
+        var stolen = await otherClient.PostAsync(
+            $"/api/personal-content/world-portals/{grantA.Id}/enter", null);
+        Assert.Equal(HttpStatusCode.NotFound, stolen.StatusCode);
+    }
+
+    [Fact]
+    public async Task WorldPortalEntry_RejectsNotJoinedAndClientSpoofedPosition_ButAllowsServerNearby()
+    {
+        var grant = CreateGrant("player-a", PortalSequenceRules.PortalKey);
+        using var factory = CreateFactory(out var repository, out var events, out var unitOfWork);
+        repository.Grants.Add(grant);
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, "player-a", "User");
+
+        var url = $"/api/personal-content/world-portals/{grant.Id}/enter";
+        var notJoined = await client.PostAsync(url, null);
+        Assert.Equal(HttpStatusCode.Conflict, notJoined.StatusCode);
+        Assert.Equal("world_portal_not_joined",
+            (await notJoined.Content.ReadFromJsonAsync<ErrorResponse>())?.Code);
+
+        var character = CreateWorldCharacter("player-a");
+        var simulation = factory.Services.GetRequiredService<WorldSimulation>();
+        simulation.Join("connection-far", "player-a", character, new WorldSpawnPoint(100.5, 100.5));
+        var markers = await client.GetFromJsonAsync<JsonElement>("/api/personal-content/world-portals");
+        var portal = Assert.Single(markers.EnumerateArray().ToArray());
+        var x = portal.GetProperty("x").GetDouble();
+        var y = portal.GetProperty("y").GetDouble();
+
+        // The payload is deliberately ignored: the backend reads WorldSimulation.
+        var spoof = await client.PostAsJsonAsync(url, new { x, y, playerId = "player-a" });
+        Assert.Equal(HttpStatusCode.Conflict, spoof.StatusCode);
+        Assert.Equal("world_portal_too_far",
+            (await spoof.Content.ReadFromJsonAsync<ErrorResponse>())?.Code);
+        Assert.False(grant.IsConsumed);
+        Assert.Empty(events.Appended);
+        Assert.Equal(0, unitOfWork.SaveCalls);
+
+        Assert.NotNull(simulation.Leave("connection-far"));
+        simulation.Join("connection-near", "player-a", character, new WorldSpawnPoint(x, y));
+        var entered = await client.PostAsync(url, null);
+        Assert.Equal(HttpStatusCode.OK, entered.StatusCode);
+        Assert.False(grant.IsConsumed); // Entry only opens the minigame, never credits rewards.
+        Assert.Empty(events.Appended);
+    }
+
+    [Fact]
+    public async Task WorldPortalEntry_RejectsAlreadyConsumedGrant()
+    {
+        var grant = CreateGrant("player-a", PortalSequenceRules.PortalKey);
+        Assert.True(grant.TryConsume(DateTimeOffset.UtcNow));
+        using var factory = CreateFactory(out var repository, out _, out _);
+        repository.Grants.Add(grant);
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, "player-a", "User");
+        factory.Services.GetRequiredService<WorldSimulation>().Join(
+            "connection", "player-a", CreateWorldCharacter("player-a"), new WorldSpawnPoint(0.5, 0.5));
+
+        var list = await client.GetFromJsonAsync<JsonElement>("/api/personal-content/world-portals");
+        Assert.Empty(list.EnumerateArray());
+        var replay = await client.PostAsync(
+            $"/api/personal-content/world-portals/{grant.Id}/enter", null);
+        Assert.Equal(HttpStatusCode.Conflict, replay.StatusCode);
+        Assert.Equal("exclusive_content_consumed",
+            (await replay.Content.ReadFromJsonAsync<ErrorResponse>())?.Code);
+    }
+
+    [Fact]
+    public async Task WorldPortals_ChooseReachableTileNotDisconnectedWalkableIsland()
+    {
+        var grant = CreateGrant("player-a", PortalSequenceRules.PortalKey);
+        using var factory = CreateFactory(out var repository, out _, out _, new IslandPortalMap());
+        repository.Grants.Add(grant);
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, "player-a", "User");
+        factory.Services.GetRequiredService<WorldSimulation>().Join(
+            "reachable-connection", "player-a", CreateWorldCharacter("player-a"),
+            new WorldSpawnPoint(0.5, 0.5));
+
+        var response = await client.GetFromJsonAsync<JsonElement>("/api/personal-content/world-portals");
+        var marker = Assert.Single(response.EnumerateArray().ToArray());
+        Assert.Equal(2.5d, marker.GetProperty("x").GetDouble());
+        Assert.Equal(0.5d, marker.GetProperty("y").GetDouble());
+    }
+
+    private static PlayerCharacter CreateWorldCharacter(string ownerId) =>
+        PlayerCharacter.Create(
+            ownerId, "Portal Vuxian", PlayerAttributes.Create(0, 2, 0, 8, 0, 0),
+            new CharacterAppearance(
+                "hair-1", "black", "face-1", "body-1", "skin-1",
+                "blue", "bottom-1", "black", "shoe-1", "black"));
+
     private static VuxoApiFactory CreateFactory(
         out FakeRepository repository,
         out FakeEventStore events,
-        out FakeUnitOfWork unitOfWork)
+        out FakeUnitOfWork unitOfWork,
+        IWorldPortalMap? portalMap = null)
     {
         repository = new FakeRepository();
         events = new FakeEventStore();
@@ -207,9 +336,11 @@ public sealed class PersonalContentTests
             services.RemoveAll<IExclusiveContentGrantRepository>();
             services.RemoveAll<IGameEventStore>();
             services.RemoveAll<IUnitOfWork>();
+            services.RemoveAll<IWorldPortalMap>();
             services.AddSingleton<IExclusiveContentGrantRepository>(repositoryInstance);
             services.AddSingleton<IGameEventStore>(eventsInstance);
             services.AddSingleton<IUnitOfWork>(unitOfWorkInstance);
+            services.AddSingleton<IWorldPortalMap>(portalMap ?? new FakePortalMap());
         });
     }
 
@@ -305,6 +436,31 @@ public sealed class PersonalContentTests
             Appended.Add((envelope, payloadJson));
             return Task.CompletedTask;
         }
+    }
+
+    private sealed class IslandPortalMap : IWorldPortalMap
+    {
+        public Task<WorldSpawnPoint> GetSpawnPointAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult(new WorldSpawnPoint(0.5, 0.5));
+
+        public ValueTask<bool> IsWalkableAsync(
+            double worldX, double worldY, CancellationToken cancellationToken = default)
+            => ValueTask.FromResult(
+                (worldX == 1.5 && worldY == 0.5)
+                || (worldX == 2.5 && worldY == 0.5)
+                || (worldX == 0.5 && worldY == 3.5));
+    }
+
+    private sealed class FakePortalMap : IWorldPortalMap
+    {
+        public Task<WorldSpawnPoint> GetSpawnPointAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult(new WorldSpawnPoint(0.5, 0.5));
+
+        public ValueTask<bool> IsWalkableAsync(
+            double worldX, double worldY, CancellationToken cancellationToken = default)
+            => ValueTask.FromResult(
+                double.IsFinite(worldX) && double.IsFinite(worldY)
+                && Math.Abs(worldX) <= 8 && Math.Abs(worldY) <= 8);
     }
 
     private sealed class FakeUnitOfWork : IUnitOfWork

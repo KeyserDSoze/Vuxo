@@ -1,7 +1,13 @@
 import Phaser from 'phaser'
 import type { WorldPlayerSnapshot, WorldRealtimeClient, WorldRealtimeState } from '../features/world/worldRealtime'
+import type { WorldPortalMarker } from '../features/portals/portalApi'
 
 const TILE_SIZE = 32
+
+type PortalVisual = {
+  ring: Phaser.GameObjects.Arc
+  center: Phaser.GameObjects.Arc
+}
 
 type PlayerVisual = {
   body: Phaser.GameObjects.Rectangle
@@ -12,6 +18,10 @@ type PlayerVisual = {
 
 export class WorldScene extends Phaser.Scene {
   private readonly players = new Map<string, PlayerVisual>()
+  private readonly portalVisuals = new Map<string, PortalVisual>()
+  private portals: WorldPortalMarker[] = []
+  private ready = false
+  private inputLocked = false
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys
   private wasd!: Record<'W' | 'A' | 'S' | 'D', Phaser.Input.Keyboard.Key>
   private unsubscribe: (() => void) | null = null
@@ -20,28 +30,75 @@ export class WorldScene extends Phaser.Scene {
   private lastHorizontal = 0
   private lastVertical = 0
 
-  constructor(private readonly realtime: WorldRealtimeClient) {
+  constructor(
+    private readonly realtime: WorldRealtimeClient,
+    private readonly onPortalClick?: (grantId: string) => void,
+  ) {
     super('world')
   }
 
   create() {
     this.drawWorldGrid()
+    this.ready = true
+    this.drawPortals()
     this.cursors = this.input.keyboard!.createCursorKeys()
     this.wasd = this.input.keyboard!.addKeys('W,A,S,D') as Record<'W' | 'A' | 'S' | 'D', Phaser.Input.Keyboard.Key>
 
     this.unsubscribe = this.realtime.subscribe(state => this.applyState(state))
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.ready = false
       this.realtime.setMovementIntent(0, 0)
       this.unsubscribe?.()
       this.unsubscribe = null
     })
   }
 
-  update(_time: number, delta: number) {
-    const horizontal =
+  setPortals(markers: readonly WorldPortalMarker[]): void {
+    this.portals = [...markers]
+    if (this.ready) this.drawPortals()
+  }
+
+  setInputLocked(locked: boolean): void {
+    this.inputLocked = locked
+    if (locked) {
+      this.lastHorizontal = 0
+      this.lastVertical = 0
+      this.realtime.setMovementIntent(0, 0)
+    }
+  }
+
+  private drawPortals(): void {
+    const current = new Set(this.portals.map(portal => portal.id))
+    for (const [id, visual] of this.portalVisuals) {
+      if (current.has(id)) continue
+      visual.ring.destroy()
+      visual.center.destroy()
+      this.portalVisuals.delete(id)
+    }
+
+    for (const portal of this.portals) {
+      if (this.portalVisuals.has(portal.id)) continue
+      const x = portal.x * TILE_SIZE
+      const y = portal.y * TILE_SIZE
+      const ring = this.add.circle(x, y, 19, 0x8b5cf6, 0.35)
+        .setStrokeStyle(3, 0xe9d5ff, 1)
+        .setDepth(6)
+        .setInteractive({ useHandCursor: true })
+      const center = this.add.circle(x, y, 8, 0xc084fc, 0.95).setDepth(7)
+      ring.on('pointerdown', () => this.onPortalClick?.(portal.id))
+      this.portalVisuals.set(portal.id, { ring, center })
+    }
+  }
+
+  update(time: number, delta: number) {
+    for (const visual of this.portalVisuals.values()) {
+      visual.ring.setScale(1 + Math.sin(time / 300) * 0.08)
+    }
+
+    const horizontal = this.inputLocked ? 0 :
       (this.cursors.right.isDown || this.wasd.D.isDown ? 1 : 0)
       - (this.cursors.left.isDown || this.wasd.A.isDown ? 1 : 0)
-    const vertical =
+    const vertical = this.inputLocked ? 0 :
       (this.cursors.down.isDown || this.wasd.S.isDown ? 1 : 0)
       - (this.cursors.up.isDown || this.wasd.W.isDown ? 1 : 0)
 

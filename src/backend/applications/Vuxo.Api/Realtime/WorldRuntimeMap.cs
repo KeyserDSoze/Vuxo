@@ -8,7 +8,7 @@ namespace Vuxo.Api.Realtime;
 
 public sealed class WorldRuntimeMap(
     IServiceScopeFactory scopeFactory,
-    WorldBootstrapSpec bootstrap) : IWorldWalkabilityMap
+    WorldBootstrapSpec bootstrap) : IWorldPortalMap
 {
     private readonly ConcurrentDictionary<ChunkCoordinate, Lazy<Task<WorldChunkResult>>> _chunks = new();
 

@@ -22,6 +22,44 @@ public static class PersonalContentEndpoints
             })
             .RequireAuthorization();
 
+        endpoints.MapGet(
+            "/api/personal-content/world-portals",
+            async (ClaimsPrincipal user, WorldPortalService service, CancellationToken cancellationToken) =>
+            {
+                var playerId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrWhiteSpace(playerId)) return Results.Unauthorized();
+
+                var markers = await service.ListAsync(playerId, cancellationToken);
+                return Results.Ok(markers);
+            })
+            .RequireAuthorization();
+
+        endpoints.MapPost(
+            "/api/personal-content/world-portals/{grantId:guid}/enter",
+            async (Guid grantId, ClaimsPrincipal user, WorldPortalService service, CancellationToken cancellationToken) =>
+            {
+                var playerId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrWhiteSpace(playerId)) return Results.Unauthorized();
+
+                try
+                {
+                    // No client position or grant metadata is accepted: authoritative
+                    // identity, movement state and walkable portal placement are server-side.
+                    var marker = await service.EnterAsync(playerId, grantId, cancellationToken);
+                    return Results.Ok(marker);
+                }
+                catch (ExclusiveContentException exception) when (exception.Code == ExclusiveContentErrorCodes.NotFound)
+                {
+                    return Results.NotFound(new { code = exception.Code });
+                }
+                catch (ExclusiveContentException exception)
+                {
+                    return Results.Conflict(new { code = exception.Code });
+                }
+            })
+            .RequireAuthorization()
+            .RequireRateLimiting("portal-challenge");
+
         endpoints.MapPost(
             "/api/personal-content/{grantId:guid}/consume",
             async (Guid grantId, ClaimsPrincipal user, ExclusiveContentService service, CancellationToken cancellationToken) =>

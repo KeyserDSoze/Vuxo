@@ -1,5 +1,5 @@
 import { Alert, Box, Button, CircularProgress, Paper, Stack, Typography } from '@mui/material';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link as RouterLink } from 'react-router-dom';
 import { readStoredSession } from '../features/auth/authSession';
@@ -15,8 +15,19 @@ import {
 const runes = ['sun', 'moon', 'star', 'wave'] as const;
 const previewDurationMs = 3500;
 
-export function PortalChallengesPage() {
+type PortalChallengesPageProps = {
+  initialGrantId?: string;
+  onCompleted?: (grantId: string) => void;
+  onExit?: () => void;
+};
+
+export function PortalChallengesPage({
+  initialGrantId,
+  onCompleted,
+  onExit,
+}: PortalChallengesPageProps = {}) {
   const { t } = useTranslation('portals');
+  const autoStarted = useRef(false);
   const [grants, setGrants] = useState<PortalGrant[]>([]);
   const [selected, setSelected] = useState<PortalGrant | null>(null);
   const [challenge, setChallenge] = useState<PortalChallenge | null>(null);
@@ -76,6 +87,14 @@ export function PortalChallengesPage() {
     }
   };
 
+  useEffect(() => {
+    if (!initialGrantId || loading || autoStarted.current) return;
+    const grant = grants.find(item => item.id === initialGrantId);
+    if (!grant) return;
+    autoStarted.current = true;
+    void start(grant);
+  }, [initialGrantId, loading, grants]);
+
   const submit = async () => {
     if (!selected || !challenge || answer.length !== challenge.sequence.length) return;
     setBusy(true);
@@ -84,6 +103,7 @@ export function PortalChallengesPage() {
       await submitPortalChallenge(selected.id, answer);
       setCompleted(true);
       setGrants(items => items.filter(grant => grant.id !== selected.id));
+      onCompleted?.(selected.id);
     } catch (error) {
       setAnswer([]);
       setErrorCode(error instanceof PortalApiError ? error.code : 'portal_request_failed');
@@ -193,6 +213,10 @@ export function PortalChallengesPage() {
             <Button
               variant="text"
               onClick={() => {
+                if (onExit) {
+                  onExit();
+                  return;
+                }
                 setChallenge(null);
                 setSelected(null);
                 setErrorCode(null);

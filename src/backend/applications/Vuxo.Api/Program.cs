@@ -45,6 +45,7 @@ builder.Services.AddSingleton(provider =>
 });
 builder.Services.AddScoped<WorldService>();
 builder.Services.AddScoped<ExclusiveContentService>();
+builder.Services.AddScoped<WorldPortalService>();
 builder.Services.AddScoped<GameEventAuditService>();
 builder.Services.AddSingleton<WorldChunkGenerator>();
 builder.Services.AddSingleton<TimeProvider>(TimeProvider.System);
@@ -59,6 +60,8 @@ builder.Services.AddSingleton(provider =>
 });
 builder.Services.AddSingleton<WorldSimulation>();
 builder.Services.AddSingleton<WorldRuntimeMap>();
+builder.Services.AddSingleton<IWorldPortalMap>(serviceProvider =>
+    serviceProvider.GetRequiredService<WorldRuntimeMap>());
 builder.Services.AddHostedService<WorldSimulationTicker>();
 builder.Services.AddSingleton<MockTokenService>();
 builder.Services.AddSingleton<VuxoTokenService>();

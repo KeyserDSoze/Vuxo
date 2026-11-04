@@ -9,6 +9,8 @@ public static class ExclusiveContentErrorCodes
     public const string ChallengeNotAvailable = "portal_challenge_not_available";
     public const string ChallengeInvalidAnswer = "portal_challenge_invalid_answer";
     public const string ChallengeIncorrect = "portal_challenge_incorrect";
+    public const string WorldPortalNotJoined = "world_portal_not_joined";
+    public const string WorldPortalTooFar = "world_portal_too_far";
 }
 
 public sealed class ExclusiveContentException(string code) : InvalidOperationException(code)
