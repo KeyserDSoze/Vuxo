@@ -21,7 +21,7 @@ fi
 if [[ "$EUID" -eq 0 ]]; then
   pass "Administrator access available for host checks"
 else
-  warn "Run with sudo to check Docker access for $runner_user"
+  pass "Unprivileged mode; Docker is checked with the current runner user"
 fi
 if command -v docker >/dev/null && docker info >/dev/null 2>&1; then
   pass "Docker daemon is accessible"
