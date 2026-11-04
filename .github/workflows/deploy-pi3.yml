@@ -87,7 +87,7 @@ jobs:
         env:
           SOURCE_SHA: ${{ needs.build-arm64.outputs.source_sha }}
         run: |
-          test "$(git ls-remote https://github.com/$GITHUB_REPOSITORY.git refs/heads/main | cut -f1)" = "$SOURCE_SHA"
+          test "$(git ls-remote origin refs/heads/main | cut -f1)" = "$SOURCE_SHA"
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
