@@ -102,6 +102,24 @@ test('personal marker opens existing challenge in-world, then disappears on succ
   await expect(page.getByTestId('world-connection-status')).toHaveAttribute('data-status', 'connected');
 });
 
+test('clicking a visible Phaser portal marker opens the in-world dialog', async ({ page }) => {
+  await initializePlayer(page);
+  const api = await mockPrivatePortals(page);
+  await page.goto(origin + '/Vuxo/#/game');
+  await expect(page.getByTestId('world-connection-status')).toHaveAttribute('data-status', 'connected');
+  await expect(page.getByTestId('world-portal-enter')).toBeEnabled();
+  const canvas = page.getByTestId('game-canvas').locator('canvas');
+  await expect(canvas).toBeVisible();
+  // Phaser's follow camera centers the local player; this test marker shares
+  // that server-authoritative tile so the marker is at the canvas center.
+  await page.waitForTimeout(600);
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error('World canvas is not mounted');
+  await canvas.click({ position: { x: box.width / 2, y: box.height / 2 } });
+  await expect(page.getByTestId('world-portal-dialog')).toBeVisible();
+  expect(api.getEntryCalls()).toBe(1);
+});
+
 test('far markers are not enterable through keyboard or touch control', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await initializePlayer(page, 'en');
