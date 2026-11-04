@@ -9,13 +9,20 @@ const initialization = i18n.use(initReactI18next).init({
     it: {
       translation: {
         nav: { home: 'Home', auth: 'Account', character: 'Personaggio', game: 'Gioco', portals: 'Portali', inventory: 'Inventario', admin: 'Admin', version: 'Versione' },
-        shell: { theme: 'Tema', language: 'Lingua', navigation: 'Navigazione principale', version: 'Versione {{version}}' },
+        shell: { theme: 'Tema', language: 'Lingua', navigation: 'Navigazione principale', openMenu: 'Apri menu', closeMenu: 'Chiudi', version: 'Versione {{version}}' },
         theme: { system: 'Sistema', light: 'Chiaro', dark: 'Scuro' },
         home: {
           eyebrow: 'Versione {{version}} · First playable',
           title: 'Il primo mondo di Vuxo sta nascendo.',
           description: 'Esplora un mondo 2D condiviso, crea il tuo personaggio e preparati a un universo che cresce insieme ai giocatori.',
-          cta: 'Entra nel prototipo'
+          cta: 'Entra nel prototipo',
+          ctaSignIn: 'Accedi per iniziare',
+          ctaCharacter: 'Crea il personaggio',
+          features: {
+            character: { title: 'Il tuo Vuxian', description: 'Crea un personaggio unico e scegli gli attributi che lo definiscono.' },
+            world: { title: 'Un mondo condiviso', description: 'Esplora un mondo 2D in compagnia di altri giocatori.' },
+            portals: { title: 'Portali e sfide', description: 'Scopri nuovi portali e affronta prove personali.' }
+          }
         },
         auth: {
           title: 'Accedi a Vuxo',
@@ -219,13 +226,20 @@ const initialization = i18n.use(initReactI18next).init({
     en: {
       translation: {
         nav: { home: 'Home', auth: 'Account', character: 'Character', game: 'Game', portals: 'Portals', inventory: 'Inventory', admin: 'Admin', version: 'Version' },
-        shell: { theme: 'Theme', language: 'Language', navigation: 'Main navigation', version: 'Version {{version}}' },
+        shell: { theme: 'Theme', language: 'Language', navigation: 'Main navigation', openMenu: 'Open menu', closeMenu: 'Close', version: 'Version {{version}}' },
         theme: { system: 'System', light: 'Light', dark: 'Dark' },
         home: {
           eyebrow: 'Version {{version}} · First playable',
           title: 'The first world of Vuxo is coming to life.',
           description: 'Explore a shared 2D world, create your character and get ready for a universe that grows together with its players.',
-          cta: 'Enter the prototype'
+          cta: 'Enter the prototype',
+          ctaSignIn: 'Sign in to get started',
+          ctaCharacter: 'Create your character',
+          features: {
+            character: { title: 'Your Vuxian', description: 'Create a unique character and choose the attributes that define them.' },
+            world: { title: 'A shared world', description: 'Explore a 2D world alongside other players.' },
+            portals: { title: 'Portals and challenges', description: 'Discover new portals and take on personal challenges.' }
+          }
         },
         auth: {
           title: 'Sign in to Vuxo',

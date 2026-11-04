@@ -1,13 +1,13 @@
-const ACCESS_TOKEN_STORAGE_KEY = 'vuxo.accessToken'
+import { getStoredSessionSnapshot } from '../auth/authSession'
 const ROLE_CLAIM_URI = 'http://schemas.microsoft.com/ws/2008/06/identity/claims/role'
 
 export type AdminAccessState = 'administrator' | 'unauthenticated' | 'forbidden'
 
 export function getAdminAccessState(nowSeconds = Date.now() / 1000): AdminAccessState {
-  const token = localStorage.getItem(ACCESS_TOKEN_STORAGE_KEY)
-  if (!token) return 'unauthenticated'
+  const session = getStoredSessionSnapshot(nowSeconds * 1000)
+  if (!session) return 'unauthenticated'
 
-  const payload = decodeJwtPayload(token)
+  const payload = decodeJwtPayload(session.accessToken)
   if (!payload) return 'unauthenticated'
   if (typeof payload.exp === 'number' && payload.exp <= nowSeconds) return 'unauthenticated'
 

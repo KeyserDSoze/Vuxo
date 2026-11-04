@@ -1,12 +1,12 @@
 import { Alert, Stack, Typography } from '@mui/material'
 import { useTranslation } from 'react-i18next'
 import '../features/admin/adminI18n'
-import { getAdminAccessState } from '../features/admin/adminAccess'
+import { useAdminAccessState } from '../features/admin/useAdminAccessState'
 import { AdminPage } from './AdminPage'
 
 export function AdminRoute() {
   const { t } = useTranslation()
-  const accessState = getAdminAccessState()
+  const accessState = useAdminAccessState()
 
   if (accessState === 'administrator') return <AdminPage />
 
