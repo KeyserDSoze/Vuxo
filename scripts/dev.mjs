@@ -5,7 +5,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { generateLocalEnv, hostEnvironment, parseEnv, validateLocalEnv } from './dev-lib.mjs';
+import { generateLocalEnv, hostEnvironment, infrastructurePlan, parseEnv, validateLocalEnv } from './dev-lib.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const localPath = join(root, 'docker', '.env.local');
@@ -92,13 +92,12 @@ async function ready(url, timeoutMs = 180000) {
 
 function startInfrastructure(config) {
   const runner = runtime(config);
-  // Switching from full Docker to infra/debug/test must release the API/Vite host ports.
-  // Compose stop is idempotent and never removes the named database/cache volumes.
-  runner.run('stop', 'frontend', 'api');
-  const services = ['postgres', 'redis'];
-  if (config.VUXO_LLM_ENABLED === 'true') services.push('ollama');
-  runner.run('up', '-d', '--wait', '--wait-timeout', '180', ...services);
-  if (config.VUXO_LLM_ENABLED === 'true') {
+  const plan = infrastructurePlan(config);
+  // Switching from full Docker to infra/debug/test releases API/Vite host ports.
+  // Compose stop does not remove any named database/cache volumes.
+  runner.run('stop', ...plan.stop);
+  runner.run('up', '-d', '--wait', '--wait-timeout', '180', ...plan.start);
+  if (plan.initializeModel) {
     info('Downloading/checking local Ollama model ' + config.VUXO_LLM_MODEL);
     runner.run('run', '--rm', '--no-deps', 'ollama-model-init');
   }
