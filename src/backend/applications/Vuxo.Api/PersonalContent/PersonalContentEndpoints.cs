@@ -1,4 +1,6 @@
 using System.Security.Claims;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.RateLimiting;
 using Vuxo.Application.PersonalContent;
 using Vuxo.Domain.PersonalContent;
 
@@ -48,6 +50,66 @@ public static class PersonalContentEndpoints
                 }
             })
             .RequireAuthorization();
+
+        endpoints.MapGet(
+            "/api/personal-content/{grantId:guid}/challenge",
+            async (Guid grantId, ClaimsPrincipal user, ExclusiveContentService service, CancellationToken cancellationToken) =>
+            {
+                var playerId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrWhiteSpace(playerId)) return Results.Unauthorized();
+
+                try
+                {
+                    var challenge = await service.GetChallengeAsync(playerId, grantId, cancellationToken);
+                    return Results.Ok(new { grantId, challenge.Version, challenge.Sequence });
+                }
+                catch (ExclusiveContentException exception) when (exception.Code == ExclusiveContentErrorCodes.NotFound)
+                {
+                    return Results.NotFound(new { code = exception.Code });
+                }
+                catch (ExclusiveContentException exception)
+                {
+                    return Results.Conflict(new { code = exception.Code });
+                }
+            })
+            .RequireAuthorization();
+
+        endpoints.MapPost(
+            "/api/personal-content/{grantId:guid}/challenge/attempt",
+            async (Guid grantId, PortalSequenceAttemptRequest request, ClaimsPrincipal user,
+                ExclusiveContentService service, CancellationToken cancellationToken) =>
+            {
+                var playerId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrWhiteSpace(playerId)) return Results.Unauthorized();
+
+                try
+                {
+                    var grant = await service.SubmitChallengeAsync(playerId, grantId, request.Sequence, cancellationToken);
+                    return Results.Ok(new { grant.Id, grant.ContentKey, grant.ConsumedAtUtc });
+                }
+                catch (ExclusiveContentException exception) when (exception.Code == ExclusiveContentErrorCodes.NotFound)
+                {
+                    return Results.NotFound(new { code = exception.Code });
+                }
+                catch (ExclusiveContentException exception) when (exception.Code == ExclusiveContentErrorCodes.ChallengeInvalidAnswer)
+                {
+                    return Results.BadRequest(new { code = exception.Code });
+                }
+                catch (ExclusiveContentException exception) when (exception.Code == ExclusiveContentErrorCodes.ChallengeIncorrect)
+                {
+                    return Results.UnprocessableEntity(new { code = exception.Code });
+                }
+                catch (ExclusiveContentException exception)
+                {
+                    return Results.Conflict(new { code = exception.Code });
+                }
+                catch (DbUpdateConcurrencyException)
+                {
+                    return Results.Conflict(new { code = ExclusiveContentErrorCodes.Consumed });
+                }
+            })
+            .RequireAuthorization()
+            .RequireRateLimiting("portal-challenge");
 
         endpoints.MapPost(
             "/api/admin/personal-content/grants",
@@ -105,6 +167,8 @@ public static class PersonalContentEndpoints
         grant.ExpiresAtUtc
     };
 }
+
+public sealed record PortalSequenceAttemptRequest(string[]? Sequence);
 
 public sealed record GrantExclusiveContentRequest(
     Guid SourceEventId,
