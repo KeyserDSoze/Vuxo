@@ -32,7 +32,28 @@ public sealed class EquipmentPersistenceIntegrationTests
             Assert.NotNull(equipped.Stats);
             Assert.Equal(3, equipped.Stats.Intelligence);
             Assert.Equal(1, equipped.Stats.Bonuses.Intelligence);
+            var equippedStack = Assert.Single(await service.GetStacksAsync("player-a"));
+            Assert.Equal(1, equippedStack.EquippedQuantity);
+            Assert.Empty(equippedStack.AvailableGrantIds);
+
+            var removed = await service.UnequipAsync("player-a", EquipmentRules.Relic);
+            Assert.Empty(removed.Items);
+            Assert.NotNull(removed.Stats);
+            Assert.Equal(2, removed.Stats.Intelligence);
+            var restoredStack = Assert.Single(await service.GetStacksAsync("player-a"));
+            Assert.Equal(0, restoredStack.EquippedQuantity);
+            Assert.Single(restoredStack.AvailableGrantIds);
         }
+
+        await using var verified = database.CreateDbContext();
+        Assert.Empty(await new PlayerEquipmentRepository(verified).GetForPlayerAsync("player-a"));
+        var audit = await new GameEventStore(verified).QueryAsync(
+            new GameEventQuery(PlayerId: "player-a"));
+        Assert.Equal(2, audit.Total);
+        Assert.Contains(audit.Items, x => x.Envelope.EventType == "inventory.equipped"
+            && x.Envelope.CausationId == award.AwardEventId);
+        Assert.Contains(audit.Items, x => x.Envelope.EventType == "inventory.unequipped"
+            && x.Envelope.CausationId == award.AwardEventId);
     }
 
     [PostgresIntegrationFact]
