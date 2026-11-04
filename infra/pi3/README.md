@@ -107,7 +107,7 @@ docker compose -p vuxo --env-file /path/to/private.env \
 
 ## 6. AI and rollback limitations
 
-The local Ollama service is **disabled by default** on this memory-constrained target. A modern 0.8B multimodal vision/tool-capable model requires around or beyond the full Pi 3 memory just for weights. Configure a model endpoint hosted on a larger machine, only after establishing authentication, TLS and trusted image-tool message parsing in VUXO's gateway. The existing VUXO allow-listed tools remain authoritative server-side; AI cannot grant rewards or mutate the world directly.
+The local Ollama service is **disabled by default** on this memory-constrained target. The official Ollama qwen3.5:0.8b default download is about 1.2–1.3 GB; third-party 4-bit GGUF weights can be roughly 0.5–0.6 GB but require a vision projector, inference runtime and KV cache. Even these compressed variants are not a reliable concurrent 1 GiB Raspberry Pi 3 production workload. Configure a model endpoint hosted on a larger machine, only after establishing authentication, TLS and trusted image-tool message parsing in VUXO's gateway. The existing VUXO allow-listed tools remain authoritative server-side; AI cannot grant rewards or mutate the world directly.
 
 The Pi's 1 GiB RAM, microSD I/O and CPU are a severe bottleneck for multiplayer concurrency and database workloads. Check peak resident memory, Docker OOM kills, IO latency, CPU throttling and SignalR responsiveness under concurrent gameplay. If health and load tests do not pass, move PostgreSQL/AI to a stronger host or upgrade the hardware.
 
