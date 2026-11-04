@@ -120,6 +120,12 @@ async function configureSession(page: Page, role: string): Promise<void> {
   const token = makeJwt(role)
   await page.addInitScript(({ accessToken }) => {
     localStorage.setItem('vuxo.accessToken', accessToken)
+    localStorage.setItem('vuxo.auth.expiresAtUtc', '2099-01-01T00:00:00Z')
+    localStorage.setItem('vuxo.auth.user', JSON.stringify({
+      id: 'test-player',
+      displayName: 'Test administrator',
+      email: null,
+    }))
     localStorage.setItem('vuxo.language', 'it')
     localStorage.setItem('vuxo.theme', 'system')
   }, { accessToken: token })

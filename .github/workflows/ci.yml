@@ -146,3 +146,13 @@ jobs:
         env:
           VITE_BASE_PATH: /Vuxo/
         run: npm run test:e2e
+      - name: Upload Playwright diagnostics on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-playwright-diagnostics
+          path: |
+            src/frontend/playwright-report/
+            src/frontend/test-results/
+          retention-days: 7
+          if-no-files-found: ignore

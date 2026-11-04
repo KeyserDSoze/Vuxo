@@ -77,7 +77,7 @@ export function App() {
           </IconButton>
         </Toolbar>
       </AppBar>
-      <Drawer anchor="right" open={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} keepMounted>
+      <Drawer anchor="right" open={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)}>
         <Box id="vuxo-mobile-navigation" component="nav" data-testid="mobile-nav" aria-label={t('shell.navigation')} sx={{ width: { xs: 'min(85vw, 320px)', sm: 320 }, p: 2 }}>
           <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
             <Typography variant="h6" fontWeight={800}>VUXO</Typography>
