@@ -14,7 +14,10 @@ async function signIn(page: Page, language: 'it' | 'en' = 'it') {
 }
 
 test('inventory requires a Vuxo login and never reads anonymously', async ({ page }) => {
-  await page.addInitScript(() => localStorage.clear());
+  await page.addInitScript(() => {
+    localStorage.clear();
+    localStorage.setItem('vuxo.language', 'it');
+  });
   let calls = 0;
   await page.route('**/api/inventory', route => {
     calls++;
