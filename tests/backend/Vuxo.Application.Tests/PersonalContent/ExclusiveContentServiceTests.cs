@@ -235,7 +235,8 @@ public sealed class ExclusiveContentServiceTests
     private static ExclusiveContentService CreateService(
         FakeRepository repository,
         FakeEventStore? events = null,
-        FakeUnitOfWork? unitOfWork = null) =>
+        FakeUnitOfWork? unitOfWork = null,
+        FakeInventoryRepository? inventory = null) =>
         new(
             repository,
             events ?? new FakeEventStore(),
