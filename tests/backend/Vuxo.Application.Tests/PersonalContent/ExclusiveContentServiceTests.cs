@@ -214,6 +214,23 @@ public sealed class ExclusiveContentServiceTests
         Assert.False(grant.IsConsumed);
     }
 
+    [Fact]
+    public async Task Challenge_ExpiredGrantAndUnrelatedPortalAreRejected()
+    {
+        var repository = new FakeRepository();
+        var service = CreateService(repository);
+        var expired = CreateGrant("player-a", Now.AddMinutes(-1), portalKey: PortalSequenceRules.PortalKey);
+        var unrelated = CreateGrant("player-a", Now.AddHours(1));
+        repository.Grants.AddRange([expired, unrelated]);
+
+        var expiredError = await Assert.ThrowsAsync<ExclusiveContentException>(
+            () => service.GetChallengeAsync("player-a", expired.Id));
+        Assert.Equal(ExclusiveContentErrorCodes.Expired, expiredError.Code);
+        var otherError = await Assert.ThrowsAsync<ExclusiveContentException>(
+            () => service.GetChallengeAsync("player-a", unrelated.Id));
+        Assert.Equal(ExclusiveContentErrorCodes.ChallengeNotAvailable, otherError.Code);
+    }
+
     private static ExclusiveContentService CreateService(
         FakeRepository repository,
         FakeEventStore? events = null,
