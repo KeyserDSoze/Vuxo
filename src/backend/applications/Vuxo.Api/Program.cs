@@ -16,6 +16,7 @@ using Vuxo.Api.Realtime;
 using Vuxo.Api.Worlds;
 using Vuxo.Application.AI;
 using Vuxo.Application.Events;
+using Vuxo.Application.Inventory;
 using Vuxo.Application.Identity;
 using Vuxo.Application.PersonalContent;
 using Vuxo.Application.Players;
