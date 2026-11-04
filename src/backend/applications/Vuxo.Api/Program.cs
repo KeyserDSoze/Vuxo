@@ -60,6 +60,8 @@ builder.Services.AddSingleton(provider =>
 });
 builder.Services.AddSingleton<WorldSimulation>();
 builder.Services.AddSingleton<WorldRuntimeMap>();
+builder.Services.AddSingleton<IWorldPortalMap>(serviceProvider =>
+    serviceProvider.GetRequiredService<WorldRuntimeMap>());
 builder.Services.AddHostedService<WorldSimulationTicker>();
 builder.Services.AddSingleton<MockTokenService>();
 builder.Services.AddSingleton<VuxoTokenService>();
