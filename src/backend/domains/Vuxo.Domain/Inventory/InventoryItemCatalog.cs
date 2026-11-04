@@ -9,10 +9,11 @@ public static class InventoryItemCatalog
     public const string RuneShard = "item.rune_shard.v1";
     public const string GroveSeed = "item.grove_seed.v1";
     public const string TidalPearl = "item.tidal_pearl.v1";
+    public const string SwiftFeather = "item.swift_feather.v1";
 
     public static IReadOnlyList<string> ItemKeys { get; } = Array.AsReadOnly(
-        new[] { RuneShard, GroveSeed, TidalPearl });
+        new[] { RuneShard, GroveSeed, TidalPearl, SwiftFeather });
 
     public static bool IsSupported(string? rewardKey) =>
-        rewardKey is RuneShard or GroveSeed or TidalPearl;
+        rewardKey is RuneShard or GroveSeed or TidalPearl or SwiftFeather;
 }
