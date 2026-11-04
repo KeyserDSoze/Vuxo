@@ -1,0 +1,65 @@
+name: Production bootstrap contracts
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  production-bootstrap-contract:
+    name: Linux host bootstrap and production Compose contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify Linux bootstrap syntax, usage, and runner contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n infra/self-hosted/bootstrap-linux.sh
+          bash infra/self-hosted/bootstrap-linux.sh --help > /tmp/vuxo-bootstrap-help
+          grep -Fq -- '--non-interactive' /tmp/vuxo-bootstrap-help
+          grep -Fq -- '--runner-user' /tmp/vuxo-bootstrap-help
+          grep -Fq -- '--repo' /tmp/vuxo-bootstrap-help
+          test -s infra/self-hosted/SETUP.md
+          grep -Fq 'api.vuxoapi.xyz' infra/self-hosted/SETUP.md
+          rm -f /tmp/vuxo-bootstrap-help
+      - name: Verify production persistence, ports, and reboot contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          export VUXO_API_IMAGE="ghcr.io/keyserdsoze/vuxo-api:contract-test-only"
+          export VUXO_POSTGRES_PASSWORD="$(openssl rand -hex 24)"
+          export VUXO_JWT_SIGNING_KEY="$(openssl rand -hex 48)"
+          export VUXO_CLOUDFLARE_TUNNEL_TOKEN="contract-test-no-real-token"
+          rendered="$(mktemp)"
+          trap 'rm -f "$rendered"' EXIT
+          docker compose -f docker/compose.prod.yml --profile edge config --format json > "$rendered"
+          python3 - "$rendered" <<'PY'
+          import json
+          import sys
+
+          with open(sys.argv[1], encoding="utf-8") as source:
+              config = json.load(source)
+
+          assert config["name"] == "vuxo", "Production Compose name must not depend on runner checkout path"
+          services = config["services"]
+          for name in ("api", "postgres", "redis", "ollama", "cloudflared"):
+              assert name in services, f"Missing production service: {name}"
+              assert services[name].get("restart") == "unless-stopped", f"Unprotected restart policy: {name}"
+
+          api_ports = services["api"].get("ports", [])
+          assert len(api_ports) == 1
+          assert api_ports[0].get("host_ip") == "127.0.0.1"
+          assert api_ports[0].get("target") == 8080
+          for name in ("postgres", "redis", "ollama", "cloudflared"):
+              assert not services[name].get("ports"), f"{name} must not expose public ports"
+
+          volumes = config["volumes"]
+          for name in ("vuxo-postgres", "vuxo-redis", "vuxo-ollama"):
+              assert name in volumes
+              assert volumes[name].get("name") == f"vuxo_{name}", "Volume name must preserve the existing default project namespace"
+          print("Production bootstrap + Compose contracts verified without touching the real host")
+          PY
