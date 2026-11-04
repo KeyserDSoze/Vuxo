@@ -1,22 +1,24 @@
 import { DarkMode, Language, LightMode, Menu as MenuIcon, SettingsBrightness } from '@mui/icons-material';
-import { AppBar, Box, Button, Chip, Container, Drawer, IconButton, List, ListItemButton, ListItemText, Stack, Toolbar, Tooltip, Typography } from '@mui/material';
+import { AppBar, Box, Button, Chip, CircularProgress, Container, Drawer, IconButton, List, ListItemButton, ListItemText, Stack, Toolbar, Tooltip, Typography } from '@mui/material';
 import { alpha } from '@mui/material/styles';
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link as RouterLink, Route, Routes, useLocation } from 'react-router-dom';
 import { useAdminAccessState } from './features/admin/useAdminAccessState';
 import { BuildUpdateNotifier } from './features/version/BuildUpdateNotifier';
 import { useBuildInfo } from './features/version/BuildInfoProvider';
-import { AdminRoute } from './pages/AdminRoute';
 import { AuthPage } from './pages/AuthPage';
 import { CharacterEditorPage } from './pages/CharacterEditorPage';
-import { GamePage } from './pages/GamePage';
 import { HomePage } from './pages/HomePage';
 import { InventoryPage } from './pages/InventoryPage';
 import { PortalChallengesPage } from './pages/PortalChallengesPage';
 import { VersionPage } from './pages/VersionPage';
 import { useVuxoTheme } from './theme/VuxoThemeProvider';
 import { vuxoDesignTokens } from './theme/tokens';
+
+// Heavy routes must not download their bundles while a visitor reads the home.
+const GamePage = lazy(() => import('./pages/GamePage').then(module => ({ default: module.GamePage })));
+const AdminRoute = lazy(() => import('./pages/AdminRoute').then(module => ({ default: module.AdminRoute })));
 
 const navItems = [
   { to: '/', key: 'nav.home' },
@@ -93,6 +95,12 @@ export function App() {
         </Box>
       </Drawer>
       <Container component="main" maxWidth="xl" sx={{ py: { xs: vuxoDesignTokens.layout.pagePaddingYMobile, md: vuxoDesignTokens.layout.pagePaddingYDesktop } }}>
+        <Suspense fallback={
+          <Stack role="status" data-testid="route-loading" direction="row" spacing={2} sx={{ alignItems: 'center', py: 5 }}>
+            <CircularProgress size={28} aria-label={t('shell.loadingPage')} />
+            <Typography color="text.secondary">{t('shell.loadingPage')}</Typography>
+          </Stack>
+        }>
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/auth" element={<AuthPage />} />
@@ -103,6 +111,7 @@ export function App() {
           <Route path="/admin" element={<AdminRoute />} />
           <Route path="/version" element={<VersionPage />} />
         </Routes>
+        </Suspense>
       </Container>
       <BuildUpdateNotifier />
     </Box>
