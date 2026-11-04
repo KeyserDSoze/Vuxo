@@ -1,3 +1,7 @@
+name: vuxo
+
+# Stable project name preserves the existing default project-name volume namespace
+# (vuxo_vuxo-postgres / vuxo_vuxo-redis / vuxo_vuxo-ollama) across runner workdirs.
 services:
   api:
     image: ${VUXO_API_IMAGE:?VUXO_API_IMAGE is required}
