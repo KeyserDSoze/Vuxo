@@ -52,7 +52,7 @@ Environment variables:
 At repository **Settings → Secrets and variables → Actions → Variables** create
 VUXO_PI3_DEPLOY_ENABLED = false until the runner is online, images pass ARM64 manifest checks, backups are configured and the migration has been approved. Enable only for the verified rollout.
 
-The workflow deploy-pi3.yml is triggered by a successful **CI workflow from push to main**. It builds the API on GitHub's ARM64 hosted runner (not the Pi), publishes the immutable GHCR tag **pi3-<commit-sha>**, and deploys on [self-hosted, linux, ARM64, vuxo-pi3]. A green pull-request CI is insufficient. There is no manual bypass in this workflow.
+The workflow deploy-pi3.yml is triggered by a successful **CI workflow from push to main**. It builds the API on GitHub's ARM64 hosted runner (not the Pi) and publishes the immutable GHCR tag **pi3-<commit-sha>** even when Raspberry deployment is disabled. Only the deployment job, which runs on [self-hosted, linux, ARM64, vuxo-pi3], requires `VUXO_PI3_DEPLOY_ENABLED=true`. A green pull-request CI is insufficient. There is no manual bypass in this workflow. This permits checking ARM64 image builds while low-voltage hardware is held out of production.
 
 The older deploy-server.yml is an **x64** production deployment and is now disabled by default. It runs only if repository variable `VUXO_X64_DEPLOY_ENABLED=true` is set. Keep the x64 flag absent/false during Pi rollout; do not enable both production targets. Its images use separate tags.
 
