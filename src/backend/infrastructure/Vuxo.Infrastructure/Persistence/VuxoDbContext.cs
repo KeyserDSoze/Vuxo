@@ -12,6 +12,7 @@ public sealed class VuxoDbContext(DbContextOptions<VuxoDbContext> options) : DbC
     public DbSet<WorldChunkEntity> WorldChunks => Set<WorldChunkEntity>();
     public DbSet<ExclusiveContentGrantEntity> ExclusiveContentGrants => Set<ExclusiveContentGrantEntity>();
     public DbSet<PlayerInventoryAwardEntity> PlayerInventoryAwards => Set<PlayerInventoryAwardEntity>();
+    public DbSet<PlayerEquippedItemEntity> PlayerEquippedItems => Set<PlayerEquippedItemEntity>();
     public DbSet<VuxoUserEntity> VuxoUsers => Set<VuxoUserEntity>();
     public DbSet<ExternalIdentityEntity> ExternalIdentities => Set<ExternalIdentityEntity>();
 
