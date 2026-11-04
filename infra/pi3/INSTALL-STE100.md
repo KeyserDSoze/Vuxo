@@ -386,6 +386,26 @@ Merge a new, approved change into main. This starts a new CI run.
 
 **IMPORTANT:** A CI run that ended before you enabled the variable does not automatically start a new Pi deploy.
 
+### Retry a deployment
+
+Before a retry, check the Raspberry power status:
+
+~~~sh
+vcgencmd get_throttled
+~~~
+
+A fresh boot with a stable power supply should report `throttled=0x0`.
+**STOP:** If undervoltage or throttling is active, do not force the deployment.
+The GitHub runner performs its own hardware preflight and stops before the database is changed.
+
+To request a new attempt, push a reviewed change to `main`.
+The `CI` workflow tests that commit. A successful CI starts the ARM64 workflow.
+The workflow publishes an ARM64 image. It then tries to deploy only if
+the repository variable `VUXO_PI3_DEPLOY_ENABLED` is `true`.
+
+**NOTE:** A direct change of the GitHub variable does not start a new workflow.
+Do not change scripts to bypass the preflight, and do not clear power warnings without fixing the cause.
+
 Open **Actions > Deploy VUXO to Raspberry Pi 3 ARM64**.
 
 **Expected result:** The build-arm64 job completes. Then the deploy-pi3 job completes.
