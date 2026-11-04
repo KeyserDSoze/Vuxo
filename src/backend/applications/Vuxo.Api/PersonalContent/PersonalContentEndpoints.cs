@@ -48,6 +48,10 @@ public static class PersonalContentEndpoints
                 {
                     return Results.Conflict(new { code = exception.Code });
                 }
+                catch (DbUpdateConcurrencyException)
+                {
+                    return Results.Conflict(new { code = ExclusiveContentErrorCodes.Consumed });
+                }
             })
             .RequireAuthorization();
 
