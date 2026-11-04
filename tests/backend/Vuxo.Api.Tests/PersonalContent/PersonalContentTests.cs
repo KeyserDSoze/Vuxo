@@ -96,6 +96,75 @@ public sealed class PersonalContentTests
         Assert.Equal(grant.GrantEventId, appended.Envelope.EventId);
     }
 
+    [Fact]
+    public async Task Challenge_RequiresAuth_AndNeverExposesOtherPlayersGrant()
+    {
+        var grant = CreateGrant("player-a", portalKey: PortalSequenceRules.PortalKey);
+        using var factory = CreateFactory(out var repository, out _, out _);
+        repository.Grants.Add(grant);
+        using var client = factory.CreateClient();
+
+        var unauth = await client.GetAsync($"/api/personal-content/{grant.Id}/challenge");
+        Assert.Equal(HttpStatusCode.Unauthorized, unauth.StatusCode);
+
+        await AuthenticateAsync(client, "player-b", "User");
+        var hidden = await client.GetAsync($"/api/personal-content/{grant.Id}/challenge");
+        Assert.Equal(HttpStatusCode.NotFound, hidden.StatusCode);
+        var attempt = await client.PostAsJsonAsync(
+            $"/api/personal-content/{grant.Id}/challenge/attempt",
+            new { sequence = new[] { "sun", "moon", "star", "wave" } });
+        Assert.Equal(HttpStatusCode.NotFound, attempt.StatusCode);
+        Assert.False(grant.IsConsumed);
+    }
+
+    [Fact]
+    public async Task Challenge_ValidatesAnswerAndConsumesExactlyOnce_WithoutSeedDisclosure()
+    {
+        var grant = CreateGrant("player-a", portalKey: PortalSequenceRules.PortalKey);
+        using var factory = CreateFactory(out var repository, out var events, out var uow);
+        repository.Grants.Add(grant);
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, "player-a", "User");
+
+        var preview = await client.GetAsync($"/api/personal-content/{grant.Id}/challenge");
+        Assert.Equal(HttpStatusCode.OK, preview.StatusCode);
+        using var json = JsonDocument.Parse(await preview.Content.ReadAsStringAsync());
+        Assert.False(json.RootElement.TryGetProperty("seed", out _));
+        Assert.False(json.RootElement.TryGetProperty("rewardKey", out _));
+        var answer = json.RootElement.GetProperty("sequence")
+            .EnumerateArray().Select(x => x.GetString()!).ToArray();
+        Assert.Equal(4, answer.Length);
+
+        var bypass = await client.PostAsync($"/api/personal-content/{grant.Id}/consume", null);
+        Assert.Equal(HttpStatusCode.Conflict, bypass.StatusCode);
+        Assert.Equal("portal_challenge_required",
+            (await bypass.Content.ReadFromJsonAsync<ErrorResponse>())?.Code);
+
+        var malformed = await client.PostAsJsonAsync(
+            $"/api/personal-content/{grant.Id}/challenge/attempt", new { sequence = new[] { "sun" } });
+        Assert.Equal(HttpStatusCode.BadRequest, malformed.StatusCode);
+        var wrong = answer.ToArray();
+        wrong[0] = wrong[0] == "sun" ? "moon" : "sun";
+        var incorrect = await client.PostAsJsonAsync(
+            $"/api/personal-content/{grant.Id}/challenge/attempt", new { sequence = wrong });
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, incorrect.StatusCode);
+        Assert.False(grant.IsConsumed);
+        Assert.Empty(events.Appended);
+
+        var correct = await client.PostAsJsonAsync(
+            $"/api/personal-content/{grant.Id}/challenge/attempt", new { sequence = answer });
+        Assert.Equal(HttpStatusCode.OK, correct.StatusCode);
+        Assert.True(grant.IsConsumed);
+        Assert.Equal(1, repository.UpdateCalls);
+        Assert.Equal(1, uow.SaveCalls);
+        Assert.Single(events.Appended);
+
+        var replay = await client.PostAsJsonAsync(
+            $"/api/personal-content/{grant.Id}/challenge/attempt", new { sequence = answer });
+        Assert.Equal(HttpStatusCode.Conflict, replay.StatusCode);
+        Assert.Single(events.Appended);
+    }
+
     private static VuxoApiFactory CreateFactory(
         out FakeRepository repository,
         out FakeEventStore events,
@@ -148,13 +217,13 @@ public sealed class PersonalContentTests
         expiresAtUtc = DateTimeOffset.UtcNow.AddHours(1)
     };
 
-    private static ExclusiveContentGrant CreateGrant(string playerId) =>
+    private static ExclusiveContentGrant CreateGrant(string playerId, string portalKey = "portal-key") =>
         ExclusiveContentGrant.Create(
             Guid.NewGuid(),
             Guid.NewGuid(),
             playerId,
             "content-key",
-            "portal-key",
+            portalKey,
             "dialog-key",
             "reward-key",
             42,
