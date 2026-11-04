@@ -241,7 +241,8 @@ public sealed class ExclusiveContentServiceTests
             repository,
             events ?? new FakeEventStore(),
             unitOfWork ?? new FakeUnitOfWork(),
-            new FixedTimeProvider(Now));
+            new FixedTimeProvider(Now),
+            inventory ?? new FakeInventoryRepository());
 
     private static ExclusiveContentGrant CreateGrant(
         string playerId,
