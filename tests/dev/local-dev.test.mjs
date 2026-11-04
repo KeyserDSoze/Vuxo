@@ -13,6 +13,16 @@ test('init produces valid isolated local secrets, never placeholder values', () 
   assert.equal(env.VUXO_OBSERVABILITY_ENABLED, 'false');
 });
 
+test('init generates three independent secrets instead of reusing one', () => {
+  let count = 0;
+  const env = parseEnv(generateLocalEnv(example, () => 'local-secret-' + (++count) + '-abcdefghijklmnopqrstuvwxyz12345'));
+  assert.equal(count, 3);
+  assert.notEqual(env.VUXO_POSTGRES_PASSWORD, env.VUXO_JWT_SIGNING_KEY);
+  assert.notEqual(env.VUXO_POSTGRES_PASSWORD, env.VUXO_GRAFANA_ADMIN_PASSWORD);
+  assert.notEqual(env.VUXO_GRAFANA_ADMIN_PASSWORD, env.VUXO_JWT_SIGNING_KEY);
+  validateLocalEnv(env);
+});
+
 test('parses CRLF and quoted values equally on Windows and Linux', () => {
   assert.deepEqual(parseEnv('A="x"\r\n# note\r\nB=y\r\n'), { A: 'x', B: 'y' });
   assert.throws(() => parseEnv('INVALID LINE'), /Invalid environment line/);
