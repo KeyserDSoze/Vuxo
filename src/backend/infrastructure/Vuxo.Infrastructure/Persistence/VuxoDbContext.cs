@@ -97,6 +97,20 @@ public sealed class VuxoDbContext(DbContextOptions<VuxoDbContext> options) : DbC
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
+        modelBuilder.Entity<PlayerEquippedItemEntity>(entity =>
+        {
+            entity.ToTable("player_equipped_items");
+            entity.HasKey(x => new { x.PlayerId, x.Slot });
+            entity.Property(x => x.PlayerId).HasMaxLength(200);
+            entity.Property(x => x.Slot).HasMaxLength(32);
+            entity.HasIndex(x => x.GrantId).IsUnique();
+            entity.HasOne<PlayerInventoryAwardEntity>()
+                .WithMany()
+                .HasForeignKey(x => new { x.GrantId, x.PlayerId })
+                .HasPrincipalKey(x => new { x.GrantId, x.PlayerId })
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
         modelBuilder.Entity<ExclusiveContentGrantEntity>(entity =>
         {
             entity.ToTable("exclusive_content_grants");
