@@ -154,6 +154,15 @@ export function GameCanvas() {
           <Typography variant="body2" color="text.secondary">
             {t('game.playersOnline', { count: players.length })}
           </Typography>
+          {self && (
+            <Chip
+              size="small"
+              variant="outlined"
+              data-testid="world-speed"
+              data-speed={self.speedMultiplier}
+              label={t('game.effectiveSpeed', { multiplier: self.speedMultiplier.toFixed(2) })}
+            />
+          )}
         </Stack>
         <Stack data-testid="world-presence" direction="row" spacing={0.75} sx={{ flexWrap: 'wrap' }}>
           {players.map(player => (
@@ -166,6 +175,7 @@ export function GameCanvas() {
               data-player-x={player.x}
               data-player-y={player.y}
               data-player-revision={player.revision}
+              data-player-speed={player.speedMultiplier}
             />
           ))}
         </Stack>
