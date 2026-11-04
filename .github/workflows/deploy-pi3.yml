@@ -14,9 +14,9 @@ concurrency:
 
 jobs:
   build-arm64:
-    # Never promote a PR or stale/unverified CI result with production secrets.
+    # Build trusted green-main revisions even while hardware deployment is disabled.
+    # No Raspberry or production secrets are used by this build job.
     if: >-
-      vars.VUXO_PI3_DEPLOY_ENABLED == 'true' &&
       github.event_name == 'workflow_run' &&
       github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.event == 'push' &&
@@ -66,6 +66,8 @@ jobs:
           tags: ${{ steps.image.outputs.image }}
 
   deploy-pi3:
+    # Production remains off until explicitly enabled after host readiness checks.
+    if: vars.VUXO_PI3_DEPLOY_ENABLED == 'true'
     needs: build-arm64
     runs-on: [self-hosted, linux, ARM64, vuxo-pi3]
     environment: production
