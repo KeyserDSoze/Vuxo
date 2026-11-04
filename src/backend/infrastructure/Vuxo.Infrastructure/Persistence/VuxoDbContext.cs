@@ -92,6 +92,8 @@ public sealed class VuxoDbContext(DbContextOptions<VuxoDbContext> options) : DbC
             entity.Property(x => x.DialogBranchKey).HasMaxLength(200);
             entity.Property(x => x.RewardKey).HasMaxLength(200);
             entity.Property(x => x.RuleVersion).HasMaxLength(100);
+            // Optimistic concurrency prevents two simultaneous attempts consuming one grant twice.
+            entity.Property(x => x.ConsumedAtUtc).IsConcurrencyToken();
         });
     }
 }

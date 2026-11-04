@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Vuxo.Application.PersonalContent;
 using Vuxo.Domain.PersonalContent;
 using Vuxo.Infrastructure.Persistence.Entities;
 
@@ -15,6 +16,11 @@ public sealed class ExclusiveContentGrantRepository(VuxoDbContext dbContext) : I
     {
         var entity = await dbContext.ExclusiveContentGrants
             .SingleAsync(x => x.Id == grant.Id && x.PlayerId == grant.PlayerId, cancellationToken);
+        if (entity.ConsumedAtUtc is not null)
+        {
+            throw new ExclusiveContentException(ExclusiveContentErrorCodes.Consumed);
+        }
+
         entity.ConsumedAtUtc = grant.ConsumedAtUtc;
     }
 

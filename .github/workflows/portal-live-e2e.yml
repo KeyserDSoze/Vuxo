@@ -1,0 +1,99 @@
+name: Portal live end-to-end (real API and PostgreSQL)
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  portal-live:
+    name: Portal browser + API + PostgreSQL
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Start isolated PostgreSQL
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run -d --name vuxo-portal-live-db \
+            -e POSTGRES_USER=vuxo -e POSTGRES_DB=vuxo \
+            -e POSTGRES_HOST_AUTH_METHOD=trust \
+            -p 127.0.0.1:55434:5432 postgres:17-alpine
+          for attempt in $(seq 1 40); do
+            if docker exec vuxo-portal-live-db pg_isready -U vuxo -d vuxo >/dev/null 2>&1; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs vuxo-portal-live-db
+          exit 1
+      - name: Start development API with real migrations
+        shell: bash
+        run: |
+          set -euo pipefail
+          env ASPNETCORE_ENVIRONMENT=Development \
+            ASPNETCORE_URLS=http://127.0.0.1:8080 \
+            Auth__Jwt__Issuer=Vuxo \
+            Auth__Jwt__Audience=Vuxo.Web \
+            Auth__Jwt__SigningKey="$(openssl rand -hex 48)" \
+            Auth__EnableMockLogin=true \
+            ConnectionStrings__GameDb="Host=127.0.0.1;Port=55434;Database=vuxo;Username=vuxo;Pooling=false" \
+            Database__ApplyMigrationsOnStartup=true \
+            Cors__AllowedOrigins__0=http://127.0.0.1:4173 \
+            Observability__Enabled=false \
+            Llm__Enabled=false \
+            dotnet run --project src/backend/applications/Vuxo.Api/Vuxo.Api.csproj --no-launch-profile \
+            > /tmp/vuxo-portal-live-api.log 2>&1 &
+          echo $! > /tmp/vuxo-portal-live-api.pid
+          for attempt in $(seq 1 90); do
+            if curl --fail --silent http://127.0.0.1:8080/health >/dev/null; then
+              exit 0
+            fi
+            if ! kill -0 "$(cat /tmp/vuxo-portal-live-api.pid)" 2>/dev/null; then
+              cat /tmp/vuxo-portal-live-api.log
+              exit 1
+            fi
+            sleep 2
+          done
+          cat /tmp/vuxo-portal-live-api.log
+          exit 1
+      - name: Install frontend dependencies and Chromium
+        working-directory: src/frontend
+        run: |
+          npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
+      - name: Build frontend with real API origin
+        working-directory: src/frontend
+        env:
+          VITE_BASE_PATH: /Vuxo/
+          VITE_API_BASE_URL: http://127.0.0.1:8080
+        run: npm run build
+      - name: Run genuine browser to API to PostgreSQL portal challenge
+        working-directory: src/frontend
+        run: npx playwright test --config=playwright.live.config.ts
+      - name: API diagnostics if something failed
+        if: failure()
+        shell: bash
+        run: |
+          if [ -f /tmp/vuxo-portal-live-api.log ]; then
+            tail -200 /tmp/vuxo-portal-live-api.log
+          fi
+          docker logs vuxo-portal-live-db --tail 100 || true
+      - name: Stop ephemeral database and API
+        if: always()
+        shell: bash
+        run: |
+          if [ -f /tmp/vuxo-portal-live-api.pid ]; then
+            kill "$(cat /tmp/vuxo-portal-live-api.pid)" || true
+          fi
+          docker rm -f vuxo-portal-live-db || true

@@ -162,6 +162,75 @@ public sealed class ExclusiveContentServiceTests
         Assert.Equal("rules-v1", restored.RuleVersion);
     }
 
+    [Fact]
+    public async Task Challenge_WrongAnswerDoesNotConsume_ButCorrectAnswerAuditsOnce()
+    {
+        var repository = new FakeRepository();
+        var events = new FakeEventStore();
+        var unitOfWork = new FakeUnitOfWork();
+        var service = CreateService(repository, events, unitOfWork);
+        var grant = CreateGrant("player-a", Now.AddHours(1), portalKey: PortalSequenceRules.PortalKey);
+        repository.Grants.Add(grant);
+
+        var challenge = await service.GetChallengeAsync("player-a", grant.Id);
+        var wrong = challenge.Sequence.ToArray();
+        wrong[0] = wrong[0] == "sun" ? "moon" : "sun";
+        var incorrect = await Assert.ThrowsAsync<ExclusiveContentException>(
+            () => service.SubmitChallengeAsync("player-a", grant.Id, wrong));
+        Assert.Equal(ExclusiveContentErrorCodes.ChallengeIncorrect, incorrect.Code);
+        Assert.False(grant.IsConsumed);
+        Assert.Empty(events.Appended);
+
+        var consumed = await service.SubmitChallengeAsync("player-a", grant.Id, challenge.Sequence);
+        Assert.Equal(Now, consumed.ConsumedAtUtc);
+        Assert.Equal(1, repository.UpdateCalls);
+        Assert.Equal(1, unitOfWork.SaveCalls);
+        var audit = Assert.Single(events.Appended);
+        Assert.Equal(GameEventVisibilityScope.Player, audit.Envelope.VisibilityScope);
+        Assert.Equal(grant.GrantEventId, audit.Envelope.CausationId);
+        Assert.Contains("portal-sequence-v1", audit.PayloadJson, StringComparison.Ordinal);
+        var replay = await Assert.ThrowsAsync<ExclusiveContentException>(
+            () => service.SubmitChallengeAsync("player-a", grant.Id, challenge.Sequence));
+        Assert.Equal(ExclusiveContentErrorCodes.Consumed, replay.Code);
+    }
+
+    [Fact]
+    public async Task Challenge_LegacyConsumeCannotBypass_AndOtherPlayerGetsNotFound()
+    {
+        var repository = new FakeRepository();
+        var service = CreateService(repository);
+        var grant = CreateGrant("player-a", Now.AddHours(1), portalKey: PortalSequenceRules.PortalKey);
+        repository.Grants.Add(grant);
+
+        var bypass = await Assert.ThrowsAsync<ExclusiveContentException>(
+            () => service.ConsumeAsync("player-a", grant.Id));
+        Assert.Equal(ExclusiveContentErrorCodes.ChallengeRequired, bypass.Code);
+        var other = await Assert.ThrowsAsync<ExclusiveContentException>(
+            () => service.GetChallengeAsync("player-b", grant.Id));
+        Assert.Equal(ExclusiveContentErrorCodes.NotFound, other.Code);
+        var malformed = await Assert.ThrowsAsync<ExclusiveContentException>(
+            () => service.SubmitChallengeAsync("player-a", grant.Id, ["sun"]));
+        Assert.Equal(ExclusiveContentErrorCodes.ChallengeInvalidAnswer, malformed.Code);
+        Assert.False(grant.IsConsumed);
+    }
+
+    [Fact]
+    public async Task Challenge_ExpiredGrantAndUnrelatedPortalAreRejected()
+    {
+        var repository = new FakeRepository();
+        var service = CreateService(repository);
+        var expired = CreateGrant("player-a", Now.AddMinutes(-1), portalKey: PortalSequenceRules.PortalKey);
+        var unrelated = CreateGrant("player-a", Now.AddHours(1));
+        repository.Grants.AddRange([expired, unrelated]);
+
+        var expiredError = await Assert.ThrowsAsync<ExclusiveContentException>(
+            () => service.GetChallengeAsync("player-a", expired.Id));
+        Assert.Equal(ExclusiveContentErrorCodes.Expired, expiredError.Code);
+        var otherError = await Assert.ThrowsAsync<ExclusiveContentException>(
+            () => service.GetChallengeAsync("player-a", unrelated.Id));
+        Assert.Equal(ExclusiveContentErrorCodes.ChallengeNotAvailable, otherError.Code);
+    }
+
     private static ExclusiveContentService CreateService(
         FakeRepository repository,
         FakeEventStore? events = null,
@@ -176,13 +245,14 @@ public sealed class ExclusiveContentServiceTests
         string playerId,
         DateTimeOffset? expiresAtUtc,
         long seed = 42,
-        string ruleVersion = "rules-v1") =>
+        string ruleVersion = "rules-v1",
+        string portalKey = "portal-key") =>
         ExclusiveContentGrant.Create(
             Guid.NewGuid(),
             Guid.NewGuid(),
             playerId,
             "content-key",
-            "portal-key",
+            portalKey,
             "dialog-key",
             "reward-key",
             seed,

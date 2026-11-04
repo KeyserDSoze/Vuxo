@@ -8,7 +8,7 @@ const initialization = i18n.use(initReactI18next).init({
   resources: {
     it: {
       translation: {
-        nav: { home: 'Home', auth: 'Account', character: 'Personaggio', game: 'Gioco', admin: 'Admin', version: 'Versione' },
+        nav: { home: 'Home', auth: 'Account', character: 'Personaggio', game: 'Gioco', portals: 'Portali', admin: 'Admin', version: 'Versione' },
         shell: { theme: 'Tema', language: 'Lingua', navigation: 'Navigazione principale', version: 'Versione {{version}}' },
         theme: { system: 'Sistema', light: 'Chiaro', dark: 'Scuro' },
         home: {
@@ -47,6 +47,37 @@ const initialization = i18n.use(initReactI18next).init({
             genericError: 'La connessione al mondo non è disponibile.'
           },
           controls: { up: 'Muovi su', down: 'Muovi giù', left: 'Muovi a sinistra', right: 'Muovi a destra' }
+        },
+        portals: {
+          title: 'Sfide dei portali',
+          description: 'Memorizza le rune dei portali personali e ripetile nell’ordine corretto. Il risultato è controllato dal server.',
+          authenticationRequired: 'Accedi al tuo account Vuxo per partecipare alle sfide.',
+          signIn: 'Accedi',
+          loading: 'Caricamento dei portali…',
+          available: 'Portali disponibili',
+          empty: 'Non hai ancora portali con sfide attive. Un GameMaster può assegnarti un portale personale.',
+          start: 'Inizia la sfida',
+          memoryTitle: 'Sfida di memoria',
+          memorize: 'Memorizza questa sequenza. Fra poco scomparirà.',
+          repeat: 'Ripeti le quattro rune nel giusto ordine.',
+          progress: 'Rune selezionate: {{current}} / {{total}}',
+          submit: 'Conferma sequenza',
+          reset: 'Ricomincia',
+          showAgain: 'Mostra di nuovo',
+          back: 'Torna ai portali',
+          completed: 'Sfida completata! Il tuo grant personale è stato consumato. Non è stato ancora aggiunto alcun oggetto all’inventario.',
+          runes: { sun: 'Sole', moon: 'Luna', star: 'Stella', wave: 'Onda' },
+          errors: {
+            portal_authentication_required: 'Devi accedere per giocare.',
+            portal_request_failed: 'Non è stato possibile comunicare con il server.',
+            portal_challenge_not_available: 'Questa sfida non è disponibile.',
+            portal_challenge_required: 'Devi completare la sfida prima di usare il portale.',
+            portal_challenge_invalid_answer: 'La sequenza inserita non è valida.',
+            portal_challenge_incorrect: 'Sequenza errata. Riprova.',
+            exclusive_content_not_found: 'Questo portale non è disponibile per il tuo personaggio.',
+            exclusive_content_expired: 'Questo portale è scaduto.',
+            exclusive_content_consumed: 'Questa sfida è già stata completata.'
+          }
         },
         admin: { title: 'Amministrazione', description: 'Health, giocatori online, audit degli eventi, contenuti esclusivi e telemetria saranno raccolti qui.' },
         version: {
@@ -132,7 +163,7 @@ const initialization = i18n.use(initReactI18next).init({
     },
     en: {
       translation: {
-        nav: { home: 'Home', auth: 'Account', character: 'Character', game: 'Game', admin: 'Admin', version: 'Version' },
+        nav: { home: 'Home', auth: 'Account', character: 'Character', game: 'Game', portals: 'Portals', admin: 'Admin', version: 'Version' },
         shell: { theme: 'Theme', language: 'Language', navigation: 'Main navigation', version: 'Version {{version}}' },
         theme: { system: 'System', light: 'Light', dark: 'Dark' },
         home: {
@@ -171,6 +202,37 @@ const initialization = i18n.use(initReactI18next).init({
             genericError: 'The world connection is unavailable.'
           },
           controls: { up: 'Move up', down: 'Move down', left: 'Move left', right: 'Move right' }
+        },
+        portals: {
+          title: 'Portal challenges',
+          description: 'Memorize the runes of personal portals and repeat them in the right order. The server validates your result.',
+          authenticationRequired: 'Sign in to your Vuxo account to play portal challenges.',
+          signIn: 'Sign in',
+          loading: 'Loading portals…',
+          available: 'Available portals',
+          empty: 'You have no active challenge portals yet. A GameMaster can grant you a personal portal.',
+          start: 'Start challenge',
+          memoryTitle: 'Memory challenge',
+          memorize: 'Remember this sequence. It will disappear shortly.',
+          repeat: 'Repeat the four runes in the correct order.',
+          progress: 'Runes selected: {{current}} / {{total}}',
+          submit: 'Submit sequence',
+          reset: 'Reset',
+          showAgain: 'Show again',
+          back: 'Back to portals',
+          completed: 'Challenge complete! Your personal grant has been consumed. No inventory item has been added yet.',
+          runes: { sun: 'Sun', moon: 'Moon', star: 'Star', wave: 'Wave' },
+          errors: {
+            portal_authentication_required: 'You must sign in to play.',
+            portal_request_failed: 'The server could not be reached.',
+            portal_challenge_not_available: 'This challenge is unavailable.',
+            portal_challenge_required: 'Complete the challenge before using this portal.',
+            portal_challenge_invalid_answer: 'That rune sequence is invalid.',
+            portal_challenge_incorrect: 'Wrong sequence. Try again.',
+            exclusive_content_not_found: 'This portal is unavailable for your character.',
+            exclusive_content_expired: 'This portal has expired.',
+            exclusive_content_consumed: 'This challenge has already been completed.'
+          }
         },
         admin: { title: 'Administration', description: 'Health, online players, event audit, exclusive content and telemetry will live here.' },
         version: {
