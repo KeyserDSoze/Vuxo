@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Vuxo.Application.PersonalContent;
 using Vuxo.Domain.PersonalContent;
 using Vuxo.Infrastructure.Persistence.Entities;
 
