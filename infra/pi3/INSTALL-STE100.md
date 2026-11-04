@@ -327,6 +327,23 @@ Check the approved frontend origin and redirect URL. Use https://vuxo.app where 
 
 ## 13. Prepare the production release
 
+**Work location: Raspberry Pi, administration account.**
+
+Run the read-only host preflight:
+
+~~~sh
+cd "$HOME/vuxo"
+sudo bash infra/pi3/preflight.sh
+~~~
+
+**Expected result:** No FAIL results. Investigate all WARN results, particularly power undervoltage. The preflight also checks Docker access for the runner user and GitHub/GHCR HTTPS.
+
+The legacy x64 workflow is disabled unless repository variable `VUXO_X64_DEPLOY_ENABLED=true`. Keep this variable unset or false during the Pi migration.
+
+**STOP:** Do not enable the Pi deployment if undervoltage continues, or if the runner cannot use Docker.
+
+
+
 **Work location: GitHub website.**
 
 1. Open draft pull request #61.
