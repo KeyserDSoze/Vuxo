@@ -92,6 +92,9 @@ async function ready(url, timeoutMs = 180000) {
 
 function startInfrastructure(config) {
   const runner = runtime(config);
+  // Switching from full Docker to infra/debug/test must release the API/Vite host ports.
+  // Compose stop is idempotent and never removes the named database/cache volumes.
+  runner.run('stop', 'frontend', 'api');
   const services = ['postgres', 'redis'];
   if (config.VUXO_LLM_ENABLED === 'true') services.push('ollama');
   runner.run('up', '-d', '--wait', '--wait-timeout', '180', ...services);
