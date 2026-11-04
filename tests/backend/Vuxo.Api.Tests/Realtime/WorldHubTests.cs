@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Vuxo.Api.Tests.Infrastructure;
 using Vuxo.Application.Worlds.Realtime;
 using Vuxo.Domain.Common;
+using Vuxo.Domain.Inventory;
 using Vuxo.Domain.Players;
 using Vuxo.Domain.Worlds;
 
@@ -81,9 +82,11 @@ public sealed class WorldHubTests
         return new VuxoApiFactory(configureServices: services =>
         {
             services.RemoveAll<IPlayerCharacterRepository>();
+            services.RemoveAll<IPlayerEquipmentRepository>();
             services.RemoveAll<IWorldRepository>();
             services.RemoveAll<IUnitOfWork>();
             services.AddSingleton<IPlayerCharacterRepository>(players);
+            services.AddSingleton<IPlayerEquipmentRepository>(new FakePlayerEquipment());
             services.AddSingleton<IWorldRepository>(worlds);
             services.AddSingleton<IUnitOfWork>(unitOfWork);
         });
@@ -142,6 +145,17 @@ public sealed class WorldHubTests
             => Task.FromResult(_characters.GetValueOrDefault(ownerId));
 
         public Task AddAsync(PlayerCharacter character, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+    }
+
+    private sealed class FakePlayerEquipment : IPlayerEquipmentRepository
+    {
+        public Task<IReadOnlyList<EquippedInventoryItem>> GetForPlayerAsync(
+            string playerId, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<EquippedInventoryItem>>([]);
+        public Task EquipAsync(EquippedInventoryItem item, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+        public Task UnequipAsync(string playerId, string slot, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
     }
 
