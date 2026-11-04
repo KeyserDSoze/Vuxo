@@ -102,7 +102,7 @@ public sealed class WorldHubTests
         var peer = await observed.Task.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.Equal(1.3d, first.Self.SpeedMultiplier, 8);
         Assert.Equal(1.3d, peer.SpeedMultiplier, 8);
-        Assert.True(first.Players.Any(x => x.PlayerId == "player-b"));
+        Assert.Contains(first.Players, x => x.PlayerId == "player-b");
         Assert.False(first.IsReconnect);
 
         await reconnectedA.StartAsync();
