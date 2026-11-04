@@ -22,6 +22,21 @@ public sealed class EquipmentRulesTests
     }
 
     [Fact]
+    public void SwiftFeatherCharm_IncreasesDexterityAndEffectiveServerMovementSpeed()
+    {
+        var character = PlayerAttributes.Create(2, 2, 2, 2, 1, 1);
+        var feather = Item(InventoryItemCatalog.SwiftFeather, EquipmentRules.Charm);
+        Assert.Equal(EquipmentRules.Charm, EquipmentRules.SlotFor(feather.ItemKey));
+        var effective = EquipmentRules.Evaluate(character, [feather]);
+        Assert.Equal(3, effective.Dexterity);
+        Assert.Equal(1, effective.Bonuses.Dexterity);
+        Assert.Equal(1.3d, effective.MovementSpeedMultiplier, 8);
+        Assert.Equal(2, character.Dexterity);
+        Assert.Equal(1.2d, character.MovementSpeedMultiplier, 8);
+        Assert.Equal("equipment-v2", EquipmentRules.Version);
+    }
+
+    [Fact]
     public void UnrecognizedItem_NeverGetsAnEquipmentSlotOrInventedStats()
     {
         Assert.Null(EquipmentRules.SlotFor("item.unknown"));
