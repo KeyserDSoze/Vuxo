@@ -112,12 +112,34 @@ test('clicking a visible Phaser portal marker opens the in-world dialog', async 
   await expect(canvas).toBeVisible();
   // Wait for Phaser to install the marker's interactive hit area, rather
   // than relying on a fixed timeout after the React portal list appears.
-  await expect(page.getByTestId('game-canvas')).toHaveAttribute('data-rendered-portals', '1');
-  // Phaser's follow camera centers the local player; this marker shares
-  // that authoritative tile, so it is at the canvas center.
+  const host = page.getByTestId('game-canvas');
+  await expect(host).toHaveAttribute('data-rendered-portals', '1');
+  await expect(host).toHaveAttribute('data-portal-screen-x', /[0-9]/);
+  await expect(host).toHaveAttribute('data-portal-screen-y', /[0-9]/);
+
+  // Click the marker's actual projected screen position, not the canvas
+  // center. Phaser's follow camera may still be interpolating in headless CI.
+  const marker = await host.evaluate(element => ({
+    x: Number(element.dataset.portalScreenX),
+    y: Number(element.dataset.portalScreenY),
+  }));
+  expect(Number.isFinite(marker.x) && Number.isFinite(marker.y)).toBe(true);
+  const dimensions = await canvas.evaluate(element => ({
+    width: (element as HTMLCanvasElement).width,
+    height: (element as HTMLCanvasElement).height,
+  }));
   const box = await canvas.boundingBox();
   if (!box) throw new Error('World canvas is not mounted');
-  await canvas.click({ position: { x: box.width / 2, y: box.height / 2 } });
+  expect(marker.x).toBeGreaterThan(0);
+  expect(marker.y).toBeGreaterThan(0);
+  expect(marker.x).toBeLessThan(dimensions.width);
+  expect(marker.y).toBeLessThan(dimensions.height);
+  await canvas.click({
+    position: {
+      x: marker.x * box.width / dimensions.width,
+      y: marker.y * box.height / dimensions.height,
+    },
+  });
   await expect(page.getByTestId('world-portal-dialog')).toBeVisible();
   expect(api.getEntryCalls()).toBe(1);
 });

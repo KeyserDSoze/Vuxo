@@ -56,6 +56,15 @@ export function GameCanvas() {
       if (import.meta.env.VITE_E2E_REALTIME === 'true') {
         host.current?.setAttribute('data-rendered-portals', String(count))
       }
+    }, position => {
+      if (import.meta.env.VITE_E2E_REALTIME !== 'true' || !host.current) return
+      if (position) {
+        host.current.dataset.portalScreenX = String(position.x)
+        host.current.dataset.portalScreenY = String(position.y)
+      } else {
+        delete host.current.dataset.portalScreenX
+        delete host.current.dataset.portalScreenY
+      }
     })
     worldScene.current = scene
 

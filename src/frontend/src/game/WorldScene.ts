@@ -34,6 +34,7 @@ export class WorldScene extends Phaser.Scene {
     private readonly realtime: WorldRealtimeClient,
     private readonly onPortalClick?: (grantId: string) => void,
     private readonly onPortalsRendered?: (count: number) => void,
+    private readonly onPortalScreenPosition?: (position: { x: number; y: number } | null) => void,
   ) {
     super('world')
   }
@@ -93,6 +94,20 @@ export class WorldScene extends Phaser.Scene {
   }
 
   update(time: number, delta: number) {
+    // The camera can still be following the player after the marker is drawn.
+    // Expose its current screen position only to the Playwright test bridge.
+    if (this.onPortalScreenPosition) {
+      const portal = this.portals[0]
+      if (!portal || !this.portalVisuals.has(portal.id)) {
+        this.onPortalScreenPosition(null)
+      } else {
+        const camera = this.cameras.main
+        this.onPortalScreenPosition({
+          x: camera.x + (portal.x * TILE_SIZE - camera.scrollX) * camera.zoom,
+          y: camera.y + (portal.y * TILE_SIZE - camera.scrollY) * camera.zoom,
+        })
+      }
+    }
     for (const visual of this.portalVisuals.values()) {
       visual.ring.setScale(1 + Math.sin(time / 300) * 0.08)
     }
