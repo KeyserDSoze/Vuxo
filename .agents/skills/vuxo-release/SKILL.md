@@ -63,7 +63,7 @@ After the change reaches GitHub, inspect Actions and do not call a release healt
 
 ## Deployment notes
 
-- Frontend production URL: `https://vuxo.quest`.
+- Frontend production URL: `https://vuxo.app`.
 - API production URL: `https://api.vuxoapi.xyz`.
 - PostgreSQL schema migrations and PostgreSQL server major upgrades are separate operations.
 - LLM runtime/model changes must not make core API readiness depend on the model unless explicitly designed that way.
