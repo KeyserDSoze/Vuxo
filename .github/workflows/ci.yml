@@ -16,6 +16,8 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.x
+      - name: Validate Raspberry Pi 3 ARM64 Compose and deploy contracts
+        run: bash scripts/test-pi3-compose.sh
       - name: Validate observability compose overlay
         shell: bash
         run: |
