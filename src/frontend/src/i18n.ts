@@ -37,6 +37,7 @@ const initialization = i18n.use(initReactI18next).init({
           title: 'Mondo condiviso',
           description: 'Il movimento è autoritativo lato server. Usa WASD, le frecce o i controlli touch per inviare i tuoi intenti.',
           playersOnline: 'Giocatori online: {{count}}',
+          effectiveSpeed: 'Velocità in tempo reale: ×{{multiplier}}',
           portal: {
             available: 'Portali personali nel mondo: {{count}}',
             enter: 'Entra nel portale {{number}}',
@@ -106,7 +107,7 @@ const initialization = i18n.use(initReactI18next).init({
           unequip: 'Rimuovi',
           slots: { relic: 'Reliquia', charm: 'Amuleto' },
           effectiveStats: 'Statistiche con equipaggiamento',
-          statsPreviewNote: 'Anteprima del carico equipaggiato. I bonus non modificano i punti base e non alterano ancora il movimento multiplayer.',
+          statsPreviewNote: 'I bonus non cambiano i punti base. La Destrezza dell’equipaggiamento modifica realmente il movimento multiplayer.',
           maxHealth: 'Salute massima teorica: {{value}}',
           stats: {
             strength: 'Forza: {{value}} (+{{bonus}})',
@@ -119,7 +120,8 @@ const initialization = i18n.use(initReactI18next).init({
           items: {
             runeShard: 'Frammento di runa',
             groveSeed: 'Seme del bosco',
-            tidalPearl: 'Perla delle maree'
+            tidalPearl: 'Perla delle maree',
+            swiftFeather: 'Piuma del vento'
           },
           errors: {
             inventory_authentication_required: 'Accedi per vedere il tuo inventario.',
@@ -247,6 +249,7 @@ const initialization = i18n.use(initReactI18next).init({
           title: 'Shared world',
           description: 'Movement is server-authoritative. Use WASD, arrow keys or touch controls to send your movement intent.',
           playersOnline: 'Players online: {{count}}',
+          effectiveSpeed: 'Live movement speed: ×{{multiplier}}',
           portal: {
             available: 'Personal portals in the world: {{count}}',
             enter: 'Enter portal {{number}}',
@@ -316,7 +319,7 @@ const initialization = i18n.use(initReactI18next).init({
           unequip: 'Unequip',
           slots: { relic: 'Relic', charm: 'Charm' },
           effectiveStats: 'Equipment-adjusted stats',
-          statsPreviewNote: 'Equipment preview only. Bonuses do not change base allocation or live multiplayer movement yet.',
+          statsPreviewNote: 'Equipment does not change base points. Equipped Dexterity now affects live multiplayer movement.',
           maxHealth: 'Projected maximum health: {{value}}',
           stats: {
             strength: 'Strength: {{value}} (+{{bonus}})',
@@ -329,7 +332,8 @@ const initialization = i18n.use(initReactI18next).init({
           items: {
             runeShard: 'Rune Shard',
             groveSeed: 'Grove Seed',
-            tidalPearl: 'Tidal Pearl'
+            tidalPearl: 'Tidal Pearl',
+            swiftFeather: 'Swift Feather'
           },
           errors: {
             inventory_authentication_required: 'Sign in to see your inventory.',
