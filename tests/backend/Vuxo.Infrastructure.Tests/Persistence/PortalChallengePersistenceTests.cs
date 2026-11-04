@@ -11,7 +11,7 @@ public sealed class PortalChallengePersistenceTests
     public async Task ConcurrentGrantConsumption_OnlyOneRequestCanCommit()
     {
         await using var database = await PostgresDatabaseScope.CreateAsync();
-        var now = DateTimeOffset.UtcNow;
+        var now = new DateTimeOffset(2026, 11, 4, 10, 30, 0, TimeSpan.Zero);
         var grant = ExclusiveContentGrant.Create(
             Guid.NewGuid(), Guid.NewGuid(), "player-a", "portal.grove",
             PortalSequenceRules.PortalKey, "dialog-grove", "reward-grove",
