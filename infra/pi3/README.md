@@ -2,7 +2,16 @@
 
 For the step-by-step controlled-English procedure, read **[INSTALL-STE100.md](INSTALL-STE100.md)**. The procedure follows ASD-STE100 writing principles. It is not certified.
 
-Status: **proposal / hardware validation pending**. Track issue #59 and the draft PR.
+Status: **proposal / hardware validation pending**.
+
+Before enabling deployment on the Raspberry, run the read-only checks as user `vuxo`:
+
+~~~bash
+cd ~/vuxo
+sudo bash infra/pi3/preflight.sh
+~~~
+
+Resolve all FAIL checks and review WARN results, especially undervoltage; the script does not modify running services, images or secrets. Track issue #59 and the draft PR.
 The Pi 3 1 GiB target is experimental: API + PostgreSQL + Redis + Cloudflare are the only default services. Do not assume that all optional services can fit in RAM.
 
 ## 0. Prepare the Pi
@@ -45,7 +54,7 @@ VUXO_PI3_DEPLOY_ENABLED = false until the runner is online, images pass ARM64 ma
 
 The workflow deploy-pi3.yml is triggered by a successful **CI workflow from push to main**. It builds the API on GitHub's ARM64 hosted runner (not the Pi), publishes the immutable GHCR tag **pi3-<commit-sha>**, and deploys on [self-hosted, linux, ARM64, vuxo-pi3]. A green pull-request CI is insufficient. There is no manual bypass in this workflow.
 
-The older deploy-server.yml is an **x64** production deployment. Before migration to the Pi, disable the old x64 production deployment / remove its runner, or coordinate a distinct production environment to avoid two targets. Its images use other tags and are not overwritten.
+The older deploy-server.yml is an **x64** production deployment and is now disabled by default. It runs only if repository variable `VUXO_X64_DEPLOY_ENABLED=true` is set. Keep the x64 flag absent/false during Pi rollout; do not enable both production targets. Its images use separate tags.
 
 GitHub's production environment protection rules and branch restrictions should be reviewed so only trusted main revisions receive secrets. Docker-group access grants root-equivalent power. Do not allow untrusted workflow changes or fork code onto a production runner.
 
