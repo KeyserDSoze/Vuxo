@@ -10,6 +10,27 @@ export type PortalGrant = {
   expiresAtUtc: string | null;
 };
 
+/** World positions are projected by the server, never chosen by the browser. */
+export type WorldPortalMarker = {
+  id: string;
+  contentKey: string;
+  x: number;
+  y: number;
+};
+
+export async function fetchWorldPortals(signal?: AbortSignal): Promise<WorldPortalMarker[]> {
+  return portalRequest<WorldPortalMarker[]>(
+    '/api/personal-content/world-portals', 'GET', undefined, signal
+  );
+}
+
+export async function enterWorldPortal(grantId: string): Promise<WorldPortalMarker> {
+  return portalRequest<WorldPortalMarker>(
+    `/api/personal-content/world-portals/${encodeURIComponent(grantId)}/enter`,
+    'POST',
+  );
+}
+
 export type PortalChallenge = {
   grantId: string;
   version: string;
