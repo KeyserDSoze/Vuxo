@@ -47,6 +47,7 @@ builder.Services.AddSingleton(provider =>
 builder.Services.AddScoped<WorldService>();
 builder.Services.AddScoped<ExclusiveContentService>();
 builder.Services.AddScoped<PlayerEquipmentService>();
+builder.Services.AddScoped<WorldEquipmentNotifier>();
 builder.Services.AddScoped<WorldPortalService>();
 builder.Services.AddScoped<GameEventAuditService>();
 builder.Services.AddSingleton<WorldChunkGenerator>();
