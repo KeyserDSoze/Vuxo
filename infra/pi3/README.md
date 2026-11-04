@@ -11,7 +11,7 @@ cd ~/vuxo
 sudo bash infra/pi3/preflight.sh
 ~~~
 
-Resolve all FAIL checks and review WARN results, especially undervoltage; the script does not modify running services, images or secrets. Track issue #59 and the draft PR.
+Resolve all FAIL checks and review WARN results, especially undervoltage; the script does not modify running services, images or secrets. The deploy-pi3 workflow also runs this check as the unprivileged runner and stops the deployment if the check fails or returns warnings. Track issue #59 and the draft PR.
 The Pi 3 1 GiB target is experimental: API + PostgreSQL + Redis + Cloudflare are the only default services. Do not assume that all optional services can fit in RAM.
 
 ## 0. Prepare the Pi
