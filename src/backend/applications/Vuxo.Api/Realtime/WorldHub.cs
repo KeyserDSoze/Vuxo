@@ -5,6 +5,7 @@ using Vuxo.Api.Observability;
 using Vuxo.Application.Worlds;
 using Vuxo.Application.Worlds.Realtime;
 using Vuxo.Domain.Players;
+using Vuxo.Domain.Inventory;
 
 namespace Vuxo.Api.Realtime;
 
@@ -12,6 +13,7 @@ namespace Vuxo.Api.Realtime;
 public sealed class WorldHub(
     ILogger<WorldHub> logger,
     IPlayerCharacterRepository characters,
+    IPlayerEquipmentRepository equipment,
     WorldRuntimeMap runtimeMap,
     WorldSimulation simulation,
     WorldBootstrapSpec bootstrap) : Hub
@@ -44,8 +46,9 @@ public sealed class WorldHub(
             throw new HubException("world_character_required");
         }
 
+        var equipped = await equipment.GetForPlayerAsync(playerId, Context.ConnectionAborted);
         var spawn = await runtimeMap.GetSpawnPointAsync(Context.ConnectionAborted);
-        var result = simulation.Join(Context.ConnectionId, playerId, character, spawn);
+        var result = simulation.Join(Context.ConnectionId, playerId, character, spawn, equipped);
         var groupName = GetGroupName(bootstrap.WorldId);
         activity?.SetTag("vuxo.world.id", bootstrap.WorldId);
         activity?.SetTag("vuxo.world.reconnect", result.IsReconnect);
