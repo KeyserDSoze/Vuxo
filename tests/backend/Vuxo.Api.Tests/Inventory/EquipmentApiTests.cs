@@ -95,7 +95,7 @@ public sealed class EquipmentApiTests
         Assert.Equal(3, events.Appended.Count);
         Assert.All(events.Appended, x => Assert.Equal(GameEventVisibilityScope.Player,
             x.Envelope.VisibilityScope));
-        Assert.Single(equipment.Items.Where(x => x.Slot == EquipmentRules.Charm));
+        Assert.Single(equipment.Items, x => x.Slot == EquipmentRules.Charm);
     }
 
     private static VuxoApiFactory CreateFactory(
