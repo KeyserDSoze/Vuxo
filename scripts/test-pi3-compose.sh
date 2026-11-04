@@ -4,8 +4,9 @@ set -Eeuo pipefail
 cd "$(dirname "$0")/.."
 
 bash -n infra/pi3/deploy.sh
+bash -n infra/pi3/bootstrap.sh
 
-export VUXO_API_IMAGE=ghcr.io/keyserdsoze/vuxo-api:0123456789abcdef0123456789abcdef01234567
+export VUXO_API_IMAGE=ghcr.io/keyserdsoze/vuxo-api:pi3-0123456789abcdef0123456789abcdef01234567
 export VUXO_POSTGRES_PASSWORD=ci-only-random-value
 export VUXO_JWT_SIGNING_KEY=ci-only-0123456789abcdef0123456789abcdef
 export VUXO_CLOUDFLARE_TUNNEL_TOKEN=ci-only-token
