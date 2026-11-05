@@ -131,6 +131,9 @@ const initialization = i18n.use(initReactI18next).init({
           controls: { up: 'Muovi su', down: 'Muovi giù', left: 'Muovi a sinistra', right: 'Muovi a destra' }
         },
         portals: {
+          mistakeDamage: 'Il portale ti ha inflitto {{damage}} HP di danno. Salute: {{current}}/{{maximum}}.',
+          mistakeAlreadyRecorded: 'Questo portale non infligge altri danni per ulteriori risposte errate. Salute: {{current}}/{{maximum}}.',
+          visitRefuge: 'Vai al Rifugio',
           title: 'Sfide dei portali',
           description: 'Memorizza le rune dei portali personali e ripetile nell’ordine corretto. Il risultato è controllato dal server.',
           authenticationRequired: 'Accedi al tuo account Vuxo per partecipare alle sfide.',
@@ -436,6 +439,9 @@ const initialization = i18n.use(initReactI18next).init({
           controls: { up: 'Move up', down: 'Move down', left: 'Move left', right: 'Move right' }
         },
         portals: {
+          mistakeDamage: 'The portal dealt {{damage}} HP of damage. Health: {{current}}/{{maximum}}.',
+          mistakeAlreadyRecorded: 'Further incorrect answers to this portal do not cause additional damage. Health: {{current}}/{{maximum}}.',
+          visitRefuge: 'Visit Refuge',
           title: 'Portal challenges',
           description: 'Memorize the runes of personal portals and repeat them in the right order. The server validates your result.',
           authenticationRequired: 'Sign in to your Vuxo account to play portal challenges.',

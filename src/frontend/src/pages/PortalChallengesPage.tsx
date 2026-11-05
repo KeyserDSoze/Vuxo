@@ -8,6 +8,7 @@ import {
   fetchPortalChallenge,
   fetchPortalGrants,
   PortalApiError,
+  type PortalMistakeDamage,
   submitPortalChallenge,
   type PortalChallenge,
   type PortalGrant,
@@ -41,6 +42,7 @@ export function PortalChallengesPage({
   const [completed, setCompleted] = useState(false);
   const [rewardedItemKey, setRewardedItemKey] = useState<string | null>(null);
   const [errorCode, setErrorCode] = useState<string | null>(null);
+  const [mistakeDamage, setMistakeDamage] = useState<PortalMistakeDamage | null>(null);
   const session = readStoredSession();
 
   useEffect(() => {
@@ -73,6 +75,7 @@ export function PortalChallengesPage({
   const start = async (grant: PortalGrant) => {
     setBusy(true);
     setErrorCode(null);
+    setMistakeDamage(null);
     setAnswer([]);
     setCompleted(false);
     setRewardedItemKey(null);
@@ -103,6 +106,7 @@ export function PortalChallengesPage({
     if (!selected || !challenge || answer.length !== challenge.sequence.length) return;
     setBusy(true);
     setErrorCode(null);
+    setMistakeDamage(null);
     try {
       const receipt = await submitPortalChallenge(selected.id, answer);
       setRewardedItemKey(receipt.itemKey ?? null);
@@ -112,6 +116,7 @@ export function PortalChallengesPage({
     } catch (error) {
       setAnswer([]);
       setErrorCode(error instanceof PortalApiError ? error.code : 'portal_request_failed');
+      setMistakeDamage(error instanceof PortalApiError ? error.mistakeDamage : null);
     } finally {
       setBusy(false);
     }
@@ -120,6 +125,7 @@ export function PortalChallengesPage({
   const previewAgain = () => {
     setAnswer([]);
     setErrorCode(null);
+    setMistakeDamage(null);
     setShowing(true);
     setPreviewRound(value => value + 1);
   };
@@ -141,6 +147,24 @@ export function PortalChallengesPage({
       {errorCode ? (
         <Alert severity="error" data-testid="portal-error">
           {t('errors.' + errorCode, { defaultValue: t('errors.portal_request_failed') })}
+        </Alert>
+      ) : null}
+
+      {mistakeDamage && errorCode === 'portal_challenge_incorrect' ? (
+        <Alert severity={mistakeDamage.damageApplied && mistakeDamage.damage > 0 ? 'warning' : 'info'}
+          data-testid="portal-mistake-damage" role="status">
+          {mistakeDamage.damageApplied && mistakeDamage.damage > 0
+            ? t('mistakeDamage', {
+              damage: mistakeDamage.damage,
+              current: mistakeDamage.currentHealth,
+              maximum: mistakeDamage.maxHealth,
+            })
+            : t('mistakeAlreadyRecorded', {
+              current: mistakeDamage.currentHealth,
+              maximum: mistakeDamage.maxHealth,
+            })}
+          {' '}
+          <Button component={RouterLink} to="/refuge" size="small">{t('visitRefuge')}</Button>
         </Alert>
       ) : null}
 
