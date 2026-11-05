@@ -52,10 +52,10 @@ public sealed class PortalGuardianPersistenceTests
         var events = (await new GameEventStore(check).QueryAsync(
             new GameEventQuery(PlayerId: "player-a"))).Items;
         Assert.Equal(2, events.Count);
-        var started = Assert.Single(events.Where(x =>
-            x.Envelope.EventType == "portal.encounter_started"));
-        var resolved = Assert.Single(events.Where(x =>
-            x.Envelope.EventType == "portal.guardian_turn_resolved"));
+        var started = Assert.Single(events, x =>
+            x.Envelope.EventType == "portal.encounter_started");
+        var resolved = Assert.Single(events, x =>
+            x.Envelope.EventType == "portal.guardian_turn_resolved");
         Assert.Equal(GameEventVisibilityScope.Player, resolved.Envelope.VisibilityScope);
         Assert.Equal(PortalGuardianRules.Version, resolved.Envelope.RuleVersion);
         Assert.Equal(started.Envelope.EventId, resolved.Envelope.CausationId);
