@@ -11,6 +11,7 @@ public sealed class VuxoDbContext(DbContextOptions<VuxoDbContext> options) : DbC
     public DbSet<CharacterItemHealEntity> CharacterItemHeals => Set<CharacterItemHealEntity>();
     public DbSet<PortalMistakeDamageEntity> PortalMistakeDamages => Set<PortalMistakeDamageEntity>();
     public DbSet<PortalEncounterStateEntity> PortalEncounterStates => Set<PortalEncounterStateEntity>();
+    public DbSet<PortalGuardianTurnEntity> PortalGuardianTurns => Set<PortalGuardianTurnEntity>();
     public DbSet<GameEventEntity> GameEvents => Set<GameEventEntity>();
     public DbSet<WorldDefinitionEntity> WorldDefinitions => Set<WorldDefinitionEntity>();
     public DbSet<WorldChunkEntity> WorldChunks => Set<WorldChunkEntity>();
@@ -33,12 +34,51 @@ public sealed class VuxoDbContext(DbContextOptions<VuxoDbContext> options) : DbC
             entity.Property(x => x.Name).HasMaxLength(24);
         });
 
+        modelBuilder.Entity<PortalGuardianTurnEntity>(entity =>
+        {
+            entity.ToTable("portal_guardian_turns", table =>
+            {
+                table.HasCheckConstraint("CK_portal_guardian_turns_Turn",
+                    "\"Turn\" >= 1 AND \"Turn\" <= 12");
+                table.HasCheckConstraint("CK_portal_guardian_turns_Damage",
+                    "\"DamageDealt\" >= 0 AND \"DamageTaken\" >= 0");
+            });
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.PlayerId).HasMaxLength(200);
+            entity.Property(x => x.Action).HasMaxLength(16);
+            entity.Property(x => x.GuardianAction).HasMaxLength(16);
+            entity.Property(x => x.Outcome).HasMaxLength(16);
+            entity.HasIndex(x => new { x.PlayerId, x.IdempotencyKey }).IsUnique();
+            entity.HasIndex(x => new { x.EncounterEventId, x.Turn }).IsUnique();
+            entity.HasIndex(x => x.TurnEventId).IsUnique();
+            entity.HasOne<PlayerCharacterEntity>().WithMany()
+                .HasForeignKey(x => x.CharacterId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<ExclusiveContentGrantEntity>().WithMany()
+                .HasForeignKey(x => new { x.PortalGrantId, x.PlayerId })
+                .HasPrincipalKey(x => new { x.Id, x.PlayerId })
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<GameEventEntity>().WithMany()
+                .HasForeignKey(x => x.EncounterEventId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<GameEventEntity>().WithMany()
+                .HasForeignKey(x => x.TurnEventId).OnDelete(DeleteBehavior.Restrict);
+        });
+
         modelBuilder.Entity<PortalEncounterStateEntity>(entity =>
         {
             entity.ToTable("portal_encounter_states", table => table.HasCheckConstraint(
                 "CK_portal_encounter_states_Time", "\"ExpiresAtUtc\" > \"StartedAtUtc\""));
             entity.HasKey(x => x.CharacterId);
             entity.Property(x => x.PlayerId).HasMaxLength(200);
+            entity.Property(x => x.GuardianOutcome).HasMaxLength(16);
+            entity.ToTable("portal_encounter_states", table =>
+            {
+                table.HasCheckConstraint("CK_portal_encounter_states_Time",
+                    "\"ExpiresAtUtc\" > \"StartedAtUtc\"");
+                table.HasCheckConstraint("CK_portal_encounter_states_GuardianHp",
+                    "\"GuardianMaxHealth\" >= 1 AND \"GuardianHealth\" >= 0 AND \"GuardianHealth\" <= \"GuardianMaxHealth\"");
+                table.HasCheckConstraint("CK_portal_encounter_states_GuardianTurn",
+                    "\"GuardianTurn\" >= 0 AND \"GuardianTurn\" <= 12");
+            });
             entity.HasIndex(x => x.PlayerId).IsUnique();
             entity.HasIndex(x => x.StartEventId).IsUnique();
             entity.HasOne<PlayerCharacterEntity>().WithMany()

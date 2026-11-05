@@ -136,6 +136,53 @@ test('real SignalR world renders only personal portal and rejects forged distanc
   expect(((await otherEncounter.json()) as { active: boolean }).active).toBe(false);
 
   if (near) {
+    // This encounter was created only after server-verified world proximity;
+    // the browser cannot directly create a Guardian or choose its damage.
+    const guardianUrl = api + '/api/characters/me/portal-guardian/' + grantId;
+    const guardianResponse = await request.get(guardianUrl, { headers: userHeaders });
+    expect(guardianResponse.status()).toBe(200);
+    const guardian = await guardianResponse.json() as {
+      guardianHealth: number; guardianMaxHealth: number;
+      playerHealth: number; turn: number; outcome: string;
+    };
+    expect(guardian.turn).toBe(0);
+    expect(guardian.guardianMaxHealth).toBeGreaterThanOrEqual(6);
+    expect(guardian.guardianMaxHealth).toBeLessThanOrEqual(8);
+    const cardKey = randomUUID();
+    const cardHeaders = { ...userHeaders, 'Idempotency-Key': cardKey };
+    const card = await request.post(guardianUrl + '/turn', {
+      headers: cardHeaders,
+      data: {
+        action: 'strike', expectedTurn: 0,
+        damage: 9999, guardianHealth: 0, playerId: 'world-portal-foreign-user'
+      },
+    });
+    expect(card.status()).toBe(200);
+    const resolved = await card.json() as {
+      turn: number; damageDealt: number; damageTaken: number;
+      guardianHealth: number; playerHealth: number; replayed: boolean;
+    };
+    expect(resolved.turn).toBe(1);
+    expect(resolved.damageDealt).toBeGreaterThanOrEqual(1);
+    expect(resolved.damageDealt).toBeLessThanOrEqual(4);
+    expect(resolved.guardianHealth).toBe(
+      guardian.guardianHealth - resolved.damageDealt);
+    expect(resolved.playerHealth).toBe(
+      guardian.playerHealth - resolved.damageTaken);
+    expect(resolved.replayed).toBe(false);
+    const replay = await request.post(guardianUrl + '/turn', {
+      headers: cardHeaders, data: { action: 'strike', expectedTurn: 0 },
+    });
+    expect(replay.status()).toBe(200);
+    expect(((await replay.json()) as { replayed: boolean }).replayed).toBe(true);
+    const current = await request.get(guardianUrl, { headers: userHeaders });
+    expect(current.status()).toBe(200);
+    expect(((await current.json()) as { turn: number }).turn).toBe(1);
+    const stolenGuardian = await request.get(guardianUrl, {
+      headers: { Authorization: 'Bearer ' + otherToken },
+    });
+    expect(stolenGuardian.status()).toBe(404);
+
     const rest = await request.post(api + '/api/characters/me/rest', {
       headers: { ...userHeaders, 'Idempotency-Key': randomUUID() },
     });
@@ -166,5 +213,7 @@ test('real SignalR world renders only personal portal and rejects forged distanc
     });
     expect(released.status()).toBe(200);
     expect(((await released.json()) as { active: boolean }).active).toBe(false);
+    const guardianAfterCompletion = await request.get(guardianUrl, { headers: userHeaders });
+    expect(guardianAfterCompletion.status()).toBe(404);
   }
 });

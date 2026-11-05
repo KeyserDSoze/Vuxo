@@ -73,7 +73,11 @@ public sealed class PortalEncounterRepository(VuxoDbContext db, IGameEventStore 
                 PortalGrantId = portalGrantId,
                 StartEventId = eventId,
                 StartedAtUtc = now,
-                ExpiresAtUtc = expiresAt
+                ExpiresAtUtc = expiresAt,
+                GuardianMaxHealth = PortalGuardianRules.GuardianMaxHealth(grant.Seed),
+                GuardianHealth = PortalGuardianRules.GuardianMaxHealth(grant.Seed),
+                GuardianTurn = 0,
+                GuardianOutcome = PortalGuardianRules.Ongoing
             };
             await db.PortalEncounterStates.AddAsync(state, cancellationToken);
         }
@@ -83,6 +87,10 @@ public sealed class PortalEncounterRepository(VuxoDbContext db, IGameEventStore 
             state.StartEventId = eventId;
             state.StartedAtUtc = now;
             state.ExpiresAtUtc = expiresAt;
+            state.GuardianMaxHealth = PortalGuardianRules.GuardianMaxHealth(grant.Seed);
+            state.GuardianHealth = state.GuardianMaxHealth;
+            state.GuardianTurn = 0;
+            state.GuardianOutcome = PortalGuardianRules.Ongoing;
         }
 
         await events.AppendAsync(new GameEventEnvelope(

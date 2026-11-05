@@ -52,6 +52,7 @@ builder.Services.AddScoped<PlayerEquipmentService>();
 builder.Services.AddScoped<WorldPortalService>();
 builder.Services.AddScoped<PortalMistakeDamageService>();
 builder.Services.AddScoped<PortalEncounterService>();
+builder.Services.AddScoped<PortalGuardianService>();
 builder.Services.AddScoped<GameEventAuditService>();
 builder.Services.AddSingleton<WorldChunkGenerator>();
 builder.Services.AddSingleton<TimeProvider>(TimeProvider.System);

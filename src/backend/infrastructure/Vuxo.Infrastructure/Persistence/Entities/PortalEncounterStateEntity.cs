@@ -12,4 +12,8 @@ public sealed class PortalEncounterStateEntity
     public Guid StartEventId { get; set; }
     public DateTimeOffset StartedAtUtc { get; set; }
     public DateTimeOffset ExpiresAtUtc { get; set; }
+    public int GuardianMaxHealth { get; set; } = 8;
+    public int GuardianHealth { get; set; } = 8;
+    public int GuardianTurn { get; set; }
+    public string GuardianOutcome { get; set; } = "ongoing";
 }
