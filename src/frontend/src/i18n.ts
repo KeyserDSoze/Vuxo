@@ -111,6 +111,35 @@ const initialization = i18n.use(initReactI18next).init({
           genericError: 'Non è stato possibile completare l’accesso.'
         },
         game: {
+          guardian: {
+            title: 'Duello contro il Guardiano',
+            description: 'Scontro PvE facoltativo. Scegli Attacco o Parata: entrambe le carte vengono rivelate e risolte dal server. Questo duello non assegna premi; la ricompensa resta legata alla sfida di rune.',
+            loading: 'Caricamento scontro…',
+            enemyHealth: 'Guardiano: {{current}} / {{maximum}} HP',
+            playerHealth: 'I tuoi HP: {{current}} / {{maximum}}',
+            turn: 'Turno {{turn}} / {{maximum}}',
+            choose: 'Scegli la tua carta per il confronto:',
+            cards: { strike: 'Attacco', guard: 'Parata' },
+            turnResult: 'Tu: {{player}} · Guardiano: {{enemy}}. Danni inflitti: {{dealt}} HP; subiti: {{taken}} HP.',
+            outcomes: {
+              victory: 'Hai sconfitto il Guardiano! Il premio del portale resta legato alla sfida delle rune.',
+              retreat: 'Ti sei ritirato dal duello. Recupera HP nel Rifugio dopo l’incontro.'
+            },
+            refuge: 'Vai al Rifugio',
+            refresh: 'Aggiorna duello',
+            retryTurn: 'Riprova la stessa azione',
+            errors: {
+              guardian_request_failed: 'Impossibile verificare il duello. Riprova senza inviare una nuova azione.',
+              guardian_unavailable: 'Questo duello è disponibile solo dopo l’ingresso autorizzato nel portale dal mondo.',
+              guardian_stale_turn: 'Il turno è già cambiato. Aggiorna il duello.',
+              guardian_finished: 'Lo scontro è concluso. Aggiorna il duello.',
+              guardian_too_injured: 'Hai pochi HP per combattere. Recupera salute dopo l’incontro.',
+              guardian_idempotency_key_reused: 'Questa richiesta è già stata usata per un’altra carta.',
+              guardian_invalid_action: 'Carta non valida.',
+              guardian_invalid_turn: 'Turno non valido.',
+              guardian_idempotency_key_required: 'Chiave dell’azione non valida.'
+            }
+          },
           title: 'Mondo condiviso',
           description: 'Il movimento è autoritativo lato server. Usa WASD, le frecce o i controlli touch per inviare i tuoi intenti.',
           playersOnline: 'Giocatori online: {{count}}',
@@ -427,6 +456,35 @@ const initialization = i18n.use(initReactI18next).init({
           genericError: 'Sign-in could not be completed.'
         },
         game: {
+          guardian: {
+            title: 'Guardian showdown',
+            description: 'Optional PvE battle. Choose Strike or Guard: both cards are revealed and resolved by the server. This duel gives no rewards; the rune challenge still controls the portal prize.',
+            loading: 'Loading battle…',
+            enemyHealth: 'Guardian: {{current}} / {{maximum}} HP',
+            playerHealth: 'Your HP: {{current}} / {{maximum}}',
+            turn: 'Turn {{turn}} / {{maximum}}',
+            choose: 'Choose your card for the showdown:',
+            cards: { strike: 'Strike', guard: 'Guard' },
+            turnResult: 'You: {{player}} · Guardian: {{enemy}}. Damage dealt: {{dealt}} HP; taken: {{taken}} HP.',
+            outcomes: {
+              victory: 'You defeated the Guardian! The portal reward is still earned by solving the rune challenge.',
+              retreat: 'You retreated from the duel. Recover HP at the Refuge after the encounter.'
+            },
+            refuge: 'Visit Refuge',
+            refresh: 'Refresh battle',
+            retryTurn: 'Retry the same action',
+            errors: {
+              guardian_request_failed: 'Cannot confirm the battle. Retry safely without sending a new action.',
+              guardian_unavailable: 'This duel requires a verified entry to the portal from the world.',
+              guardian_stale_turn: 'The turn has already changed. Refresh the battle.',
+              guardian_finished: 'This battle has ended. Refresh the battle.',
+              guardian_too_injured: 'Your HP are too low to fight. Recover after the encounter.',
+              guardian_idempotency_key_reused: 'This request was already used for a different card.',
+              guardian_invalid_action: 'Invalid card.',
+              guardian_invalid_turn: 'Invalid turn.',
+              guardian_idempotency_key_required: 'Invalid action request key.'
+            }
+          },
           title: 'Shared world',
           description: 'Movement is server-authoritative. Use WASD, arrow keys or touch controls to send your movement intent.',
           playersOnline: 'Players online: {{count}}',

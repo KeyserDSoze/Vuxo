@@ -13,6 +13,7 @@ import { WorldScene } from './WorldScene'
 import { readStoredSession } from '../features/auth/authSession'
 import { enterWorldPortal, fetchWorldPortals, PortalApiError, type WorldPortalMarker } from '../features/portals/portalApi'
 import { PortalChallengesPage } from '../pages/PortalChallengesPage'
+import { GuardianDuel } from '../features/portals/GuardianDuel'
 
 export function GameCanvas() {
   const { t } = useTranslation()
@@ -292,6 +293,7 @@ export function GameCanvas() {
       >
         <DialogTitle id="world-portal-dialog-title">{t('game.portal.challenge')}</DialogTitle>
         <DialogContent>
+          {activePortal && <GuardianDuel grantId={activePortal.id} />}
           {activePortal && (
             <PortalChallengesPage
               key={activePortal.id}
