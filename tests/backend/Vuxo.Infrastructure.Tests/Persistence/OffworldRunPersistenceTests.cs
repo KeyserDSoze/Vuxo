@@ -175,6 +175,32 @@ public sealed class OffworldRunPersistenceTests
     }
 
     [PostgresIntegrationFact]
+    public async Task DailyQuota_RejectsThirteenthRunEvenWhenCooldownHasElapsed()
+    {
+        await using var database = await PostgresDatabaseScope.CreateAsync();
+        await SeedAsync(database);
+        var day = new DateTimeOffset(2026, 11, 5, 12, 0, 0, TimeSpan.Zero);
+        for (var i = 0; i < OffworldRunRules.MaximumDailyStarts; i++)
+        {
+            var now = day.AddMinutes(i * 3);
+            await using var db = database.CreateDbContext();
+            var run = await Repository(db).StartAsync("player-a", Guid.NewGuid(), now);
+            await Repository(db).CompleteAsync("player-a", run.RunId,
+                Guid.NewGuid(), Solve(run.PuzzleIndex), now.AddSeconds(20));
+        }
+
+        await using var check = database.CreateDbContext();
+        var error = await Assert.ThrowsAsync<OffworldRunException>(() =>
+            Repository(check).StartAsync("player-a", Guid.NewGuid(), day.AddMinutes(40)));
+        Assert.Equal(OffworldRunErrorCodes.DailyLimit, error.Code);
+        Assert.Equal(OffworldRunRules.MaximumDailyStarts,
+            await check.OffworldActivityRuns.CountAsync());
+        Assert.Equal(OffworldRunRules.MaximumDailyStarts * 2,
+            (await new GameEventStore(check).QueryAsync(
+                new GameEventQuery(PlayerId: "player-a", Limit: 100))).Items.Count);
+    }
+
+    [PostgresIntegrationFact]
     public async Task FailedSave_RollsBackAuditAndRunCreation()
     {
         await using var database = await PostgresDatabaseScope.CreateAsync();
