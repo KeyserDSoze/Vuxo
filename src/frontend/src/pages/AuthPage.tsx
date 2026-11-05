@@ -11,12 +11,12 @@ import {
 } from '../features/auth/authApi';
 import {
   clearStoredSession,
-  readStoredSession,
+  ACCESS_TOKEN_STORAGE_KEY,
   storeSession,
-  type VuxoSession,
 } from '../features/auth/authSession';
 import { GoogleSignInButton } from '../features/auth/GoogleSignInButton';
 import { acquireMicrosoftIdToken } from '../features/auth/microsoftAuth';
+import { useStoredSession } from '../features/auth/useStoredSession';
 
 type Provider = 'microsoft' | 'google';
 
@@ -24,12 +24,18 @@ export function AuthPage() {
   const { t: tAuth } = useTranslation('auth');
   const { t: tErrors } = useTranslation('errors');
   const [configuration, setConfiguration] = useState<SocialProviderConfiguration | null>(null);
-  const [session, setSession] = useState<VuxoSession | null>(() => readStoredSession());
-  const [loadingConfiguration, setLoadingConfiguration] = useState(true);
+  const session = useStoredSession();
+  const signedIn = session !== null;
+  const [loadingConfiguration, setLoadingConfiguration] = useState(!signedIn);
   const [busyProvider, setBusyProvider] = useState<Provider | null>(null);
   const [errorCode, setErrorCode] = useState<string | null>(null);
 
   useEffect(() => {
+    // Fetch providers only when the user needs to sign in; re-fetch after a
+    // cross-tab logout or session expiry. Abort obsolete in-flight requests.
+    if (signedIn) return;
+    setConfiguration(null);
+    setLoadingConfiguration(true);
     const controller = new AbortController();
     void fetchSocialProviderConfiguration(controller.signal)
       .then(value => {
@@ -45,7 +51,7 @@ export function AuthPage() {
       });
 
     return () => controller.abort();
-  }, []);
+  }, [signedIn]);
 
   const completeLogin = useCallback(async (provider: Provider, credential: string) => {
     setBusyProvider(provider);
@@ -53,7 +59,6 @@ export function AuthPage() {
     try {
       const newSession = await exchangeSocialCredential(provider, credential);
       storeSession(newSession);
-      setSession(newSession);
     } catch (error) {
       setErrorCode(error instanceof AuthApiError ? error.code : 'social_login_failed');
     } finally {
@@ -74,7 +79,6 @@ export function AuthPage() {
       });
       const newSession = await exchangeSocialCredential('microsoft', credential);
       storeSession(newSession);
-      setSession(newSession);
     } catch (error) {
       setErrorCode(error instanceof AuthApiError ? error.code : 'social_login_cancelled');
     } finally {
@@ -85,14 +89,18 @@ export function AuthPage() {
   const logout = async () => {
     if (!session) return;
 
+    const tokenBeingLoggedOut = session.accessToken;
     setErrorCode(null);
     try {
-      await logoutVuxo(session.accessToken);
+      await logoutVuxo(tokenBeingLoggedOut);
     } catch {
       // Vuxo JWTs are stateless in 0.0.1: local discard is the logout authority for the SPA.
     } finally {
-      clearStoredSession();
-      setSession(null);
+      // A second tab may have replaced the session while the logout request
+      // was in flight. Never discard that newer login with a stale response.
+      if (localStorage.getItem(ACCESS_TOKEN_STORAGE_KEY) === tokenBeingLoggedOut) {
+        clearStoredSession();
+      }
     }
   };
 
