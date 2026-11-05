@@ -116,4 +116,55 @@ test('real SignalR world renders only personal portal and rejects forged distanc
   if (!near) {
     expect(((await forged.json()) as { code: string }).code).toBe('world_portal_too_far');
   }
+
+  // Real PostgreSQL encounter status is authoritative across the API/React
+  // boundaries and may only be opened AFTER server-side proximity checks.
+  const encounterResponse = await request.get(api + '/api/characters/me/encounter', {
+    headers: userHeaders,
+  });
+  expect(encounterResponse.status()).toBe(200);
+  const encounter = await encounterResponse.json() as {
+    active: boolean; portalGrantId: string | null; expiresAtUtc: string | null;
+  };
+  expect(encounter.active).toBe(near);
+  expect(encounter.portalGrantId).toBe(near ? grantId : null);
+
+  const otherEncounter = await request.get(api + '/api/characters/me/encounter', {
+    headers: { Authorization: 'Bearer ' + otherToken },
+  });
+  expect(otherEncounter.status()).toBe(200);
+  expect(((await otherEncounter.json()) as { active: boolean }).active).toBe(false);
+
+  if (near) {
+    const rest = await request.post(api + '/api/characters/me/rest', {
+      headers: { ...userHeaders, 'Idempotency-Key': randomUUID() },
+    });
+    expect(rest.status()).toBe(409);
+    expect(((await rest.json()) as { code: string }).code).toBe('rest_encounter_active');
+
+    const healing = await request.post(
+      api + '/api/characters/me/heal/' + randomUUID(), {
+        headers: { ...userHeaders, 'Idempotency-Key': randomUUID() },
+      });
+    expect(healing.status()).toBe(409);
+    expect(((await healing.json()) as { code: string }).code).toBe('heal_encounter_active');
+
+    // Completing the same server-verified portal grants its normal reward and
+    // automatically makes the persisted encounter inactive BEFORE TTL expiry.
+    const puzzle = await request.get(
+      api + '/api/personal-content/' + grantId + '/challenge',
+      { headers: userHeaders });
+    expect(puzzle.status()).toBe(200);
+    const answer = (await puzzle.json()) as { sequence: string[] };
+    const completion = await request.post(
+      api + '/api/personal-content/' + grantId + '/challenge/attempt',
+      { headers: userHeaders, data: { sequence: answer.sequence } });
+    expect(completion.status()).toBe(200);
+
+    const released = await request.get(api + '/api/characters/me/encounter', {
+      headers: userHeaders,
+    });
+    expect(released.status()).toBe(200);
+    expect(((await released.json()) as { active: boolean }).active).toBe(false);
+  }
 });
