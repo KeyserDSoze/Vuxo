@@ -23,9 +23,9 @@ Il giocatore può aprire il Rifugio e agire per pochi minuti senza avviare Phase
 
 ### Cura/riposo (#72)
 
-Il modello \`PlayerCharacter\` e \`PlayerCharacterEntity\` contiene attributi, da cui si ricava **HP massimo = Costituzione × 10**, ma non \`CurrentHealth\`. Prima di offrire un'azione reale:
+La tranche #75 aggiunge CurrentHealth persistito (creazione/backfill al massimo di base = Costituzione × 10), vincolo PostgreSQL e GET owner-only, solo lettura, per mostrare la salute reale nel Rifugio. Prima di offrire cura o riposo:
 
-- introdurre \`CurrentHealth\` persistito e migrazione EF Core senza perdita dati; stabilire come inizializzare i personaggi già esistenti;
+- verificare la foundation #75 con test e migrazioni sui personaggi storici, mantenendo coerenza fra mondo e Rifugio;
 - imporre 0 ≤ CurrentHealth ≤ MaxHealth e ricalcolare i massimi quando l'equipaggiamento modifica gli attributi;
 - definire costi/riposo/cooldown e stato di gioco coerente tra mondo e Rifugio;
 - consumare eventuali oggetti e curare atomicamente, con idempotenza, controllo ownership e transazione;

@@ -13,7 +13,8 @@ Il giocatore distribuisce esattamente **10 punti** tra:
 
 Per la prima versione solo due statistiche hanno effetti di gameplay:
 
-- `HP massimi = Costituzione × 10`.
+- HP massimi di base = Costituzione × 10.
+- HP correnti persistiti da #75: partono dal massimo a creazione/migrazione e sono letti in modo owner-only nel Rifugio; non esistono ancora cure o danni che li modificano.
 - `Moltiplicatore velocità = 1 + (Destrezza × 0,10)`.
 
 Le altre statistiche sono persistite e versionate ma non hanno ancora effetti.
