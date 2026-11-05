@@ -181,6 +181,7 @@ export function InventoryPage() {
                     {stack.itemKey === 'item.grove_seed.v1' && stack.availableGrantIds.length > 0 && (
                       <HealingItemAction key={stack.availableGrantIds[0]}
                         grantId={stack.availableGrantIds[0]}
+                        accessToken={session!.accessToken}
                         disabled={equipmentBusy}
                         onHealed={result => {
                           setHealingResult(result);

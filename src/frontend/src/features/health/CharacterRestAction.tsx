@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { restCharacter, CharacterRestApiError, type CharacterRestResult } from './characterRestApi';
 import type { CharacterHealth } from './characterHealthApi';
+import { usePortalEncounterStatus } from './usePortalEncounterStatus';
 
 type Props = {
   accessToken: string;
@@ -15,6 +16,7 @@ export function CharacterRestAction({ accessToken, health, onRested }: Props) {
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [restored, setRestored] = useState(0);
+  const encounter = usePortalEncounterStatus(accessToken);
   const pendingKey = useRef<string | null>(null);
   const activeRequest = useRef<AbortController | null>(null);
 
@@ -29,7 +31,7 @@ export function CharacterRestAction({ accessToken, health, onRested }: Props) {
 
   const canRest = health.currentHealth > 0 && health.currentHealth < health.maxHealth;
   const attempt = async () => {
-    if (!canRest || busy || feedback === 'success') return;
+    if (!canRest || encounter.active || encounter.loading || busy || feedback === 'success') return;
     const key = pendingKey.current ?? crypto.randomUUID();
     pendingKey.current = key;
     const controller = new AbortController();
@@ -46,12 +48,14 @@ export function CharacterRestAction({ accessToken, health, onRested }: Props) {
     } catch (error) {
       if (controller.signal.aborted) return;
       const code = error instanceof CharacterRestApiError ? error.code : 'rest_unavailable';
-      if (code === 'rest_cooldown' || code === 'rest_already_full' ||
+      if (code === 'rest_cooldown' || code === 'rest_encounter_active' ||
+          code === 'rest_already_full' ||
           code === 'rest_unavailable' && error instanceof CharacterRestApiError && error.status === 409 ||
           code === 'character_not_found') {
         pendingKey.current = null; // definitive server rejection: a new intention uses a new key
       }
       setFeedback(
+        code === 'rest_encounter_active' ? 'encounter' :
         code === 'rest_cooldown' ? 'cooldown' :
         code === 'rest_already_full' ? 'full' :
         code === 'rest_unavailable' && error instanceof CharacterRestApiError && error.status === 409
@@ -69,6 +73,16 @@ export function CharacterRestAction({ accessToken, health, onRested }: Props) {
       {feedback === 'success' && (
         <Alert severity="success" data-testid="refuge-rest-success" role="status">
           {t('refuge.rest.success', { amount: restored })}
+        </Alert>
+      )}
+      {(encounter.active || feedback === 'encounter') && (
+        <Alert severity="warning" data-testid="refuge-rest-encounter">
+          {t('refuge.rest.encounterActive')}{' '}
+          <Button data-testid="refuge-encounter-refresh" size="small"
+            disabled={encounter.loading}
+            onClick={encounter.refresh}>
+            {t('refuge.rest.refreshEncounter')}
+          </Button>
         </Alert>
       )}
       {feedback === 'cooldown' && (
@@ -94,7 +108,7 @@ export function CharacterRestAction({ accessToken, health, onRested }: Props) {
         <Button
           data-testid="refuge-rest-button"
           variant="contained"
-          disabled={busy || feedback === 'success'}
+          disabled={busy || encounter.loading || encounter.active || feedback === 'success'}
           onClick={() => { void attempt(); }}
           startIcon={busy ? <CircularProgress size={18} color="inherit" /> : undefined}
         >

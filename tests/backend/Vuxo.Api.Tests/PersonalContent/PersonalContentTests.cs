@@ -277,7 +277,9 @@ public sealed class PersonalContentTests
     public async Task WorldPortalEntry_RejectsNotJoinedAndClientSpoofedPosition_ButAllowsServerNearby()
     {
         var grant = CreateGrant("player-a", PortalSequenceRules.PortalKey);
-        using var factory = CreateFactory(out var repository, out var events, out var unitOfWork);
+        var encounters = new FakeEncounter();
+        using var factory = CreateFactory(
+            out var repository, out var events, out var unitOfWork, encounter: encounters);
         repository.Grants.Add(grant);
         using var client = factory.CreateClient();
         await AuthenticateAsync(client, "player-a", "User");
@@ -287,6 +289,7 @@ public sealed class PersonalContentTests
         Assert.Equal(HttpStatusCode.Conflict, notJoined.StatusCode);
         Assert.Equal("world_portal_not_joined",
             (await notJoined.Content.ReadFromJsonAsync<ErrorResponse>())?.Code);
+        Assert.Equal(0, encounters.Starts);
 
         var character = CreateWorldCharacter("player-a");
         var simulation = factory.Services.GetRequiredService<WorldSimulation>();
@@ -301,6 +304,7 @@ public sealed class PersonalContentTests
         Assert.Equal(HttpStatusCode.Conflict, spoof.StatusCode);
         Assert.Equal("world_portal_too_far",
             (await spoof.Content.ReadFromJsonAsync<ErrorResponse>())?.Code);
+        Assert.Equal(0, encounters.Starts);
         Assert.False(grant.IsConsumed);
         Assert.Empty(events.Appended);
         Assert.Equal(0, unitOfWork.SaveCalls);
@@ -309,6 +313,9 @@ public sealed class PersonalContentTests
         simulation.Join("connection-near", "player-a", character, new WorldSpawnPoint(x, y));
         var entered = await client.PostAsync(url, null);
         Assert.Equal(HttpStatusCode.OK, entered.StatusCode);
+        Assert.Equal(1, encounters.Starts);
+        Assert.Equal("player-a", encounters.PlayerId);
+        Assert.Equal(grant.Id, encounters.GrantId);
         Assert.False(grant.IsConsumed); // Entry only opens the minigame, never credits rewards.
         Assert.Empty(events.Appended);
     }
@@ -406,7 +413,8 @@ public sealed class PersonalContentTests
         out FakeRepository repository,
         out FakeEventStore events,
         out FakeUnitOfWork unitOfWork,
-        IWorldPortalMap? portalMap = null, FakeDamage? damage = null)
+        IWorldPortalMap? portalMap = null, FakeDamage? damage = null,
+        FakeEncounter? encounter = null)
     {
         repository = new FakeRepository();
         events = new FakeEventStore();
@@ -419,12 +427,14 @@ public sealed class PersonalContentTests
         {
             services.RemoveAll<IExclusiveContentGrantRepository>();
             services.RemoveAll<IPortalMistakeDamageRepository>();
+            services.RemoveAll<IPortalEncounterRepository>();
             services.RemoveAll<IPlayerInventoryRepository>();
             services.RemoveAll<IGameEventStore>();
             services.RemoveAll<IUnitOfWork>();
             services.RemoveAll<IWorldPortalMap>();
             services.AddSingleton<IExclusiveContentGrantRepository>(repositoryInstance);
             services.AddSingleton<IPortalMistakeDamageRepository>(damage ?? new FakeDamage());
+            services.AddSingleton<IPortalEncounterRepository>(encounter ?? new FakeEncounter());
             services.AddSingleton<IPlayerInventoryRepository>(new FakeInventoryRepository());
             services.AddSingleton<IGameEventStore>(eventsInstance);
             services.AddSingleton<IUnitOfWork>(unitOfWorkInstance);
@@ -583,6 +593,28 @@ public sealed class PersonalContentTests
         {
             SaveCalls++;
             return Task.FromResult(1);
+        }
+    }
+
+    private sealed class FakeEncounter : IPortalEncounterRepository
+    {
+        public int Starts { get; private set; }
+        public string? PlayerId { get; private set; }
+        public Guid? GrantId { get; private set; }
+
+        public Task<PortalEncounterStatus> GetStatusAsync(
+            string playerId, DateTimeOffset now, CancellationToken cancellationToken = default)
+            => Task.FromResult(new PortalEncounterStatus(false, null, null));
+
+        public Task<PortalEncounterStatus> StartVerifiedPortalAsync(
+            string playerId, Guid portalGrantId, DateTimeOffset now,
+            CancellationToken cancellationToken = default)
+        {
+            Starts++;
+            PlayerId = playerId;
+            GrantId = portalGrantId;
+            return Task.FromResult(new PortalEncounterStatus(
+                true, portalGrantId, now.Add(PortalEncounterRules.MaximumDuration)));
         }
     }
 

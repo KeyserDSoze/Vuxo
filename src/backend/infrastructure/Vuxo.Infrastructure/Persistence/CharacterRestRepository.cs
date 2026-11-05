@@ -37,6 +37,10 @@ public sealed class CharacterRestRepository(VuxoDbContext db, IGameEventStore ev
             return ToResult(previous, replayed: true);
         }
 
+        if (await PortalEncounterGuard.IsActiveAsync(
+            db, character.Id, now, cancellationToken))
+            throw new CharacterRestException(CharacterRestErrorCodes.EncounterActive);
+
         var latest = await db.CharacterRestActions.AsNoTracking()
             .Where(x => x.CharacterId == character.Id)
             .OrderByDescending(x => x.RestedAtUtc)

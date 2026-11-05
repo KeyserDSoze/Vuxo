@@ -10,6 +10,7 @@ public sealed class VuxoDbContext(DbContextOptions<VuxoDbContext> options) : DbC
     public DbSet<CharacterRestActionEntity> CharacterRestActions => Set<CharacterRestActionEntity>();
     public DbSet<CharacterItemHealEntity> CharacterItemHeals => Set<CharacterItemHealEntity>();
     public DbSet<PortalMistakeDamageEntity> PortalMistakeDamages => Set<PortalMistakeDamageEntity>();
+    public DbSet<PortalEncounterStateEntity> PortalEncounterStates => Set<PortalEncounterStateEntity>();
     public DbSet<GameEventEntity> GameEvents => Set<GameEventEntity>();
     public DbSet<WorldDefinitionEntity> WorldDefinitions => Set<WorldDefinitionEntity>();
     public DbSet<WorldChunkEntity> WorldChunks => Set<WorldChunkEntity>();
@@ -30,6 +31,24 @@ public sealed class VuxoDbContext(DbContextOptions<VuxoDbContext> options) : DbC
             entity.HasIndex(x => x.OwnerId).IsUnique();
             entity.Property(x => x.OwnerId).HasMaxLength(200);
             entity.Property(x => x.Name).HasMaxLength(24);
+        });
+
+        modelBuilder.Entity<PortalEncounterStateEntity>(entity =>
+        {
+            entity.ToTable("portal_encounter_states", table => table.HasCheckConstraint(
+                "CK_portal_encounter_states_Time", "\"ExpiresAtUtc\" > \"StartedAtUtc\""));
+            entity.HasKey(x => x.CharacterId);
+            entity.Property(x => x.PlayerId).HasMaxLength(200);
+            entity.HasIndex(x => x.PlayerId).IsUnique();
+            entity.HasIndex(x => x.StartEventId).IsUnique();
+            entity.HasOne<PlayerCharacterEntity>().WithMany()
+                .HasForeignKey(x => x.CharacterId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<ExclusiveContentGrantEntity>().WithMany()
+                .HasForeignKey(x => new { x.PortalGrantId, x.PlayerId })
+                .HasPrincipalKey(x => new { x.Id, x.PlayerId })
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<GameEventEntity>().WithMany()
+                .HasForeignKey(x => x.StartEventId).OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<CharacterItemHealEntity>(entity =>

@@ -35,6 +35,10 @@ public sealed class CharacterHealingRepository(VuxoDbContext db, IGameEventStore
             return ToResult(previous, replayed: true);
         }
 
+        if (await PortalEncounterGuard.IsActiveAsync(
+            db, character.Id, now, cancellationToken))
+            throw new CharacterHealingException(CharacterHealingErrorCodes.EncounterActive);
+
         var awards = await db.PlayerInventoryAwards.FromSqlInterpolated(
             $"SELECT * FROM player_inventory_awards WHERE \"GrantId\" = {grantId} AND \"PlayerId\" = {playerId} FOR UPDATE")
             .ToListAsync(cancellationToken);

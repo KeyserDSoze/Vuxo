@@ -33,6 +33,8 @@ const initialization = i18n.use(initReactI18next).init({
             inProgress: 'Riposo in corso…',
             success: 'Riposo completato! Hai recuperato {{amount}} HP.',
             cooldown: 'Hai già riposato di recente. Riprova dopo 30 minuti dall’ultimo riposo.',
+            encounterActive: 'Un incontro del portale è ancora attivo. Completa la sfida o attendi che termini prima di riposare.',
+            refreshEncounter: 'Aggiorna stato incontro',
             full: 'Sei già in piena salute.',
             downed: 'Con zero HP non puoi riposare: servirà un altro tipo di cura.',
             error: 'Non è stato possibile confermare il riposo. Riprova: la richiesta non sarà applicata due volte.'
@@ -162,6 +164,9 @@ const initialization = i18n.use(initReactI18next).init({
             portal_challenge_incorrect: 'Sequenza errata. Riprova.',
             world_portal_not_joined: 'Entra nel mondo condiviso prima di utilizzare il portale.',
             world_portal_too_far: 'Sei troppo lontano dal portale: avvicinati e riprova.',
+            encounter_already_active: 'Hai già un altro incontro del portale attivo. Completa quello o attendi che scada.',
+            encounter_portal_unavailable: 'Questo portale non è più disponibile per iniziare un incontro.',
+            encounter_character_required: 'Crea un personaggio prima di entrare nel portale.',
             exclusive_content_not_found: 'Questo portale non è disponibile per il tuo personaggio.',
             exclusive_content_expired: 'Questo portale è scaduto.',
             exclusive_content_consumed: 'Questa sfida è già stata completata.'
@@ -174,7 +179,9 @@ const initialization = i18n.use(initReactI18next).init({
             working: 'Cura in corso…',
             success: 'Oggetto consumato: +{{restored}} HP ({{current}}/{{maximum}}).',
             refuge: 'Vedi salute nel Rifugio',
-            refreshError: 'Cura confermata, ma impossibile aggiornare le quantità. Ricarica l’inventario.'
+            refreshError: 'Cura confermata, ma impossibile aggiornare le quantità. Ricarica l’inventario.',
+            encounterActive: 'Incontro del portale attivo: puoi usare il Seme del Bosco dopo la sfida o alla scadenza.',
+            refreshEncounter: 'Aggiorna stato incontro'
           },
           title: 'Inventario',
           description: 'Gli oggetti ottenuti superando le sfide personali sono salvati sul server.',
@@ -227,6 +234,7 @@ const initialization = i18n.use(initReactI18next).init({
             heal_item_equipped: 'Rimuovi prima il Seme del Bosco dallo slot Amuleto.',
             heal_conflict: 'L’oggetto è stato modificato da un’altra richiesta. Aggiorna l’inventario.',
             heal_item_used: 'Questo oggetto è già stato consumato.',
+            heal_encounter_active: 'Non puoi curarti durante un incontro attivo del portale.',
             heal_already_full: 'Hai già la salute massima.',
             heal_unavailable: 'Non puoi usare questo oggetto con zero HP.',
             character_not_found: 'Crea un personaggio prima di curarti.'
@@ -341,6 +349,8 @@ const initialization = i18n.use(initReactI18next).init({
             inProgress: 'Resting…',
             success: 'Rest completed! You recovered {{amount}} HP.',
             cooldown: 'You have rested recently. Try again 30 minutes after your last rest.',
+            encounterActive: 'A portal encounter is still active. Finish the challenge or wait for it to end before resting.',
+            refreshEncounter: 'Refresh encounter status',
             full: 'Your health is already full.',
             downed: 'You cannot rest at zero HP. Another type of healing will be needed.',
             error: 'Could not confirm the rest. Retry safely: the same request will not be applied twice.'
@@ -470,6 +480,9 @@ const initialization = i18n.use(initReactI18next).init({
             portal_challenge_incorrect: 'Wrong sequence. Try again.',
             world_portal_not_joined: 'Join the shared world before entering this portal.',
             world_portal_too_far: 'You are too far from this portal. Move closer and try again.',
+            encounter_already_active: 'Another portal encounter is already active. Complete it or wait for it to expire.',
+            encounter_portal_unavailable: 'This portal is no longer available for an encounter.',
+            encounter_character_required: 'Create a character before entering a portal.',
             exclusive_content_not_found: 'This portal is unavailable for your character.',
             exclusive_content_expired: 'This portal has expired.',
             exclusive_content_consumed: 'This challenge has already been completed.'
@@ -482,7 +495,9 @@ const initialization = i18n.use(initReactI18next).init({
             working: 'Healing…',
             success: 'Item consumed: +{{restored}} HP ({{current}}/{{maximum}}).',
             refuge: 'View health in Refuge',
-            refreshError: 'Healing confirmed, but available stock could not be refreshed. Reload inventory.'
+            refreshError: 'Healing confirmed, but available stock could not be refreshed. Reload inventory.',
+            encounterActive: 'A portal encounter is active. Use the Grove Seed after the challenge ends or the encounter expires.',
+            refreshEncounter: 'Refresh encounter status'
           },
           title: 'Inventory',
           description: 'Items earned through personal challenges are securely stored on the server.',
@@ -535,6 +550,7 @@ const initialization = i18n.use(initReactI18next).init({
             heal_item_equipped: 'Unequip the Grove Seed charm first.',
             heal_conflict: 'Another request changed this item. Refresh your inventory.',
             heal_item_used: 'This item has already been consumed.',
+            heal_encounter_active: 'You cannot heal during an active portal encounter.',
             heal_already_full: 'Your health is already full.',
             heal_unavailable: 'You cannot use this item at zero HP.',
             character_not_found: 'Create a character before healing.'

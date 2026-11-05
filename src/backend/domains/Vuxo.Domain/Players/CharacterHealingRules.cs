@@ -35,6 +35,7 @@ public static class CharacterHealingErrorCodes
     public const string AlreadyFull = "heal_already_full";
     public const string Unavailable = "heal_unavailable";
     public const string KeyReused = "heal_idempotency_key_reused";
+    public const string EncounterActive = "heal_encounter_active";
 }
 
 public sealed class CharacterHealingException(string code) : Exception(code)

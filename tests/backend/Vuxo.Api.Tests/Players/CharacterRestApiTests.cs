@@ -61,6 +61,7 @@ public sealed class CharacterRestApiTests
     [InlineData(CharacterRestErrorCodes.AlreadyFull, HttpStatusCode.Conflict)]
     [InlineData(CharacterRestErrorCodes.Unavailable, HttpStatusCode.Conflict)]
     [InlineData(CharacterRestErrorCodes.Cooldown, HttpStatusCode.Conflict)]
+    [InlineData(CharacterRestErrorCodes.EncounterActive, HttpStatusCode.Conflict)]
     public async Task Rest_MapsDomainErrorsToStableHttpCodes(string code, HttpStatusCode expected)
     {
         using var factory = CreateFactory(new FakeRestRepository { ErrorCode = code });

@@ -5,6 +5,8 @@ const groveSeed = 'item.grove_seed.v1';
 const cors = { 'Access-Control-Allow-Origin': '*' };
 
 async function signIn(page: Page, language: 'it' | 'en' = 'it') {
+  await page.route('**/api/characters/me/encounter', route => json(route,
+    { active: false, portalGrantId: null, expiresAtUtc: null }));
   const expiresAtUtc = new Date(Date.now() + 3_600_000).toISOString();
   await page.addInitScript(({ expiresAtUtc, language }) => {
     localStorage.clear();
@@ -122,4 +124,44 @@ test('a guest cannot consume inventory items or call healing API', async ({ page
   await expect(page.getByTestId('inventory-auth-required')).toBeVisible();
   await expect(page.getByTestId('inventory-heal')).toHaveCount(0);
   expect(requests).toBe(0);
+});
+
+
+test('a world portal encounter blocks healing from a second browser session', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  let active = true;
+  await signIn(page, 'en');
+  await mockInventory(page, () => false);
+  await page.route('**/api/characters/me/encounter', route => json(route, {
+    active, portalGrantId: active ? grantId : null,
+    expiresAtUtc: active ? '2099-01-01T00:03:00Z' : null,
+  }));
+  let healingCalls = 0;
+  await page.route('**/api/characters/me/heal/**', route => {
+    healingCalls++;
+    return json(route, { code: 'heal_encounter_active' }, 409);
+  });
+  await page.goto('./#/inventory');
+  await expect(page.getByTestId('inventory-heal-encounter')).toContainText('portal encounter');
+  await expect(page.getByTestId('inventory-heal')).toBeDisabled();
+  expect(healingCalls).toBe(0);
+  active = false; // Server releases the lock after portal completion.
+  await page.getByTestId('inventory-encounter-refresh').click();
+  await expect(page.getByTestId('inventory-heal-encounter')).toHaveCount(0);
+  await expect(page.getByTestId('inventory-heal')).toBeEnabled();
+  expect(healingCalls).toBe(0);
+  await expect.poll(() => page.evaluate(() =>
+    document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
+});
+
+test('server 409 heal_encounter_active is translated if encounter starts after the UI check', async ({ page }) => {
+  await signIn(page);
+  await mockInventory(page, () => false);
+  await page.route('**/api/characters/me/heal/**',
+    route => json(route, { code: 'heal_encounter_active' }, 409));
+  await page.goto('./#/inventory');
+  await page.getByTestId('inventory-heal').click();
+  await expect(page.getByTestId('inventory-heal-error')).toContainText('incontro attivo');
+  await expect(page.getByTestId('inventory-heal-success')).toHaveCount(0);
+  await expect(page.getByTestId('inventory-item')).toHaveCount(1);
 });

@@ -51,6 +51,7 @@ builder.Services.AddScoped<ExclusiveContentService>();
 builder.Services.AddScoped<PlayerEquipmentService>();
 builder.Services.AddScoped<WorldPortalService>();
 builder.Services.AddScoped<PortalMistakeDamageService>();
+builder.Services.AddScoped<PortalEncounterService>();
 builder.Services.AddScoped<GameEventAuditService>();
 builder.Services.AddSingleton<WorldChunkGenerator>();
 builder.Services.AddSingleton<TimeProvider>(TimeProvider.System);
@@ -318,6 +319,16 @@ app.MapGet("/api/characters/me/health", async (ClaimsPrincipal user, IPlayerChar
 
 // A rest request is an intention only: the server decides timing, amount,
 // ownership, HP updates and idempotency in a single PostgreSQL transaction.
+app.MapGet("/api/characters/me/encounter", async (
+    ClaimsPrincipal user, PortalEncounterService service, CancellationToken cancellationToken) =>
+{
+    var ownerId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+    if (string.IsNullOrWhiteSpace(ownerId)) return Results.Unauthorized();
+    return Results.Ok(await service.GetStatusAsync(ownerId, cancellationToken));
+}).RequireAuthorization();
+
+// No public encounter start/finish API: world portal proximity is validated
+// server-side in WorldPortalService before the encounter is opened.
 app.MapPost("/api/characters/me/rest", async (
     HttpRequest request,
     ClaimsPrincipal user,
