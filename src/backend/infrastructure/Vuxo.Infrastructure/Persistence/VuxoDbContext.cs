@@ -9,6 +9,7 @@ public sealed class VuxoDbContext(DbContextOptions<VuxoDbContext> options) : DbC
     public DbSet<PlayerCharacterEntity> PlayerCharacters => Set<PlayerCharacterEntity>();
     public DbSet<CharacterRestActionEntity> CharacterRestActions => Set<CharacterRestActionEntity>();
     public DbSet<CharacterItemHealEntity> CharacterItemHeals => Set<CharacterItemHealEntity>();
+    public DbSet<PortalMistakeDamageEntity> PortalMistakeDamages => Set<PortalMistakeDamageEntity>();
     public DbSet<GameEventEntity> GameEvents => Set<GameEventEntity>();
     public DbSet<WorldDefinitionEntity> WorldDefinitions => Set<WorldDefinitionEntity>();
     public DbSet<WorldChunkEntity> WorldChunks => Set<WorldChunkEntity>();
@@ -44,6 +45,25 @@ public sealed class VuxoDbContext(DbContextOptions<VuxoDbContext> options) : DbC
             entity.HasOne<PlayerInventoryAwardEntity>().WithMany()
                 .HasForeignKey(x => new { x.GrantId, x.PlayerId })
                 .HasPrincipalKey(x => new { x.GrantId, x.PlayerId })
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<GameEventEntity>().WithMany()
+                .HasForeignKey(x => x.EventId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<PortalMistakeDamageEntity>(entity =>
+        {
+            entity.ToTable("portal_mistake_damages", table => table.HasCheckConstraint(
+                "CK_portal_mistake_damages_Damage_Range",
+                "\"Damage\" >= 0 AND \"Damage\" <= 2"));
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.PlayerId).HasMaxLength(200);
+            entity.HasIndex(x => x.GrantId).IsUnique();
+            entity.HasIndex(x => x.EventId).IsUnique();
+            entity.HasOne<PlayerCharacterEntity>().WithMany()
+                .HasForeignKey(x => x.CharacterId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<ExclusiveContentGrantEntity>().WithMany()
+                .HasForeignKey(x => new { x.GrantId, x.PlayerId })
+                .HasPrincipalKey(x => new { x.Id, x.PlayerId })
                 .OnDelete(DeleteBehavior.Restrict);
             entity.HasOne<GameEventEntity>().WithMany()
                 .HasForeignKey(x => x.EventId).OnDelete(DeleteBehavior.Restrict);
@@ -151,6 +171,7 @@ public sealed class VuxoDbContext(DbContextOptions<VuxoDbContext> options) : DbC
         {
             entity.ToTable("exclusive_content_grants");
             entity.HasKey(x => x.Id);
+            entity.HasAlternateKey(x => new { x.Id, x.PlayerId });
             entity.HasIndex(x => new { x.PlayerId, x.ConsumedAtUtc, x.ExpiresAtUtc });
             entity.HasIndex(x => x.GrantEventId).IsUnique();
             entity.Property(x => x.PlayerId).HasMaxLength(200);
