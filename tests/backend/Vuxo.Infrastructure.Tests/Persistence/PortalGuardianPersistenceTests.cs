@@ -123,6 +123,60 @@ public sealed class PortalGuardianPersistenceTests
 
 
     [PostgresIntegrationFact]
+    public async Task UpgradeFromV1Encounter_BackfillsVersionAndContinuesLegacyRules()
+    {
+        await using var database = await PostgresDatabaseScope.CreateAsync();
+        var now = DateTimeOffset.UtcNow;
+        var grant = ExclusiveContentGrant.Create(
+            Guid.NewGuid(), Guid.NewGuid(), "player-a", "portal.legacy",
+            PortalSequenceRules.PortalKey, "dialog.legacy", "reward.reference",
+            4242L, "personal-content-v1", Guid.NewGuid(), null,
+            now.AddMinutes(-1), now.AddHours(1));
+        var character = PlayerCharacter.Create("player-a", "Legacy Guardian",
+            PlayerAttributes.Create(2, 2, 2, 2, 1, 1),
+            new CharacterAppearance("hair-1", "black", "face-1",
+                "body-1", "skin-1", "blue", "shorts", "black", "shoe-1", "white"));
+        var startedId = Guid.NewGuid();
+        await using (var oldDb = database.CreateDbContext())
+        {
+            await oldDb.Database.MigrateAsync("202611050006_PortalGuardianShowdown");
+            await new ExclusiveContentGrantRepository(oldDb).AddAsync(grant);
+            await new PlayerCharacterRepository(oldDb).AddAsync(character);
+            await new GameEventStore(oldDb).AppendAsync(new GameEventEnvelope(
+                startedId, "portal.encounter_started", GameEventVisibilityScope.Player,
+                "player-a", grant.CorrelationId, null, PortalEncounterRules.Version, now), "{}");
+            await oldDb.SaveChangesAsync();
+            // Before v2 there is no GuardianRuleVersion column: simulate an active
+            // v1 encounter persisted by the original deployed schema.
+            await oldDb.Database.ExecuteSqlInterpolatedAsync(
+                $"INSERT INTO portal_encounter_states (\"CharacterId\", \"PlayerId\", \"PortalGrantId\", \"StartEventId\", \"StartedAtUtc\", \"ExpiresAtUtc\", \"GuardianMaxHealth\", \"GuardianHealth\", \"GuardianTurn\", \"GuardianOutcome\") VALUES ({character.Id}, {"player-a"}, {grant.Id}, {startedId}, {now}, {now.AddMinutes(3)}, {6}, {6}, {0}, {"ongoing"})");
+            await oldDb.Database.MigrateAsync();
+        }
+
+        await using (var upgraded = database.CreateDbContext())
+        {
+            var status = await Guardian(upgraded).GetAsync("player-a", grant.Id, now);
+            Assert.NotNull(status);
+            Assert.Equal(PortalGuardianRules.Version, status.RuleVersion);
+            var rejected = await Assert.ThrowsAsync<PortalGuardianException>(() =>
+                Guardian(upgraded).PlayAsync("player-a", grant.Id,
+                    PortalGuardianRules.Feint, 0, Guid.NewGuid(), now));
+            Assert.Equal(PortalGuardianErrorCodes.InvalidAction, rejected.Code);
+        }
+        await using (var db = database.CreateDbContext())
+        {
+            var oldStrike = await Guardian(db).PlayAsync("player-a", grant.Id,
+                PortalGuardianRules.Strike, 0, Guid.NewGuid(), now);
+            Assert.Equal(1, oldStrike.DamageDealt);
+            var eventLog = (await new GameEventStore(db).QueryAsync(
+                new GameEventQuery(PlayerId: "player-a"))).Items;
+            Assert.Equal(PortalGuardianRules.Version,
+                Assert.Single(eventLog, x => x.Envelope.EventType ==
+                    "portal.guardian_turn_resolved").Envelope.RuleVersion);
+        }
+    }
+
+    [PostgresIntegrationFact]
     public async Task FeintV2_IsPersistedAuditedAndReplaySafe_AndV1CannotAcceptIt()
     {
         await using var database = await PostgresDatabaseScope.CreateAsync();
