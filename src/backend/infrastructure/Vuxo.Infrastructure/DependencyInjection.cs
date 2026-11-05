@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Vuxo.Application.AI;
+using Vuxo.Domain.Activities;
 using Vuxo.Domain.Common;
 using Vuxo.Domain.Events;
 using Vuxo.Domain.Identity;
@@ -27,6 +28,7 @@ public static class DependencyInjection
         services.AddDbContext<VuxoDbContext>(options => options.UseNpgsql(connectionString));
         services.AddScoped<IPlayerCharacterRepository, PlayerCharacterRepository>();
         services.AddScoped<ICharacterRestRepository, CharacterRestRepository>();
+        services.AddScoped<IOffworldRunRepository, OffworldRunRepository>();
         services.AddScoped<ICharacterHealingRepository, CharacterHealingRepository>();
         services.AddScoped<IPortalMistakeDamageRepository, PortalMistakeDamageRepository>();
         services.AddScoped<IPortalEncounterRepository, PortalEncounterRepository>();
