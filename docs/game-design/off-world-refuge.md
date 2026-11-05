@@ -105,7 +105,7 @@ Idee per attività: memoria delle rune (già disponibile come prova nei portali)
 
 ### Prima foundation server delle attività (#73) — catalogo versionato senza ricompense
 
-`GET /api/activities/catalog` è un endpoint pubblico e read-only che descrive le tre attività già individuate: `rune-memory` (memoria), `rune-reflex` (riflessi) e `rune-path` (logica). Ogni definizione include ID stabile, versione regole, tipologia, modalità `local-practice`, numero round e `rewardsEnabled=false`. Il catalogo è versionato `offworld-activities-v1`; il contenuto non dipende dalla lingua.
+`GET /api/activities/catalog` è un endpoint pubblico e read-only che descrive le tre attività già individuate: `rune-memory` (memoria), `rune-reflex` (riflessi) e `rune-path` (logica). Ogni definizione include ID stabile, versione regole, tipologia, modalità `local-practice`, numero round e `rewardsEnabled=false`. La modalità `availability` è `available` per memoria e `planned` per riflessi/percorso finché le PR #95/#98 non saranno integrate. Il catalogo è versionato `offworld-activities-v1`; il contenuto non dipende dalla lingua.
 
 `GET /api/activities/rune-path/puzzles/{puzzleIndex}` espone la geometria canonica e la versione `rune-path-practice-v1` di tre percorsi 4×4 riproducibili: ostacoli, partenza e arrivo. Il validatore nel dominio C# verifica il percorso U/D/L/R, vieta muri/uscite dal tabellone, limita a 32 mosse ed esige che si termini esattamente sul portale. La copia di prova del frontend è destinata a convergere sul catalogo prima della modalità verificata.
 
