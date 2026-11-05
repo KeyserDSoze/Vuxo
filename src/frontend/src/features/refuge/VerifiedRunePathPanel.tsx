@@ -327,7 +327,7 @@ export function VerifiedRunePathPanel({ accessToken, playerId }: Props) {
           </Alert>
         )}
         {(busy || recovering) && (
-          <Stack direction="row" alignItems="center" spacing={1.5}
+          <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}
             role="status" data-testid="verified-path-loading">
             <CircularProgress size={20} />
             <Typography>{t('refuge.path.server.loading')}</Typography>
@@ -335,7 +335,7 @@ export function VerifiedRunePathPanel({ accessToken, playerId }: Props) {
         )}
 
         {!recovering && !ticket && (
-          <Stack spacing={1.5} alignItems="flex-start" data-testid="verified-path-ready">
+          <Stack spacing={1.5} sx={{ alignItems: "flex-start" }} data-testid="verified-path-ready">
             <Typography color="text.secondary">{t('refuge.path.server.instructions')}</Typography>
             <Button variant="contained" data-testid="verified-path-start"
               disabled={busy} onClick={() => { void start(); }}>
