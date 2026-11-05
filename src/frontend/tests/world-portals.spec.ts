@@ -430,7 +430,10 @@ test('Guardian log survives dialog reopening on mobile and switches language', a
   await page.getByTestId('world-portal-enter').click();
   await expect(page.getByTestId('guardian-history-entry')).toContainText('Turn 1');
   expect(requests.filter(url => url.endsWith('/history')).length).toBeGreaterThanOrEqual(2);
+  await page.getByRole('dialog').press('Escape');
+  await expect(page.getByTestId('world-portal-dialog')).toHaveCount(0);
   await page.getByTestId('language-toggle').click();
+  await page.getByTestId('world-portal-enter').click();
   await expect(page.getByTestId('guardian-history-entry')).toContainText('Turno 1');
   await expect(page.getByTestId('guardian-history')).toContainText('Registro del duello');
   await expect.poll(() => page.evaluate(() =>
