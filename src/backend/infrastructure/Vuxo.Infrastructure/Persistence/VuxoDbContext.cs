@@ -8,6 +8,7 @@ public sealed class VuxoDbContext(DbContextOptions<VuxoDbContext> options) : DbC
 {
     public DbSet<PlayerCharacterEntity> PlayerCharacters => Set<PlayerCharacterEntity>();
     public DbSet<CharacterRestActionEntity> CharacterRestActions => Set<CharacterRestActionEntity>();
+    public DbSet<OffworldActivityRunEntity> OffworldActivityRuns => Set<OffworldActivityRunEntity>();
     public DbSet<CharacterItemHealEntity> CharacterItemHeals => Set<CharacterItemHealEntity>();
     public DbSet<PortalMistakeDamageEntity> PortalMistakeDamages => Set<PortalMistakeDamageEntity>();
     public DbSet<PortalEncounterStateEntity> PortalEncounterStates => Set<PortalEncounterStateEntity>();
@@ -32,6 +33,37 @@ public sealed class VuxoDbContext(DbContextOptions<VuxoDbContext> options) : DbC
             entity.HasIndex(x => x.OwnerId).IsUnique();
             entity.Property(x => x.OwnerId).HasMaxLength(200);
             entity.Property(x => x.Name).HasMaxLength(24);
+        });
+
+        modelBuilder.Entity<OffworldActivityRunEntity>(entity =>
+        {
+            entity.ToTable("offworld_activity_runs", table =>
+            {
+                table.HasCheckConstraint("CK_offworld_activity_runs_State",
+                    "\"State\" IN ('active','completed','expired')");
+                table.HasCheckConstraint("CK_offworld_activity_runs_Time",
+                    "\"ExpiresAtUtc\" > \"StartedAtUtc\"");
+                table.HasCheckConstraint("CK_offworld_activity_runs_Completion",
+                    "(\"State\" = 'completed') = (\"CompletedAtUtc\" IS NOT NULL AND \"FinishKey\" IS NOT NULL AND \"FinishEventId\" IS NOT NULL AND \"ProofHash\" IS NOT NULL AND \"StepsChecked\" IS NOT NULL)");
+            });
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.PlayerId).HasMaxLength(200);
+            entity.Property(x => x.ActivityKey).HasMaxLength(80);
+            entity.Property(x => x.RulesVersion).HasMaxLength(100);
+            entity.Property(x => x.State).HasMaxLength(16);
+            entity.Property(x => x.ProofHash).HasMaxLength(64);
+            entity.HasIndex(x => new { x.CharacterId, x.StartKey }).IsUnique();
+            entity.HasIndex(x => new { x.CharacterId, x.FinishKey })
+                .IsUnique().HasFilter("\"FinishKey\" IS NOT NULL");
+            entity.HasIndex(x => new { x.CharacterId, x.StartedAtUtc });
+            entity.HasIndex(x => x.StartEventId).IsUnique();
+            entity.HasIndex(x => x.FinishEventId).IsUnique();
+            entity.HasOne<PlayerCharacterEntity>().WithMany()
+                .HasForeignKey(x => x.CharacterId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<GameEventEntity>().WithMany()
+                .HasForeignKey(x => x.StartEventId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<GameEventEntity>().WithMany()
+                .HasForeignKey(x => x.FinishEventId).OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<PortalGuardianTurnEntity>(entity =>
