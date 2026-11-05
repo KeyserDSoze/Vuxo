@@ -50,6 +50,9 @@ export function HomePage() {
             <Button component={RouterLink} to="/character" size="large" variant="outlined">
               {t('home.ctaCharacter')}
             </Button>
+            <Button data-testid="home-refuge-link" component={RouterLink} to="/refuge" size="large" variant="text">
+              {t('home.ctaRefuge')}
+            </Button>
           </Stack>
         </Stack>
       </Paper>
