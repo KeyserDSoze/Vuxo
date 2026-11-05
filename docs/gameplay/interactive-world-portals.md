@@ -13,6 +13,12 @@ L'ingresso apre un dialog MUI nella pagina Gioco, senza abbandonare la sessione 
 - Il tentativo d'ingresso è limitato per IP a 12/min, come l'endpoint delle sfide. Restituisce `exclusive_content_not_found` (404) per grant inesistenti o di altri; `world_portal_not_joined`, `world_portal_too_far`, grant scaduti/consumati e portali non supportati con conflitto 409.
 - Un ingresso valido **non consuma né premia**: la ricompensa è vincolata al completamento della sfida #50 e resta per ora una voce di audit, non un oggetto in inventario.
 
+## Registro dei turni autorevole (#90)
+
+Il primo PvE opzionale contro il Guardiano (#87) ha ora una cronologia consultabile nello stesso dialog del mondo. La nuova lettura `GET /api/characters/me/portal-guardian/{grantId}/history` richiede JWT e verifica che il grant sia proprio, non consumato/scaduto e associato all'incontro server-verified ancora valido. Restituisce solo `turn`, `action`, `guardianAction`, `damageDealt`, `damageTaken`, `guardianHealth`, `playerHealth`, `outcome` e `occurredAtUtc`, in ordine crescente e al massimo 12 record. Nessun ID di audit/receipt/idempotenza, seed o dato di altri giocatori.
+
+Le righe provengono da `portal_guardian_turns` già persistita: il filtro combina proprietario, personaggio, grant e `EncounterEventId = StartEventId` dell'incontro corrente, così una nuova visita allo stesso portale non può mostrare turni precedenti. Il GET non crea scontri, assegna premi né modifica HP. Il client MUI mostra il registro anche dopo rientro, e aggiorna la lista a ogni turno confermato o refresh; in caso di lettura fallita mantiene il combattimento separato e consente retry senza inviare nuove mosse. Test xUnit API/PostgreSQL e Playwright IT/EN/mobile/refresh più prova browser/API/DB reale.
+
 ## Confini e futuri sviluppi
 Il controllo autorevole usa `WorldSimulation` in memoria sul processo API: la 0.0.1 ha un processo world-authoritative, mentre un vero cluster multi-host richiederà la partizione degli shard e una directory della presenza affidabile. La pagina standalone Portali resta un accesso alternativo; non è stata trasformata in un percorso con vincolo di prossimità.
 
