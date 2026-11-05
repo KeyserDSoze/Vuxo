@@ -114,12 +114,14 @@ const initialization = i18n.use(initReactI18next).init({
           guardian: {
             title: 'Duello contro il Guardiano',
             description: 'Scontro PvE facoltativo. Scegli Attacco o Parata: entrambe le carte vengono rivelate e risolte dal server. Questo duello non assegna premi; la ricompensa resta legata alla sfida di rune.',
+            descriptionV2: 'Duello tattico PvE: scegli Attacco, Parata o Finta. Il Guardiano rivela la propria carta dopo la tua scelta; il server risolve il confronto senza premi aggiuntivi.',
+            feintHelp: 'Finta: supera la Parata e infligge più danni con Destrezza elevata, ma contro Attacco non infligge danni e subisce 1 HP.',
             loading: 'Caricamento scontro…',
             enemyHealth: 'Guardiano: {{current}} / {{maximum}} HP',
             playerHealth: 'I tuoi HP: {{current}} / {{maximum}}',
             turn: 'Turno {{turn}} / {{maximum}}',
             choose: 'Scegli la tua carta per il confronto:',
-            cards: { strike: 'Attacco', guard: 'Parata' },
+            cards: { strike: 'Attacco', guard: 'Parata', feint: 'Finta' },
             turnResult: 'Tu: {{player}} · Guardiano: {{enemy}}. Danni inflitti: {{dealt}} HP; subiti: {{taken}} HP.',
             outcomes: {
               victory: 'Hai sconfitto il Guardiano! Il premio del portale resta legato alla sfida delle rune.',
@@ -467,12 +469,14 @@ const initialization = i18n.use(initReactI18next).init({
           guardian: {
             title: 'Guardian showdown',
             description: 'Optional PvE battle. Choose Strike or Guard: both cards are revealed and resolved by the server. This duel gives no rewards; the rune challenge still controls the portal prize.',
+            descriptionV2: 'Tactical PvE showdown: choose Strike, Guard or Feint. The Guardian reveals its card after your choice; the server resolves the round without extra rewards.',
+            feintHelp: 'Feint: breaks through Guard and deals extra damage if your Dexterity is high, but against Strike it deals no damage and you take 1 HP.',
             loading: 'Loading battle…',
             enemyHealth: 'Guardian: {{current}} / {{maximum}} HP',
             playerHealth: 'Your HP: {{current}} / {{maximum}}',
             turn: 'Turn {{turn}} / {{maximum}}',
             choose: 'Choose your card for the showdown:',
-            cards: { strike: 'Strike', guard: 'Guard' },
+            cards: { strike: 'Strike', guard: 'Guard', feint: 'Feint' },
             turnResult: 'You: {{player}} · Guardian: {{enemy}}. Damage dealt: {{dealt}} HP; taken: {{taken}} HP.',
             outcomes: {
               victory: 'You defeated the Guardian! The portal reward is still earned by solving the rune challenge.',
