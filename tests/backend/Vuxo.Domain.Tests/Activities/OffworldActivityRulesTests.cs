@@ -18,6 +18,12 @@ public sealed class OffworldActivityRulesTests
             Assert.False(definition.RewardsEnabled);
             Assert.False(string.IsNullOrWhiteSpace(definition.RulesVersion));
         });
+        Assert.Equal(OffworldActivityCatalog.Available,
+            OffworldActivityCatalog.Find("rune-memory")?.Availability);
+        Assert.Equal(OffworldActivityCatalog.Planned,
+            OffworldActivityCatalog.Find("rune-reflex")?.Availability);
+        Assert.Equal(OffworldActivityCatalog.Planned,
+            OffworldActivityCatalog.Find("rune-path")?.Availability);
         Assert.Null(OffworldActivityCatalog.Find("NOT-A-REAL-ACTIVITY"));
         Assert.Null(OffworldActivityCatalog.Find(null));
         Assert.Equal(RunePathPracticeRules.Version,
