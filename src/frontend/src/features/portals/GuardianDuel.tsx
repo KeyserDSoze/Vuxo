@@ -3,8 +3,8 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link as RouterLink } from 'react-router-dom';
 import {
-  fetchGuardian, playGuardianTurn, GuardianApiError,
-  type GuardianAction, type GuardianStatus, type GuardianTurn,
+  fetchGuardian, fetchGuardianHistory, playGuardianTurn, GuardianApiError,
+  type GuardianAction, type GuardianHistoryEntry, type GuardianStatus, type GuardianTurn,
 } from './guardianApi';
 
 type Props = { grantId: string };
@@ -24,6 +24,10 @@ export function GuardianDuel({ grantId }: Props) {
   const [requiresRefresh, setRequiresRefresh] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastTurn, setLastTurn] = useState<GuardianTurn | null>(null);
+  const [history, setHistory] = useState<GuardianHistoryEntry[]>([]);
+  const [historyError, setHistoryError] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyRevision, setHistoryRevision] = useState(0);
   const [revision, setRevision] = useState(0);
   const pending = useRef<Pending | null>(null);
   const inFlight = useRef<AbortController | null>(null);
@@ -50,6 +54,24 @@ export function GuardianDuel({ grantId }: Props) {
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
   }, [grantId, revision]);
+
+  useEffect(() => {
+    setHistory([]);
+    setHistoryError(false);
+  }, [grantId]);
+
+  useEffect(() => {
+    if (!status) return;
+    const controller = new AbortController();
+    setHistoryLoading(true);
+    setHistoryError(false);
+    void fetchGuardianHistory(grantId, controller.signal)
+      .then(entries => { if (!controller.signal.aborted) setHistory(entries); })
+      .catch(() => { if (!controller.signal.aborted) setHistoryError(true); })
+      .finally(() => { if (!controller.signal.aborted) setHistoryLoading(false); });
+    return () => controller.abort();
+    // Refetch whenever the confirmed server turn or manual refresh changes.
+  }, [grantId, status?.turn, revision, historyRevision]);
 
   useEffect(() => () => inFlight.current?.abort(), [grantId]);
 
@@ -149,6 +171,51 @@ export function GuardianDuel({ grantId }: Props) {
                 })}
               </Alert>
             )}
+
+            <Stack spacing={1} data-testid="guardian-history" aria-busy={historyLoading}>
+              <Typography variant="subtitle1" component="h3" id="guardian-history-heading">
+                {t('game.guardian.history.title')}
+              </Typography>
+              {historyLoading && (
+                <Typography color="text.secondary" role="status" data-testid="guardian-history-loading">
+                  {t('game.guardian.history.loading')}
+                </Typography>
+              )}
+              {historyError && (
+                <Alert severity="warning" data-testid="guardian-history-error">
+                  {t('game.guardian.history.error')}
+                  {' '}
+                  <Button data-testid="guardian-history-retry" size="small"
+                    onClick={() => setHistoryRevision(value => value + 1)}>
+                    {t('game.guardian.history.retry')}
+                  </Button>
+                </Alert>
+              )}
+              {!historyLoading && !historyError && history.length === 0 && (
+                <Typography color="text.secondary" data-testid="guardian-history-empty">
+                  {t('game.guardian.history.empty')}
+                </Typography>
+              )}
+              {history.length > 0 && (
+                <Box component="ol" aria-labelledby="guardian-history-heading"
+                  sx={{ pl: 3, my: 0 }}>
+                  {history.map(entry => (
+                    <Box component="li" key={entry.turn} data-testid="guardian-history-entry"
+                      sx={{ mb: 1 }}>
+                      <Typography variant="body2">
+                        {t('game.guardian.history.entry', {
+                          turn: entry.turn,
+                          player: t('game.guardian.cards.' + entry.action),
+                          enemy: t('game.guardian.cards.' + entry.guardianAction),
+                          dealt: entry.damageDealt, taken: entry.damageTaken,
+                          guardian: entry.guardianHealth, health: entry.playerHealth,
+                        })}
+                      </Typography>
+                    </Box>
+                  ))}
+                </Box>
+              )}
+            </Stack>
             {status.outcome === 'ongoing' ? (
               <Stack spacing={1.5}>
                 <Typography>{t('game.guardian.choose')}</Typography>

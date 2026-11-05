@@ -33,12 +33,13 @@ async function request<T>(
   grantId: string, method: 'GET' | 'POST',
   data?: { action: GuardianAction; expectedTurn: number; key: string },
   signal?: AbortSignal,
+  suffix = '',
 ): Promise<T> {
   const token = readStoredSession()?.accessToken;
   if (!token) throw new GuardianApiError('guardian_unavailable', 401);
   const url = getApiBaseUrl() +
     '/api/characters/me/portal-guardian/' + encodeURIComponent(grantId) +
-    (data ? '/turn' : '');
+    (data ? '/turn' : suffix);
   const response = await fetch(url, {
     method, cache: 'no-store', signal,
     headers: {
@@ -74,3 +75,24 @@ export const playGuardianTurn = async (
   key: string, signal?: AbortSignal,
 ): Promise<GuardianTurn> => request(grantId, 'POST',
   { action, expectedTurn, key }, signal);
+
+// Public read model deliberately excludes player IDs, seeds and receipt/audit IDs.
+export type GuardianHistoryEntry = {
+  turn: number;
+  action: GuardianAction;
+  guardianAction: GuardianAction;
+  damageDealt: number;
+  damageTaken: number;
+  guardianHealth: number;
+  playerHealth: number;
+  outcome: GuardianOutcome;
+  occurredAtUtc: string;
+};
+
+export async function fetchGuardianHistory(
+  grantId: string, signal?: AbortSignal,
+): Promise<GuardianHistoryEntry[]> {
+  const entries = await request<unknown>(grantId, 'GET', undefined, signal, '/history');
+  if (!Array.isArray(entries)) throw new GuardianApiError('guardian_history_unavailable', 502);
+  return entries as GuardianHistoryEntry[];
+}
