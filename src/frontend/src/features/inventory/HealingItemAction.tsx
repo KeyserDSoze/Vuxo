@@ -2,7 +2,7 @@ import { Alert, Button, CircularProgress, Stack } from '@mui/material';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { consumeHealingItem, CharacterItemHealError, type CharacterItemHealResult } from './consumableApi';
-import { fetchPortalEncounterStatus } from '../health/portalEncounterApi';
+import { usePortalEncounterStatus } from '../health/usePortalEncounterStatus';
 
 type Props = {
   grantId: string;
@@ -15,8 +15,7 @@ export function HealingItemAction({ grantId, accessToken, disabled, onHealed }: 
   const { t } = useTranslation('inventory');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [encounterActive, setEncounterActive] = useState(false);
-  const [encounterLoading, setEncounterLoading] = useState(true);
+  const encounter = usePortalEncounterStatus(accessToken);
   const pendingKey = useRef<string | null>(null);
   const request = useRef<AbortController | null>(null);
 
@@ -26,19 +25,8 @@ export function HealingItemAction({ grantId, accessToken, disabled, onHealed }: 
     return () => request.current?.abort();
   }, [grantId]);
 
-  useEffect(() => {
-    const controller = new AbortController();
-    setEncounterLoading(true);
-    setEncounterActive(false);
-    void fetchPortalEncounterStatus(accessToken, controller.signal)
-      .then(status => { if (!controller.signal.aborted) setEncounterActive(status.active); })
-      .catch(() => { if (!controller.signal.aborted) setEncounterActive(false); })
-      .finally(() => { if (!controller.signal.aborted) setEncounterLoading(false); });
-    return () => controller.abort();
-  }, [accessToken, grantId]);
-
   const useItem = async () => {
-    if (busy || disabled || encounterActive || encounterLoading) return;
+    if (busy || disabled || encounter.active || encounter.loading) return;
     const key = pendingKey.current ?? crypto.randomUUID();
     pendingKey.current = key;
     const controller = new AbortController();
@@ -69,14 +57,18 @@ export function HealingItemAction({ grantId, accessToken, disabled, onHealed }: 
   return (
     <Stack spacing={1} sx={{ alignItems: 'flex-start' }}>
       <Button data-testid="inventory-heal" variant="outlined"
-        disabled={busy || disabled || encounterLoading || encounterActive}
+        disabled={busy || disabled || encounter.loading || encounter.active}
         startIcon={busy ? <CircularProgress size={18} color="inherit" /> : undefined}
         onClick={() => { void useItem(); }}>
         {t(busy ? 'healing.working' : error ? 'healing.retry' : 'healing.use')}
       </Button>
-      {encounterActive && (
+      {encounter.active && (
         <Alert data-testid="inventory-heal-encounter" severity="warning">
-          {t('healing.encounterActive')}
+          {t('healing.encounterActive')}{' '}
+          <Button data-testid="inventory-encounter-refresh" size="small"
+            disabled={encounter.loading} onClick={encounter.refresh}>
+            {t('healing.refreshEncounter')}
+          </Button>
         </Alert>
       )}
       {error && (

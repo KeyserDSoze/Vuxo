@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { restCharacter, CharacterRestApiError, type CharacterRestResult } from './characterRestApi';
 import type { CharacterHealth } from './characterHealthApi';
-import { fetchPortalEncounterStatus } from './portalEncounterApi';
+import { usePortalEncounterStatus } from './usePortalEncounterStatus';
 
 type Props = {
   accessToken: string;
@@ -16,8 +16,7 @@ export function CharacterRestAction({ accessToken, health, onRested }: Props) {
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [restored, setRestored] = useState(0);
-  const [encounterActive, setEncounterActive] = useState(false);
-  const [encounterLoading, setEncounterLoading] = useState(true);
+  const encounter = usePortalEncounterStatus(accessToken);
   const pendingKey = useRef<string | null>(null);
   const activeRequest = useRef<AbortController | null>(null);
 
@@ -30,20 +29,9 @@ export function CharacterRestAction({ accessToken, health, onRested }: Props) {
     return () => activeRequest.current?.abort();
   }, [accessToken]);
 
-  useEffect(() => {
-    const controller = new AbortController();
-    setEncounterLoading(true);
-    setEncounterActive(false);
-    void fetchPortalEncounterStatus(accessToken, controller.signal)
-      .then(status => { if (!controller.signal.aborted) setEncounterActive(status.active); })
-      .catch(() => { if (!controller.signal.aborted) setEncounterActive(false); })
-      .finally(() => { if (!controller.signal.aborted) setEncounterLoading(false); });
-    return () => controller.abort();
-  }, [accessToken]);
-
   const canRest = health.currentHealth > 0 && health.currentHealth < health.maxHealth;
   const attempt = async () => {
-    if (!canRest || encounterActive || encounterLoading || busy || feedback === 'success') return;
+    if (!canRest || encounter.active || encounter.loading || busy || feedback === 'success') return;
     const key = pendingKey.current ?? crypto.randomUUID();
     pendingKey.current = key;
     const controller = new AbortController();
@@ -87,9 +75,14 @@ export function CharacterRestAction({ accessToken, health, onRested }: Props) {
           {t('refuge.rest.success', { amount: restored })}
         </Alert>
       )}
-      {(encounterActive || feedback === 'encounter') && (
+      {(encounter.active || feedback === 'encounter') && (
         <Alert severity="warning" data-testid="refuge-rest-encounter">
-          {t('refuge.rest.encounterActive')}
+          {t('refuge.rest.encounterActive')}{' '}
+          <Button data-testid="refuge-encounter-refresh" size="small"
+            disabled={encounter.loading}
+            onClick={encounter.refresh}>
+            {t('refuge.rest.refreshEncounter')}
+          </Button>
         </Alert>
       )}
       {feedback === 'cooldown' && (
@@ -115,7 +108,7 @@ export function CharacterRestAction({ accessToken, health, onRested }: Props) {
         <Button
           data-testid="refuge-rest-button"
           variant="contained"
-          disabled={busy || encounterLoading || encounterActive || feedback === 'success'}
+          disabled={busy || encounter.loading || encounter.active || feedback === 'success'}
           onClick={() => { void attempt(); }}
           startIcon={busy ? <CircularProgress size={18} color="inherit" /> : undefined}
         >

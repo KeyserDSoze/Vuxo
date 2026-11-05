@@ -34,6 +34,7 @@ const initialization = i18n.use(initReactI18next).init({
             success: 'Riposo completato! Hai recuperato {{amount}} HP.',
             cooldown: 'Hai già riposato di recente. Riprova dopo 30 minuti dall’ultimo riposo.',
             encounterActive: 'Un incontro del portale è ancora attivo. Completa la sfida o attendi che termini prima di riposare.',
+            refreshEncounter: 'Aggiorna stato incontro',
             full: 'Sei già in piena salute.',
             downed: 'Con zero HP non puoi riposare: servirà un altro tipo di cura.',
             error: 'Non è stato possibile confermare il riposo. Riprova: la richiesta non sarà applicata due volte.'
@@ -179,7 +180,8 @@ const initialization = i18n.use(initReactI18next).init({
             success: 'Oggetto consumato: +{{restored}} HP ({{current}}/{{maximum}}).',
             refuge: 'Vedi salute nel Rifugio',
             refreshError: 'Cura confermata, ma impossibile aggiornare le quantità. Ricarica l’inventario.',
-            encounterActive: 'Incontro del portale attivo: puoi usare il Seme del Bosco dopo la sfida o alla scadenza.'
+            encounterActive: 'Incontro del portale attivo: puoi usare il Seme del Bosco dopo la sfida o alla scadenza.',
+            refreshEncounter: 'Aggiorna stato incontro'
           },
           title: 'Inventario',
           description: 'Gli oggetti ottenuti superando le sfide personali sono salvati sul server.',
@@ -348,6 +350,7 @@ const initialization = i18n.use(initReactI18next).init({
             success: 'Rest completed! You recovered {{amount}} HP.',
             cooldown: 'You have rested recently. Try again 30 minutes after your last rest.',
             encounterActive: 'A portal encounter is still active. Finish the challenge or wait for it to end before resting.',
+            refreshEncounter: 'Refresh encounter status',
             full: 'Your health is already full.',
             downed: 'You cannot rest at zero HP. Another type of healing will be needed.',
             error: 'Could not confirm the rest. Retry safely: the same request will not be applied twice.'
@@ -493,7 +496,8 @@ const initialization = i18n.use(initReactI18next).init({
             success: 'Item consumed: +{{restored}} HP ({{current}}/{{maximum}}).',
             refuge: 'View health in Refuge',
             refreshError: 'Healing confirmed, but available stock could not be refreshed. Reload inventory.',
-            encounterActive: 'A portal encounter is active. Use the Grove Seed after the challenge ends or the encounter expires.'
+            encounterActive: 'A portal encounter is active. Use the Grove Seed after the challenge ends or the encounter expires.',
+            refreshEncounter: 'Refresh encounter status'
           },
           title: 'Inventory',
           description: 'Items earned through personal challenges are securely stored on the server.',
