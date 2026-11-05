@@ -98,3 +98,9 @@ Idee per attività: memoria delle rune (già disponibile come prova nei portali)
 - Playwright: home/menu→Rifugio, sessioni anonime, navigazione, mini gioco corretto/errato, livello, mobile 320/390, IT/EN/dark, assenza di richieste gameplay senza backend, regressione Phaser.
 - xUnit/API/PostgreSQL quando saranno introdotti salute, risorse o ricompense reali.
 - Issue/ledger e patch note IT/EN per 0.0.1.
+
+## Secondo allenamento libero — Riflessi delle rune (#93)
+
+La route `/#/refuge/reflex` offre otto round rapidi in cui il giocatore individua una fra quattro rune. Il bersaglio cambia dopo ogni scelta corretta e non si ripete immediatamente; un tap errato aumenta il contatore errori, senza consumare oggetti né bloccare la partita. Alla fine vengono mostrati centri, errori e tempo di reazione medio **solo locale**. L'attività è usabile da ospite su desktop/mobile via tastiera o touch, localizzata IT/EN e caricata in bundle React separato, senza importare Phaser.
+
+Il tempo di reazione è misurato nel browser e **non è una prova verificabile dal server**. Il risultato non viene inviato, salvato, classificato o tradotto in XP, valuta, cura o ricompense. La futura versione competitiva/a premi richiede invece ticket server, regole, anti-replay e validazione autonoma, come pianificato in #73. I test Playwright coprono completamento, errori, nuova partita, refresh senza persistenza, traduzioni/viewport e nessuna richiesta di mutazione al backend.
