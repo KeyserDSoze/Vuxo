@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Link as RouterLink } from 'react-router-dom';
 import { useStoredSession } from '../features/auth/useStoredSession';
 import { fetchCharacterHealth, type CharacterHealth, type CharacterHealthApiError } from '../features/health/characterHealthApi';
+import { CharacterRestAction } from '../features/health/CharacterRestAction';
 
 const activities = [
   { key: 'character', to: '/character', icon: PersonOutlined, authenticated: false },
@@ -133,6 +134,10 @@ export function RefugePage() {
                   aria-label={t('refuge.health.title')}
                   sx={{ height: 10, borderRadius: 2 }} />
                 <Typography variant="caption" color="text.secondary">{t('refuge.health.baseMaxNote')}</Typography>
+                <CharacterRestAction accessToken={session.accessToken} health={health}
+                  onRested={result => setHealth(current => current ? {
+                    ...current, currentHealth: result.currentHealth, maxHealth: result.maxHealth
+                  } : current)} />
               </Stack>
             )}
           </Stack>
