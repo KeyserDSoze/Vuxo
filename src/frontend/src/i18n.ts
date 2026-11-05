@@ -95,7 +95,47 @@ const initialization = i18n.use(initReactI18next).init({
             complete: 'Portale raggiunto! Hai completato il percorso.',
             next: 'Prossimo percorso',
             again: 'Ricomincia i percorsi',
-            back: 'Torna al Rifugio'
+            back: 'Torna al Rifugio',
+            server: {
+              modes: 'Modalità Percorso delle rune',
+              localMode: 'Allenamento libero',
+              savedMode: 'Sessione registrata',
+              title: 'Percorso con sessione server',
+              disclaimer: 'Il server salva la sessione, verifica la mappa e registra il completamento. Nessun XP, oggetto o premio viene assegnato.',
+              instructions: 'Avvia una sessione associata al tuo personaggio. Hai 5 minuti, puoi riprendere dopo un aggiornamento della pagina e il server applica un intervallo tra le partite.',
+              start: 'Avvia sessione',
+              loading: 'Verifica della sessione in corso…',
+              runId: 'Sessione: {{id}}',
+              puzzle: 'Mappa assegnata dal server: {{number}}',
+              remaining: 'Tempo rimasto: {{seconds}} s',
+              submit: 'Conferma percorso sul server',
+              reset: 'Ricomincia il percorso',
+              new: 'Nuova sessione',
+              resume: 'Ricarica la sessione',
+              completed: 'Percorso confermato dal server in {{count}} mosse. Nessuna ricompensa assegnata.',
+              expired: 'La sessione è scaduta: avviane una nuova quando consentito.',
+              nextAllowed: 'Riprova dopo le {{time}}.',
+              states: {
+                active: 'Sessione attiva',
+                completed: 'Sessione completata',
+                expired: 'Sessione scaduta'
+              },
+              errors: {
+                generic: 'Non è stato possibile comunicare con il server. Riprova.',
+                activity_run_unavailable: 'Server non disponibile. Riprova senza creare un nuovo ticket.',
+                activity_run_invalid_board: 'La mappa non corrisponde alla versione delle regole della sessione.',
+                activity_character_not_found: 'Devi creare un personaggio prima di iniziare.',
+                activity_run_not_found: 'Sessione non trovata per questo account.',
+                activity_run_active: 'Hai già una sessione attiva su un altro dispositivo. Torna al browser originale oppure attendi la scadenza.',
+                activity_run_cooldown: 'Devi attendere prima di iniziare una nuova sessione.',
+                activity_run_daily_limit: 'Hai raggiunto il limite di sessioni giornaliere.',
+                activity_run_expired: 'La sessione è scaduta.',
+                activity_run_completed: 'La sessione risulta già completata.',
+                activity_run_invalid_path: 'Il percorso non è valido secondo il server. Riprova dall’inizio.',
+                activity_idempotency_key_reused: 'Questa richiesta era già stata utilizzata per un risultato diverso.',
+                activity_not_supported: 'Attività non ancora disponibile sul server.'
+              }
+            }
           },
           reflex: {
             eyebrow: 'Allenamento libero',
@@ -491,7 +531,47 @@ const initialization = i18n.use(initReactI18next).init({
             complete: 'Portal reached! You completed this path.',
             next: 'Next path',
             again: 'Play paths again',
-            back: 'Back to Refuge'
+            back: 'Back to Refuge',
+            server: {
+              modes: 'Rune path modes',
+              localMode: 'Free practice',
+              savedMode: 'Recorded session',
+              title: 'Server-owned Rune Path session',
+              disclaimer: 'The server stores the session, checks the assigned board and records completion. No XP, items or rewards are granted.',
+              instructions: 'Start a session linked to your character. You have 5 minutes, can resume after refreshing the page and must respect server cooldowns.',
+              start: 'Start session',
+              loading: 'Checking your session…',
+              runId: 'Session: {{id}}',
+              puzzle: 'Server-assigned board: {{number}}',
+              remaining: 'Time left: {{seconds}} s',
+              submit: 'Confirm route with server',
+              reset: 'Reset route',
+              new: 'New session',
+              resume: 'Reload session',
+              completed: 'The server confirmed your route in {{count}} moves. No rewards granted.',
+              expired: 'This session has expired. Start another when allowed.',
+              nextAllowed: 'Try again after {{time}}.',
+              states: {
+                active: 'Active session',
+                completed: 'Completed session',
+                expired: 'Expired session'
+              },
+              errors: {
+                generic: 'The server could not be reached. Please retry.',
+                activity_run_unavailable: 'Server unavailable. Retry without creating a new ticket.',
+                activity_run_invalid_board: 'The board does not match this session’s rule version.',
+                activity_character_not_found: 'Create a character before starting.',
+                activity_run_not_found: 'No session found for this account.',
+                activity_run_active: 'You already have an active session on another device. Return to the original browser or wait for expiry.',
+                activity_run_cooldown: 'Wait before starting another session.',
+                activity_run_daily_limit: 'You reached your daily session limit.',
+                activity_run_expired: 'This session has expired.',
+                activity_run_completed: 'This session has already been completed.',
+                activity_run_invalid_path: 'The server rejected this route. Reset and try again.',
+                activity_idempotency_key_reused: 'This request key was already used with a different result.',
+                activity_not_supported: 'This activity is not yet available on the server.'
+              }
+            }
           },
           reflex: {
             eyebrow: 'Free practice',

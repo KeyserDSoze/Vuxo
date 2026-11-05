@@ -3,6 +3,8 @@ import { Alert, Box, Button, Chip, Paper, Stack, Typography } from '@mui/materia
 import { useState, type KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link as RouterLink } from 'react-router-dom';
+import { useStoredSession } from '../features/auth/useStoredSession';
+import { VerifiedRunePathPanel } from '../features/refuge/VerifiedRunePathPanel';
 
 // Three small, fixed, solvable puzzles. These are local practice maps, never
 // server-verified portal layouts or authoritative player positions.
@@ -34,6 +36,8 @@ function isWall(puzzle: number, x: number, y: number): boolean {
 
 export function RunePathPage() {
   const { t } = useTranslation();
+  const session = useStoredSession();
+  const [mode, setMode] = useState<'local' | 'saved'>('local');
   const [puzzle, setPuzzle] = useState(0);
   const [phase, setPhase] = useState<'ready' | 'playing' | 'completed'>('ready');
   const [position, setPosition] = useState<Position>(startPosition);
@@ -86,8 +90,29 @@ export function RunePathPage() {
         <Typography component="h1" variant="h2">{t('refuge.path.title')}</Typography>
         <Typography color="text.secondary">{t('refuge.path.description')}</Typography>
       </Stack>
-      <Alert data-testid="path-disclaimer" severity="info">{t('refuge.path.disclaimer')}</Alert>
-
+      <Alert data-testid="path-disclaimer" severity="info">
+        {t(session && mode === 'saved'
+          ? 'refuge.path.server.disclaimer' : 'refuge.path.disclaimer')}
+      </Alert>
+      {session && (
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} role="group"
+          aria-label={t('refuge.path.server.modes')}>
+          <Button data-testid="path-mode-local"
+            variant={mode === 'local' ? 'contained' : 'outlined'}
+            onClick={() => setMode('local')}>
+            {t('refuge.path.server.localMode')}
+          </Button>
+          <Button data-testid="path-mode-saved"
+            variant={mode === 'saved' ? 'contained' : 'outlined'}
+            onClick={() => setMode('saved')}>
+            {t('refuge.path.server.savedMode')}
+          </Button>
+        </Stack>
+      )}
+      {session && mode === 'saved' ? (
+        <VerifiedRunePathPanel key={session.user.id}
+          accessToken={session.accessToken} playerId={session.user.id} />
+      ) : (
       <Paper variant="outlined" sx={{ p: { xs: 2, md: 4 } }}>
         <Stack spacing={2.5}>
           <Typography variant="h6" data-testid="path-puzzle">
@@ -182,6 +207,7 @@ export function RunePathPage() {
           </Button>
         </Stack>
       </Paper>
+      )}
     </Stack>
   );
 }
