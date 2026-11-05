@@ -128,6 +128,14 @@ const initialization = i18n.use(initReactI18next).init({
             refuge: 'Vai al Rifugio',
             refresh: 'Aggiorna duello',
             retryTurn: 'Riprova la stessa azione',
+            history: {
+              title: 'Registro del duello',
+              loading: 'Recupero dei turni…',
+              empty: 'Nessuna mossa registrata in questo incontro.',
+              error: 'Non è stato possibile recuperare il registro dei turni.',
+              retry: 'Riprova',
+              entry: 'Turno {{turn}} · Tu: {{player}}, Guardiano: {{enemy}} · Danni inflitti {{dealt}} HP, subiti {{taken}} HP · Guardiano {{guardian}} HP, tu {{health}} HP',
+            },
             errors: {
               guardian_request_failed: 'Impossibile verificare il duello. Riprova senza inviare una nuova azione.',
               guardian_unavailable: 'Questo duello è disponibile solo dopo l’ingresso autorizzato nel portale dal mondo.',
@@ -473,6 +481,14 @@ const initialization = i18n.use(initReactI18next).init({
             refuge: 'Visit Refuge',
             refresh: 'Refresh battle',
             retryTurn: 'Retry the same action',
+            history: {
+              title: 'Battle history',
+              loading: 'Loading battle turns…',
+              empty: 'No moves recorded in this encounter yet.',
+              error: 'Could not load the battle history.',
+              retry: 'Retry',
+              entry: 'Turn {{turn}} · You: {{player}}, Guardian: {{enemy}} · Dealt {{dealt}} HP, taken {{taken}} HP · Guardian {{guardian}} HP, you {{health}} HP',
+            },
             errors: {
               guardian_request_failed: 'Cannot confirm the battle. Retry safely without sending a new action.',
               guardian_unavailable: 'This duel requires a verified entry to the portal from the world.',

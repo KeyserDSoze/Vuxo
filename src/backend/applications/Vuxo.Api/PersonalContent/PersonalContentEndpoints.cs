@@ -197,6 +197,20 @@ public static class PersonalContentEndpoints
                 }) : Results.Ok(status);
             }).RequireAuthorization();
 
+        endpoints.MapGet(
+            "/api/characters/me/portal-guardian/{grantId:guid}/history",
+            async (Guid grantId, ClaimsPrincipal user, PortalGuardianService guardian,
+                CancellationToken cancellationToken) =>
+            {
+                var playerId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrWhiteSpace(playerId)) return Results.Unauthorized();
+                var history = await guardian.GetHistoryAsync(playerId, grantId, cancellationToken);
+                return history is null ? Results.NotFound(new
+                {
+                    code = PortalGuardianErrorCodes.Unavailable
+                }) : Results.Ok(history);
+            }).RequireAuthorization();
+
         endpoints.MapPost(
             "/api/characters/me/portal-guardian/{grantId:guid}/turn",
             async (Guid grantId, PortalGuardianTurnRequest request,

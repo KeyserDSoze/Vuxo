@@ -13,6 +13,10 @@ public sealed class PortalGuardianService(
         string ownerId, Guid grantId, CancellationToken cancellationToken = default) =>
         repository.GetAsync(ownerId, grantId, timeProvider.GetUtcNow(), cancellationToken);
 
+    public Task<IReadOnlyList<PortalGuardianHistoryEntry>?> GetHistoryAsync(
+        string ownerId, Guid grantId, CancellationToken cancellationToken = default) =>
+        repository.GetHistoryAsync(ownerId, grantId, timeProvider.GetUtcNow(), cancellationToken);
+
     public Task<PortalGuardianTurnResult> PlayAsync(
         string ownerId, Guid grantId, string action, int expectedTurn,
         Guid idempotencyKey, CancellationToken cancellationToken = default)

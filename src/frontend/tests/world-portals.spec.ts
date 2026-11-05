@@ -183,6 +183,16 @@ test('world Guardian duel resolves two revealed cards server-side and preserves 
   const keys: string[] = [];
   await page.route('**/api/characters/me/portal-guardian/**', route => {
     const req = route.request();
+    if (req.method() === 'GET' && new URL(req.url()).pathname.endsWith('/history')) {
+      return route.fulfill({ status: 200, headers: cors, contentType: 'application/json',
+        body: JSON.stringify(Array.from({ length: turn }, (_, index) => ({
+          turn: index + 1, action: 'strike', guardianAction: 'guard',
+          damageDealt: 1, damageTaken: 0,
+          guardianHealth: 5 - index, playerHealth: 20,
+          outcome: 'ongoing', occurredAtUtc: new Date().toISOString(),
+        }))),
+      });
+    }
     if (req.method() === 'GET') {
       return route.fulfill({ status: 200, headers: cors, contentType: 'application/json',
         body: JSON.stringify({
@@ -218,6 +228,7 @@ test('world Guardian duel resolves two revealed cards server-side and preserves 
   await page.getByTestId('guardian-strike').click();
   await expect(page.getByTestId('guardian-turn-result')).toContainText('Danni inflitti: 1 HP');
   await expect(page.getByTestId('guardian-health')).toContainText('5 / 6 HP');
+  await expect(page.getByTestId('guardian-history-entry')).toHaveCount(1);
   expect(keys).toHaveLength(1);
   // Closing the dialog never resets server-owned turn/HP state.
   await page.getByRole('dialog').press('Escape');
@@ -225,6 +236,7 @@ test('world Guardian duel resolves two revealed cards server-side and preserves 
   await page.getByTestId('world-portal-enter').click();
   await expect(page.getByTestId('guardian-turn')).toContainText('Turno 1 / 12');
   await expect(page.getByTestId('guardian-health')).toContainText('5 / 6 HP');
+  await expect(page.getByTestId('guardian-history-entry')).toContainText('Turno 1');
 });
 
 test('Guardian mobile English safely retries an ambiguous turn with the same UUID', async ({ page }) => {
@@ -234,6 +246,9 @@ test('Guardian mobile English safely retries an ambiguous turn with the same UUI
   const keys: string[] = [];
   await page.route('**/api/characters/me/portal-guardian/**', route => {
     const req = route.request();
+    if (req.method() === 'GET' && new URL(req.url()).pathname.endsWith('/history')) {
+      return route.fulfill({ status: 200, headers: cors, contentType: 'application/json', body: '[]' });
+    }
     if (req.method() === 'GET') return route.fulfill({
       status: 200, headers: cors, contentType: 'application/json',
       body: JSON.stringify({
@@ -299,6 +314,9 @@ test('Guardian stale-turn rejection blocks further cards until server status ref
   const sent: Array<{ action: string; expectedTurn: number; key: string }> = [];
   await page.route('**/api/characters/me/portal-guardian/**', route => {
     const request = route.request();
+    if (request.method() === 'GET' && new URL(request.url()).pathname.endsWith('/history')) {
+      return route.fulfill({ status: 200, headers: cors, contentType: 'application/json', body: '[]' });
+    }
     if (request.method() === 'GET') {
       return route.fulfill({
         status: 200, headers: cors, contentType: 'application/json',
@@ -355,4 +373,104 @@ test('Guardian stale-turn rejection blocks further cards until server status ref
   expect(sent[0]).toMatchObject({ action: 'strike', expectedTurn: 0 });
   expect(sent[1]).toMatchObject({ action: 'guard', expectedTurn: 1 });
   expect(sent[1].key).not.toBe(sent[0].key);
+});
+
+
+test('Guardian log survives dialog reopening on mobile and switches language', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await initializePlayer(page, 'en');
+  await mockPrivatePortals(page);
+  let turn = 0;
+  const history = [] as Array<{
+    turn: number; action: string; guardianAction: string; damageDealt: number;
+    damageTaken: number; guardianHealth: number; playerHealth: number;
+    outcome: string; occurredAtUtc: string;
+  }>;
+  const requests: string[] = [];
+  await page.route('**/api/characters/me/portal-guardian/**', route => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname;
+    requests.push(path);
+    if (path.endsWith('/history')) {
+      return route.fulfill({ status: 200, headers: cors, contentType: 'application/json',
+        body: JSON.stringify(history) });
+    }
+    if (request.method() === 'GET') {
+      return route.fulfill({ status: 200, headers: cors, contentType: 'application/json',
+        body: JSON.stringify({
+          grantId, turn, guardianHealth: 6 - turn, guardianMaxHealth: 6,
+          playerHealth: 20, playerMaxHealth: 20,
+          outcome: 'ongoing', ruleVersion: 'portal-guardian-showdown-v1',
+        }) });
+    }
+    const action = (request.postDataJSON() as { action: string }).action;
+    turn++;
+    history.push({
+      turn, action, guardianAction: 'guard', damageDealt: 1, damageTaken: 0,
+      guardianHealth: 6 - turn, playerHealth: 20,
+      outcome: 'ongoing', occurredAtUtc: new Date().toISOString(),
+    });
+    return route.fulfill({ status: 200, headers: cors, contentType: 'application/json',
+      body: JSON.stringify({
+        grantId, idempotencyKey: request.headers()['idempotency-key'], turn, action,
+        guardianAction: 'guard', damageDealt: 1, damageTaken: 0,
+        guardianHealth: 6 - turn, guardianMaxHealth: 6, playerHealth: 20,
+        playerMaxHealth: 20, outcome: 'ongoing', replayed: false,
+      }) });
+  });
+
+  await page.goto(origin + '/Vuxo/#/game');
+  await expect(page.getByTestId('world-portal-enter')).toBeEnabled();
+  await page.getByTestId('world-portal-enter').click();
+  await expect(page.getByTestId('guardian-history-empty')).toContainText('No moves recorded');
+  await page.getByTestId('guardian-strike').click();
+  await expect(page.getByTestId('guardian-history-entry')).toContainText('Turn 1');
+  await page.getByRole('dialog').press('Escape');
+  await expect(page.getByTestId('world-portal-dialog')).toHaveCount(0);
+  await page.getByTestId('world-portal-enter').click();
+  await expect(page.getByTestId('guardian-history-entry')).toContainText('Turn 1');
+  expect(requests.filter(url => url.endsWith('/history')).length).toBeGreaterThanOrEqual(2);
+  await page.getByRole('dialog').press('Escape');
+  await expect(page.getByTestId('world-portal-dialog')).toHaveCount(0);
+  await page.getByTestId('language-toggle').click();
+  await page.getByTestId('world-portal-enter').click();
+  await expect(page.getByTestId('guardian-history-entry')).toContainText('Turno 1');
+  await expect(page.getByTestId('guardian-history')).toContainText('Registro del duello');
+  await expect.poll(() => page.evaluate(() =>
+    document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
+});
+
+test('Guardian history failure is recoverable without replaying combat actions', async ({ page }) => {
+  await initializePlayer(page, 'en');
+  await mockPrivatePortals(page);
+  let historyRequests = 0;
+  let turnRequests = 0;
+  await page.route('**/api/characters/me/portal-guardian/**', route => {
+    const request = route.request();
+    if (new URL(request.url()).pathname.endsWith('/history')) {
+      historyRequests++;
+      return route.fulfill({
+        status: historyRequests === 1 ? 503 : 200,
+        headers: cors, contentType: 'application/json',
+        body: historyRequests === 1 ? JSON.stringify({ code: 'temporarily_unavailable' }) : '[]',
+      });
+    }
+    if (request.method() === 'POST') turnRequests++;
+    return route.fulfill({ status: 200, headers: cors, contentType: 'application/json',
+      body: JSON.stringify({
+        grantId, turn: 0, guardianHealth: 6, guardianMaxHealth: 6,
+        playerHealth: 20, playerMaxHealth: 20,
+        outcome: 'ongoing', ruleVersion: 'portal-guardian-showdown-v1',
+      }),
+    });
+  });
+  await page.goto(origin + '/Vuxo/#/game');
+  await expect(page.getByTestId('world-portal-enter')).toBeEnabled();
+  await page.getByTestId('world-portal-enter').click();
+  await expect(page.getByTestId('guardian-history-error')).toContainText('Could not load');
+  await page.getByTestId('guardian-history-retry').click();
+  await expect(page.getByTestId('guardian-history-empty')).toContainText('No moves recorded');
+  await expect(page.getByTestId('guardian-history-error')).toHaveCount(0);
+  expect(historyRequests).toBe(2);
+  expect(turnRequests).toBe(0);
 });

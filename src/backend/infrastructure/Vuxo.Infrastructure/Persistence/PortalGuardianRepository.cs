@@ -39,6 +39,46 @@ public sealed class PortalGuardianRepository(VuxoDbContext db, IGameEventStore e
             PortalGuardianRules.Version);
     }
 
+    public async Task<IReadOnlyList<PortalGuardianHistoryEntry>?> GetHistoryAsync(
+        string playerId, Guid grantId, DateTimeOffset now,
+        CancellationToken cancellationToken = default)
+    {
+        // Only the current live and server-verified encounter may be read.
+        // The event boundary prevents receipts from an older visit leaking
+        // into a later encounter for the same character and portal grant.
+        var scope = await (
+            from state in db.PortalEncounterStates.AsNoTracking()
+            join grant in db.ExclusiveContentGrants.AsNoTracking()
+                on new { Id = state.PortalGrantId, state.PlayerId }
+                equals new { grant.Id, grant.PlayerId }
+            where state.PlayerId == playerId && state.PortalGrantId == grantId
+                && grant.PortalKey == PortalSequenceRules.PortalKey
+            select new
+            {
+                state.CharacterId, state.StartEventId, state.GuardianTurn,
+                state.ExpiresAtUtc, grant.ConsumedAtUtc,
+                GrantExpiresAtUtc = grant.ExpiresAtUtc
+            }).SingleOrDefaultAsync(cancellationToken);
+        if (scope is null ||
+            !PortalEncounterRules.IsActive(now, scope.ExpiresAtUtc, scope.ConsumedAtUtc) ||
+            scope.GrantExpiresAtUtc is { } expiry && expiry <= now)
+            return null;
+
+        return await db.PortalGuardianTurns.AsNoTracking()
+            .Where(turn => turn.PlayerId == playerId && turn.PortalGrantId == grantId &&
+                turn.CharacterId == scope.CharacterId &&
+                turn.EncounterEventId == scope.StartEventId &&
+                turn.Turn <= scope.GuardianTurn)
+            .OrderBy(turn => turn.Turn)
+            .Take(PortalGuardianRules.MaximumTurns)
+            .Select(turn => new PortalGuardianHistoryEntry(
+                turn.Turn, turn.Action, turn.GuardianAction,
+                turn.DamageDealt, turn.DamageTaken,
+                turn.GuardianHealthAfter, turn.PlayerHealthAfter,
+                turn.Outcome, turn.OccurredAtUtc))
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<PortalGuardianTurnResult> PlayAsync(
         string playerId, Guid grantId, string action, int expectedTurn,
         Guid idempotencyKey, DateTimeOffset now,
