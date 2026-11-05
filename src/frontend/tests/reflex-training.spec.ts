@@ -16,6 +16,8 @@ async function hitCurrentRune(page: import('@playwright/test').Page, round: numb
   await page.getByTestId('reflex-rune-' + target).click();
   if (round < 8) {
     await expect(page.getByTestId('reflex-progress')).toContainText(String(round + 1));
+    const nextTarget = await page.getByTestId('reflex-target').getAttribute('data-rune');
+    expect(nextTarget).not.toBe(target);
   }
 }
 
