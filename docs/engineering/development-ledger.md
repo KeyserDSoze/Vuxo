@@ -18,6 +18,7 @@ Quando una issue cambia stato in modo significativo, aggiornare la riga corrispo
 
 | Issue | Tipo | Versione | Area | Stato | Test/Stato verifica | Risoluzione / prossimo passo |
 |---|---|---:|---|---|---|---|
+| #93 | Feature | 0.0.1 | Refuge Rune Reflexes free training | In progress | UI/Playwright + bilingual copy on `feat/refuge-reflex-training-93`; CI pending | Eight-round tap reflex practice, anonymous/mobile, no rewards or persistence; #70 epic, rewarded activities remain #73 |
 | #70 | Epic | 0.0.1+ | Off-world gameplay and Refuge | In progress | Architettura/design in docs/game-design/off-world-refuge.md; slice #71 in CI | Cura autorevole #72 e minigiochi a reward #73 pianificati; no client-authoritative economy |
 | #71 | Feature | 0.0.1 | Refuge hub and free rune training | Done | PR #74 CI #41942702087: 68/68 Playwright, build/backend/Docker verdi; live E2E #41942702124 verde | Rifugio e allenamento rune 3/4/6, nav/mobile/i18n, nessun reward locale; mergiata in main a5adb254; issue chiusa #71 |
 | #75 | Feature | 0.0.1 | Persisted current HP + Refuge read view | Done | PR #76 CI #41946315211: 281 xUnit, 72 Playwright, Docker success; real E2E #41946315179 success | GET owner-only; migration/backfill+constraint; Refuge HP IT/EN; healing #72 |
