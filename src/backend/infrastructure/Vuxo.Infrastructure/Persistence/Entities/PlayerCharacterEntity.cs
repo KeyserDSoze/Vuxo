@@ -10,6 +10,7 @@ public sealed class PlayerCharacterEntity
     public int Dexterity { get; set; }
     public int Intelligence { get; set; }
     public int Constitution { get; set; }
+    public int CurrentHealth { get; set; }
     public int Luck { get; set; }
     public int Faith { get; set; }
     public required string HairStyle { get; set; }

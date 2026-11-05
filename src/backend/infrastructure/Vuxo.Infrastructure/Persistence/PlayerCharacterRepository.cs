@@ -16,7 +16,7 @@ public sealed class PlayerCharacterRepository(VuxoDbContext dbContext) : IPlayer
 
         var attributes = PlayerAttributes.Create(entity.Strength, entity.Dexterity, entity.Intelligence, entity.Constitution, entity.Luck, entity.Faith);
         var appearance = new CharacterAppearance(entity.HairStyle, entity.HairColor, entity.Face, entity.BodyType, entity.SkinTone, entity.TopColor, entity.BottomStyle, entity.BottomColor, entity.ShoeStyle, entity.ShoeColor);
-        return PlayerCharacter.Rehydrate(entity.Id, entity.OwnerId, entity.Name, entity.Level, attributes, appearance);
+        return PlayerCharacter.Rehydrate(entity.Id, entity.OwnerId, entity.Name, entity.Level, attributes, appearance, entity.CurrentHealth);
     }
 
     public async Task AddAsync(PlayerCharacter character, CancellationToken cancellationToken = default)
@@ -31,6 +31,7 @@ public sealed class PlayerCharacterRepository(VuxoDbContext dbContext) : IPlayer
             Dexterity = character.Attributes.Dexterity,
             Intelligence = character.Attributes.Intelligence,
             Constitution = character.Attributes.Constitution,
+            CurrentHealth = character.CurrentHealth,
             Luck = character.Attributes.Luck,
             Faith = character.Attributes.Faith,
             HairStyle = character.Appearance.HairStyle,
