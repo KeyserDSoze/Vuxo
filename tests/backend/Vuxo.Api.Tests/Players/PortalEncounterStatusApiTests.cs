@@ -47,9 +47,9 @@ public sealed class PortalEncounterStatusApiTests
         using var factory = Factory(new Stub());
         using var client = factory.CreateClient();
         await AuthenticateAsync(client, "player-a");
-        Assert.Equal(HttpStatusCode.NotFound,
+        Assert.Equal(HttpStatusCode.MethodNotAllowed,
             (await client.PostAsync("/api/characters/me/encounter", null)).StatusCode);
-        Assert.Equal(HttpStatusCode.NotFound,
+        Assert.Equal(HttpStatusCode.MethodNotAllowed,
             (await client.DeleteAsync("/api/characters/me/encounter")).StatusCode);
     }
 

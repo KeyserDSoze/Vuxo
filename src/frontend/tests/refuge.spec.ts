@@ -1,6 +1,10 @@
 import { expect, test } from '@playwright/test';
 
 test.beforeEach(async ({ page }) => {
+  await page.route('**/api/characters/me/encounter', route => route.fulfill({
+    contentType: 'application/json',
+    body: JSON.stringify({ active: false, portalGrantId: null, expiresAtUtc: null }),
+  }));
   await page.addInitScript(() => {
     localStorage.clear();
     localStorage.setItem('vuxo.language', 'it');
@@ -300,4 +304,55 @@ test('rest is not offered to unauthenticated or fully healed characters', async 
   await expect(page.getByTestId('refuge-rest-full')).toBeVisible();
   await expect(page.getByTestId('refuge-rest-button')).toHaveCount(0);
   expect(requests).toBe(0);
+});
+
+
+test('server active portal encounter blocks resting in Refuge, including mobile English', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.route('**/api/characters/me/health', route => route.fulfill({
+    contentType: 'application/json',
+    body: JSON.stringify({
+      name: 'Vuxian', currentHealth: 7, maxHealth: 20, rulesVersion: 'character-health-v1',
+    }),
+  }));
+  await page.route('**/api/characters/me/encounter', route => route.fulfill({
+    contentType: 'application/json',
+    body: JSON.stringify({
+      active: true, portalGrantId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      expiresAtUtc: '2099-01-01T00:03:00Z',
+    }),
+  }));
+  let restPosts = 0;
+  await page.route('**/api/characters/me/rest', route => {
+    restPosts++;
+    return route.fulfill({ status: 409 });
+  });
+  await page.goto('./#/refuge');
+  await loginForHealth(page);
+  await page.getByTestId('language-toggle').click();
+  await expect(page.getByTestId('refuge-health-count')).toHaveText('7 / 20 HP');
+  await expect(page.getByTestId('refuge-rest-encounter')).toContainText('portal encounter');
+  await expect(page.getByTestId('refuge-rest-button')).toBeDisabled();
+  expect(restPosts).toBe(0);
+  await expect.poll(() => page.evaluate(() =>
+    document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
+});
+
+test('server conflict keeps health unchanged if encounter begins after status was read', async ({ page }) => {
+  await page.route('**/api/characters/me/health', route => route.fulfill({
+    contentType: 'application/json',
+    body: JSON.stringify({
+      name: 'Vuxian', currentHealth: 7, maxHealth: 20, rulesVersion: 'character-health-v1',
+    }),
+  }));
+  await page.route('**/api/characters/me/rest', route => route.fulfill({
+    status: 409, contentType: 'application/json',
+    body: JSON.stringify({ code: 'rest_encounter_active' }),
+  }));
+  await page.goto('./#/refuge');
+  await loginForHealth(page);
+  await page.getByTestId('refuge-rest-button').click();
+  await expect(page.getByTestId('refuge-rest-encounter')).toContainText('incontro del portale');
+  await expect(page.getByTestId('refuge-health-count')).toHaveText('7 / 20 HP');
+  await expect(page.getByTestId('refuge-rest-success')).toHaveCount(0);
 });

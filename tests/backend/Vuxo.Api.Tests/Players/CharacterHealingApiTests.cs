@@ -68,6 +68,7 @@ public sealed class CharacterHealingApiTests
     [InlineData(CharacterHealingErrorCodes.KeyReused, HttpStatusCode.Conflict)]
     [InlineData(CharacterHealingErrorCodes.AlreadyFull, HttpStatusCode.Conflict)]
     [InlineData(CharacterHealingErrorCodes.Unavailable, HttpStatusCode.Conflict)]
+    [InlineData(CharacterHealingErrorCodes.EncounterActive, HttpStatusCode.Conflict)]
     public async Task Heal_MapsDomainErrors(string code, HttpStatusCode expected)
     {
         using var factory = Factory(new FakeHealing { ErrorCode = code });
