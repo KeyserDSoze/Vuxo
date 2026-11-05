@@ -65,11 +65,11 @@ async function request<T>(
   return response.json() as Promise<T>;
 }
 
-export async function fetchGuardian(
+export const fetchGuardian = async (
   grantId: string, signal?: AbortSignal,
 ): Promise<GuardianStatus> => request(grantId, 'GET', undefined, signal);
 
-export async function playGuardianTurn(
+export const playGuardianTurn = async (
   grantId: string, action: GuardianAction, expectedTurn: number,
   key: string, signal?: AbortSignal,
 ): Promise<GuardianTurn> => request(grantId, 'POST',
