@@ -24,7 +24,7 @@ function json(route: Route, value: unknown, status = 200) {
 
 async function mockInventory(page: Page, isSpent: () => boolean, isEquipped = false) {
   await page.route('**/api/inventory', route => json(route, [{
-    grantId, itemKey: groveSeed, quantity: 1,
+    grantId, itemKey: groveSeed, consumed: isSpent(), quantity: 1,
     awardedAtUtc: '2026-11-05T08:00:00Z'
   }]));
   await page.route('**/api/inventory/stacks', route => json(route,
@@ -67,6 +67,7 @@ test('consuming a real award heals from server and removes usable stock without 
   await expect(page.getByTestId('inventory-heal-success')).toContainText('+10 HP (15/20)');
   await expect(page.getByTestId('inventory-stack')).toHaveCount(0);
   await expect(page.getByTestId('inventory-item')).toHaveCount(1);
+  await expect(page.getByTestId('inventory-item')).toContainText('Consumato');
   await expect(page.getByTestId('inventory-heal')).toHaveCount(0);
   expect(keys).toHaveLength(1);
 });

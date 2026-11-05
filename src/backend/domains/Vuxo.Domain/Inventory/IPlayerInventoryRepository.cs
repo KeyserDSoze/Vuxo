@@ -6,6 +6,11 @@ public interface IPlayerInventoryRepository
 
     // Award provenance/history remains immutable; availability filters spent receipts.
     // Default keeps existing in-memory test adapters compatible.
+    // Useful for immutable award history views; spent grants remain traceable.
+    Task<IReadOnlySet<Guid>> GetConsumedGrantIdsForPlayerAsync(
+        string playerId, CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlySet<Guid>>(new HashSet<Guid>());
+
     Task<IReadOnlyList<PlayerInventoryAward>> GetUnspentForPlayerAsync(
         string playerId, CancellationToken cancellationToken = default) =>
         GetForPlayerAsync(playerId, cancellationToken);

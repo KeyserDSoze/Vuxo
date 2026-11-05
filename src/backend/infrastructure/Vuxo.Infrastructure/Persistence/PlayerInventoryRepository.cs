@@ -26,6 +26,17 @@ public sealed class PlayerInventoryRepository(VuxoDbContext dbContext) : IPlayer
     }
 
 
+    public async Task<IReadOnlySet<Guid>> GetConsumedGrantIdsForPlayerAsync(
+        string playerId, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(playerId);
+        var grantIds = await dbContext.CharacterItemHeals.AsNoTracking()
+            .Where(x => x.PlayerId == playerId.Trim())
+            .Select(x => x.GrantId)
+            .ToArrayAsync(cancellationToken);
+        return grantIds.ToHashSet();
+    }
+
     public async Task<IReadOnlyList<PlayerInventoryAward>> GetUnspentForPlayerAsync(
         string playerId, CancellationToken cancellationToken = default)
     {

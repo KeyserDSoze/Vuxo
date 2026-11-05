@@ -185,7 +185,13 @@ export function InventoryPage() {
                         onHealed={result => {
                           setHealingResult(result);
                           setHealingRefreshError(false);
-                          void fetchInventoryStacks().then(setStacks).catch(() => {
+                          void Promise.all([
+                            fetchInventoryStacks(),
+                            fetchPlayerInventory(),
+                          ]).then(([freshStacks, freshAwards]) => {
+                            setStacks(freshStacks);
+                            setItems(freshAwards);
+                          }).catch(() => {
                             setHealingRefreshError(true);
                           });
                         }} />
@@ -242,7 +248,7 @@ export function InventoryPage() {
                     </Typography>
                   </Stack>
                   <Chip color="primary" variant="outlined"
-                    label={t('quantity', { count: award.quantity })} />
+                    label={award.consumed ? t('consumed') : t('quantity', { count: award.quantity })} />
                 </Stack>
               </Paper>
             );
