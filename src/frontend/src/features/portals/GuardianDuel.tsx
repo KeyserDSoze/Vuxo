@@ -19,6 +19,9 @@ export function GuardianDuel({ grantId }: Props) {
   const [status, setStatus] = useState<GuardianStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  // A definitive server rejection invalidates the visible turn; do not send
+  // another action until a fresh owner-scoped status request succeeds.
+  const [requiresRefresh, setRequiresRefresh] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastTurn, setLastTurn] = useState<GuardianTurn | null>(null);
   const [revision, setRevision] = useState(0);
@@ -32,7 +35,12 @@ export function GuardianDuel({ grantId }: Props) {
     setError(null);
     setLoading(true);
     void fetchGuardian(grantId, controller.signal)
-      .then(result => { if (!controller.signal.aborted) setStatus(result); })
+      .then(result => {
+        if (!controller.signal.aborted) {
+          setStatus(result);
+          setRequiresRefresh(false);
+        }
+      })
       .catch(reason => {
         if (controller.signal.aborted) return;
         if (!(reason instanceof GuardianApiError && reason.status === 404)) {
@@ -46,7 +54,7 @@ export function GuardianDuel({ grantId }: Props) {
   useEffect(() => () => inFlight.current?.abort(), [grantId]);
 
   const useCard = async (action: GuardianAction) => {
-    if (busy || !status || status.outcome !== 'ongoing') return;
+    if (busy || requiresRefresh || !status || status.outcome !== 'ongoing') return;
     const request = pending.current ?? {
       action, expectedTurn: status.turn, key: crypto.randomUUID(),
     };
@@ -78,6 +86,7 @@ export function GuardianDuel({ grantId }: Props) {
       if (reason instanceof GuardianApiError &&
           reason.status >= 400 && reason.status < 500 && reason.status !== 429) {
         pending.current = null; // definitive rejection, not ambiguous completion
+        setRequiresRefresh(true); // stale/finished/expired: re-read before another move
       }
       setError(code);
     } finally {
@@ -147,7 +156,7 @@ export function GuardianDuel({ grantId }: Props) {
                   {(['strike', 'guard'] as const).map(action => (
                     <Button key={action} data-testid={'guardian-' + action}
                       variant={action === 'strike' ? 'contained' : 'outlined'}
-                      disabled={busy || (pending.current !== null &&
+                      disabled={busy || requiresRefresh || (pending.current !== null &&
                         pending.current.action !== action)}
                       onClick={() => void useCard(action)}
                       startIcon={busy && pending.current?.action === action
