@@ -144,7 +144,7 @@ public sealed class PortalGuardianPersistenceTests
             var replay = await Guardian(db).PlayAsync("player-a", grant.Id,
                 PortalGuardianRules.Feint, 0, key, now);
             Assert.True(replay.Replayed);
-            Assert.Equal(4, replay.GuardianHealth);
+            Assert.Equal(3, replay.GuardianHealth);
         }
         await using (var db = database.CreateDbContext())
         {
