@@ -12,6 +12,13 @@ public partial class PortalMistakeDamage : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder)
     {
+        // A compound principal key is necessary to enforce same-owner damage
+        // receipts at database level, not just via application queries.
+        migrationBuilder.AddUniqueConstraint(
+            name: "AK_exclusive_content_grants_Id_PlayerId",
+            table: "exclusive_content_grants",
+            columns: new[] { "Id", "PlayerId" });
+
         migrationBuilder.CreateTable(
             name: "portal_mistake_damages",
             columns: table => new
@@ -51,5 +58,10 @@ public partial class PortalMistakeDamage : Migration
     }
 
     protected override void Down(MigrationBuilder migrationBuilder)
-        => migrationBuilder.DropTable("portal_mistake_damages");
+    {
+        migrationBuilder.DropTable("portal_mistake_damages");
+        migrationBuilder.DropUniqueConstraint(
+            name: "AK_exclusive_content_grants_Id_PlayerId",
+            table: "exclusive_content_grants");
+    }
 }

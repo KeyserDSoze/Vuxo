@@ -378,11 +378,13 @@ public sealed class PersonalContentTests
         return new VuxoApiFactory(configureServices: services =>
         {
             services.RemoveAll<IExclusiveContentGrantRepository>();
+            services.RemoveAll<IPortalMistakeDamageRepository>();
             services.RemoveAll<IPlayerInventoryRepository>();
             services.RemoveAll<IGameEventStore>();
             services.RemoveAll<IUnitOfWork>();
             services.RemoveAll<IWorldPortalMap>();
             services.AddSingleton<IExclusiveContentGrantRepository>(repositoryInstance);
+            services.AddSingleton<IPortalMistakeDamageRepository>(new FakeDamage());
             services.AddSingleton<IPlayerInventoryRepository>(new FakeInventoryRepository());
             services.AddSingleton<IGameEventStore>(eventsInstance);
             services.AddSingleton<IUnitOfWork>(unitOfWorkInstance);
@@ -542,6 +544,14 @@ public sealed class PersonalContentTests
             SaveCalls++;
             return Task.FromResult(1);
         }
+    }
+
+    private sealed class FakeDamage : IPortalMistakeDamageRepository
+    {
+        public Task<PortalMistakeDamageResult?> ApplyFirstMistakeAsync(
+            string playerId, Guid grantId, DateTimeOffset now,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<PortalMistakeDamageResult?>(null);
     }
 
     private sealed record MockLoginResponse(string AccessToken, string TokenType);
