@@ -83,8 +83,8 @@ public sealed class CharacterRestPersistenceTests
 
         var outcomes = await Task.WhenAll(
             TryRestAsync(Guid.NewGuid()), TryRestAsync(Guid.NewGuid()));
-        Assert.Single(outcomes.Where(x => x.Success));
-        Assert.Single(outcomes.Where(x => x.Code == CharacterRestErrorCodes.Cooldown));
+        Assert.Single(outcomes, x => x.Success);
+        Assert.Single(outcomes, x => x.Code == CharacterRestErrorCodes.Cooldown);
         await using var verify = database.CreateDbContext();
         Assert.Single(await verify.CharacterRestActions.ToListAsync());
         Assert.Equal(12, (await new PlayerCharacterRepository(verify)
