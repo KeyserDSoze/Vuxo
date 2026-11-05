@@ -77,7 +77,8 @@ public sealed class PortalEncounterRepository(VuxoDbContext db, IGameEventStore 
                 GuardianMaxHealth = PortalGuardianRules.GuardianMaxHealth(grant.Seed),
                 GuardianHealth = PortalGuardianRules.GuardianMaxHealth(grant.Seed),
                 GuardianTurn = 0,
-                GuardianOutcome = PortalGuardianRules.Ongoing
+                GuardianOutcome = PortalGuardianRules.Ongoing,
+                GuardianRuleVersion = PortalGuardianRules.CurrentVersion
             };
             await db.PortalEncounterStates.AddAsync(state, cancellationToken);
         }
@@ -91,6 +92,7 @@ public sealed class PortalEncounterRepository(VuxoDbContext db, IGameEventStore 
             state.GuardianHealth = state.GuardianMaxHealth;
             state.GuardianTurn = 0;
             state.GuardianOutcome = PortalGuardianRules.Ongoing;
+            state.GuardianRuleVersion = PortalGuardianRules.CurrentVersion;
         }
 
         await events.AppendAsync(new GameEventEnvelope(
@@ -103,7 +105,8 @@ public sealed class PortalEncounterRepository(VuxoDbContext db, IGameEventStore 
                 state.PortalGrantId,
                 startedAtUtc = now,
                 expiresAtUtc = expiresAt,
-                portalRuleVersion = grant.RuleVersion
+                portalRuleVersion = grant.RuleVersion,
+                guardianRuleVersion = state.GuardianRuleVersion
             }), cancellationToken);
 
         await db.SaveChangesAsync(cancellationToken);

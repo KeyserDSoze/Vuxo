@@ -22,6 +22,7 @@ public sealed class PortalGuardianPersistenceTests
         {
             var status = await Guardian(db).GetAsync("player-a", grant.Id, now);
             Assert.NotNull(status);
+            Assert.Equal(PortalGuardianRules.CurrentVersion, status.RuleVersion);
             Assert.Equal(6, status.GuardianMaxHealth);
             Assert.Equal(6, status.GuardianHealth);
             Assert.Equal(0, status.Turn);
@@ -57,7 +58,7 @@ public sealed class PortalGuardianPersistenceTests
         var resolved = Assert.Single(events, x =>
             x.Envelope.EventType == "portal.guardian_turn_resolved");
         Assert.Equal(GameEventVisibilityScope.Player, resolved.Envelope.VisibilityScope);
-        Assert.Equal(PortalGuardianRules.Version, resolved.Envelope.RuleVersion);
+        Assert.Equal(PortalGuardianRules.CurrentVersion, resolved.Envelope.RuleVersion);
         Assert.Equal(started.Envelope.EventId, resolved.Envelope.CausationId);
         Assert.Equal(grant.CorrelationId, resolved.Envelope.CorrelationId);
     }
@@ -118,6 +119,117 @@ public sealed class PortalGuardianPersistenceTests
         Assert.Equal(1, only.Turn);
         Assert.Equal(PortalGuardianRules.Guard, only.Action);
         Assert.Equal(3, await verify.PortalGuardianTurns.CountAsync());
+    }
+
+
+    [PostgresIntegrationFact]
+    public async Task LegacyEncounterRowWithoutVersion_UsesDatabaseDefaultAndV1Rules()
+    {
+        await using var database = await PostgresDatabaseScope.CreateAsync();
+        var now = DateTimeOffset.UtcNow;
+        var grant = ExclusiveContentGrant.Create(
+            Guid.NewGuid(), Guid.NewGuid(), "player-a", "portal.legacy",
+            PortalSequenceRules.PortalKey, "dialog.legacy", "reward.reference",
+            4242L, "personal-content-v1", Guid.NewGuid(), null,
+            now.AddMinutes(-1), now.AddHours(1));
+        var character = PlayerCharacter.Create("player-a", "Legacy Guardian",
+            PlayerAttributes.Create(2, 2, 2, 2, 1, 1),
+            new CharacterAppearance("hair-1", "black", "face-1",
+                "body-1", "skin-1", "blue", "shorts", "black", "shoe-1", "white"));
+        var startedId = Guid.NewGuid();
+        await using (var oldDb = database.CreateDbContext())
+        {
+            await oldDb.Database.MigrateAsync();
+            await new ExclusiveContentGrantRepository(oldDb).AddAsync(grant);
+            await new PlayerCharacterRepository(oldDb).AddAsync(character);
+            await new GameEventStore(oldDb).AppendAsync(new GameEventEnvelope(
+                startedId, "portal.encounter_started", GameEventVisibilityScope.Player,
+                "player-a", grant.CorrelationId, null, PortalEncounterRules.Version, now), "{}");
+            await oldDb.SaveChangesAsync();
+            // A legacy insert does not set GuardianRuleVersion. The additive
+            // migration's PostgreSQL default must pin it to v1, not current v2.
+            await oldDb.Database.ExecuteSqlInterpolatedAsync(
+                $"INSERT INTO portal_encounter_states (\"CharacterId\", \"PlayerId\", \"PortalGrantId\", \"StartEventId\", \"StartedAtUtc\", \"ExpiresAtUtc\", \"GuardianMaxHealth\", \"GuardianHealth\", \"GuardianTurn\", \"GuardianOutcome\") VALUES ({character.Id}, {"player-a"}, {grant.Id}, {startedId}, {now}, {now.AddMinutes(3)}, {6}, {6}, {0}, {"ongoing"})");
+        }
+
+        await using (var upgraded = database.CreateDbContext())
+        {
+            var status = await Guardian(upgraded).GetAsync("player-a", grant.Id, now);
+            Assert.NotNull(status);
+            Assert.Equal(PortalGuardianRules.Version, status.RuleVersion);
+            var rejected = await Assert.ThrowsAsync<PortalGuardianException>(() =>
+                Guardian(upgraded).PlayAsync("player-a", grant.Id,
+                    PortalGuardianRules.Feint, 0, Guid.NewGuid(), now));
+            Assert.Equal(PortalGuardianErrorCodes.InvalidAction, rejected.Code);
+        }
+        await using (var db = database.CreateDbContext())
+        {
+            var oldStrike = await Guardian(db).PlayAsync("player-a", grant.Id,
+                PortalGuardianRules.Strike, 0, Guid.NewGuid(), now);
+            Assert.Equal(1, oldStrike.DamageDealt);
+            var eventLog = (await new GameEventStore(db).QueryAsync(
+                new GameEventQuery(PlayerId: "player-a"))).Items;
+            Assert.Equal(PortalGuardianRules.Version,
+                Assert.Single(eventLog, x => x.Envelope.EventType ==
+                    "portal.guardian_turn_resolved").Envelope.RuleVersion);
+        }
+    }
+
+    [PostgresIntegrationFact]
+    public async Task FeintV2_IsPersistedAuditedAndReplaySafe_AndV1CannotAcceptIt()
+    {
+        await using var database = await PostgresDatabaseScope.CreateAsync();
+        var grant = await SeedAsync(database);
+        var now = DateTimeOffset.UtcNow;
+        await StartAsync(database, grant.Id, now);
+
+        var key = Guid.NewGuid();
+        await using (var db = database.CreateDbContext())
+        {
+            var turn = await Guardian(db).PlayAsync("player-a", grant.Id,
+                PortalGuardianRules.Feint, 0, key, now);
+            Assert.Equal(3, turn.DamageDealt); // seed 4242; Guard speed 2; Dexterity 2
+            Assert.Equal(0, turn.DamageTaken);
+            Assert.Equal(3, turn.GuardianHealth);
+        }
+        await using (var db = database.CreateDbContext())
+        {
+            var replay = await Guardian(db).PlayAsync("player-a", grant.Id,
+                PortalGuardianRules.Feint, 0, key, now);
+            Assert.True(replay.Replayed);
+            Assert.Equal(3, replay.GuardianHealth);
+        }
+        await using (var db = database.CreateDbContext())
+        {
+            Assert.Equal(PortalGuardianRules.CurrentVersion,
+                (await db.PortalEncounterStates.SingleAsync()).GuardianRuleVersion);
+            var eventLog = (await new GameEventStore(db).QueryAsync(
+                new GameEventQuery(PlayerId: "player-a"))).Items;
+            Assert.Equal(PortalGuardianRules.CurrentVersion,
+                Assert.Single(eventLog, x =>
+                    x.Envelope.EventType == "portal.guardian_turn_resolved")
+                    .Envelope.RuleVersion);
+            Assert.Single(await db.PortalGuardianTurns.ToListAsync());
+        }
+
+        // Model the migration-backfilled v1 lease without reopening the portal.
+        await using (var db = database.CreateDbContext())
+        {
+            await db.Database.ExecuteSqlInterpolatedAsync(
+                $"UPDATE portal_encounter_states SET \"GuardianRuleVersion\" = {PortalGuardianRules.Version} WHERE \"PlayerId\" = {"player-a"}");
+        }
+        await using (var db = database.CreateDbContext())
+        {
+            var legacy = await Guardian(db).GetAsync("player-a", grant.Id, now);
+            Assert.NotNull(legacy);
+            Assert.Equal(PortalGuardianRules.Version, legacy.RuleVersion);
+            var rejected = await Assert.ThrowsAsync<PortalGuardianException>(() =>
+                Guardian(db).PlayAsync("player-a", grant.Id,
+                    PortalGuardianRules.Feint, 1, Guid.NewGuid(), now));
+            Assert.Equal(PortalGuardianErrorCodes.InvalidAction, rejected.Code);
+        }
+        await using var verify = database.CreateDbContext();
+        Assert.Single(await verify.PortalGuardianTurns.ToArrayAsync());
     }
 
     [PostgresIntegrationFact]

@@ -31,6 +31,9 @@ export function GuardianDuel({ grantId }: Props) {
   const [revision, setRevision] = useState(0);
   const pending = useRef<Pending | null>(null);
   const inFlight = useRef<AbortController | null>(null);
+  // Card availability comes from the persisted server encounter ruleset,
+  // not from local feature flags or client-predicted combat state.
+  const canFeint = status?.ruleVersion === 'portal-guardian-showdown-v2';
 
   useEffect(() => {
     const controller = new AbortController();
@@ -125,7 +128,9 @@ export function GuardianDuel({ grantId }: Props) {
     <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 }, mb: 3 }} data-testid="guardian-duel">
       <Stack spacing={2}>
         <Typography variant="h6" component="h2">{t('game.guardian.title')}</Typography>
-        <Typography color="text.secondary">{t('game.guardian.description')}</Typography>
+        <Typography color="text.secondary">
+          {t(canFeint ? 'game.guardian.descriptionV2' : 'game.guardian.description')}
+        </Typography>
         {loading && (
           <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }} role="status">
             <CircularProgress size={20} /><Typography>{t('game.guardian.loading')}</Typography>
@@ -219,8 +224,13 @@ export function GuardianDuel({ grantId }: Props) {
             {status.outcome === 'ongoing' ? (
               <Stack spacing={1.5}>
                 <Typography>{t('game.guardian.choose')}</Typography>
+                {canFeint && (
+                  <Typography variant="body2" color="text.secondary" data-testid="guardian-feint-help">
+                    {t('game.guardian.feintHelp')}
+                  </Typography>
+                )}
                 <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-                  {(['strike', 'guard'] as const).map(action => (
+                  {([...(['strike', 'guard'] as const), ...(canFeint ? ['feint' as const] : [])]).map(action => (
                     <Button key={action} data-testid={'guardian-' + action}
                       variant={action === 'strike' ? 'contained' : 'outlined'}
                       disabled={busy || requiresRefresh || (pending.current !== null &&

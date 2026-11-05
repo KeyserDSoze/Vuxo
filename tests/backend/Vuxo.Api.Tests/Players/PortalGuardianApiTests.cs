@@ -77,6 +77,22 @@ public sealed class PortalGuardianApiTests
             (await unavailable.Content.ReadFromJsonAsync<ErrorResponse>())?.Code);
     }
 
+
+    [Fact]
+    public async Task V2FeintIntent_RequiresJwtAndPassesOnlyCardToAuthority()
+    {
+        var fake = new Stub();
+        using var factory = Factory(fake);
+        using var client = factory.CreateClient();
+        await LoginAsync(client, "player-a");
+        var response = await PostAsync(client, PortalGuardianRules.Feint, 0, Guid.NewGuid());
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(PortalGuardianRules.Feint, fake.Action);
+        Assert.Equal(0, fake.ExpectedTurn);
+        Assert.Equal("player-a", fake.OwnerId);
+        Assert.Equal(1, fake.Calls);
+    }
+
     [Theory]
     [InlineData(null)]
     [InlineData("bad-key")]

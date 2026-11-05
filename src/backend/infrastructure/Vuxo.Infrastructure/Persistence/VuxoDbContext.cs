@@ -70,6 +70,7 @@ public sealed class VuxoDbContext(DbContextOptions<VuxoDbContext> options) : DbC
             entity.HasKey(x => x.CharacterId);
             entity.Property(x => x.PlayerId).HasMaxLength(200);
             entity.Property(x => x.GuardianOutcome).HasMaxLength(16);
+            entity.Property(x => x.GuardianRuleVersion).HasMaxLength(48);
             entity.ToTable("portal_encounter_states", table =>
             {
                 table.HasCheckConstraint("CK_portal_encounter_states_Time",
@@ -78,6 +79,8 @@ public sealed class VuxoDbContext(DbContextOptions<VuxoDbContext> options) : DbC
                     "\"GuardianMaxHealth\" >= 1 AND \"GuardianHealth\" >= 0 AND \"GuardianHealth\" <= \"GuardianMaxHealth\"");
                 table.HasCheckConstraint("CK_portal_encounter_states_GuardianTurn",
                     "\"GuardianTurn\" >= 0 AND \"GuardianTurn\" <= 12");
+                table.HasCheckConstraint("CK_portal_encounter_states_GuardianRuleVersion",
+                    "\"GuardianRuleVersion\" IN ('portal-guardian-showdown-v1', 'portal-guardian-showdown-v2')");
             });
             entity.HasIndex(x => x.PlayerId).IsUnique();
             entity.HasIndex(x => x.StartEventId).IsUnique();

@@ -1,3 +1,5 @@
+using Vuxo.Domain.Players;
+
 namespace Vuxo.Infrastructure.Persistence.Entities;
 
 /// <summary>
@@ -16,4 +18,6 @@ public sealed class PortalEncounterStateEntity
     public int GuardianHealth { get; set; } = 8;
     public int GuardianTurn { get; set; }
     public string GuardianOutcome { get; set; } = "ongoing";
+    // Existing pre-v2 rows are backfilled to v1 by migration.
+    public string GuardianRuleVersion { get; set; } = PortalGuardianRules.Version;
 }

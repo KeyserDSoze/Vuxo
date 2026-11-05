@@ -143,9 +143,10 @@ test('real SignalR world renders only personal portal and rejects forged distanc
     expect(guardianResponse.status()).toBe(200);
     const guardian = await guardianResponse.json() as {
       guardianHealth: number; guardianMaxHealth: number;
-      playerHealth: number; turn: number; outcome: string;
+      playerHealth: number; turn: number; outcome: string; ruleVersion: string;
     };
     expect(guardian.turn).toBe(0);
+    expect(guardian.ruleVersion).toBe('portal-guardian-showdown-v2');
     expect(guardian.guardianMaxHealth).toBeGreaterThanOrEqual(6);
     expect(guardian.guardianMaxHealth).toBeLessThanOrEqual(8);
     const emptyLog = await request.get(guardianUrl + '/history', { headers: userHeaders });
@@ -194,6 +195,27 @@ test('real SignalR world renders only personal portal and rejects forged distanc
       'action', 'damageDealt', 'damageTaken', 'guardianAction',
       'guardianHealth', 'occurredAtUtc', 'outcome', 'playerHealth', 'turn'
     ].sort());
+    // v2, turn 2: seed 85241 gives Guardian Guard; Dexterity 3 is below
+    // its speed 4, so Feint bypasses Guard for 2 damage without retaliation.
+    const feint = await request.post(guardianUrl + '/turn', {
+      headers: { ...userHeaders, 'Idempotency-Key': randomUUID() },
+      data: { action: 'feint', expectedTurn: 1, damage: 9999, speed: 9999 },
+    });
+    expect(feint.status()).toBe(200);
+    const feintResult = await feint.json() as {
+      turn: number; action: string; guardianAction: string; damageDealt: number;
+      damageTaken: number; guardianHealth: number; playerHealth: number;
+    };
+    expect(feintResult.turn).toBe(2);
+    expect(feintResult.action).toBe('feint');
+    expect(feintResult.guardianAction).toBe('guard');
+    expect(feintResult.damageDealt).toBe(2);
+    expect(feintResult.damageTaken).toBe(0);
+    expect(feintResult.guardianHealth).toBe(resolved.guardianHealth - 2);
+    const logWithFeint = await request.get(guardianUrl + '/history', { headers: userHeaders });
+    expect(logWithFeint.status()).toBe(200);
+    expect(((await logWithFeint.json()) as Array<{ action: string }>).map(row => row.action))
+      .toEqual(['strike', 'feint']);
     const stolenLog = await request.get(guardianUrl + '/history', {
       headers: { Authorization: 'Bearer ' + otherToken },
     });

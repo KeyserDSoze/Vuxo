@@ -224,6 +224,7 @@ test('world Guardian duel resolves two revealed cards server-side and preserves 
   await expect(page.getByTestId('world-portal-enter')).toBeEnabled();
   await page.getByTestId('world-portal-enter').click();
   await expect(page.getByTestId('guardian-duel')).toBeVisible();
+  await expect(page.getByTestId('guardian-feint')).toHaveCount(0); // legacy v1 encounter
   await expect(page.getByTestId('guardian-health')).toContainText('6 / 6 HP');
   await page.getByTestId('guardian-strike').click();
   await expect(page.getByTestId('guardian-turn-result')).toContainText('Danni inflitti: 1 HP');
@@ -237,6 +238,73 @@ test('world Guardian duel resolves two revealed cards server-side and preserves 
   await expect(page.getByTestId('guardian-turn')).toContainText('Turno 1 / 12');
   await expect(page.getByTestId('guardian-health')).toContainText('5 / 6 HP');
   await expect(page.getByTestId('guardian-history-entry')).toContainText('Turno 1');
+});
+
+
+test('v2 Guardian unlocks tactical Feint only from server status, updates HP and works on mobile IT/EN', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await initializePlayer(page, 'en');
+  await mockPrivatePortals(page);
+  let turn = 0;
+  const sent: Array<{ action: string; expectedTurn: number; extra?: number }> = [];
+  await page.route('**/api/characters/me/portal-guardian/**', route => {
+    const req = route.request();
+    if (new URL(req.url()).pathname.endsWith('/history')) {
+      return route.fulfill({
+        status: 200, headers: cors, contentType: 'application/json',
+        body: JSON.stringify(turn ? [{
+          turn, action: 'feint', guardianAction: 'guard', damageDealt: 3,
+          damageTaken: 0, guardianHealth: 3, playerHealth: 20, outcome: 'ongoing',
+          occurredAtUtc: new Date().toISOString(),
+        }] : []),
+      });
+    }
+    if (req.method() === 'GET') {
+      return route.fulfill({
+        status: 200, headers: cors, contentType: 'application/json',
+        body: JSON.stringify({
+          grantId, turn, guardianHealth: 6 - 3 * turn, guardianMaxHealth: 6,
+          playerHealth: 20, playerMaxHealth: 20,
+          outcome: 'ongoing', ruleVersion: 'portal-guardian-showdown-v2',
+        }),
+      });
+    }
+    const body = req.postDataJSON() as { action: string; expectedTurn: number; extra?: number };
+    sent.push(body);
+    expect(req.headers()['idempotency-key']).toMatch(/^[0-9a-f-]{36}$/i);
+    turn++;
+    return route.fulfill({
+      status: 200, headers: cors, contentType: 'application/json',
+      body: JSON.stringify({
+        grantId, idempotencyKey: req.headers()['idempotency-key'], turn,
+        action: 'feint', guardianAction: 'guard',
+        damageDealt: 3, damageTaken: 0, guardianHealth: 3,
+        guardianMaxHealth: 6, playerHealth: 20, playerMaxHealth: 20,
+        outcome: 'ongoing', replayed: false,
+      }),
+    });
+  });
+  await page.goto(origin + '/Vuxo/#/game');
+  await expect(page.getByTestId('world-portal-enter')).toBeEnabled();
+  await page.getByTestId('world-portal-enter').click();
+  const feint = page.getByTestId('guardian-feint');
+  await expect(feint).toBeVisible();
+  await expect(feint).toContainText('Feint');
+  await expect(page.getByTestId('guardian-feint-help')).toContainText('breaks through Guard');
+  await feint.click();
+  await expect(page.getByTestId('guardian-turn-result')).toContainText('Damage dealt: 3 HP');
+  await expect(page.getByTestId('guardian-health')).toContainText('3 / 6 HP');
+  await expect(page.getByTestId('guardian-history-entry')).toContainText('Feint');
+  expect(sent).toEqual([{ action: 'feint', expectedTurn: 0 }]); // no client-provided HP/damage
+  await page.getByRole('dialog').press('Escape');
+  await expect(page.getByTestId('world-portal-dialog')).toHaveCount(0);
+  await page.getByTestId('language-toggle').click();
+  await page.getByTestId('world-portal-enter').click();
+  await expect(page.getByTestId('guardian-feint')).toContainText('Finta');
+  await expect(page.getByTestId('guardian-feint-help')).toContainText('Destrezza');
+  await expect(page.getByTestId('guardian-history-entry')).toContainText('Finta');
+  await expect.poll(() => page.evaluate(() =>
+    document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
 });
 
 test('Guardian mobile English safely retries an ambiguous turn with the same UUID', async ({ page }) => {

@@ -6,15 +6,28 @@ namespace Vuxo.Domain.Players;
 /// </summary>
 public static class PortalGuardianRules
 {
+    // Version remains the legacy ruleset for encounters started before migration.
     public const string Version = "portal-guardian-showdown-v1";
+    public const string CurrentVersion = "portal-guardian-showdown-v2";
     public const string Strike = "strike";
     public const string Guard = "guard";
+    public const string Feint = "feint";
     public const string Ongoing = "ongoing";
     public const string Victory = "victory";
     public const string Retreat = "retreat";
     public const int MaximumTurns = 12;
 
-    public static bool IsAction(string? action) => action is Strike or Guard;
+    // Global input whitelist; actual availability is checked against the
+    // server-persisted encounter version while holding the character lock.
+    public static bool IsAction(string? action) => action is Strike or Guard or Feint;
+
+    public static bool IsActionForVersion(string? action, string version) =>
+        version switch
+        {
+            Version => action is Strike or Guard,
+            CurrentVersion => IsAction(action),
+            _ => false
+        };
 
     public static int GuardianMaxHealth(long seed) =>
         6 + (int)((seed % 3 + 3) % 3);
@@ -28,9 +41,11 @@ public static class PortalGuardianRules
     /// <summary>Both reveal actions together. Dexterity breaks a lethal strike tie.</summary>
     public static PortalGuardianResolution Resolve(
         long seed, int turn, string action, int strength, int dexterity,
-        int playerHealth, int playerMaxHealth, int guardianHealth, int guardianMaxHealth)
+        int playerHealth, int playerMaxHealth, int guardianHealth, int guardianMaxHealth,
+        string ruleVersion = Version)
     {
-        if (!IsAction(action)) throw new ArgumentException("Invalid card.", nameof(action));
+        if (!IsActionForVersion(action, ruleVersion))
+            throw new ArgumentException("Invalid card or ruleset.", nameof(action));
         if (turn < 1 || turn > MaximumTurns)
             throw new ArgumentOutOfRangeException(nameof(turn));
         if (strength < 0 || dexterity < 0)
@@ -44,7 +59,12 @@ public static class PortalGuardianRules
         var enemyGuards = enemyCard == Guard;
         var playerGuards = action == Guard;
         var strikeDamage = 2 + Math.Min(2, strength / 3);
-        var dealt = playerGuards ? (enemyGuards ? 0 : 1)
+        // Feint is a versioned, anticipation-based counter to the enemy Guard:
+        // a successful read breaks its defense, with a Dexterity speed bonus.
+        // Against an enemy Strike it deals zero and softens (not cancels) the hit.
+        var dealt = action == Feint
+            ? (enemyGuards ? 2 + (dexterity >= GuardianSpeed(seed) ? 1 : 0) : 0)
+            : playerGuards ? (enemyGuards ? 0 : 1)
             : Math.Max(1, strikeDamage - (enemyGuards ? 1 : 0));
         dealt = Math.Min(dealt, guardianHealth);
         var guardianAfter = guardianHealth - dealt;
@@ -54,7 +74,8 @@ public static class PortalGuardianRules
         var playerGoesFirst = dexterity >= GuardianSpeed(seed);
         var enemyCanStrike = !enemyGuards && !playerGuards
             && (guardianAfter > 0 || !playerGoesFirst);
-        var taken = enemyCanStrike ? Math.Min(2, playerHealth - 1) : 0;
+        var taken = enemyCanStrike
+            ? Math.Min(action == Feint ? 1 : 2, playerHealth - 1) : 0;
         var playerAfter = playerHealth - taken; // prototype cannot strand player at 0 HP
         var outcome = guardianAfter == 0 ? Victory
             : playerAfter == 1 || turn == MaximumTurns ? Retreat

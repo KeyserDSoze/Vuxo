@@ -1,7 +1,7 @@
 import { getApiBaseUrl } from '../character/appearance';
 import { readStoredSession } from '../auth/authSession';
 
-export type GuardianAction = 'strike' | 'guard';
+export type GuardianAction = 'strike' | 'guard' | 'feint';
 export type GuardianOutcome = 'ongoing' | 'victory' | 'retreat';
 
 export type GuardianStatus = {

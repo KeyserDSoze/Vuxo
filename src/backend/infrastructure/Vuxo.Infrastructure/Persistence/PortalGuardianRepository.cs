@@ -36,7 +36,7 @@ public sealed class PortalGuardianRepository(VuxoDbContext db, IGameEventStore e
         return new(grantId, snapshot.state.GuardianTurn, snapshot.state.GuardianHealth,
             snapshot.state.GuardianMaxHealth, snapshot.CurrentHealth,
             checked(snapshot.Constitution * 10), snapshot.state.GuardianOutcome,
-            PortalGuardianRules.Version);
+            snapshot.state.GuardianRuleVersion);
     }
 
     public async Task<IReadOnlyList<PortalGuardianHistoryEntry>?> GetHistoryAsync(
@@ -122,6 +122,8 @@ public sealed class PortalGuardianRepository(VuxoDbContext db, IGameEventStore e
             throw new PortalGuardianException(PortalGuardianErrorCodes.Finished);
         if (state.GuardianTurn != expectedTurn)
             throw new PortalGuardianException(PortalGuardianErrorCodes.StaleTurn);
+        if (!PortalGuardianRules.IsActionForVersion(action, state.GuardianRuleVersion))
+            throw new PortalGuardianException(PortalGuardianErrorCodes.InvalidAction);
         if (character.CurrentHealth <= 1)
             throw new PortalGuardianException(PortalGuardianErrorCodes.TooInjured);
 
@@ -129,7 +131,8 @@ public sealed class PortalGuardianRepository(VuxoDbContext db, IGameEventStore e
         var resolved = PortalGuardianRules.Resolve(grant.Seed, turn, action,
             character.Strength, character.Dexterity,
             character.CurrentHealth, checked(character.Constitution * 10),
-            state.GuardianHealth, state.GuardianMaxHealth);
+            state.GuardianHealth, state.GuardianMaxHealth,
+            state.GuardianRuleVersion);
 
         var receipt = new PortalGuardianTurnEntity
         {
@@ -163,7 +166,7 @@ public sealed class PortalGuardianRepository(VuxoDbContext db, IGameEventStore e
             receipt.TurnEventId, "portal.guardian_turn_resolved",
             GameEventVisibilityScope.Player, playerId,
             grant.CorrelationId, state.StartEventId,
-            PortalGuardianRules.Version, now),
+            state.GuardianRuleVersion, now),
             GameEventPayloadSerializer.Serialize("portal.guardian_turn_resolved", new
             {
                 receipt.Id, receipt.CharacterId, receipt.PortalGrantId,
