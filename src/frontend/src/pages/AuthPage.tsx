@@ -27,6 +27,7 @@ export function AuthPage() {
   const session = useStoredSession();
   const signedIn = session !== null;
   const [loadingConfiguration, setLoadingConfiguration] = useState(!signedIn);
+  const [providerRequestVersion, setProviderRequestVersion] = useState(0);
   const [busyProvider, setBusyProvider] = useState<Provider | null>(null);
   const [errorCode, setErrorCode] = useState<string | null>(null);
 
@@ -36,6 +37,7 @@ export function AuthPage() {
     if (signedIn) return;
     setConfiguration(null);
     setLoadingConfiguration(true);
+    setErrorCode(null);
     const controller = new AbortController();
     void fetchSocialProviderConfiguration(controller.signal)
       .then(value => {
@@ -51,7 +53,7 @@ export function AuthPage() {
       });
 
     return () => controller.abort();
-  }, [signedIn]);
+  }, [signedIn, providerRequestVersion]);
 
   const completeLogin = useCallback(async (provider: Provider, credential: string) => {
     setBusyProvider(provider);
@@ -140,9 +142,16 @@ export function AuthPage() {
       ) : (
         <Paper variant="outlined" sx={{ p: { xs: 2.5, sm: 4 } }}>
           {loadingConfiguration ? (
-            <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
+            <Stack role="status" direction="row" spacing={2} sx={{ alignItems: "center" }}>
               <CircularProgress size={28} />
               <Typography>{tAuth('loadingProviders')}</Typography>
+            </Stack>
+          ) : !configuration ? (
+            <Stack spacing={2} sx={{ alignItems: 'flex-start' }}>
+              <Typography color="text.secondary">{tAuth('providersRetryHint')}</Typography>
+              <Button data-testid="auth-retry-providers" variant="contained" onClick={() => setProviderRequestVersion(version => version + 1)}>
+                {tAuth('retryProviders')}
+              </Button>
             </Stack>
           ) : noProviders ? (
             <Alert severity="info">{tAuth('noProviders')}</Alert>

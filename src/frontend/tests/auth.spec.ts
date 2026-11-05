@@ -213,6 +213,50 @@ test('late logout response does not delete a newer session from a second tab', a
   await secondTab.close();
 });
 
+
+test('failed social provider configuration is recoverable without reloading on mobile', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  let attempts = 0;
+  await page.route('**/api/auth/providers', async route => {
+    attempts += 1;
+    if (attempts === 1) {
+      await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({
+        code: 'social_provider_configuration_unavailable',
+      }) });
+    } else {
+      await route.fulfill({ contentType: 'application/json', body: JSON.stringify(providerConfiguration()) });
+    }
+  });
+  await page.goto('./#/auth');
+  await expect(page.getByTestId('auth-error')).toContainText('configurazione dei provider');
+  await expect(page.getByTestId('auth-retry-providers')).toBeVisible();
+
+  await page.getByTestId('language-toggle').click();
+  await expect(page.getByTestId('auth-retry-providers')).toHaveText('Try again');
+  await page.getByTestId('auth-retry-providers').click();
+
+  await expect(page.getByTestId('auth-microsoft')).toHaveText('Sign in with Microsoft');
+  await expect(page.getByTestId('auth-error')).toHaveCount(0);
+  await expect(page.getByTestId('auth-retry-providers')).toHaveCount(0);
+  expect(attempts).toBe(2);
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
+  expect(overflow).toBe(false);
+});
+
+test('valid configuration without any enabled providers is a distinct empty state', async ({ page }) => {
+  await page.route('**/api/auth/providers', route => route.fulfill({
+    contentType: 'application/json',
+    body: JSON.stringify({
+      microsoft: { enabled: false, clientId: null, tenantId: null },
+      google: { enabled: false, clientId: null },
+    }),
+  }));
+  await page.goto('./#/auth');
+  await expect(page.getByText('Nessun provider social è configurato su questo ambiente.')).toBeVisible();
+  await expect(page.getByTestId('auth-retry-providers')).toHaveCount(0);
+  await expect(page.getByTestId('auth-error')).toHaveCount(0);
+});
+
 async function installAuthRoutes(
   page: Page,
   onSocial: (route: Route) => Promise<void>,

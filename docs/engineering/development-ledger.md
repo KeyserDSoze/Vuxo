@@ -18,7 +18,8 @@ Quando una issue cambia stato in modo significativo, aggiornare la riga corrispo
 
 | Issue | Tipo | Versione | Area | Stato | Test/Stato verifica | Risoluzione / prossimo passo |
 |---|---|---:|---|---|---|---|
-| #66 | Bug/UX | 0.0.1 | Account session synchronization | In progress | Hook sessione + regressioni Playwright su 2 schede e scadenza in verifica | Sessione Account reattiva, provider on demand, logout race-safe; CI da verificare |
+| #68 | Bug/UX | 0.0.1 | Account provider configuration recovery | Done | PR #69, CI #41939136547: 62/62 Playwright, backend/Docker verdi; live E2E #41939136559 verde | Retry IT/EN accessibile e responsive; recupero 503→200 senza reload, empty state provider disattivati |
+| #66 | Bug/UX | 0.0.1 | Account session synchronization | Done | PR #67 merged a810037a; CI #41938415560, 60 Playwright + live E2E verdi | Cross-tab session hook, scadenza/focus, provider on demand, logout race-safe; issue chiusa |
 | #64 | Performance | 0.0.1 | Phaser route code splitting | Done | PR #65 merged a41dc8e4; CI #41936884402, 56 Playwright e live E2E verdi | React.lazy GamePage/AdminRoute; JS iniziale gzip 645,21 → 287,67 kB (-55,4%); issue chiusa |
 | #62 | Bug/UX | 0.0.1 | Frontend home + shell + admin navigation | Done | PR #63 merged 9a42e793; CI #41935830789, 54 Playwright e live E2E verdi | Home responsive, menu role-aware, test Phaser stabile, i18n e diagnostica; issue chiusa |
 | #59 | Feature | 0.0.1 | Raspberry Pi 3 ARM64 production | In progress | CI shell/Compose contract aggiunto, esecuzione CI e hardware ARM64 da verificare | Overlay runtime a risorse limitate, GitHub Actions ARM64 gated, backup/rollback API e setup documentati; in attesa di runner reale, benchmark RAM, reboot e restore |
