@@ -35,6 +35,7 @@ builder.Services.AddHealthChecks();
 builder.Services.AddVuxoInfrastructure(builder.Configuration);
 builder.Services.AddScoped<CharacterService>();
 builder.Services.AddScoped<CharacterRestService>();
+builder.Services.AddScoped<CharacterHealingService>();
 builder.Services.AddScoped<LanguageModelSmokeService>();
 builder.Services.AddSingleton<ILanguageModelToolHandler, GetWorldContextTool>();
 builder.Services.AddSingleton<LanguageModelToolRegistry>();
@@ -345,6 +346,35 @@ app.MapPost("/api/characters/me/rest", async (
             code = exception.Code,
             nextAllowedAtUtc = exception.NextAllowedAtUtc
         });
+    }
+}).RequireAuthorization();
+
+
+// Server-authoritative healing: only a previously awarded, unspent, unequipped
+// Grove Seed can be consumed. No client-provided HP amount is ever accepted.
+app.MapPost("/api/characters/me/heal/{grantId:guid}", async (
+    Guid grantId, HttpRequest request, ClaimsPrincipal user,
+    CharacterHealingService service, CancellationToken cancellationToken) =>
+{
+    var ownerId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+    if (string.IsNullOrWhiteSpace(ownerId)) return Results.Unauthorized();
+    if (!Guid.TryParse(request.Headers["Idempotency-Key"].ToString(), out var key)
+        || key == Guid.Empty)
+        return Results.BadRequest(new { code = CharacterHealingErrorCodes.InvalidKey });
+
+    try
+    {
+        return Results.Ok(await service.HealAsync(ownerId, grantId, key, cancellationToken));
+    }
+    catch (CharacterHealingException exception) when (
+        exception.Code is CharacterHealingErrorCodes.CharacterNotFound
+            or CharacterHealingErrorCodes.ItemNotOwned)
+    {
+        return Results.NotFound(new { code = exception.Code });
+    }
+    catch (CharacterHealingException exception)
+    {
+        return Results.Conflict(new { code = exception.Code });
     }
 }).RequireAuthorization();
 
