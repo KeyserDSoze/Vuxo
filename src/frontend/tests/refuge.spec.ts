@@ -89,13 +89,16 @@ for (const width of [320, 390]) {
 }
 
 test('signed in Refuge shows player without claiming care or backend rewards', async ({ page }) => {
-  await page.goto('./#/');
+  await page.goto('./#/refuge');
+  await expect(page.getByTestId('refuge-guest')).toBeVisible();
+  // Simulate login without a reload: this exercises the shared session hook
+  // rather than getting cleared by the per-navigation test initializer.
   await page.evaluate(() => {
     localStorage.setItem('vuxo.accessToken', 'e2e.jwt.placeholder');
     localStorage.setItem('vuxo.auth.expiresAtUtc', '2099-01-01T00:00:00Z');
     localStorage.setItem('vuxo.auth.user', JSON.stringify({ id: 'visitor', displayName: 'Guest Hero', email: null }));
+    window.dispatchEvent(new Event('vuxo:session-changed'));
   });
-  await page.goto('./#/refuge');
   await expect(page.getByTestId('refuge-welcome')).toContainText('Guest Hero');
   await expect(page.getByTestId('refuge-guest')).toHaveCount(0);
   await expect(page.getByTestId('refuge-activity-inventory')).toHaveAttribute('href', '#/inventory');
