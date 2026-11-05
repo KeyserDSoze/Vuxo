@@ -64,17 +64,17 @@ function traceMoves(board: RunePathBoard, moves: string): RunePathPosition | nul
   if (!/^[UDLR]{0,32}$/.test(moves)) return null;
   let x = board.start.x;
   let y = board.start.y;
-  for (const letter of moves) {
+  for (let index = 0; index < moves.length; index++) {
+    const letter = moves[index];
     const offset = Object.values(offsets).find(direction => direction.letter === letter);
     if (!offset) return null;
     x += offset.x;
     y += offset.y;
     if (x < 0 || y < 0 || x >= board.gridSize || y >= board.gridSize
       || board.walls.some(wall => wall.x === x && wall.y === y)) return null;
-    // The server accepts reaching the portal only at the end of the proof.
-    if (x === board.goal.x && y === board.goal.y && letter !== moves[moves.length - 1]) {
-      // Checked below by the final position and by the server.
-    }
+    // A path that continues after the portal is not a valid proof.
+    if (x === board.goal.x && y === board.goal.y && index < moves.length - 1)
+      return null;
   }
   return { x, y };
 }
