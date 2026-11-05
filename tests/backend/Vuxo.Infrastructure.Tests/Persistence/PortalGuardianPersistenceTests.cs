@@ -123,7 +123,7 @@ public sealed class PortalGuardianPersistenceTests
 
 
     [PostgresIntegrationFact]
-    public async Task UpgradeFromV1Encounter_BackfillsVersionAndContinuesLegacyRules()
+    public async Task LegacyEncounterRowWithoutVersion_UsesDatabaseDefaultAndV1Rules()
     {
         await using var database = await PostgresDatabaseScope.CreateAsync();
         var now = DateTimeOffset.UtcNow;
@@ -139,20 +139,17 @@ public sealed class PortalGuardianPersistenceTests
         var startedId = Guid.NewGuid();
         await using (var oldDb = database.CreateDbContext())
         {
-            // EF Core target-migration lookup accepts the migration class name; old
-            // migration IDs use a 12-digit prefix rather than EF's usual 14-digit form.
-            await oldDb.Database.MigrateAsync("PortalGuardianShowdown");
+            await oldDb.Database.MigrateAsync();
             await new ExclusiveContentGrantRepository(oldDb).AddAsync(grant);
             await new PlayerCharacterRepository(oldDb).AddAsync(character);
             await new GameEventStore(oldDb).AppendAsync(new GameEventEnvelope(
                 startedId, "portal.encounter_started", GameEventVisibilityScope.Player,
                 "player-a", grant.CorrelationId, null, PortalEncounterRules.Version, now), "{}");
             await oldDb.SaveChangesAsync();
-            // Before v2 there is no GuardianRuleVersion column: simulate an active
-            // v1 encounter persisted by the original deployed schema.
+            // A legacy insert does not set GuardianRuleVersion. The additive
+            // migration's PostgreSQL default must pin it to v1, not current v2.
             await oldDb.Database.ExecuteSqlInterpolatedAsync(
                 $"INSERT INTO portal_encounter_states (\"CharacterId\", \"PlayerId\", \"PortalGrantId\", \"StartEventId\", \"StartedAtUtc\", \"ExpiresAtUtc\", \"GuardianMaxHealth\", \"GuardianHealth\", \"GuardianTurn\", \"GuardianOutcome\") VALUES ({character.Id}, {"player-a"}, {grant.Id}, {startedId}, {now}, {now.AddMinutes(3)}, {6}, {6}, {0}, {"ongoing"})");
-            await oldDb.Database.MigrateAsync();
         }
 
         await using (var upgraded = database.CreateDbContext())
