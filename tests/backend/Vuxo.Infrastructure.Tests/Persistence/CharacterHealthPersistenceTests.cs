@@ -13,7 +13,8 @@ public sealed class CharacterHealthPersistenceTests
     {
         await using var database = await PostgresDatabaseScope.CreateAsync();
         await using var db = database.CreateDbContext();
-        await db.Database.MigrateAsync("202611040002_PlayerEquipment");
+        // EF custom migration IDs are 12-digit; use class name for target lookup.
+        await db.Database.MigrateAsync("PlayerEquipment");
         // The existing schema has no CurrentHealth column yet.
         await db.Database.ExecuteSqlRawAsync("""
             INSERT INTO player_characters (
