@@ -101,6 +101,118 @@ test('missing translation key falls back to localized generic auth error', async
   await expect(page.getByTestId('auth-error')).toHaveText('Non è stato possibile completare l’accesso.');
 });
 
+
+test('account reflects login and logout from another browser tab without reload', async ({ page, context }) => {
+  await context.route('**/api/auth/providers', route => route.fulfill({
+    contentType: 'application/json',
+    body: JSON.stringify(providerConfiguration()),
+  }));
+  await context.route('**/api/auth/social', route => route.fulfill({
+    contentType: 'application/json',
+    body: JSON.stringify(sessionResponse('microsoft')),
+  }));
+  await context.route('**/api/auth/logout', route => route.fulfill({ status: 204 }));
+
+  const secondTab = await context.newPage();
+  await page.goto('./#/auth');
+  await secondTab.goto('./#/auth');
+  await expect(page.getByTestId('auth-microsoft')).toBeVisible();
+  await secondTab.getByTestId('auth-microsoft').click();
+  await expect(secondTab.getByTestId('auth-user')).toContainText('microsoft Player');
+  await expect(page.getByTestId('auth-user')).toContainText('microsoft Player');
+
+  await page.getByTestId('auth-logout').click();
+  await expect(secondTab.getByTestId('auth-user')).toHaveCount(0);
+  await expect(secondTab.getByTestId('auth-microsoft')).toBeVisible();
+  await secondTab.close();
+});
+
+test('account removes expired session on focus and restores provider sign-in', async ({ page }) => {
+  await installAuthRoutes(page, route => route.fulfill({
+    contentType: 'application/json',
+    body: JSON.stringify(sessionResponse('microsoft')),
+  }));
+  await page.goto('./#/auth');
+  await page.getByTestId('auth-microsoft').click();
+  await expect(page.getByTestId('auth-user')).toBeVisible();
+
+  await page.evaluate(() => {
+    localStorage.setItem('vuxo.auth.expiresAtUtc', '2000-01-01T00:00:00Z');
+    window.dispatchEvent(new Event('focus'));
+  });
+  await expect(page.getByTestId('auth-user')).toHaveCount(0);
+  await expect(page.getByTestId('auth-microsoft')).toBeVisible();
+});
+
+test('already authenticated account skips provider fetch until the session ends', async ({ page }) => {
+  await page.goto('./#/');
+  await page.evaluate(({ token, id }) => {
+    localStorage.setItem('vuxo.accessToken', token);
+    localStorage.setItem('vuxo.auth.expiresAtUtc', '2099-01-01T00:00:00Z');
+    localStorage.setItem('vuxo.auth.user', JSON.stringify({
+      id, displayName: 'Existing Player', email: null,
+    }));
+  }, { token: makeJwt('google'), id: userId });
+
+  let providerRequests = 0;
+  await page.route('**/api/auth/providers', async route => {
+    providerRequests += 1;
+    await route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify(providerConfiguration()),
+    });
+  });
+
+  await page.locator('a[href="#/auth"]').first().click();
+  await expect(page.getByTestId('auth-user')).toContainText('Existing Player');
+  expect(providerRequests).toBe(0);
+
+  await page.evaluate(() => {
+    localStorage.removeItem('vuxo.accessToken');
+    localStorage.removeItem('vuxo.auth.expiresAtUtc');
+    localStorage.removeItem('vuxo.auth.user');
+    window.dispatchEvent(new Event('focus'));
+  });
+  await expect(page.getByTestId('auth-microsoft')).toBeVisible();
+  expect(providerRequests).toBe(1);
+});
+
+test('late logout response does not delete a newer session from a second tab', async ({ page, context }) => {
+  let releaseLogout: (() => void) | undefined;
+  await context.route('**/api/auth/providers', route => route.fulfill({
+    contentType: 'application/json',
+    body: JSON.stringify(providerConfiguration()),
+  }));
+  await context.route('**/api/auth/social', route => route.fulfill({
+    contentType: 'application/json',
+    body: JSON.stringify(sessionResponse('microsoft')),
+  }));
+  await context.route('**/api/auth/logout', async route => {
+    await new Promise<void>(resolve => { releaseLogout = resolve; });
+    await route.fulfill({ status: 204 });
+  });
+
+  const secondTab = await context.newPage();
+  await page.goto('./#/auth');
+  await secondTab.goto('./#/');
+  await page.getByTestId('auth-microsoft').click();
+  await expect(page.getByTestId('auth-user')).toContainText('microsoft Player');
+
+  await page.getByTestId('auth-logout').click();
+  await expect.poll(() => Boolean(releaseLogout)).toBe(true);
+  await secondTab.evaluate((newSession) => {
+    localStorage.setItem('vuxo.accessToken', newSession.accessToken);
+    localStorage.setItem('vuxo.auth.expiresAtUtc', newSession.expiresAtUtc);
+    localStorage.setItem('vuxo.auth.user', JSON.stringify(newSession.user));
+  }, sessionResponse('google'));
+  await expect(page.getByTestId('auth-user')).toContainText('google Player');
+
+  releaseLogout?.();
+  await expect(page.getByTestId('auth-user')).toContainText('google Player');
+  await expect.poll(() => secondTab.evaluate(() => localStorage.getItem('vuxo.accessToken'))).toBe(makeJwt('google'));
+  await secondTab.close();
+});
+
 async function installAuthRoutes(
   page: Page,
   onSocial: (route: Route) => Promise<void>,
