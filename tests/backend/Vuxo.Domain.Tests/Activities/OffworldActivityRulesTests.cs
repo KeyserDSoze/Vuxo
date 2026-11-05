@@ -41,7 +41,7 @@ public sealed class OffworldActivityRulesTests
     [InlineData(0, "R", "activity_path_blocked")]
     [InlineData(0, "DR", "activity_path_blocked")]
     [InlineData(1, "D", "activity_path_blocked")]
-    [InlineData(2, "DDR", "activity_path_blocked")]
+    [InlineData(2, "DR", "activity_path_blocked")]
     [InlineData(0, "D", "activity_path_incomplete")]
     [InlineData(0, "X", "activity_path_direction_invalid")]
     [InlineData(0, "DDDRRRU", "activity_path_extra_moves")]
@@ -75,7 +75,7 @@ public sealed class OffworldActivityRulesTests
         Assert.Contains((2, 2), original);
         Assert.Equal(4, original.Count);
         var second = RunePathPracticeRules.GetWalls(0);
-        Assert.Equal(original, second);
+        Assert.Equal(original.ToArray(), second.ToArray());
         Assert.IsNotType<(int X, int Y)[]>(original);
     }
 }
