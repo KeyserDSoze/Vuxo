@@ -15,6 +15,7 @@ using Vuxo.Api.Observability;
 using Vuxo.Api.PersonalContent;
 using Vuxo.Api.Realtime;
 using Vuxo.Api.Worlds;
+using Vuxo.Application.Activities;
 using Vuxo.Application.AI;
 using Vuxo.Application.Events;
 using Vuxo.Application.Inventory;
@@ -36,6 +37,7 @@ builder.Services.AddHealthChecks();
 builder.Services.AddVuxoInfrastructure(builder.Configuration);
 builder.Services.AddScoped<CharacterService>();
 builder.Services.AddScoped<CharacterRestService>();
+builder.Services.AddScoped<OffworldRunService>();
 builder.Services.AddScoped<CharacterHealingService>();
 builder.Services.AddScoped<LanguageModelSmokeService>();
 builder.Services.AddSingleton<ILanguageModelToolHandler, GetWorldContextTool>();
@@ -84,6 +86,18 @@ builder.Services.AddRateLimiter(options =>
             _ => new FixedWindowRateLimiterOptions
             {
                 PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
+    // Per-player rate limit in addition to persisted per-character cooldown/quota.
+    options.AddPolicy("activity-run", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier)
+                ?? httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 20,
                 Window = TimeSpan.FromMinutes(1),
                 QueueLimit = 0,
                 AutoReplenishment = true
@@ -211,6 +225,7 @@ app.MapGet("/api/meta/character-appearance", () => Results.Ok(new
 
 app.MapSocialAuthEndpoints();
 app.MapActivityCatalogEndpoints();
+app.MapOffworldRunEndpoints();
 
 if (MockAuthentication.IsEnabled(app.Environment, app.Configuration))
 {
