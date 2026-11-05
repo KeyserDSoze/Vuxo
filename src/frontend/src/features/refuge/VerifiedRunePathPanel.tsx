@@ -438,13 +438,13 @@ export function VerifiedRunePathPanel({ accessToken, playerId }: Props) {
                 column: position.x + 1, row: position.y + 1,
               })}
             </Typography>
-            <Stack direction="row" spacing={1} gap={1} sx={{ flexWrap: "wrap" }}>
+            <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", gap: 1 }}>
               <Chip data-testid="verified-path-moves"
                 label={t('refuge.path.moves', { count: moves.length })} />
               <Chip data-testid="verified-path-bumps"
                 label={t('refuge.path.bumps', { count: bumps })} />
             </Stack>
-            <Stack direction="row" gap={1} sx={{ flexWrap: "wrap" }}>
+            <Stack direction="row" sx={{ flexWrap: "wrap", gap: 1 }}>
               <Button variant="contained" data-testid="verified-path-submit"
                 disabled={!reached || busy} onClick={() => { void submit(); }}>
                 {t('refuge.path.server.submit')}
