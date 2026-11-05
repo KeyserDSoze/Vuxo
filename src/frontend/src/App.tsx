@@ -19,9 +19,12 @@ import { vuxoDesignTokens } from './theme/tokens';
 // Heavy routes must not download their bundles while a visitor reads the home.
 const GamePage = lazy(() => import('./pages/GamePage').then(module => ({ default: module.GamePage })));
 const AdminRoute = lazy(() => import('./pages/AdminRoute').then(module => ({ default: module.AdminRoute })));
+const RefugePage = lazy(() => import('./pages/RefugePage').then(module => ({ default: module.RefugePage })));
+const RuneTrainingPage = lazy(() => import('./pages/RuneTrainingPage').then(module => ({ default: module.RuneTrainingPage })));
 
 const navItems = [
   { to: '/', key: 'nav.home' },
+  { to: '/refuge', key: 'nav.refuge' },
   { to: '/auth', key: 'nav.auth' },
   { to: '/character', key: 'nav.character' },
   { to: '/game', key: 'nav.game' },
@@ -104,6 +107,8 @@ export function App() {
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/auth" element={<AuthPage />} />
+          <Route path="/refuge" element={<RefugePage />} />
+          <Route path="/refuge/training" element={<RuneTrainingPage />} />
           <Route path="/character" element={<CharacterEditorPage />} />
           <Route path="/game" element={<GamePage />} />
           <Route path="/portals" element={<PortalChallengesPage />} />

@@ -18,6 +18,10 @@ Quando una issue cambia stato in modo significativo, aggiornare la riga corrispo
 
 | Issue | Tipo | Versione | Area | Stato | Test/Stato verifica | Risoluzione / prossimo passo |
 |---|---|---:|---|---|---|---|
+| #70 | Epic | 0.0.1+ | Off-world gameplay and Refuge | In progress | Architettura/design in docs/game-design/off-world-refuge.md; slice #71 in CI | Cura autorevole #72 e minigiochi a reward #73 pianificati; no client-authoritative economy |
+| #71 | Feature | 0.0.1 | Refuge hub and free rune training | Done | PR #74 CI #41942702087: 68/68 Playwright, build/backend/Docker verdi; live E2E #41942702124 verde | Rifugio e allenamento rune 3/4/6, nav/mobile/i18n, nessun reward locale; merge/closure #71 |
+| #72 | Feature | 0.0.1+ | Server-authoritative healing/rest | Planned | HP corrente non persistito nel character model | Domain rules, migrazione EF, API atomica/audit, UI e test prima di cura reale |
+| #73 | Feature | 0.0.1+ | Server-authoritative rewarded activities | Planned | Design in docs/game-design/off-world-refuge.md | Versioned runs, anti-replay, ricompense atomiche e test gameplay |
 | #68 | Bug/UX | 0.0.1 | Account provider configuration recovery | Done | PR #69, CI #41939136547: 62/62 Playwright, backend/Docker verdi; live E2E #41939136559 verde | Retry IT/EN accessibile e responsive; recupero 503→200 senza reload, empty state provider disattivati |
 | #66 | Bug/UX | 0.0.1 | Account session synchronization | Done | PR #67 merged a810037a; CI #41938415560, 60 Playwright + live E2E verdi | Cross-tab session hook, scadenza/focus, provider on demand, logout race-safe; issue chiusa |
 | #64 | Performance | 0.0.1 | Phaser route code splitting | Done | PR #65 merged a41dc8e4; CI #41936884402, 56 Playwright e live E2E verdi | React.lazy GamePage/AdminRoute; JS iniziale gzip 645,21 → 287,67 kB (-55,4%); issue chiusa |

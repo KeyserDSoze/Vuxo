@@ -8,7 +8,7 @@ const initialization = i18n.use(initReactI18next).init({
   resources: {
     it: {
       translation: {
-        nav: { home: 'Home', auth: 'Account', character: 'Personaggio', game: 'Gioco', portals: 'Portali', inventory: 'Inventario', admin: 'Admin', version: 'Versione' },
+        nav: { home: 'Home', refuge: 'Rifugio', auth: 'Account', character: 'Personaggio', game: 'Gioco', portals: 'Portali', inventory: 'Inventario', admin: 'Admin', version: 'Versione' },
         shell: { theme: 'Tema', language: 'Lingua', navigation: 'Navigazione principale', openMenu: 'Apri menu', closeMenu: 'Chiudi', loadingPage: 'Caricamento pagina…', version: 'Versione {{version}}' },
         theme: { system: 'Sistema', light: 'Chiaro', dark: 'Scuro' },
         home: {
@@ -18,10 +18,54 @@ const initialization = i18n.use(initReactI18next).init({
           cta: 'Entra nel prototipo',
           ctaSignIn: 'Accedi per iniziare',
           ctaCharacter: 'Crea il personaggio',
+          ctaRefuge: 'Visita il Rifugio',
           features: {
             character: { title: 'Il tuo Vuxian', description: 'Crea un personaggio unico e scegli gli attributi che lo definiscono.' },
             world: { title: 'Un mondo condiviso', description: 'Esplora un mondo 2D in compagnia di altri giocatori.' },
             portals: { title: 'Portali e sfide', description: 'Scopri nuovi portali e affronta prove personali.' }
+          }
+        },
+        refuge: {
+          eyebrow: 'Il gioco continua oltre la mappa',
+          title: 'Il tuo Rifugio',
+          description: 'Prepara il tuo Vuxian, gestisci quello che possiedi e allenati anche senza entrare nel mondo 2D.',
+          welcome: 'Bentornato, {{name}}',
+          guest: 'Puoi allenarti anche senza un account. Per inventario, portali personali ed equipaggiamento serve una sessione VUXO.',
+          enterWorld: 'Esplora il mondo',
+          startTraining: 'Allenati con le rune',
+          requiresAccount: 'Richiede accesso',
+          availableWithoutAccount: 'Anche senza accesso',
+          open: 'Apri',
+          cards: {
+            character: { title: 'Personaggio', description: 'Aspetto, attributi e preparazione del tuo Vuxian.' },
+            inventory: { title: 'Inventario ed equipaggiamento', description: 'Controlla gli oggetti conquistati ed equipaggia reliquie e amuleti.' },
+            portals: { title: 'Portali personali', description: 'Affronta sfide assegnate al tuo personaggio, con risultati verificati dal server.' },
+            training: { title: 'Allenamento', description: 'Prova un minigioco di memoria delle rune, anche con il mondo offline.' }
+          },
+          care: {
+            title: 'Cura e riposo',
+            planned: 'In progettazione',
+            description: 'Prevederemo cure, oggetti consumabili e riposo. La salute attuale e le risorse devono essere gestite dal server: qui non viene simulata alcuna cura.'
+          },
+          training: {
+            eyebrow: 'Allenamento libero',
+            title: 'Memoria delle rune',
+            description: 'Memorizza la sequenza, poi ripetila nell’ordine corretto. Puoi allenarti quanto vuoi, senza entrare nel mondo.',
+            disclaimer: 'È solo pratica locale: nessun premio, esperienza, oggetto o risultato persistente. Le sfide con ricompense sono validate dal server.',
+            difficulty: 'Difficoltà',
+            levels: { easy: 'Facile · 3 rune', standard: 'Normale · 4 rune', hard: 'Esperto · 6 rune' },
+            memorize: 'Memorizza queste rune nell’ordine mostrato.',
+            ready: 'Sono pronto',
+            repeat: 'Ripeti la sequenza delle rune.',
+            progress: 'Rune inserite: {{count}} di {{total}}',
+            clear: 'Cancella la sequenza',
+            check: 'Verifica',
+            success: 'Ottimo! Sequenza corretta.',
+            failure: 'Sequenza non corretta. Prova ancora!',
+            accuracy: 'Posizioni corrette: {{correct}} su {{total}}',
+            duration: 'Tempo di risposta: {{seconds}} s',
+            again: 'Nuovo allenamento',
+            back: 'Torna al Rifugio'
           }
         },
         auth: {
@@ -227,7 +271,7 @@ const initialization = i18n.use(initReactI18next).init({
     },
     en: {
       translation: {
-        nav: { home: 'Home', auth: 'Account', character: 'Character', game: 'Game', portals: 'Portals', inventory: 'Inventory', admin: 'Admin', version: 'Version' },
+        nav: { home: 'Home', refuge: 'Refuge', auth: 'Account', character: 'Character', game: 'Game', portals: 'Portals', inventory: 'Inventory', admin: 'Admin', version: 'Version' },
         shell: { theme: 'Theme', language: 'Language', navigation: 'Main navigation', openMenu: 'Open menu', closeMenu: 'Close', loadingPage: 'Loading page…', version: 'Version {{version}}' },
         theme: { system: 'System', light: 'Light', dark: 'Dark' },
         home: {
@@ -237,10 +281,54 @@ const initialization = i18n.use(initReactI18next).init({
           cta: 'Enter the prototype',
           ctaSignIn: 'Sign in to get started',
           ctaCharacter: 'Create your character',
+          ctaRefuge: 'Visit your Refuge',
           features: {
             character: { title: 'Your Vuxian', description: 'Create a unique character and choose the attributes that define them.' },
             world: { title: 'A shared world', description: 'Explore a 2D world alongside other players.' },
             portals: { title: 'Portals and challenges', description: 'Discover new portals and take on personal challenges.' }
+          }
+        },
+        refuge: {
+          eyebrow: 'The game continues beyond the map',
+          title: 'Your Refuge',
+          description: 'Prepare your Vuxian, manage your belongings and train without entering the 2D world.',
+          welcome: 'Welcome back, {{name}}',
+          guest: 'You can train without an account. Inventory, personal portals and equipment require a VUXO session.',
+          enterWorld: 'Explore the world',
+          startTraining: 'Train with runes',
+          requiresAccount: 'Sign-in required',
+          availableWithoutAccount: 'No sign-in needed',
+          open: 'Open',
+          cards: {
+            character: { title: 'Character', description: 'Appearance, attributes and preparation of your Vuxian.' },
+            inventory: { title: 'Inventory and equipment', description: 'View earned items and equip relics and charms.' },
+            portals: { title: 'Personal portals', description: 'Take on challenges assigned to your character, with results verified by the server.' },
+            training: { title: 'Training', description: 'Try a rune memory minigame, even while the world is offline.' }
+          },
+          care: {
+            title: 'Healing and rest',
+            planned: 'Planned',
+            description: 'Healing, consumable items and rest are planned. Current health and resources must be managed by the server: no healing is simulated here.'
+          },
+          training: {
+            eyebrow: 'Free practice',
+            title: 'Rune memory',
+            description: 'Remember the sequence, then repeat it in the right order. Practice as often as you like without entering the world.',
+            disclaimer: 'Local practice only: no rewards, experience, items or saved results. Rewarded challenges are validated by the server.',
+            difficulty: 'Difficulty',
+            levels: { easy: 'Easy · 3 runes', standard: 'Standard · 4 runes', hard: 'Expert · 6 runes' },
+            memorize: 'Remember these runes in the order shown.',
+            ready: 'I’m ready',
+            repeat: 'Repeat the rune sequence.',
+            progress: 'Runes entered: {{count}} of {{total}}',
+            clear: 'Clear sequence',
+            check: 'Check',
+            success: 'Great! Correct sequence.',
+            failure: 'Not quite right. Try again!',
+            accuracy: 'Correct positions: {{correct}} of {{total}}',
+            duration: 'Response time: {{seconds}} s',
+            again: 'New practice round',
+            back: 'Back to Refuge'
           }
         },
         auth: {
