@@ -108,6 +108,41 @@ public sealed class OffworldRunPersistenceTests
     }
 
     [PostgresIntegrationFact]
+    public async Task ConcurrentFinishIntents_CommitOnlyOneCompletedReceipt()
+    {
+        await using var database = await PostgresDatabaseScope.CreateAsync();
+        await SeedAsync(database);
+        var now = DateTimeOffset.UtcNow;
+        OffworldRunResult run;
+        await using (var db = database.CreateDbContext())
+            run = await Repository(db).StartAsync("player-a", Guid.NewGuid(), now);
+
+        async Task<(bool Success, string? Error)> TryFinish()
+        {
+            await using var db = database.CreateDbContext();
+            try
+            {
+                await Repository(db).CompleteAsync("player-a", run.RunId,
+                    Guid.NewGuid(), Solve(run.PuzzleIndex), now.AddSeconds(1));
+                return (true, null);
+            }
+            catch (OffworldRunException e) { return (false, e.Code); }
+        }
+
+        var results = await Task.WhenAll(TryFinish(), TryFinish());
+        Assert.Single(results, x => x.Success);
+        Assert.Single(results, x => x.Error == OffworldRunErrorCodes.Completed);
+        await using var verify = database.CreateDbContext();
+        var stored = Assert.Single(await verify.OffworldActivityRuns.ToListAsync());
+        Assert.Equal(OffworldRunRules.Completed, stored.State);
+        Assert.NotNull(stored.FinishKey);
+        var events = (await new GameEventStore(verify).QueryAsync(
+            new GameEventQuery(PlayerId: "player-a"))).Items;
+        Assert.Single(events, x => x.Envelope.EventType == "activity.run_completed");
+        Assert.Equal(2, events.Count);
+    }
+
+    [PostgresIntegrationFact]
     public async Task ExpiredRun_DoesNotComplete_AndNextStartMarksExpiredWithAudit()
     {
         await using var database = await PostgresDatabaseScope.CreateAsync();
