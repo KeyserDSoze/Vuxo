@@ -49,7 +49,8 @@ public sealed class PortalGuardianRulesTests
 
     [Theory]
     [InlineData(2, 1, PortalGuardianRules.Retreat)]
-    [InlineData(3, 2, PortalGuardianRules.Ongoing)]
+    [InlineData(3, 1, PortalGuardianRules.Retreat)]
+    [InlineData(4, 2, PortalGuardianRules.Ongoing)]
     [InlineData(20, 18, PortalGuardianRules.Ongoing)]
     public void RetaliationNeverDropsBelowOneHp(int hp, int expected, string outcome)
     {
