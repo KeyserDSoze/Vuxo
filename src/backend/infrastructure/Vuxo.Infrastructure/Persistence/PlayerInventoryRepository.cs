@@ -25,6 +25,33 @@ public sealed class PlayerInventoryRepository(VuxoDbContext dbContext) : IPlayer
         }, cancellationToken);
     }
 
+
+    public async Task<IReadOnlySet<Guid>> GetConsumedGrantIdsForPlayerAsync(
+        string playerId, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(playerId);
+        var grantIds = await dbContext.CharacterItemHeals.AsNoTracking()
+            .Where(x => x.PlayerId == playerId.Trim())
+            .Select(x => x.GrantId)
+            .ToArrayAsync(cancellationToken);
+        return grantIds.ToHashSet();
+    }
+
+    public async Task<IReadOnlyList<PlayerInventoryAward>> GetUnspentForPlayerAsync(
+        string playerId, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(playerId);
+        var items = await dbContext.PlayerInventoryAwards.AsNoTracking()
+            .Where(x => x.PlayerId == playerId.Trim()
+                && !dbContext.CharacterItemHeals.Any(used => used.GrantId == x.GrantId))
+            .OrderByDescending(x => x.AwardedAtUtc)
+            .ThenBy(x => x.GrantId)
+            .ToArrayAsync(cancellationToken);
+        return items.Select(x => new PlayerInventoryAward(
+            x.GrantId, x.AwardEventId, x.PlayerId, x.ItemKey,
+            x.AwardedAtUtc, x.CorrelationId, x.CausationId)).ToArray();
+    }
+
     public async Task<IReadOnlyList<PlayerInventoryAward>> GetForPlayerAsync(
         string playerId, CancellationToken cancellationToken = default)
     {

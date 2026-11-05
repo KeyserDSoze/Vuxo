@@ -18,7 +18,7 @@ public sealed class PlayerEquipmentService(
         string playerId, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(playerId);
-        var awards = await inventory.GetForPlayerAsync(playerId.Trim(), cancellationToken);
+        var awards = await inventory.GetUnspentForPlayerAsync(playerId.Trim(), cancellationToken);
         var equipped = await equipment.GetForPlayerAsync(playerId.Trim(), cancellationToken);
         var equippedIds = equipped.Select(x => x.GrantId).ToHashSet();
 
@@ -51,7 +51,7 @@ public sealed class PlayerEquipmentService(
         if (grantId == Guid.Empty) throw new EquipmentException(EquipmentErrorCodes.NotOwned);
 
         // Award ownership is always loaded by the authenticated principal.
-        var awards = await inventory.GetForPlayerAsync(owner, cancellationToken);
+        var awards = await inventory.GetUnspentForPlayerAsync(owner, cancellationToken);
         var award = awards.FirstOrDefault(x => x.GrantId == grantId)
             ?? throw new EquipmentException(EquipmentErrorCodes.NotOwned);
         var slot = EquipmentRules.SlotFor(award.ItemKey)

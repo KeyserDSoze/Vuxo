@@ -14,18 +14,21 @@ public static class PersonalContentEndpoints
     {
         endpoints.MapGet(
             "/api/inventory",
-            async (ClaimsPrincipal user, ExclusiveContentService service, CancellationToken cancellationToken) =>
+            async (ClaimsPrincipal user, ExclusiveContentService service,
+                IPlayerInventoryRepository inventory, CancellationToken cancellationToken) =>
             {
                 var playerId = user.FindFirstValue(ClaimTypes.NameIdentifier);
                 if (string.IsNullOrWhiteSpace(playerId)) return Results.Unauthorized();
 
                 var awards = await service.GetInventoryAsync(playerId, cancellationToken);
+                var consumed = await inventory.GetConsumedGrantIdsForPlayerAsync(playerId, cancellationToken);
                 return Results.Ok(awards.Select(award => new
                 {
                     award.GrantId,
                     award.ItemKey,
                     quantity = PlayerInventoryAward.Quantity,
-                    award.AwardedAtUtc
+                    award.AwardedAtUtc,
+                    consumed = consumed.Contains(award.GrantId)
                 }));
             })
             .RequireAuthorization();

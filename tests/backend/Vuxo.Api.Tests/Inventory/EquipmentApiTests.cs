@@ -15,6 +15,23 @@ namespace Vuxo.Api.Tests.Inventory;
 public sealed class EquipmentApiTests
 {
     [Fact]
+    public async Task InventoryHistory_ReportsSpentAwardsWithoutRemovingTheirProvenance()
+    {
+        using var factory = CreateFactory(out var inventory, out _, out _, out _);
+        using var client = factory.CreateClient();
+        await LoginAsync(client, "player-a");
+        var spent = inventory.Awards[0].GrantId;
+        inventory.ConsumedGrantIds.Add(spent);
+        var response = await client.GetFromJsonAsync<JsonElement>("/api/inventory");
+        var awards = response.EnumerateArray().ToArray();
+        Assert.Equal(inventory.Awards.Count, awards.Length);
+        Assert.True(awards.Single(x => x.GetProperty("grantId").GetGuid() == spent)
+            .GetProperty("consumed").GetBoolean());
+        Assert.All(awards.Where(x => x.GetProperty("grantId").GetGuid() != spent),
+            x => Assert.False(x.GetProperty("consumed").GetBoolean()));
+    }
+
+    [Fact]
     public async Task Equipment_RequiresAuth_AndNeverListsOtherPlayerAwards()
     {
         using var factory = CreateFactory(out var inventory, out _, out _, out _);
@@ -147,6 +164,11 @@ public sealed class EquipmentApiTests
 
     private sealed class FakeInventory : IPlayerInventoryRepository
     {
+        public HashSet<Guid> ConsumedGrantIds { get; } = [];
+        public Task<IReadOnlySet<Guid>> GetConsumedGrantIdsForPlayerAsync(
+            string playerId, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlySet<Guid>>(ConsumedGrantIds);
+
         public List<PlayerInventoryAward> Awards { get; } = new[]
         {
             NewAward(InventoryItemCatalog.RuneShard),

@@ -6,6 +6,7 @@ export type InventoryAward = {
   itemKey: string;
   quantity: number;
   awardedAtUtc: string;
+  consumed?: boolean;
 };
 
 export const inventoryItemLabelKeys: Readonly<Record<string, string>> = {

@@ -8,6 +8,7 @@ public sealed class VuxoDbContext(DbContextOptions<VuxoDbContext> options) : DbC
 {
     public DbSet<PlayerCharacterEntity> PlayerCharacters => Set<PlayerCharacterEntity>();
     public DbSet<CharacterRestActionEntity> CharacterRestActions => Set<CharacterRestActionEntity>();
+    public DbSet<CharacterItemHealEntity> CharacterItemHeals => Set<CharacterItemHealEntity>();
     public DbSet<GameEventEntity> GameEvents => Set<GameEventEntity>();
     public DbSet<WorldDefinitionEntity> WorldDefinitions => Set<WorldDefinitionEntity>();
     public DbSet<WorldChunkEntity> WorldChunks => Set<WorldChunkEntity>();
@@ -28,6 +29,24 @@ public sealed class VuxoDbContext(DbContextOptions<VuxoDbContext> options) : DbC
             entity.HasIndex(x => x.OwnerId).IsUnique();
             entity.Property(x => x.OwnerId).HasMaxLength(200);
             entity.Property(x => x.Name).HasMaxLength(24);
+        });
+
+        modelBuilder.Entity<CharacterItemHealEntity>(entity =>
+        {
+            entity.ToTable("character_item_heals");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.PlayerId).HasMaxLength(200);
+            entity.HasIndex(x => new { x.CharacterId, x.IdempotencyKey }).IsUnique();
+            entity.HasIndex(x => x.GrantId).IsUnique();
+            entity.HasIndex(x => x.EventId).IsUnique();
+            entity.HasOne<PlayerCharacterEntity>().WithMany()
+                .HasForeignKey(x => x.CharacterId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<PlayerInventoryAwardEntity>().WithMany()
+                .HasForeignKey(x => new { x.GrantId, x.PlayerId })
+                .HasPrincipalKey(x => new { x.GrantId, x.PlayerId })
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<GameEventEntity>().WithMany()
+                .HasForeignKey(x => x.EventId).OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<CharacterRestActionEntity>(entity =>

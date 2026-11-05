@@ -2,7 +2,9 @@ import { Alert, Box, Button, Chip, CircularProgress, Paper, Stack, Typography } 
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link as RouterLink } from 'react-router-dom';
-import { readStoredSession } from '../features/auth/authSession';
+import { useStoredSession } from '../features/auth/useStoredSession';
+import { HealingItemAction } from '../features/inventory/HealingItemAction';
+import type { CharacterItemHealResult } from '../features/inventory/consumableApi';
 import {
   equipInventoryItem, unequipInventoryItem, fetchInventoryStacks, fetchEquipment,
   EquipmentApiError, type InventoryStack, type EquipmentView,
@@ -24,7 +26,7 @@ function slotFor(itemKey: string): 'relic' | 'charm' | null {
 
 export function InventoryPage() {
   const { t, i18n } = useTranslation('inventory');
-  const session = readStoredSession();
+  const session = useStoredSession();
   const [items, setItems] = useState<InventoryAward[]>([]);
   const [loading, setLoading] = useState(Boolean(session));
   const [error, setError] = useState<string | null>(null);
@@ -32,6 +34,19 @@ export function InventoryPage() {
   const [loadout, setLoadout] = useState<EquipmentView | null>(null);
   const [equipmentError, setEquipmentError] = useState<string | null>(null);
   const [equipmentBusy, setEquipmentBusy] = useState(false);
+  const [healingResult, setHealingResult] = useState<CharacterItemHealResult | null>(null);
+  const [healingRefreshError, setHealingRefreshError] = useState(false);
+
+  useEffect(() => {
+    setItems([]);
+    setStacks([]);
+    setLoadout(null);
+    setError(null);
+    setEquipmentError(null);
+    setHealingResult(null);
+    setHealingRefreshError(false);
+    setLoading(Boolean(session));
+  }, [session?.accessToken]);
 
   useEffect(() => {
     if (!session) return;
@@ -110,6 +125,21 @@ export function InventoryPage() {
           {t('errors.' + equipmentError, { defaultValue: t('errors.inventory_request_failed') })}
         </Alert>
       )}
+      {healingResult && (
+        <Alert data-testid="inventory-heal-success" severity="success">
+          {t('healing.success', {
+            restored: healingResult.restoredHealth,
+            current: healingResult.currentHealth,
+            maximum: healingResult.maxHealth,
+          })}{' '}
+          <Button component={RouterLink} to="/refuge" size="small">{t('healing.refuge')}</Button>
+        </Alert>
+      )}
+      {healingRefreshError && (
+        <Alert data-testid="inventory-heal-refresh-error" severity="warning">
+          {t('healing.refreshError')}
+        </Alert>
+      )}
       {stacks.length > 0 && (
         <Stack spacing={1.5} data-testid="inventory-stacks">
           <Typography variant="h5">{t('stacksTitle')}</Typography>
@@ -148,6 +178,24 @@ export function InventoryPage() {
                         {t('equip')}
                       </Button>
                     ) : null}
+                    {stack.itemKey === 'item.grove_seed.v1' && stack.availableGrantIds.length > 0 && (
+                      <HealingItemAction key={stack.availableGrantIds[0]}
+                        grantId={stack.availableGrantIds[0]}
+                        disabled={equipmentBusy}
+                        onHealed={result => {
+                          setHealingResult(result);
+                          setHealingRefreshError(false);
+                          void Promise.all([
+                            fetchInventoryStacks(),
+                            fetchPlayerInventory(),
+                          ]).then(([freshStacks, freshAwards]) => {
+                            setStacks(freshStacks);
+                            setItems(freshAwards);
+                          }).catch(() => {
+                            setHealingRefreshError(true);
+                          });
+                        }} />
+                    )}
                     {slot && <Chip size="small" label={t('slots.' + slot)} />}
                   </Stack>
                 </Stack>
@@ -200,7 +248,7 @@ export function InventoryPage() {
                     </Typography>
                   </Stack>
                   <Chip color="primary" variant="outlined"
-                    label={t('quantity', { count: award.quantity })} />
+                    label={award.consumed ? t('consumed') : t('quantity', { count: award.quantity })} />
                 </Stack>
               </Paper>
             );

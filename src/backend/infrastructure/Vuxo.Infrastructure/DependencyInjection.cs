@@ -27,6 +27,7 @@ public static class DependencyInjection
         services.AddDbContext<VuxoDbContext>(options => options.UseNpgsql(connectionString));
         services.AddScoped<IPlayerCharacterRepository, PlayerCharacterRepository>();
         services.AddScoped<ICharacterRestRepository, CharacterRestRepository>();
+        services.AddScoped<ICharacterHealingRepository, CharacterHealingRepository>();
         services.AddScoped<IGameEventStore, GameEventStore>();
         services.AddScoped<IWorldRepository, WorldRepository>();
         services.AddScoped<IExclusiveContentGrantRepository, ExclusiveContentGrantRepository>();
