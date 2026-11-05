@@ -32,7 +32,11 @@ async function json(route: Route, body: unknown, status = 200) {
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.clear();
-    sessionStorage.clear();
+    // addInitScript also runs on reload: keep a ticket to test recovery.
+    if (!sessionStorage.getItem('vuxo.e2e.rune-initialized')) {
+      sessionStorage.clear();
+      sessionStorage.setItem('vuxo.e2e.rune-initialized', '1');
+    }
     localStorage.setItem('vuxo.language', 'it');
     localStorage.setItem('vuxo.theme', 'system');
     localStorage.setItem('vuxo.accessToken', 'e2e-rune-session-token');
