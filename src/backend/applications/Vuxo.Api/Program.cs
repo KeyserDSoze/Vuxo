@@ -376,6 +376,12 @@ app.MapPost("/api/characters/me/heal/{grantId:guid}", async (
     {
         return Results.Conflict(new { code = exception.Code });
     }
+    catch (DbUpdateException)
+    {
+        // Concurrent equip/consume or a failed constraint is not a successful
+        // heal; translate DB exceptions to a stable, non-revealing API code.
+        return Results.Conflict(new { code = "heal_conflict" });
+    }
 }).RequireAuthorization();
 
 app.MapWorldEndpoints();

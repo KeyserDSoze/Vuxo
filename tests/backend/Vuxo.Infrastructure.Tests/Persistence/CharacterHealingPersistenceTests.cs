@@ -184,6 +184,48 @@ public sealed class CharacterHealingPersistenceTests
     }
 
     [PostgresIntegrationFact]
+    public async Task ConcurrentEquipAndConsume_CannotBothCommit()
+    {
+        await using var database = await PostgresDatabaseScope.CreateAsync();
+        var award = await SeedAsync(database);
+
+        async Task<string> HealAsync()
+        {
+            await using var db = database.CreateDbContext();
+            try
+            {
+                await Store(db).HealAsync("player-a", award.GrantId,
+                    Guid.NewGuid(), DateTimeOffset.UtcNow);
+                return "healed";
+            }
+            catch (CharacterHealingException) { return "heal-rejected"; }
+            catch (DbUpdateException) { return "heal-db-rejected"; }
+        }
+        async Task<string> EquipAsync()
+        {
+            await using var db = database.CreateDbContext();
+            try
+            {
+                await Equipment(db).EquipAsync("player-a", award.GrantId);
+                return "equipped";
+            }
+            catch (EquipmentException) { return "equip-rejected"; }
+            catch (DbUpdateException) { return "equip-db-rejected"; }
+        }
+
+        var results = await Task.WhenAll(HealAsync(), EquipAsync());
+        Assert.Single(results, x => x is "healed" or "equipped");
+        await using var check = database.CreateDbContext();
+        var used = await check.CharacterItemHeals.AsNoTracking().CountAsync();
+        var equipped = await check.PlayerEquippedItems.AsNoTracking().CountAsync();
+        Assert.Equal(1, used + equipped);
+        Assert.Equal(used == 1 ? 15 : 5, (await new PlayerCharacterRepository(check)
+            .GetByOwnerIdAsync("player-a"))!.CurrentHealth);
+        Assert.Equal(1, (await new GameEventStore(check).QueryAsync(
+            new GameEventQuery(PlayerId: "player-a"))).Total);
+    }
+
+    [PostgresIntegrationFact]
     public async Task Trigger_ProhibitsDirectEquipAfterHealing()
     {
         await using var database = await PostgresDatabaseScope.CreateAsync();

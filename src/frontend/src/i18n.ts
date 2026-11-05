@@ -221,6 +221,7 @@ const initialization = i18n.use(initReactI18next).init({
             heal_item_not_owned: 'Non possiedi questo oggetto.',
             heal_item_not_consumable: 'Questo oggetto non può curare.',
             heal_item_equipped: 'Rimuovi prima il Seme del Bosco dallo slot Amuleto.',
+            heal_conflict: 'L’oggetto è stato modificato da un’altra richiesta. Aggiorna l’inventario.'
             heal_item_used: 'Questo oggetto è già stato consumato.',
             heal_already_full: 'Hai già la salute massima.',
             heal_unavailable: 'Non puoi usare questo oggetto con zero HP.',
@@ -524,6 +525,7 @@ const initialization = i18n.use(initReactI18next).init({
             heal_item_not_owned: 'You do not own this item.',
             heal_item_not_consumable: 'This item cannot heal.',
             heal_item_equipped: 'Unequip the Grove Seed charm first.',
+            heal_conflict: 'Another request changed this item. Refresh your inventory.'
             heal_item_used: 'This item has already been consumed.',
             heal_already_full: 'Your health is already full.',
             heal_unavailable: 'You cannot use this item at zero HP.',
