@@ -96,7 +96,7 @@ export function GuardianDuel({ grantId }: Props) {
         <Typography variant="h6" component="h2">{t('game.guardian.title')}</Typography>
         <Typography color="text.secondary">{t('game.guardian.description')}</Typography>
         {loading && (
-          <Stack direction="row" spacing={1} alignItems="center" role="status">
+          <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }} role="status">
             <CircularProgress size={20} /><Typography>{t('game.guardian.loading')}</Typography>
           </Stack>
         )}
