@@ -62,6 +62,64 @@ public sealed class PortalGuardianPersistenceTests
         Assert.Equal(grant.CorrelationId, resolved.Envelope.CorrelationId);
     }
 
+
+    [PostgresIntegrationFact]
+    public async Task History_IsChronologicalOwnerOnlyAndScopedToCurrentEncounter()
+    {
+        await using var database = await PostgresDatabaseScope.CreateAsync();
+        var grant = await SeedAsync(database);
+        var now = DateTimeOffset.UtcNow;
+        await StartAsync(database, grant.Id, now);
+
+        await using (var db = database.CreateDbContext())
+        {
+            var empty = await Guardian(db).GetHistoryAsync("player-a", grant.Id, now);
+            Assert.NotNull(empty);
+            Assert.Empty(empty);
+        }
+
+        for (var turn = 0; turn < 2; turn++)
+        {
+            await using var db = database.CreateDbContext();
+            await Guardian(db).PlayAsync("player-a", grant.Id,
+                PortalGuardianRules.Strike, turn, Guid.NewGuid(), now);
+        }
+
+        await using (var db = database.CreateDbContext())
+        {
+            var history = await Guardian(db).GetHistoryAsync("player-a", grant.Id, now);
+            Assert.NotNull(history);
+            Assert.Equal(new[] { 1, 2 }, history.Select(row => row.Turn));
+            Assert.Equal(new[] { 5, 3 }, history.Select(row => row.GuardianHealth));
+            Assert.Equal(18, history[1].PlayerHealth);
+            Assert.All(history, row => Assert.Equal(PortalGuardianRules.Strike, row.Action));
+
+            Assert.Null(await Guardian(db).GetHistoryAsync("another-player", grant.Id, now));
+            Assert.Null(await Guardian(db).GetHistoryAsync("player-a", grant.Id,
+                now.Add(PortalEncounterRules.MaximumDuration)));
+        }
+
+        // The same grant may open another verified encounter after the lease expires.
+        // Historical rows remain immutable but must never appear in that new visit.
+        var nextVisit = now.Add(PortalEncounterRules.MaximumDuration).AddSeconds(1);
+        await StartAsync(database, grant.Id, nextVisit);
+        await using (var db = database.CreateDbContext())
+        {
+            var newHistory = await Guardian(db).GetHistoryAsync("player-a", grant.Id, nextVisit);
+            Assert.NotNull(newHistory);
+            Assert.Empty(newHistory);
+            await Guardian(db).PlayAsync("player-a", grant.Id,
+                PortalGuardianRules.Guard, 0, Guid.NewGuid(), nextVisit);
+        }
+        await using var verify = database.CreateDbContext();
+        var latest = await Guardian(verify).GetHistoryAsync("player-a", grant.Id, nextVisit);
+        Assert.NotNull(latest);
+        var only = Assert.Single(latest);
+        Assert.Equal(1, only.Turn);
+        Assert.Equal(PortalGuardianRules.Guard, only.Action);
+        Assert.Equal(3, await verify.PortalGuardianTurns.CountAsync());
+    }
+
     [PostgresIntegrationFact]
     public async Task ConcurrentTurns_AreSerializedAndReplaySafeAcrossNodes()
     {

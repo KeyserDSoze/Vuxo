@@ -20,6 +20,8 @@ public sealed class PortalGuardianApiTests
         Assert.Equal(HttpStatusCode.Unauthorized,
             (await client.GetAsync(StatusUrl())).StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized,
+            (await client.GetAsync(HistoryUrl())).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized,
             (await client.PostAsJsonAsync(TurnUrl(), new { action = "strike", expectedTurn = 0 }))
                 .StatusCode);
     }
@@ -41,6 +43,35 @@ public sealed class PortalGuardianApiTests
         using var foreign = factory.CreateClient();
         await LoginAsync(foreign, "player-b");
         var unavailable = await foreign.GetAsync(StatusUrl());
+        Assert.Equal(HttpStatusCode.NotFound, unavailable.StatusCode);
+        Assert.Equal(PortalGuardianErrorCodes.Unavailable,
+            (await unavailable.Content.ReadFromJsonAsync<ErrorResponse>())?.Code);
+    }
+
+
+    [Fact]
+    public async Task GuardianHistory_RequiresOwnerAndExposesOnlySafeOrderedTurnFields()
+    {
+        using var factory = Factory(new Stub());
+        using var client = factory.CreateClient();
+        await LoginAsync(client, "player-a");
+        var response = await client.GetAsync(HistoryUrl());
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var json = System.Text.Json.JsonDocument.Parse(
+            await response.Content.ReadAsStringAsync());
+        var entry = Assert.Single(json.RootElement.EnumerateArray());
+        Assert.Equal(1, entry.GetProperty("turn").GetInt32());
+        Assert.Equal("strike", entry.GetProperty("action").GetString());
+        Assert.Equal(5, entry.GetProperty("guardianHealth").GetInt32());
+        Assert.True(entry.TryGetProperty("occurredAtUtc", out _));
+        Assert.False(entry.TryGetProperty("idempotencyKey", out _));
+        Assert.False(entry.TryGetProperty("seed", out _));
+        Assert.False(entry.TryGetProperty("encounterEventId", out _));
+        Assert.False(entry.TryGetProperty("playerId", out _));
+
+        using var foreign = factory.CreateClient();
+        await LoginAsync(foreign, "player-b");
+        var unavailable = await foreign.GetAsync(HistoryUrl());
         Assert.Equal(HttpStatusCode.NotFound, unavailable.StatusCode);
         Assert.Equal(PortalGuardianErrorCodes.Unavailable,
             (await unavailable.Content.ReadFromJsonAsync<ErrorResponse>())?.Code);
@@ -137,6 +168,8 @@ public sealed class PortalGuardianApiTests
     private static string StatusUrl() =>
         $"/api/characters/me/portal-guardian/{GrantId}";
 
+    private static string HistoryUrl() => StatusUrl() + "/history";
+
     private static string TurnUrl() => StatusUrl() + "/turn";
 
     private static Task<HttpResponseMessage> PostAsync(HttpClient client,
@@ -193,6 +226,19 @@ public sealed class PortalGuardianApiTests
                     ? new(grantId, 0, 6, 6, 20, 20,
                         PortalGuardianRules.Ongoing, PortalGuardianRules.Version)
                     : null);
+        }
+
+        public Task<IReadOnlyList<PortalGuardianHistoryEntry>?> GetHistoryAsync(
+            string playerId, Guid grantId, DateTimeOffset now,
+            CancellationToken cancellationToken = default)
+        {
+            OwnerId = playerId;
+            IReadOnlyList<PortalGuardianHistoryEntry>? history =
+                playerId == "player-a" && grantId == GrantId
+                    ? [new PortalGuardianHistoryEntry(1, "strike", "guard",
+                        1, 0, 5, 20, "ongoing", now)]
+                    : null;
+            return Task.FromResult(history);
         }
 
         public Task<PortalGuardianTurnResult> PlayAsync(
