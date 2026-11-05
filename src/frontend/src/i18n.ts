@@ -163,6 +163,9 @@ const initialization = i18n.use(initReactI18next).init({
             portal_challenge_incorrect: 'Sequenza errata. Riprova.',
             world_portal_not_joined: 'Entra nel mondo condiviso prima di utilizzare il portale.',
             world_portal_too_far: 'Sei troppo lontano dal portale: avvicinati e riprova.',
+            encounter_already_active: 'Hai già un altro incontro del portale attivo. Completa quello o attendi che scada.',
+            encounter_portal_unavailable: 'Questo portale non è più disponibile per iniziare un incontro.',
+            encounter_character_required: 'Crea un personaggio prima di entrare nel portale.',
             exclusive_content_not_found: 'Questo portale non è disponibile per il tuo personaggio.',
             exclusive_content_expired: 'Questo portale è scaduto.',
             exclusive_content_consumed: 'Questa sfida è già stata completata.'
@@ -474,6 +477,9 @@ const initialization = i18n.use(initReactI18next).init({
             portal_challenge_incorrect: 'Wrong sequence. Try again.',
             world_portal_not_joined: 'Join the shared world before entering this portal.',
             world_portal_too_far: 'You are too far from this portal. Move closer and try again.',
+            encounter_already_active: 'Another portal encounter is already active. Complete it or wait for it to expire.',
+            encounter_portal_unavailable: 'This portal is no longer available for an encounter.',
+            encounter_character_required: 'Create a character before entering a portal.',
             exclusive_content_not_found: 'This portal is unavailable for your character.',
             exclusive_content_expired: 'This portal has expired.',
             exclusive_content_consumed: 'This challenge has already been completed.'
