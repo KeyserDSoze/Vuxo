@@ -1,4 +1,4 @@
-import { AutoAwesome, BackpackOutlined, ExploreOutlined, FavoriteBorder, PersonOutlined, SportsEsportsOutlined } from '@mui/icons-material';
+import { AutoAwesome, BackpackOutlined, ExploreOutlined, FavoriteBorder, PersonOutlined, SportsEsportsOutlined, TouchAppOutlined } from '@mui/icons-material';
 import { Alert, Button, Chip, CircularProgress, Grid, LinearProgress, Paper, Stack, Typography } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -12,6 +12,7 @@ const activities = [
   { key: 'inventory', to: '/inventory', icon: BackpackOutlined, authenticated: true },
   { key: 'portals', to: '/portals', icon: AutoAwesome, authenticated: true },
   { key: 'training', to: '/refuge/training', icon: SportsEsportsOutlined, authenticated: false },
+  { key: 'reflex', to: '/refuge/reflex', icon: TouchAppOutlined, authenticated: false },
 ] as const;
 
 export function RefugePage() {
@@ -79,7 +80,7 @@ export function RefugePage() {
         {activities.map(activity => {
           const Icon = activity.icon;
           return (
-            <Grid key={activity.key} size={{ xs: 12, sm: 6, lg: 3 }}>
+            <Grid key={activity.key} size={{ xs: 12, sm: 6, lg: 4 }}>
               <Paper variant="outlined" sx={{ height: '100%', p: { xs: 2.5, md: 3 } }}>
                 <Stack spacing={1.5} sx={{ height: '100%', alignItems: 'flex-start' }}>
                   <Icon color="primary" fontSize="large" aria-hidden="true" />
