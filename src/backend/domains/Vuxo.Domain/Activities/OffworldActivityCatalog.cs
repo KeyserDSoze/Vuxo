@@ -20,15 +20,15 @@ public static class OffworldActivityCatalog
     public const string ServerPathRulesVersion = "rune-path-practice-v1";
 
     private static readonly IReadOnlyList<OffworldActivityDefinition> Definitions =
-        Array.AsReadOnly(
-        [
+        Array.AsReadOnly(new OffworldActivityDefinition[]
+        {
             new("rune-memory", "rune-memory-local-v1", "memory",
                 PracticeOnly, 4, false),
             new("rune-reflex", "rune-reflex-local-v1", "reflex",
                 PracticeOnly, 8, false),
             new("rune-path", ServerPathRulesVersion, "logic",
                 PracticeOnly, RunePathPracticeRules.PuzzleCount, false)
-        ]);
+        });
 
     public static IReadOnlyList<OffworldActivityDefinition> All => Definitions;
 
