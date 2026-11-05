@@ -165,7 +165,10 @@ public sealed class OffworldRunPersistenceTests
             var error = await Assert.ThrowsAsync<OffworldRunException>(() =>
                 Repository(db).StartAsync("player-a", Guid.NewGuid(), now.AddMinutes(1)));
             Assert.Equal(OffworldRunErrorCodes.Cooldown, error.Code);
-            Assert.Equal(now.AddMinutes(2), error.NextAllowedAtUtc);
+            // PostgreSQL stores timestamps at microsecond precision, while .NET
+            // can retain sub-microsecond ticks. Compare the public millisecond boundary.
+            Assert.Equal(now.AddMinutes(2).ToUnixTimeMilliseconds(),
+                error.NextAllowedAtUtc!.Value.ToUnixTimeMilliseconds());
         }
         await using var check = database.CreateDbContext();
         Assert.Single(await check.OffworldActivityRuns.ToListAsync());
