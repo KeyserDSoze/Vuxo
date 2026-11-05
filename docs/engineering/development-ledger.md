@@ -18,6 +18,7 @@ Quando una issue cambia stato in modo significativo, aggiornare la riga corrispo
 
 | Issue | Tipo | Versione | Area | Stato | Test/Stato verifica | Risoluzione / prossimo passo |
 |---|---|---:|---|---|---|---|
+| #100 | Feature | 0.0.1+ | Off-world Rune Path session frontend | In progress | Stacked frontend PR on #98, backend dependency PR #101; browser API mocks for restore, expiry, retries, owner switch; CI pending | Session mode persists only opaque run ID + visual moves; server remains authority; no rewards; integration validation after both branches joined |
 | #97 | Feature | 0.0.1 | Refuge Rune Path logic puzzles | In progress | PR #98: CI #42046248191 96/96 Playwright no retry + backend/Docker success; live E2E #42046247957 success | No gameplay backend/XP/rewards; merge after parent and production deploy gate safe |
 | #93 | Feature | 0.0.1 | Refuge Rune Reflexes free training | In progress | UI/Playwright + bilingual copy on `feat/refuge-reflex-training-93`; CI pending | Eight-round tap reflex practice, anonymous/mobile, no rewards or persistence; #70 epic, rewarded activities remain #73 |
 | #70 | Epic | 0.0.1+ | Off-world gameplay and Refuge | In progress | Architettura/design in docs/game-design/off-world-refuge.md; slice #71 in CI | Cura autorevole #72 e minigiochi a reward #73 pianificati; no client-authoritative economy |
