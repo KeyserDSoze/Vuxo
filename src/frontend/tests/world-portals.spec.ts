@@ -289,3 +289,70 @@ test('Guardian battle is unavailable without a verified world portal entry', asy
   await expect(page.getByTestId('guardian-duel')).toHaveCount(0);
   expect(actions).toBe(0);
 });
+
+
+test('Guardian stale-turn rejection blocks further cards until server status refresh', async ({ page }) => {
+  await initializePlayer(page, 'en');
+  await mockPrivatePortals(page);
+
+  let serverTurn = 0;
+  const sent: Array<{ action: string; expectedTurn: number; key: string }> = [];
+  await page.route('**/api/characters/me/portal-guardian/**', route => {
+    const request = route.request();
+    if (request.method() === 'GET') {
+      return route.fulfill({
+        status: 200, headers: cors, contentType: 'application/json',
+        body: JSON.stringify({
+          grantId, turn: serverTurn, guardianHealth: 6 - serverTurn,
+          guardianMaxHealth: 6, playerHealth: 20, playerMaxHealth: 20,
+          outcome: 'ongoing', ruleVersion: 'portal-guardian-showdown-v1',
+        }),
+      });
+    }
+
+    const body = request.postDataJSON() as { action: string; expectedTurn: number };
+    sent.push({
+      ...body, key: request.headers()['idempotency-key'],
+    });
+    if (sent.length === 1) {
+      // Simulate another session completing the expected turn first.
+      serverTurn = 1;
+      return route.fulfill({
+        status: 409, headers: cors, contentType: 'application/json',
+        body: JSON.stringify({ code: 'guardian_stale_turn' }),
+      });
+    }
+    serverTurn = 2;
+    return route.fulfill({
+      status: 200, headers: cors, contentType: 'application/json',
+      body: JSON.stringify({
+        grantId, idempotencyKey: sent[1].key, turn: serverTurn,
+        action: 'guard', guardianAction: 'strike', damageDealt: 0,
+        damageTaken: 0, guardianHealth: 4, guardianMaxHealth: 6,
+        playerHealth: 20, playerMaxHealth: 20,
+        outcome: 'ongoing', replayed: false,
+      }),
+    });
+  });
+
+  await page.goto(origin + '/Vuxo/#/game');
+  await expect(page.getByTestId('world-portal-enter')).toBeEnabled();
+  await page.getByTestId('world-portal-enter').click();
+  await expect(page.getByTestId('guardian-turn')).toContainText('Turn 0 / 12');
+  await page.getByTestId('guardian-strike').click();
+  await expect(page.getByTestId('guardian-error')).toContainText('turn has already changed');
+  await expect(page.getByTestId('guardian-strike')).toBeDisabled();
+  await expect(page.getByTestId('guardian-guard')).toBeDisabled();
+  expect(sent).toHaveLength(1);
+
+  await page.getByTestId('guardian-refresh').click();
+  await expect(page.getByTestId('guardian-turn')).toContainText('Turn 1 / 12');
+  await expect(page.getByTestId('guardian-error')).toHaveCount(0);
+  await expect(page.getByTestId('guardian-guard')).toBeEnabled();
+  await page.getByTestId('guardian-guard').click();
+  await expect(page.getByTestId('guardian-turn')).toContainText('Turn 2 / 12');
+  expect(sent).toHaveLength(2);
+  expect(sent[0]).toMatchObject({ action: 'strike', expectedTurn: 0 });
+  expect(sent[1]).toMatchObject({ action: 'guard', expectedTurn: 1 });
+  expect(sent[1].key).not.toBe(sent[0].key);
+});
