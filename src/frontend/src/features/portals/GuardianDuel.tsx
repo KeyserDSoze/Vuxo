@@ -15,7 +15,7 @@ type Pending = { action: GuardianAction; expectedTurn: number; key: string };
  * intentions. It cannot set health, opponent state or unlock healing.
  */
 export function GuardianDuel({ grantId }: Props) {
-  const { t } = useTranslation('game');
+  const { t } = useTranslation();
   const [status, setStatus] = useState<GuardianStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -93,23 +93,23 @@ export function GuardianDuel({ grantId }: Props) {
   return (
     <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 }, mb: 3 }} data-testid="guardian-duel">
       <Stack spacing={2}>
-        <Typography variant="h6" component="h2">{t('guardian.title')}</Typography>
-        <Typography color="text.secondary">{t('guardian.description')}</Typography>
+        <Typography variant="h6" component="h2">{t('game.guardian.title')}</Typography>
+        <Typography color="text.secondary">{t('game.guardian.description')}</Typography>
         {loading && (
           <Stack direction="row" spacing={1} alignItems="center" role="status">
-            <CircularProgress size={20} /><Typography>{t('guardian.loading')}</Typography>
+            <CircularProgress size={20} /><Typography>{t('game.guardian.loading')}</Typography>
           </Stack>
         )}
         {error && (
           <Alert severity="warning" data-testid="guardian-error">
-            {t('guardian.errors.' + error, { defaultValue: t('guardian.errors.guardian_request_failed') })}
+            {t('game.guardian.errors.' + error, { defaultValue: t('game.guardian.errors.guardian_request_failed') })}
           </Alert>
         )}
         {status && (
           <>
             <Box>
               <Typography data-testid="guardian-health">
-                {t('guardian.enemyHealth', {
+                {t('game.guardian.enemyHealth', {
                   current: status.guardianHealth, maximum: status.guardianMaxHealth,
                 })}
               </Typography>
@@ -117,24 +117,24 @@ export function GuardianDuel({ grantId }: Props) {
                 value={status.guardianMaxHealth > 0
                   ? Math.min(100, Math.max(0, status.guardianHealth * 100 / status.guardianMaxHealth))
                   : 0}
-                aria-label={t('guardian.enemyHealth', {
+                aria-label={t('game.guardian.enemyHealth', {
                   current: status.guardianHealth, maximum: status.guardianMaxHealth,
                 })} />
             </Box>
             <Typography data-testid="guardian-player-health">
-              {t('guardian.playerHealth', {
+              {t('game.guardian.playerHealth', {
                 current: status.playerHealth, maximum: status.playerMaxHealth,
               })}
             </Typography>
             <Typography data-testid="guardian-turn">
-              {t('guardian.turn', { turn: status.turn, maximum: 12 })}
+              {t('game.guardian.turn', { turn: status.turn, maximum: 12 })}
             </Typography>
             {lastTurn && (
               <Alert severity={lastTurn.damageTaken > 0 ? 'warning' : 'info'}
                 data-testid="guardian-turn-result">
-                {t('guardian.turnResult', {
-                  player: t('guardian.cards.' + lastTurn.action),
-                  enemy: t('guardian.cards.' + lastTurn.guardianAction),
+                {t('game.guardian.turnResult', {
+                  player: t('game.guardian.cards.' + lastTurn.action),
+                  enemy: t('game.guardian.cards.' + lastTurn.guardianAction),
                   dealt: lastTurn.damageDealt,
                   taken: lastTurn.damageTaken,
                 })}
@@ -142,7 +142,7 @@ export function GuardianDuel({ grantId }: Props) {
             )}
             {status.outcome === 'ongoing' ? (
               <Stack spacing={1.5}>
-                <Typography>{t('guardian.choose')}</Typography>
+                <Typography>{t('game.guardian.choose')}</Typography>
                 <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
                   {(['strike', 'guard'] as const).map(action => (
                     <Button key={action} data-testid={'guardian-' + action}
@@ -152,7 +152,7 @@ export function GuardianDuel({ grantId }: Props) {
                       onClick={() => void useCard(action)}
                       startIcon={busy && pending.current?.action === action
                         ? <CircularProgress color="inherit" size={18} /> : undefined}>
-                      {t('guardian.cards.' + action)}
+                      {t('game.guardian.cards.' + action)}
                     </Button>
                   ))}
                 </Stack>
@@ -160,16 +160,16 @@ export function GuardianDuel({ grantId }: Props) {
                   <Button data-testid="guardian-retry" variant="outlined"
                     disabled={busy}
                     onClick={() => void useCard(pending.current!.action)}>
-                    {t('guardian.retryTurn')}
+                    {t('game.guardian.retryTurn')}
                   </Button>
                 )}
               </Stack>
             ) : (
               <Alert severity={status.outcome === 'victory' ? 'success' : 'warning'}
                 data-testid="guardian-outcome">
-                {t('guardian.outcomes.' + status.outcome)}{' '}
+                {t('game.guardian.outcomes.' + status.outcome)}{' '}
                 <Button component={RouterLink} to="/refuge" size="small">
-                  {t('guardian.refuge')}
+                  {t('game.guardian.refuge')}
                 </Button>
               </Alert>
             )}
@@ -178,7 +178,7 @@ export function GuardianDuel({ grantId }: Props) {
         <Button data-testid="guardian-refresh" variant="text" size="small"
           disabled={loading || busy}
           onClick={() => setRevision(value => value + 1)}>
-          {t('guardian.refresh')}
+          {t('game.guardian.refresh')}
         </Button>
       </Stack>
     </Paper>
