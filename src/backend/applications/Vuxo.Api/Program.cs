@@ -187,8 +187,10 @@ if (app.Configuration.GetValue("Database:ApplyMigrationsOnStartup", true))
 }
 
 app.UseCors("web");
-app.UseRateLimiter();
 app.UseAuthentication();
+// Per-player policies need the authenticated claims populated first.
+// IP-keyed authentication/portal policies retain their existing behavior.
+app.UseRateLimiter();
 app.UseMiddleware<TelemetryContextMiddleware>();
 app.UseAuthorization();
 
