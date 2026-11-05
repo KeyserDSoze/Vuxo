@@ -309,6 +309,7 @@ test('rest is not offered to unauthenticated or fully healed characters', async 
 
 test('server active portal encounter blocks resting in Refuge, including mobile English', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
+  let active = true;
   await page.route('**/api/characters/me/health', route => route.fulfill({
     contentType: 'application/json',
     body: JSON.stringify({
@@ -318,8 +319,8 @@ test('server active portal encounter blocks resting in Refuge, including mobile 
   await page.route('**/api/characters/me/encounter', route => route.fulfill({
     contentType: 'application/json',
     body: JSON.stringify({
-      active: true, portalGrantId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
-      expiresAtUtc: '2099-01-01T00:03:00Z',
+      active, portalGrantId: active ? 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' : null,
+      expiresAtUtc: active ? '2099-01-01T00:03:00Z' : null,
     }),
   }));
   let restPosts = 0;
@@ -333,6 +334,11 @@ test('server active portal encounter blocks resting in Refuge, including mobile 
   await expect(page.getByTestId('refuge-health-count')).toHaveText('7 / 20 HP');
   await expect(page.getByTestId('refuge-rest-encounter')).toContainText('portal encounter');
   await expect(page.getByTestId('refuge-rest-button')).toBeDisabled();
+  expect(restPosts).toBe(0);
+  active = false; // Portal completed in a separate browser session.
+  await page.getByTestId('refuge-encounter-refresh').click();
+  await expect(page.getByTestId('refuge-rest-encounter')).toHaveCount(0);
+  await expect(page.getByTestId('refuge-rest-button')).toBeEnabled();
   expect(restPosts).toBe(0);
   await expect.poll(() => page.evaluate(() =>
     document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);

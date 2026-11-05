@@ -129,10 +129,12 @@ test('a guest cannot consume inventory items or call healing API', async ({ page
 
 test('a world portal encounter blocks healing from a second browser session', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
+  let active = true;
   await signIn(page, 'en');
   await mockInventory(page, () => false);
   await page.route('**/api/characters/me/encounter', route => json(route, {
-    active: true, portalGrantId: grantId, expiresAtUtc: '2099-01-01T00:03:00Z',
+    active, portalGrantId: active ? grantId : null,
+    expiresAtUtc: active ? '2099-01-01T00:03:00Z' : null,
   }));
   let healingCalls = 0;
   await page.route('**/api/characters/me/heal/**', route => {
@@ -142,6 +144,11 @@ test('a world portal encounter blocks healing from a second browser session', as
   await page.goto('./#/inventory');
   await expect(page.getByTestId('inventory-heal-encounter')).toContainText('portal encounter');
   await expect(page.getByTestId('inventory-heal')).toBeDisabled();
+  expect(healingCalls).toBe(0);
+  active = false; // Server releases the lock after portal completion.
+  await page.getByTestId('inventory-encounter-refresh').click();
+  await expect(page.getByTestId('inventory-heal-encounter')).toHaveCount(0);
+  await expect(page.getByTestId('inventory-heal')).toBeEnabled();
   expect(healingCalls).toBe(0);
   await expect.poll(() => page.evaluate(() =>
     document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
