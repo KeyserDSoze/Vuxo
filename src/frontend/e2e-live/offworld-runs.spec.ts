@@ -117,7 +117,7 @@ test('real offworld tickets survive API round-trips and reject replay, theft and
 
   const valid = await request.post(finishUrl, {
     headers: finishHeaders,
-    data: { moves, puzzleIndex: 2 - ticket.puzzleIndex, xp: 999999, rewardsEnabled: true },
+    data: { moves, puzzleIndex: (ticket.puzzleIndex + 1) % 3, xp: 999999, rewardsEnabled: true },
   });
   expect(valid.status()).toBe(200);
   const completion = await valid.json() as {
