@@ -173,6 +173,9 @@ test('React Refuge finishes a real persisted Rune Path with PostgreSQL after ref
 });
 
 test('guest can play local Rune Path without any run ticket API traffic', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('vuxo.language', 'it');
+  });
   const calls: string[] = [];
   page.on('request', request => {
     if (new URL(request.url()).pathname.includes('/api/activities/runs'))
