@@ -29,6 +29,7 @@ public static class DependencyInjection
         services.AddScoped<ICharacterRestRepository, CharacterRestRepository>();
         services.AddScoped<ICharacterHealingRepository, CharacterHealingRepository>();
         services.AddScoped<IPortalMistakeDamageRepository, PortalMistakeDamageRepository>();
+        services.AddScoped<IPortalEncounterRepository, PortalEncounterRepository>();
         services.AddScoped<IGameEventStore, GameEventStore>();
         services.AddScoped<IWorldRepository, WorldRepository>();
         services.AddScoped<IExclusiveContentGrantRepository, ExclusiveContentGrantRepository>();

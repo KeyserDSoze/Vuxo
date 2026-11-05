@@ -146,7 +146,8 @@ public static class PersonalContentEndpoints
 
         endpoints.MapPost(
             "/api/personal-content/world-portals/{grantId:guid}/enter",
-            async (Guid grantId, ClaimsPrincipal user, WorldPortalService service, CancellationToken cancellationToken) =>
+            async (Guid grantId, ClaimsPrincipal user, WorldPortalService service,
+                PortalEncounterService encounters, CancellationToken cancellationToken) =>
             {
                 var playerId = user.FindFirstValue(ClaimTypes.NameIdentifier);
                 if (string.IsNullOrWhiteSpace(playerId)) return Results.Unauthorized();
@@ -156,6 +157,7 @@ public static class PersonalContentEndpoints
                     // No client position or grant metadata is accepted: authoritative
                     // identity, movement state and walkable portal placement are server-side.
                     var marker = await service.EnterAsync(playerId, grantId, cancellationToken);
+                    await encounters.StartVerifiedPortalAsync(playerId, grantId, cancellationToken);
                     return Results.Ok(marker);
                 }
                 catch (ExclusiveContentException exception) when (exception.Code == ExclusiveContentErrorCodes.NotFound)
@@ -163,6 +165,15 @@ public static class PersonalContentEndpoints
                     return Results.NotFound(new { code = exception.Code });
                 }
                 catch (ExclusiveContentException exception)
+                {
+                    return Results.Conflict(new { code = exception.Code });
+                }
+                catch (PortalEncounterException exception) when (
+                    exception.Code is PortalEncounterErrorCodes.CharacterRequired or PortalEncounterErrorCodes.InvalidPortal)
+                {
+                    return Results.Conflict(new { code = exception.Code });
+                }
+                catch (PortalEncounterException exception)
                 {
                     return Results.Conflict(new { code = exception.Code });
                 }

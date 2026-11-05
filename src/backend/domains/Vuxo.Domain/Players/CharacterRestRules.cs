@@ -30,6 +30,7 @@ public static class CharacterRestErrorCodes
     public const string Unavailable = "rest_unavailable";
     public const string AlreadyFull = "rest_already_full";
     public const string Cooldown = "rest_cooldown";
+    public const string EncounterActive = "rest_encounter_active";
 }
 
 public sealed class CharacterRestException(
