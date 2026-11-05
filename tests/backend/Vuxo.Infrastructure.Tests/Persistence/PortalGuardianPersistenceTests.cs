@@ -139,7 +139,9 @@ public sealed class PortalGuardianPersistenceTests
         var startedId = Guid.NewGuid();
         await using (var oldDb = database.CreateDbContext())
         {
-            await oldDb.Database.MigrateAsync("202611050006_PortalGuardianShowdown");
+            // EF Core target-migration lookup accepts the migration class name; old
+            // migration IDs use a 12-digit prefix rather than EF's usual 14-digit form.
+            await oldDb.Database.MigrateAsync("PortalGuardianShowdown");
             await new ExclusiveContentGrantRepository(oldDb).AddAsync(grant);
             await new PlayerCharacterRepository(oldDb).AddAsync(character);
             await new GameEventStore(oldDb).AppendAsync(new GameEventEnvelope(
