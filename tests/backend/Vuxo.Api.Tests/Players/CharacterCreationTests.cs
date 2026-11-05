@@ -41,6 +41,7 @@ public sealed class CharacterCreationTests
         var root = document.RootElement;
         Assert.Equal(0, root.GetProperty("level").GetInt32());
         Assert.Equal(20, root.GetProperty("maxHealth").GetInt32());
+        Assert.Equal(20, root.GetProperty("currentHealth").GetInt32());
         Assert.Equal(1.3d, root.GetProperty("movementSpeedMultiplier").GetDouble(), 10);
         Assert.Equal(3, root.GetProperty("attributes").GetProperty("dexterity").GetInt32());
         Assert.Equal(2, root.GetProperty("attributes").GetProperty("constitution").GetInt32());

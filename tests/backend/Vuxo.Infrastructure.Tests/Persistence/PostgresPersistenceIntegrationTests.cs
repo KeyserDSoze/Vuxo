@@ -98,6 +98,7 @@ public sealed class PostgresPersistenceIntegrationTests
             Assert.Equal(attributes, persisted.Attributes);
             Assert.Equal(appearance, persisted.Appearance);
             Assert.Equal(20, persisted.Attributes.MaxHealth);
+            Assert.Equal(20, persisted.CurrentHealth);
             Assert.Equal(1.3d, persisted.Attributes.MovementSpeedMultiplier, 10);
         }
 

@@ -26,6 +26,17 @@ const initialization = i18n.use(initReactI18next).init({
           }
         },
         refuge: {
+          health: {
+            title: 'Salute del personaggio',
+            description: 'Valori effettivi salvati dal server, condivisi con il tuo personaggio.',
+            loading: 'Caricamento salute…',
+            value: '{{current}} / {{maximum}} HP',
+            baseMaxNote: 'Massimo di base: Costituzione × 10. I bonus equipaggiamento non influenzano ancora gli HP di gioco.',
+            notFound: 'Non hai ancora un personaggio.',
+            create: 'Crea personaggio',
+            unavailable: 'Impossibile recuperare la salute dal server. Riprova.',
+            retry: 'Riprova'
+          },
           eyebrow: 'Il gioco continua oltre la mappa',
           title: 'Il tuo Rifugio',
           description: 'Prepara il tuo Vuxian, gestisci quello che possiedi e allenati anche senza entrare nel mondo 2D.',
@@ -289,6 +300,17 @@ const initialization = i18n.use(initReactI18next).init({
           }
         },
         refuge: {
+          health: {
+            title: 'Character health',
+            description: 'Actual values saved by the server, shared with your character.',
+            loading: 'Loading health…',
+            value: '{{current}} / {{maximum}} HP',
+            baseMaxNote: 'Base maximum: Constitution × 10. Equipment bonuses do not affect gameplay HP yet.',
+            notFound: 'You have not created a character yet.',
+            create: 'Create character',
+            unavailable: 'Unable to load character health from the server. Try again.',
+            retry: 'Try again'
+          },
           eyebrow: 'The game continues beyond the map',
           title: 'Your Refuge',
           description: 'Prepare your Vuxian, manage your belongings and train without entering the 2D world.',

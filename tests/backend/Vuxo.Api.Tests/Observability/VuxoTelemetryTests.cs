@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using Vuxo.Api.Observability;
@@ -26,8 +27,8 @@ public sealed class VuxoTelemetryTests
     [Fact]
     public void Meter_EmitsWorldHostMeasurements()
     {
-        var doubleMeasurements = new List<(string Name, double Value)>();
-        var longMeasurements = new List<(string Name, long Value)>();
+        var doubleMeasurements = new ConcurrentQueue<(string Name, double Value)>();
+        var longMeasurements = new ConcurrentQueue<(string Name, long Value)>();
         using var listener = new MeterListener();
         listener.InstrumentPublished = (instrument, meterListener) =>
         {
@@ -37,9 +38,9 @@ public sealed class VuxoTelemetryTests
             }
         };
         listener.SetMeasurementEventCallback<double>((instrument, measurement, _, _) =>
-            doubleMeasurements.Add((instrument.Name, measurement)));
+            doubleMeasurements.Enqueue((instrument.Name, measurement)));
         listener.SetMeasurementEventCallback<long>((instrument, measurement, _, _) =>
-            longMeasurements.Add((instrument.Name, measurement)));
+            longMeasurements.Enqueue((instrument.Name, measurement)));
         listener.Start();
 
         VuxoTelemetry.RecordWorldTick(TimeSpan.FromMilliseconds(12.5), 3, 7);

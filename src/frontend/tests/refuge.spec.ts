@@ -104,3 +104,85 @@ test('signed in Refuge shows player without claiming care or backend rewards', a
   await expect(page.getByTestId('refuge-activity-inventory')).toHaveAttribute('href', '#/inventory');
   await expect(page.getByTestId('refuge-activity-portals')).toHaveAttribute('href', '#/portals');
 });
+
+
+test('anonymous Refuge does not fetch private character health', async ({ page }) => {
+  let requests = 0;
+  await page.route('**/api/characters/me/health', route => {
+    requests += 1;
+    return route.fulfill({ status: 401 });
+  });
+  await page.goto('./#/refuge');
+  await expect(page.getByTestId('refuge-guest')).toBeVisible();
+  await expect(page.getByTestId('refuge-health')).toHaveCount(0);
+  expect(requests).toBe(0);
+});
+
+test('authenticated Refuge reads owner-only current HP and hides it after logout', async ({ page }) => {
+  let bearer = '';
+  await page.route('**/api/characters/me/health', route => {
+    bearer = route.request().headers()['authorization'] ?? '';
+    return route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({ name: 'Vuxian', currentHealth: 7, maxHealth: 20, rulesVersion: 'character-health-v1' }),
+    });
+  });
+  await page.goto('./#/refuge');
+  await loginForHealth(page);
+  await expect(page.getByTestId('refuge-health-count')).toHaveText('7 / 20 HP');
+  expect(bearer).toBe('Bearer e2e-health-token');
+  await page.evaluate(() => {
+    localStorage.removeItem('vuxo.accessToken');
+    localStorage.removeItem('vuxo.auth.expiresAtUtc');
+    localStorage.removeItem('vuxo.auth.user');
+    window.dispatchEvent(new Event('vuxo:session-changed'));
+  });
+  await expect(page.getByTestId('refuge-health')).toHaveCount(0);
+  await expect(page.getByTestId('refuge-guest')).toBeVisible();
+});
+
+test('health endpoint 404 offers character creation rather than fake healing', async ({ page }) => {
+  await page.route('**/api/characters/me/health', route => route.fulfill({ status: 404 }));
+  await page.goto('./#/refuge');
+  await loginForHealth(page);
+  await expect(page.getByTestId('refuge-health-not-found')).toBeVisible();
+  await expect(page.getByTestId('refuge-health-not-found').getByRole('link')).toHaveAttribute('href', '#/character');
+  await expect(page.getByTestId('refuge-care').getByRole('button')).toHaveCount(0);
+});
+
+test('health failure has an English mobile retry and shows authentic HP on recovery', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  let attempts = 0;
+  await page.route('**/api/characters/me/health', async route => {
+    attempts += 1;
+    if (attempts === 1) {
+      await route.fulfill({ status: 503 });
+    } else {
+      await route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({ name: 'Vuxian', currentHealth: 12, maxHealth: 20, rulesVersion: 'character-health-v1' }),
+      });
+    }
+  });
+  await page.goto('./#/refuge');
+  await loginForHealth(page);
+  await expect(page.getByTestId('refuge-health-error')).toBeVisible();
+  await page.getByTestId('language-toggle').click();
+  await expect(page.getByTestId('refuge-health-retry')).toHaveText('Try again');
+  await page.getByTestId('refuge-health-retry').click();
+  await expect(page.getByTestId('refuge-health-count')).toHaveText('12 / 20 HP');
+  expect(attempts).toBe(2);
+  await expect.poll(() => page.evaluate(() =>
+    document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
+});
+
+async function loginForHealth(page: import('@playwright/test').Page) {
+  await page.evaluate(() => {
+    localStorage.setItem('vuxo.accessToken', 'e2e-health-token');
+    localStorage.setItem('vuxo.auth.expiresAtUtc', '2099-01-01T00:00:00Z');
+    localStorage.setItem('vuxo.auth.user', JSON.stringify({
+      id: 'health-player', displayName: 'Health Hero', email: null,
+    }));
+    window.dispatchEvent(new Event('vuxo:session-changed'));
+  });
+}

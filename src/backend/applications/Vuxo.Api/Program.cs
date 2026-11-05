@@ -280,6 +280,7 @@ app.MapPost("/api/characters", async (CreateCharacterRequest request, ClaimsPrin
             character.Attributes,
             character.Appearance,
             character.Attributes.MaxHealth,
+            character.CurrentHealth,
             character.Attributes.MovementSpeedMultiplier
         });
     }
@@ -291,6 +292,25 @@ app.MapPost("/api/characters", async (CreateCharacterRequest request, ClaimsPrin
     {
         return Results.BadRequest(new { code = exception.Code });
     }
+}).RequireAuthorization();
+
+// Read-only until a transactional, audited healing/damage flow is implemented.
+// The authenticated principal, never a client-supplied player ID, owns this view.
+app.MapGet("/api/characters/me/health", async (ClaimsPrincipal user, IPlayerCharacterRepository characters, CancellationToken cancellationToken) =>
+{
+    var ownerId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+    if (string.IsNullOrWhiteSpace(ownerId)) return Results.Unauthorized();
+
+    var character = await characters.GetByOwnerIdAsync(ownerId, cancellationToken);
+    return character is null
+        ? Results.NotFound(new { code = "character_not_found" })
+        : Results.Ok(new
+        {
+            character.Name,
+            character.CurrentHealth,
+            character.MaxHealth,
+            rulesVersion = PlayerHealth.RulesVersion
+        });
 }).RequireAuthorization();
 
 app.MapWorldEndpoints();

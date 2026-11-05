@@ -1,8 +1,10 @@
 import { AutoAwesome, BackpackOutlined, ExploreOutlined, FavoriteBorder, PersonOutlined, SportsEsportsOutlined } from '@mui/icons-material';
-import { Alert, Button, Chip, Grid, Paper, Stack, Typography } from '@mui/material';
+import { Alert, Button, Chip, CircularProgress, Grid, LinearProgress, Paper, Stack, Typography } from '@mui/material';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link as RouterLink } from 'react-router-dom';
 import { useStoredSession } from '../features/auth/useStoredSession';
+import { fetchCharacterHealth, type CharacterHealth, type CharacterHealthApiError } from '../features/health/characterHealthApi';
 
 const activities = [
   { key: 'character', to: '/character', icon: PersonOutlined, authenticated: false },
@@ -14,6 +16,38 @@ const activities = [
 export function RefugePage() {
   const { t } = useTranslation();
   const session = useStoredSession();
+  const [health, setHealth] = useState<CharacterHealth | null>(null);
+  const [healthLoading, setHealthLoading] = useState(Boolean(session));
+  const [healthError, setHealthError] = useState<string | null>(null);
+  const [healthRetry, setHealthRetry] = useState(0);
+
+  useEffect(() => {
+    if (!session) {
+      setHealth(null);
+      setHealthError(null);
+      setHealthLoading(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    setHealth(null);
+    setHealthError(null);
+    setHealthLoading(true);
+    void fetchCharacterHealth(session.accessToken, controller.signal)
+      .then(value => {
+        if (!controller.signal.aborted) setHealth(value);
+      })
+      .catch(error => {
+        if (!controller.signal.aborted) {
+          setHealthError((error as CharacterHealthApiError).code === 'character_not_found'
+            ? 'notFound' : 'unavailable');
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setHealthLoading(false);
+      });
+    return () => controller.abort();
+  }, [session?.accessToken, healthRetry]);
 
   return (
     <Stack spacing={3} data-testid="refuge-page">
@@ -64,6 +98,46 @@ export function RefugePage() {
           );
         })}
       </Grid>
+
+      {session && (
+        <Paper data-testid="refuge-health" variant="outlined" sx={{ p: { xs: 2.5, sm: 3 } }}>
+          <Stack spacing={2}>
+            <Typography variant="h6" component="h2">{t('refuge.health.title')}</Typography>
+            <Typography color="text.secondary">{t('refuge.health.description')}</Typography>
+            {healthLoading && (
+              <Stack direction="row" spacing={1.5} role="status" sx={{ alignItems: 'center' }}>
+                <CircularProgress size={24} />
+                <Typography>{t('refuge.health.loading')}</Typography>
+              </Stack>
+            )}
+            {!healthLoading && healthError === 'notFound' && (
+              <Alert data-testid="refuge-health-not-found" severity="info">
+                {t('refuge.health.notFound')}{' '}
+                <Button component={RouterLink} to="/character" size="small">{t('refuge.health.create')}</Button>
+              </Alert>
+            )}
+            {!healthLoading && healthError === 'unavailable' && (
+              <Stack spacing={1.5} sx={{ alignItems: 'flex-start' }}>
+                <Alert severity="warning" data-testid="refuge-health-error">{t('refuge.health.unavailable')}</Alert>
+                <Button data-testid="refuge-health-retry" variant="outlined"
+                  onClick={() => setHealthRetry(value => value + 1)}>{t('refuge.health.retry')}</Button>
+              </Stack>
+            )}
+            {!healthLoading && health && (
+              <Stack spacing={1} data-testid="refuge-health-values">
+                <Typography sx={{ fontWeight: 700 }} data-testid="refuge-health-count">
+                  {t('refuge.health.value', { current: health.currentHealth, maximum: health.maxHealth })}
+                </Typography>
+                <LinearProgress variant="determinate" value={health.maxHealth > 0
+                  ? (health.currentHealth / health.maxHealth) * 100 : 0}
+                  aria-label={t('refuge.health.title')}
+                  sx={{ height: 10, borderRadius: 2 }} />
+                <Typography variant="caption" color="text.secondary">{t('refuge.health.baseMaxNote')}</Typography>
+              </Stack>
+            )}
+          </Stack>
+        </Paper>
+      )}
 
       <Paper data-testid="refuge-care" variant="outlined" sx={{ p: { xs: 2.5, sm: 3 } }}>
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ alignItems: { sm: 'flex-start' } }}>

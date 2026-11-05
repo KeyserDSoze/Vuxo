@@ -20,7 +20,9 @@ public sealed class VuxoDbContext(DbContextOptions<VuxoDbContext> options) : DbC
     {
         modelBuilder.Entity<PlayerCharacterEntity>(entity =>
         {
-            entity.ToTable("player_characters");
+            entity.ToTable("player_characters", table => table.HasCheckConstraint(
+                "CK_player_characters_CurrentHealth_Range",
+                "\"CurrentHealth\" >= 0 AND \"CurrentHealth\" <= \"Constitution\" * 10"));
             entity.HasKey(x => x.Id);
             entity.HasIndex(x => x.OwnerId).IsUnique();
             entity.Property(x => x.OwnerId).HasMaxLength(200);
