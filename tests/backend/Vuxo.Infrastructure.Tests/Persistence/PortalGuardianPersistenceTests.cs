@@ -135,9 +135,9 @@ public sealed class PortalGuardianPersistenceTests
         {
             var turn = await Guardian(db).PlayAsync("player-a", grant.Id,
                 PortalGuardianRules.Feint, 0, key, now);
-            Assert.Equal(2, turn.DamageDealt); // seed 4242; enemy Guard, Dexterity 2
+            Assert.Equal(3, turn.DamageDealt); // seed 4242; Guard speed 2; Dexterity 2
             Assert.Equal(0, turn.DamageTaken);
-            Assert.Equal(4, turn.GuardianHealth);
+            Assert.Equal(3, turn.GuardianHealth);
         }
         await using (var db = database.CreateDbContext())
         {
