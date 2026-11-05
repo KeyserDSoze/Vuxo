@@ -13,9 +13,17 @@ public sealed class CharacterHealthPersistenceTests
     {
         await using var database = await PostgresDatabaseScope.CreateAsync();
         await using var db = database.CreateDbContext();
-        // EF custom migration IDs are 12-digit; use class name for target lookup.
-        await db.Database.MigrateAsync("PlayerEquipment");
-        // The existing schema has no CurrentHealth column yet.
+        await db.Database.MigrateAsync();
+        // Reconstruct the exact pre-health schema/history without relying on
+        // target-migration resolution for this repository's custom IDs.
+        // The next MigrateAsync must run the actual PlayerCurrentHealth.Up().
+        await db.Database.ExecuteSqlRawAsync("""
+            ALTER TABLE player_characters DROP CONSTRAINT "CK_player_characters_CurrentHealth_Range";
+            ALTER TABLE player_characters DROP COLUMN "CurrentHealth";
+            DELETE FROM "__EFMigrationsHistory"
+            WHERE "MigrationId" = '202611050001_PlayerCurrentHealth';
+            """);
+        // The existing schema now has no CurrentHealth column yet.
         await db.Database.ExecuteSqlRawAsync("""
             INSERT INTO player_characters (
                 "Id", "OwnerId", "Name", "Level", "Strength", "Dexterity",
