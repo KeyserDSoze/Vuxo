@@ -165,6 +165,14 @@ const initialization = i18n.use(initReactI18next).init({
           }
         },
         inventory: {
+          healing: {
+            use: 'Usa per curarti (+10 HP)',
+            retry: 'Riprova utilizzo',
+            working: 'Cura in corso…',
+            success: 'Oggetto consumato: +{{restored}} HP ({{current}}/{{maximum}}).',
+            refuge: 'Vedi salute nel Rifugio',
+            refreshError: 'Cura confermata, ma impossibile aggiornare le quantità. Ricarica l’inventario.'
+          },
           title: 'Inventario',
           description: 'Gli oggetti ottenuti superando le sfide personali sono salvati sul server.',
           authenticationRequired: 'Accedi al tuo account Vuxo per consultare il tuo inventario.',
@@ -206,7 +214,17 @@ const initialization = i18n.use(initReactI18next).init({
             equipment_character_required: 'Crea un personaggio prima di equipaggiare un oggetto.',
             equipment_invalid_slot: 'Slot di equipaggiamento non valido.',
             equipment_slot_empty: 'Questo slot è già vuoto.',
-            equipment_conflict: 'Equipaggiamento modificato da un’altra richiesta. Ricarica la pagina.'
+            equipment_conflict: 'Equipaggiamento modificato da un’altra richiesta. Ricarica la pagina.',
+            heal_request_failed: 'Non è stato possibile confermare la cura. Riprova: l’oggetto non verrà consumato due volte.',
+            heal_idempotency_key_required: 'Chiave della richiesta non valida.',
+            heal_idempotency_key_reused: 'Richiesta già usata per un altro oggetto.',
+            heal_item_not_owned: 'Non possiedi questo oggetto.',
+            heal_item_not_consumable: 'Questo oggetto non può curare.',
+            heal_item_equipped: 'Rimuovi prima il Seme del Bosco dallo slot Amuleto.',
+            heal_item_used: 'Questo oggetto è già stato consumato.',
+            heal_already_full: 'Hai già la salute massima.',
+            heal_unavailable: 'Non puoi usare questo oggetto con zero HP.',
+            character_not_found: 'Crea un personaggio prima di curarti.'
           }
         },
         admin: { title: 'Amministrazione', description: 'Health, giocatori online, audit degli eventi, contenuti esclusivi e telemetria saranno raccolti qui.' },
@@ -450,6 +468,14 @@ const initialization = i18n.use(initReactI18next).init({
           }
         },
         inventory: {
+          healing: {
+            use: 'Use to heal (+10 HP)',
+            retry: 'Retry item use',
+            working: 'Healing…',
+            success: 'Item consumed: +{{restored}} HP ({{current}}/{{maximum}}).',
+            refuge: 'View health in Refuge',
+            refreshError: 'Healing confirmed, but available stock could not be refreshed. Reload inventory.'
+          },
           title: 'Inventory',
           description: 'Items earned through personal challenges are securely stored on the server.',
           authenticationRequired: 'Sign in to your Vuxo account to see your inventory.',
@@ -491,7 +517,17 @@ const initialization = i18n.use(initReactI18next).init({
             equipment_character_required: 'Create a character before equipping an item.',
             equipment_invalid_slot: 'Invalid equipment slot.',
             equipment_slot_empty: 'This slot is already empty.',
-            equipment_conflict: 'Equipment changed during another request. Reload the page.'
+            equipment_conflict: 'Equipment changed during another request. Reload the page.',
+            heal_request_failed: 'Could not confirm healing. Retry safely: the same item will not be consumed twice.',
+            heal_idempotency_key_required: 'Invalid healing request key.',
+            heal_idempotency_key_reused: 'Request already used for a different item.',
+            heal_item_not_owned: 'You do not own this item.',
+            heal_item_not_consumable: 'This item cannot heal.',
+            heal_item_equipped: 'Unequip the Grove Seed charm first.',
+            heal_item_used: 'This item has already been consumed.',
+            heal_already_full: 'Your health is already full.',
+            heal_unavailable: 'You cannot use this item at zero HP.',
+            character_not_found: 'Create a character before healing.'
           }
         },
         admin: { title: 'Administration', description: 'Health, online players, event audit, exclusive content and telemetry will live here.' },
