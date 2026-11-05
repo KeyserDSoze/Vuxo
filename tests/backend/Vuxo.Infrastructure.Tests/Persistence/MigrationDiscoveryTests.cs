@@ -25,5 +25,6 @@ public sealed class MigrationDiscoveryTests
         Assert.Contains("202611040001_PlayerInventoryAwards", migrations);
         Assert.Contains("202611040002_PlayerEquipment", migrations);
         Assert.Contains("202611050001_PlayerCurrentHealth", migrations);
+        Assert.Contains("202611050002_CharacterRestActions", migrations);
     }
 }
