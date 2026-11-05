@@ -94,10 +94,20 @@ public sealed record PortalGuardianTurnResult(
     int DamageDealt, int DamageTaken, int GuardianHealth, int GuardianMaxHealth,
     int PlayerHealth, int PlayerMaxHealth, string Outcome, bool Replayed);
 
+/// <summary>Public combat log entry. Never expose receipt IDs, portal seeds or audit IDs.</summary>
+public sealed record PortalGuardianHistoryEntry(
+    int Turn, string Action, string GuardianAction, int DamageDealt,
+    int DamageTaken, int GuardianHealth, int PlayerHealth,
+    string Outcome, DateTimeOffset OccurredAtUtc);
+
 public interface IPortalGuardianRepository
 {
     Task<PortalGuardianStatus?> GetAsync(string playerId, Guid grantId,
         DateTimeOffset now, CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<PortalGuardianHistoryEntry>?> GetHistoryAsync(
+        string playerId, Guid grantId, DateTimeOffset now,
+        CancellationToken cancellationToken = default);
 
     Task<PortalGuardianTurnResult> PlayAsync(string playerId, Guid grantId,
         string action, int expectedTurn, Guid idempotencyKey, DateTimeOffset now,
