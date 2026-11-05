@@ -148,6 +148,9 @@ test('real SignalR world renders only personal portal and rejects forged distanc
     expect(guardian.turn).toBe(0);
     expect(guardian.guardianMaxHealth).toBeGreaterThanOrEqual(6);
     expect(guardian.guardianMaxHealth).toBeLessThanOrEqual(8);
+    const emptyLog = await request.get(guardianUrl + '/history', { headers: userHeaders });
+    expect(emptyLog.status()).toBe(200);
+    expect(await emptyLog.json()).toEqual([]);
     const cardKey = randomUUID();
     const cardHeaders = { ...userHeaders, 'Idempotency-Key': cardKey };
     const card = await request.post(guardianUrl + '/turn', {
@@ -178,6 +181,23 @@ test('real SignalR world renders only personal portal and rejects forged distanc
     const current = await request.get(guardianUrl, { headers: userHeaders });
     expect(current.status()).toBe(200);
     expect(((await current.json()) as { turn: number }).turn).toBe(1);
+    const log = await request.get(guardianUrl + '/history', { headers: userHeaders });
+    expect(log.status()).toBe(200);
+    const turns = (await log.json()) as Array<Record<string, unknown>>;
+    expect(turns).toHaveLength(1);
+    expect(turns[0]).toMatchObject({
+      turn: 1, action: 'strike',
+      damageDealt: resolved.damageDealt, damageTaken: resolved.damageTaken,
+      guardianHealth: resolved.guardianHealth, playerHealth: resolved.playerHealth,
+    });
+    expect(Object.keys(turns[0]).sort()).toEqual([
+      'action', 'damageDealt', 'damageTaken', 'guardianAction',
+      'guardianHealth', 'occurredAtUtc', 'outcome', 'playerHealth', 'turn'
+    ].sort());
+    const stolenLog = await request.get(guardianUrl + '/history', {
+      headers: { Authorization: 'Bearer ' + otherToken },
+    });
+    expect(stolenLog.status()).toBe(404);
     const stolenGuardian = await request.get(guardianUrl, {
       headers: { Authorization: 'Bearer ' + otherToken },
     });
@@ -215,5 +235,7 @@ test('real SignalR world renders only personal portal and rejects forged distanc
     expect(((await released.json()) as { active: boolean }).active).toBe(false);
     const guardianAfterCompletion = await request.get(guardianUrl, { headers: userHeaders });
     expect(guardianAfterCompletion.status()).toBe(404);
+    const logAfterCompletion = await request.get(guardianUrl + '/history', { headers: userHeaders });
+    expect(logAfterCompletion.status()).toBe(404);
   }
 });
