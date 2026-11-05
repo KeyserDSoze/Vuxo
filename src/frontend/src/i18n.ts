@@ -65,12 +65,37 @@ const initialization = i18n.use(initReactI18next).init({
             inventory: { title: 'Inventario ed equipaggiamento', description: 'Controlla gli oggetti conquistati ed equipaggia reliquie e amuleti.' },
             portals: { title: 'Portali personali', description: 'Affronta sfide assegnate al tuo personaggio, con risultati verificati dal server.' },
             training: { title: 'Allenamento', description: 'Prova un minigioco di memoria delle rune, anche con il mondo offline.' },
-            reflex: { title: 'Riflessi delle rune', description: 'Allenati a trovare la runa giusta in otto round veloci, senza bisogno del mondo.' }
+            reflex: { title: 'Riflessi delle rune', description: 'Allenati a trovare la runa giusta in otto round veloci, senza bisogno del mondo.' },
+            path: { title: 'Percorso delle rune', description: 'Risolvi tre labirinti su griglia, evitando muri e cercando il portale.' }
           },
           care: {
             title: 'Cura e riposo',
             planned: 'In progettazione',
             description: 'Prevederemo cure, oggetti consumabili e riposo. La salute attuale e le risorse devono essere gestite dal server: qui non viene simulata alcuna cura.'
+          },
+          path: {
+            eyebrow: 'Allenamento libero',
+            title: 'Percorso delle rune',
+            description: 'Raggiungi il portale su una griglia 4×4. Le pareti non si possono attraversare: trova una strada usando logica e orientamento.',
+            disclaimer: 'Solo pratica locale: niente premi, esperienza, oggetti, HP o risultati salvati. Il server verifica sempre le vere sfide e ricompense.',
+            instructions: 'Premi Inizia, poi muoviti con le frecce della tastiera, i pulsanti o le caselle adiacenti. Completa tutti e tre i percorsi.',
+            start: 'Inizia',
+            puzzle: 'Percorso {{current}} di {{total}}',
+            board: 'Griglia del percorso',
+            controls: 'Comandi direzionali',
+            player: 'Tu',
+            wall: 'Muro',
+            floor: 'Passaggio',
+            goal: 'Portale',
+            cell: 'Colonna {{column}}, riga {{row}}: {{type}}',
+            directions: { up: 'Su', down: 'Giù', left: 'Sinistra', right: 'Destra' },
+            position: 'Posizione: colonna {{column}}, riga {{row}}',
+            moves: 'Mosse: {{count}}',
+            bumps: 'Ostacoli urtati: {{count}}',
+            complete: 'Portale raggiunto! Hai completato il percorso.',
+            next: 'Prossimo percorso',
+            again: 'Ricomincia i percorsi',
+            back: 'Torna al Rifugio'
           },
           reflex: {
             eyebrow: 'Allenamento libero',
@@ -436,12 +461,37 @@ const initialization = i18n.use(initReactI18next).init({
             inventory: { title: 'Inventory and equipment', description: 'View earned items and equip relics and charms.' },
             portals: { title: 'Personal portals', description: 'Take on challenges assigned to your character, with results verified by the server.' },
             training: { title: 'Training', description: 'Try a rune memory minigame, even while the world is offline.' },
-            reflex: { title: 'Rune reflexes', description: 'Train to find the right rune in eight quick rounds, even when the world is offline.' }
+            reflex: { title: 'Rune reflexes', description: 'Train to find the right rune in eight quick rounds, even when the world is offline.' },
+            path: { title: 'Rune path', description: 'Solve three grid mazes, avoiding walls and finding the portal.' }
           },
           care: {
             title: 'Healing and rest',
             planned: 'Planned',
             description: 'Healing, consumable items and rest are planned. Current health and resources must be managed by the server: no healing is simulated here.'
+          },
+          path: {
+            eyebrow: 'Free practice',
+            title: 'Rune path',
+            description: 'Reach the portal on a 4×4 grid. Walls cannot be crossed: find a route through logic and navigation.',
+            disclaimer: 'Local practice only: no rewards, experience, items, HP or saved results. The server always verifies real challenges and rewards.',
+            instructions: 'Press Start, then move using keyboard arrows, direction buttons or adjacent cells. Complete all three paths.',
+            start: 'Start',
+            puzzle: 'Path {{current}} of {{total}}',
+            board: 'Path grid',
+            controls: 'Direction controls',
+            player: 'You',
+            wall: 'Wall',
+            floor: 'Passage',
+            goal: 'Portal',
+            cell: 'Column {{column}}, row {{row}}: {{type}}',
+            directions: { up: 'Up', down: 'Down', left: 'Left', right: 'Right' },
+            position: 'Position: column {{column}}, row {{row}}',
+            moves: 'Moves: {{count}}',
+            bumps: 'Blocked moves: {{count}}',
+            complete: 'Portal reached! You completed this path.',
+            next: 'Next path',
+            again: 'Play paths again',
+            back: 'Back to Refuge'
           },
           reflex: {
             eyebrow: 'Free practice',
