@@ -57,7 +57,7 @@ public sealed class CharacterHealthPersistenceTests
         foreach (var invalid in new[] { -1, 21 })
         {
             var exception = await Assert.ThrowsAsync<PostgresException>(async () =>
-                await db.Database.ExecuteSqlRawAsync(
+                await db.Database.ExecuteSqlInterpolatedAsync(
                     $"""UPDATE player_characters SET "CurrentHealth" = {invalid} WHERE "OwnerId" = 'health-player';"""));
             Assert.Equal(PostgresErrorCodes.CheckViolation, exception.SqlState);
         }
