@@ -1,4 +1,4 @@
-import { AutoAwesome, BackpackOutlined, ExploreOutlined, FavoriteBorder, PersonOutlined, SportsEsportsOutlined } from '@mui/icons-material';
+import { AutoAwesome, BackpackOutlined, ExploreOutlined, FavoriteBorder, PersonOutlined, SportsEsportsOutlined, TouchAppOutlined, RouteOutlined } from '@mui/icons-material';
 import { Alert, Button, Chip, CircularProgress, Grid, LinearProgress, Paper, Stack, Typography } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -12,6 +12,8 @@ const activities = [
   { key: 'inventory', to: '/inventory', icon: BackpackOutlined, authenticated: true },
   { key: 'portals', to: '/portals', icon: AutoAwesome, authenticated: true },
   { key: 'training', to: '/refuge/training', icon: SportsEsportsOutlined, authenticated: false },
+  { key: 'reflex', to: '/refuge/reflex', icon: TouchAppOutlined, authenticated: false },
+  { key: 'path', to: '/refuge/path', icon: RouteOutlined, authenticated: false },
 ] as const;
 
 export function RefugePage() {
