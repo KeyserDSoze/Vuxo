@@ -38,7 +38,7 @@ public sealed class OffworldRunRepository(VuxoDbContext db, IGameEventStore even
         if (stillActive)
             throw new OffworldRunException(OffworldRunErrorCodes.AlreadyActive);
 
-        var starts = await db.OffworldActivityRuns.AsNoTracking()
+        var starts = db.OffworldActivityRuns.AsNoTracking()
             .Where(x => x.CharacterId == character.Id
                 && x.StartedAtUtc > now.Subtract(OffworldRunRules.DailyWindow));
         // Locking the character serializes these checks against every other
