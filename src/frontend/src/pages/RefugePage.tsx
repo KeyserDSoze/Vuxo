@@ -1,11 +1,11 @@
-import { AutoAwesome, BackpackOutlined, ExploreOutlined, FavoriteBorder, PersonOutline, SportsEsportsOutlined } from '@mui/icons-material';
+import { AutoAwesome, BackpackOutlined, ExploreOutlined, FavoriteBorder, PersonOutlined, SportsEsportsOutlined } from '@mui/icons-material';
 import { Alert, Button, Chip, Grid, Paper, Stack, Typography } from '@mui/material';
 import { useTranslation } from 'react-i18next';
 import { Link as RouterLink } from 'react-router-dom';
 import { useStoredSession } from '../features/auth/useStoredSession';
 
 const activities = [
-  { key: 'character', to: '/character', icon: PersonOutline, authenticated: false },
+  { key: 'character', to: '/character', icon: PersonOutlined, authenticated: false },
   { key: 'inventory', to: '/inventory', icon: BackpackOutlined, authenticated: true },
   { key: 'portals', to: '/portals', icon: AutoAwesome, authenticated: true },
   { key: 'training', to: '/refuge/training', icon: SportsEsportsOutlined, authenticated: false },
