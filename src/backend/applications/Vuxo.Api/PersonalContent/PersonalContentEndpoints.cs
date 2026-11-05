@@ -181,6 +181,58 @@ public static class PersonalContentEndpoints
             .RequireAuthorization()
             .RequireRateLimiting("portal-challenge");
 
+        // A Guardian battle cannot be opened by the browser. The turn endpoint
+        // requires a live, server-verified encounter from world-portal entry.
+        endpoints.MapGet(
+            "/api/characters/me/portal-guardian/{grantId:guid}",
+            async (Guid grantId, ClaimsPrincipal user, PortalGuardianService guardian,
+                CancellationToken cancellationToken) =>
+            {
+                var playerId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrWhiteSpace(playerId)) return Results.Unauthorized();
+                var status = await guardian.GetAsync(playerId, grantId, cancellationToken);
+                return status is null ? Results.NotFound(new
+                {
+                    code = PortalGuardianErrorCodes.Unavailable
+                }) : Results.Ok(status);
+            }).RequireAuthorization();
+
+        endpoints.MapPost(
+            "/api/characters/me/portal-guardian/{grantId:guid}/turn",
+            async (Guid grantId, PortalGuardianTurnRequest request,
+                HttpRequest http, ClaimsPrincipal user, PortalGuardianService guardian,
+                CancellationToken cancellationToken) =>
+            {
+                var playerId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrWhiteSpace(playerId)) return Results.Unauthorized();
+                if (!http.Headers.TryGetValue("Idempotency-Key", out var raw)
+                    || !Guid.TryParse(raw.ToString(), out var key) || key == Guid.Empty)
+                    return Results.BadRequest(new { code = PortalGuardianErrorCodes.KeyRequired });
+                try
+                {
+                    return Results.Ok(await guardian.PlayAsync(
+                        playerId, grantId, request.Action ?? "",
+                        request.ExpectedTurn, key, cancellationToken));
+                }
+                catch (PortalGuardianException exception) when (exception.Code is
+                    PortalGuardianErrorCodes.InvalidAction or PortalGuardianErrorCodes.InvalidTurn
+                        or PortalGuardianErrorCodes.KeyRequired)
+                {
+                    return Results.BadRequest(new { code = exception.Code });
+                }
+                catch (PortalGuardianException exception) when (
+                    exception.Code == PortalGuardianErrorCodes.Unavailable)
+                {
+                    return Results.NotFound(new { code = exception.Code });
+                }
+                catch (PortalGuardianException exception)
+                {
+                    return Results.Conflict(new { code = exception.Code });
+                }
+            })
+            .RequireAuthorization()
+            .RequireRateLimiting("portal-challenge");
+
         endpoints.MapPost(
             "/api/personal-content/{grantId:guid}/consume",
             async (Guid grantId, ClaimsPrincipal user, ExclusiveContentService service, CancellationToken cancellationToken) =>
@@ -365,6 +417,7 @@ public static class PersonalContentEndpoints
 }
 
 public sealed record PortalSequenceAttemptRequest(string[]? Sequence);
+public sealed record PortalGuardianTurnRequest(string? Action, int ExpectedTurn);
 
 public sealed record GrantExclusiveContentRequest(
     Guid SourceEventId,
