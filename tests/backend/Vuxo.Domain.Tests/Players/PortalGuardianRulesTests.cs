@@ -71,8 +71,8 @@ public sealed class PortalGuardianRulesTests
 
 
     [Theory]
-    [InlineData(4242L, 1, 2, 2, 0, 4)] // Guardian guards; low Dexterity
-    [InlineData(4242L, 1, 3, 3, 0, 3)] // Fast Feint punches through Guard
+    [InlineData(4242L, 1, 1, 2, 0, 4)] // Guardian guards; low Dexterity
+    [InlineData(4242L, 1, 2, 3, 0, 3)] // Fast Feint punches through Guard
     [InlineData(0L, 2, 2, 0, 1, 6)] // Guardian strikes; Feint avoids most damage
     public void FeintV2_UsesServerSeedSpeedAndEnemyCard(
         long seed, int turn, int dexterity, int dealt, int taken, int enemyAfter)
