@@ -34,6 +34,7 @@ builder.Services.AddOpenApi();
 builder.Services.AddHealthChecks();
 builder.Services.AddVuxoInfrastructure(builder.Configuration);
 builder.Services.AddScoped<CharacterService>();
+builder.Services.AddScoped<CharacterRestService>();
 builder.Services.AddScoped<LanguageModelSmokeService>();
 builder.Services.AddSingleton<ILanguageModelToolHandler, GetWorldContextTool>();
 builder.Services.AddSingleton<LanguageModelToolRegistry>();
@@ -311,6 +312,40 @@ app.MapGet("/api/characters/me/health", async (ClaimsPrincipal user, IPlayerChar
             character.MaxHealth,
             rulesVersion = PlayerHealth.RulesVersion
         });
+}).RequireAuthorization();
+
+// A rest request is an intention only: the server decides timing, amount,
+// ownership, HP updates and idempotency in a single PostgreSQL transaction.
+app.MapPost("/api/characters/me/rest", async (
+    HttpRequest request,
+    ClaimsPrincipal user,
+    CharacterRestService service,
+    CancellationToken cancellationToken) =>
+{
+    var ownerId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+    if (string.IsNullOrWhiteSpace(ownerId)) return Results.Unauthorized();
+
+    if (!Guid.TryParse(request.Headers["Idempotency-Key"].ToString(), out var key)
+        || key == Guid.Empty)
+        return Results.BadRequest(new { code = CharacterRestErrorCodes.InvalidIdempotencyKey });
+
+    try
+    {
+        return Results.Ok(await service.RestAsync(ownerId, key, cancellationToken));
+    }
+    catch (CharacterRestException exception)
+        when (exception.Code == CharacterRestErrorCodes.CharacterNotFound)
+    {
+        return Results.NotFound(new { code = exception.Code });
+    }
+    catch (CharacterRestException exception)
+    {
+        return Results.Conflict(new
+        {
+            code = exception.Code,
+            nextAllowedAtUtc = exception.NextAllowedAtUtc
+        });
+    }
 }).RequireAuthorization();
 
 app.MapWorldEndpoints();

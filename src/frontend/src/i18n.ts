@@ -26,6 +26,17 @@ const initialization = i18n.use(initReactI18next).init({
           }
         },
         refuge: {
+          rest: {
+            description: 'Riposa al Rifugio per recuperare fino al 25% degli HP massimi di base. Puoi farlo una volta ogni 30 minuti. Non consuma oggetti.',
+            action: 'Riposa',
+            retry: 'Riprova il riposo',
+            inProgress: 'Riposo in corso…',
+            success: 'Riposo completato! Hai recuperato {{amount}} HP.',
+            cooldown: 'Hai già riposato di recente. Riprova dopo 30 minuti dall’ultimo riposo.',
+            full: 'Sei già in piena salute.',
+            downed: 'Con zero HP non puoi riposare: servirà un altro tipo di cura.',
+            error: 'Non è stato possibile confermare il riposo. Riprova: la richiesta non sarà applicata due volte.'
+          },
           health: {
             title: 'Salute del personaggio',
             description: 'Valori effettivi salvati dal server, condivisi con il tuo personaggio.',
@@ -300,6 +311,17 @@ const initialization = i18n.use(initReactI18next).init({
           }
         },
         refuge: {
+          rest: {
+            description: 'Rest at the Refuge to recover up to 25% of your base maximum HP. You can do this once every 30 minutes. No items are consumed.',
+            action: 'Rest',
+            retry: 'Retry rest',
+            inProgress: 'Resting…',
+            success: 'Rest completed! You recovered {{amount}} HP.',
+            cooldown: 'You have rested recently. Try again 30 minutes after your last rest.',
+            full: 'Your health is already full.',
+            downed: 'You cannot rest at zero HP. Another type of healing will be needed.',
+            error: 'Could not confirm the rest. Retry safely: the same request will not be applied twice.'
+          },
           health: {
             title: 'Character health',
             description: 'Actual values saved by the server, shared with your character.',

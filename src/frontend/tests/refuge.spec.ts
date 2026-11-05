@@ -186,3 +186,118 @@ async function loginForHealth(page: import('@playwright/test').Page) {
     window.dispatchEvent(new Event('vuxo:session-changed'));
   });
 }
+
+
+test('rest sends server intention with UUID key and displays confirmed health', async ({ page }) => {
+  let currentHp = 7;
+  const receivedKeys: string[] = [];
+  await page.route('**/api/characters/me/health', route => route.fulfill({
+    contentType: 'application/json',
+    body: JSON.stringify({
+      name: 'Vuxian', currentHealth: currentHp, maxHealth: 20,
+      rulesVersion: 'character-health-v1'
+    }),
+  }));
+  await page.route('**/api/characters/me/rest', route => {
+    const key = route.request().headers()['idempotency-key'];
+    receivedKeys.push(key);
+    expect(key).toMatch(/^[0-9a-f-]{36}$/i);
+    expect(route.request().headers()['authorization']).toBe('Bearer e2e-health-token');
+    currentHp = 12;
+    return route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({
+        idempotencyKey: key, previousHealth: 7, currentHealth: currentHp,
+        maxHealth: 20, restoredHealth: 5, replayed: false,
+        restedAtUtc: '2026-11-05T12:00:00Z',
+        nextRestAtUtc: '2026-11-05T12:30:00Z',
+      }),
+    });
+  });
+  await page.goto('./#/refuge');
+  await loginForHealth(page);
+  await expect(page.getByTestId('refuge-health-count')).toHaveText('7 / 20 HP');
+  await page.getByTestId('refuge-rest-button').click();
+  await expect(page.getByTestId('refuge-rest-success')).toContainText('5 HP');
+  await expect(page.getByTestId('refuge-health-count')).toHaveText('12 / 20 HP');
+  await expect(page.getByTestId('refuge-rest-button')).toBeDisabled();
+  expect(receivedKeys).toHaveLength(1);
+});
+
+test('lost rest response can be retried with exactly the same idempotency key', async ({ page }) => {
+  const keys: string[] = [];
+  await page.route('**/api/characters/me/health', route => route.fulfill({
+    contentType: 'application/json',
+    body: JSON.stringify({
+      name: 'Vuxian', currentHealth: 7, maxHealth: 20, rulesVersion: 'character-health-v1'
+    }),
+  }));
+  await page.route('**/api/characters/me/rest', route => {
+    const key = route.request().headers()['idempotency-key'];
+    keys.push(key);
+    if (keys.length === 1) return route.fulfill({ status: 503 });
+    return route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({
+        idempotencyKey: key, previousHealth: 7, currentHealth: 12,
+        maxHealth: 20, restoredHealth: 5, replayed: true,
+        restedAtUtc: '2026-11-05T12:00:00Z',
+        nextRestAtUtc: '2026-11-05T12:30:00Z',
+      }),
+    });
+  });
+  await page.goto('./#/refuge');
+  await loginForHealth(page);
+  await expect(page.getByTestId('refuge-rest-button')).toBeVisible();
+  await page.getByTestId('refuge-rest-button').click();
+  await expect(page.getByTestId('refuge-rest-error')).toBeVisible();
+  await expect(page.getByTestId('refuge-rest-button')).toHaveText('Riprova il riposo');
+  await page.getByTestId('refuge-rest-button').click();
+  await expect(page.getByTestId('refuge-rest-success')).toBeVisible();
+  expect(keys).toHaveLength(2);
+  expect(keys[0]).toBe(keys[1]);
+});
+
+test('cooldown is enforced by server and translated on mobile', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.route('**/api/characters/me/health', route => route.fulfill({
+    contentType: 'application/json',
+    body: JSON.stringify({
+      name: 'Vuxian', currentHealth: 9, maxHealth: 20, rulesVersion: 'character-health-v1'
+    }),
+  }));
+  await page.route('**/api/characters/me/rest', route => route.fulfill({
+    status: 409,
+    contentType: 'application/json',
+    body: JSON.stringify({ code: 'rest_cooldown', nextAllowedAtUtc: '2026-11-05T12:30:00Z' }),
+  }));
+  await page.goto('./#/refuge');
+  await loginForHealth(page);
+  await page.getByTestId('language-toggle').click();
+  await page.getByTestId('refuge-rest-button').click();
+  await expect(page.getByTestId('refuge-rest-cooldown')).toContainText('30 minutes');
+  await expect(page.getByTestId('refuge-health-count')).toHaveText('9 / 20 HP');
+  await expect.poll(() => page.evaluate(() =>
+    document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
+});
+
+test('rest is not offered to unauthenticated or fully healed characters', async ({ page }) => {
+  let requests = 0;
+  await page.route('**/api/characters/me/rest', route => {
+    requests += 1;
+    return route.fulfill({ status: 401 });
+  });
+  await page.route('**/api/characters/me/health', route => route.fulfill({
+    contentType: 'application/json',
+    body: JSON.stringify({
+      name: 'Vuxian', currentHealth: 20, maxHealth: 20,
+      rulesVersion: 'character-health-v1'
+    }),
+  }));
+  await page.goto('./#/refuge');
+  await expect(page.getByTestId('refuge-rest')).toHaveCount(0);
+  await loginForHealth(page);
+  await expect(page.getByTestId('refuge-rest-full')).toBeVisible();
+  await expect(page.getByTestId('refuge-rest-button')).toHaveCount(0);
+  expect(requests).toBe(0);
+});

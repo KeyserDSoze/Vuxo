@@ -7,6 +7,7 @@ namespace Vuxo.Infrastructure.Persistence;
 public sealed class VuxoDbContext(DbContextOptions<VuxoDbContext> options) : DbContext(options), IUnitOfWork
 {
     public DbSet<PlayerCharacterEntity> PlayerCharacters => Set<PlayerCharacterEntity>();
+    public DbSet<CharacterRestActionEntity> CharacterRestActions => Set<CharacterRestActionEntity>();
     public DbSet<GameEventEntity> GameEvents => Set<GameEventEntity>();
     public DbSet<WorldDefinitionEntity> WorldDefinitions => Set<WorldDefinitionEntity>();
     public DbSet<WorldChunkEntity> WorldChunks => Set<WorldChunkEntity>();
@@ -27,6 +28,20 @@ public sealed class VuxoDbContext(DbContextOptions<VuxoDbContext> options) : DbC
             entity.HasIndex(x => x.OwnerId).IsUnique();
             entity.Property(x => x.OwnerId).HasMaxLength(200);
             entity.Property(x => x.Name).HasMaxLength(24);
+        });
+
+        modelBuilder.Entity<CharacterRestActionEntity>(entity =>
+        {
+            entity.ToTable("character_rest_actions");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.PlayerId).HasMaxLength(200);
+            entity.HasIndex(x => new { x.CharacterId, x.IdempotencyKey }).IsUnique();
+            entity.HasIndex(x => new { x.CharacterId, x.RestedAtUtc });
+            entity.HasIndex(x => x.EventId).IsUnique();
+            entity.HasOne<PlayerCharacterEntity>().WithMany()
+                .HasForeignKey(x => x.CharacterId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<GameEventEntity>().WithMany()
+                .HasForeignKey(x => x.EventId).OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<GameEventEntity>(entity =>
