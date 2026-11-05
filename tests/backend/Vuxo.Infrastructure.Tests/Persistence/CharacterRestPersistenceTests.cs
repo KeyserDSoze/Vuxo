@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Vuxo.Domain.Events;
 using Vuxo.Domain.Players;
@@ -56,9 +57,11 @@ public sealed class CharacterRestPersistenceTests
         Assert.Equal(GameEventVisibilityScope.Player, evt.Envelope.VisibilityScope);
         Assert.Equal(CharacterRestRules.Version, evt.Envelope.RuleVersion);
         Assert.Equal(key, evt.Envelope.CorrelationId);
-        Assert.Contains("\"previousHealth\":7", evt.PayloadJson, StringComparison.Ordinal);
-        Assert.Contains("\"currentHealth\":12", evt.PayloadJson, StringComparison.Ordinal);
-        Assert.Contains("\"restoredHealth\":5", evt.PayloadJson, StringComparison.Ordinal);
+        using var document = JsonDocument.Parse(evt.PayloadJson);
+        var data = document.RootElement.GetProperty("data");
+        Assert.Equal(7, data.GetProperty("previousHealth").GetInt32());
+        Assert.Equal(12, data.GetProperty("currentHealth").GetInt32());
+        Assert.Equal(5, data.GetProperty("restoredHealth").GetInt32());
     }
 
     [PostgresIntegrationFact]
