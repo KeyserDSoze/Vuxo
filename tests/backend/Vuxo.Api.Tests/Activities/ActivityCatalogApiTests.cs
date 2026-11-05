@@ -22,6 +22,11 @@ public sealed class ActivityCatalogApiTests
         Assert.Equal(3, activities.Length);
         Assert.Equal(new[] { "rune-memory", "rune-reflex", "rune-path" },
             activities.Select(x => x.GetProperty("key").GetString()));
+        Assert.Equal("available",
+            activities[0].GetProperty("availability").GetString());
+        Assert.All(activities.Skip(1), definition =>
+            Assert.Equal("planned",
+                definition.GetProperty("availability").GetString()));
         Assert.All(activities, definition =>
         {
             Assert.False(definition.GetProperty("rewardsEnabled").GetBoolean());
