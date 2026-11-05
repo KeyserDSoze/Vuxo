@@ -37,8 +37,19 @@ export type PortalChallenge = {
   sequence: string[];
 };
 
+export type PortalMistakeDamage = {
+  damage: number;
+  currentHealth: number;
+  maxHealth: number;
+  damageApplied: boolean;
+};
+
 export class PortalApiError extends Error {
-  constructor(public readonly code: string, public readonly status: number) {
+  constructor(
+    public readonly code: string,
+    public readonly status: number,
+    public readonly mistakeDamage: PortalMistakeDamage | null = null,
+  ) {
     super(code);
   }
 }
@@ -61,13 +72,32 @@ async function portalRequest<T>(
 
   if (!response.ok) {
     let code = response.status === 401 ? 'portal_authentication_required' : 'portal_request_failed';
+    let mistakeDamage: PortalMistakeDamage | null = null;
     try {
-      const payload = await response.json() as { code?: unknown };
+      const payload = await response.json() as {
+        code?: unknown;
+        damage?: unknown;
+        currentHealth?: unknown;
+        maxHealth?: unknown;
+        damageApplied?: unknown;
+      };
       if (typeof payload.code === 'string') code = payload.code;
+      if (code === 'portal_challenge_incorrect' &&
+          typeof payload.damage === 'number' &&
+          typeof payload.currentHealth === 'number' &&
+          typeof payload.maxHealth === 'number' &&
+          typeof payload.damageApplied === 'boolean') {
+        mistakeDamage = {
+          damage: payload.damage,
+          currentHealth: payload.currentHealth,
+          maxHealth: payload.maxHealth,
+          damageApplied: payload.damageApplied,
+        };
+      }
     } catch {
       // Keep the stable fallback error code for network/proxy responses.
     }
-    throw new PortalApiError(code, response.status);
+    throw new PortalApiError(code, response.status, mistakeDamage);
   }
 
   return response.json() as Promise<T>;

@@ -104,3 +104,69 @@ test('wrong answer shows localized error and mobile rune controls remain usable'
   expect(attempts).toEqual([['sun', 'sun', 'star', 'wave']]);
   await expect(page.getByTestId('portal-rune-moon')).toBeVisible();
 });
+
+test('a verified wrong rune sequence shows canonical portal damage in Italian', async ({ page }) => {
+  await signIn(page, 'it');
+  await page.route('**/api/personal-content**', async route => {
+    const path = new URL(route.request().url()).pathname;
+    if (route.request().method() === 'GET' && path === '/api/personal-content')
+      return route.fulfill({ status: 200, contentType: 'application/json',
+        body: JSON.stringify([{ id: grantId, contentKey: 'portal.memory.grove',
+          portalKey: 'challenge.sequence.v1', expiresAtUtc: null }]) });
+    if (route.request().method() === 'GET' && path.endsWith('/challenge'))
+      return route.fulfill({ status: 200, contentType: 'application/json',
+        body: JSON.stringify({ grantId, version: 'portal-sequence-v1', sequence }) });
+    if (route.request().method() === 'POST' && path.endsWith('/challenge/attempt'))
+      return route.fulfill({ status: 422, contentType: 'application/json',
+        body: JSON.stringify({
+          code: 'portal_challenge_incorrect', damage: 2,
+          currentHealth: 18, maxHealth: 20, damageApplied: true,
+        }) });
+    return route.fulfill({ status: 404 });
+  });
+
+  await page.goto('./#/portals');
+  await page.getByTestId('portal-start').click();
+  await expect(page.getByTestId('portal-preview')).toHaveCount(0, { timeout: 7000 });
+  for (const rune of ['sun', 'sun', 'star', 'wave'])
+    await page.getByTestId('portal-rune-' + rune).click();
+  await page.getByTestId('portal-submit').click();
+  await expect(page.getByTestId('portal-error')).toContainText('Sequenza errata');
+  await expect(page.getByTestId('portal-mistake-damage')).toContainText('2 HP');
+  await expect(page.getByTestId('portal-mistake-damage')).toContainText('18/20');
+  await expect(page.getByTestId('portal-mistake-damage').getByRole('link', { name: 'Vai al Rifugio' })).toBeVisible();
+});
+
+test('mobile English displays no extra penalty on repeated mistakes', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await signIn(page, 'en');
+  await page.route('**/api/personal-content**', async route => {
+    const path = new URL(route.request().url()).pathname;
+    if (route.request().method() === 'GET' && path === '/api/personal-content')
+      return route.fulfill({ status: 200, contentType: 'application/json',
+        body: JSON.stringify([{ id: grantId, contentKey: 'portal.memory.grove',
+          portalKey: 'challenge.sequence.v1', expiresAtUtc: null }]) });
+    if (route.request().method() === 'GET' && path.endsWith('/challenge'))
+      return route.fulfill({ status: 200, contentType: 'application/json',
+        body: JSON.stringify({ grantId, version: 'portal-sequence-v1', sequence }) });
+    if (route.request().method() === 'POST' && path.endsWith('/challenge/attempt'))
+      return route.fulfill({ status: 422, contentType: 'application/json',
+        body: JSON.stringify({
+          code: 'portal_challenge_incorrect', damage: 0,
+          currentHealth: 18, maxHealth: 20, damageApplied: false,
+        }) });
+    return route.fulfill({ status: 404 });
+  });
+
+  await page.goto('./#/portals');
+  await page.getByTestId('portal-start').click();
+  await expect(page.getByTestId('portal-preview')).toHaveCount(0, { timeout: 7000 });
+  for (const rune of ['moon', 'moon', 'star', 'wave'])
+    await page.getByTestId('portal-rune-' + rune).click();
+  await page.getByTestId('portal-submit').click();
+  await expect(page.getByTestId('portal-error')).toContainText('Wrong sequence');
+  await expect(page.getByTestId('portal-mistake-damage')).toContainText('do not cause additional damage');
+  await expect(page.getByTestId('portal-mistake-damage')).toContainText('18/20');
+  await expect.poll(() => page.evaluate(() =>
+    document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
+});

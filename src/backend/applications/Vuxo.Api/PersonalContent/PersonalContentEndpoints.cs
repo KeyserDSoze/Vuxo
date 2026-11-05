@@ -5,6 +5,7 @@ using Vuxo.Application.PersonalContent;
 using Vuxo.Application.Inventory;
 using Vuxo.Domain.PersonalContent;
 using Vuxo.Domain.Inventory;
+using Vuxo.Domain.Players;
 
 namespace Vuxo.Api.PersonalContent;
 
@@ -229,7 +230,8 @@ public static class PersonalContentEndpoints
         endpoints.MapPost(
             "/api/personal-content/{grantId:guid}/challenge/attempt",
             async (Guid grantId, PortalSequenceAttemptRequest request, ClaimsPrincipal user,
-                ExclusiveContentService service, CancellationToken cancellationToken) =>
+                ExclusiveContentService service, PortalMistakeDamageService damageService,
+                CancellationToken cancellationToken) =>
             {
                 var playerId = user.FindFirstValue(ClaimTypes.NameIdentifier);
                 if (string.IsNullOrWhiteSpace(playerId)) return Results.Unauthorized();
@@ -255,7 +257,19 @@ public static class PersonalContentEndpoints
                 }
                 catch (ExclusiveContentException exception) when (exception.Code == ExclusiveContentErrorCodes.ChallengeIncorrect)
                 {
-                    return Results.UnprocessableEntity(new { code = exception.Code });
+                    // The answer was well-formed and rejected by canonical server
+                    // sequence rules. The damage service rechecks ownership,
+                    // expiry and consumption state inside a locked DB transaction.
+                    var damage = await damageService.ApplyFirstMistakeAsync(
+                        playerId, grantId, cancellationToken);
+                    return Results.UnprocessableEntity(new
+                    {
+                        code = exception.Code,
+                        damage = damage?.Damage ?? 0,
+                        currentHealth = damage?.CurrentHealth,
+                        maxHealth = damage?.MaxHealth,
+                        damageApplied = damage?.Applied ?? false
+                    });
                 }
                 catch (ExclusiveContentException exception)
                 {

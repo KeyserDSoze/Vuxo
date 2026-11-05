@@ -169,6 +169,46 @@ public sealed class PersonalContentTests
     }
 
     [Fact]
+    public async Task WrongCanonicalSequence_ExposesServerCalculatedDamageOnlyForOwner()
+    {
+        var grant = CreateGrant("player-a", portalKey: PortalSequenceRules.PortalKey);
+        var fake = new FakeDamage
+        {
+            Result = new PortalMistakeDamageResult(grant.Id, 20, 18, 20, 2, Applied: true)
+        };
+        using var factory = CreateFactory(out var repository, out _, out _, damage: fake);
+        repository.Grants.Add(grant);
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, "player-a", "User");
+        var challenge = await client.GetFromJsonAsync<JsonElement>(
+            $"/api/personal-content/{grant.Id}/challenge");
+        var correct = challenge.GetProperty("sequence").EnumerateArray()
+            .Select(x => x.GetString()!).ToArray();
+        var wrong = correct.ToArray();
+        wrong[0] = wrong[0] == "sun" ? "moon" : "sun";
+
+        var invalid = await client.PostAsJsonAsync(
+            $"/api/personal-content/{grant.Id}/challenge/attempt",
+            new { sequence = new[] { "sun" } });
+        Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
+        Assert.Equal(0, fake.Calls);
+
+        var rejected = await client.PostAsJsonAsync(
+            $"/api/personal-content/{grant.Id}/challenge/attempt", new { sequence = wrong });
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, rejected.StatusCode);
+        using var json = JsonDocument.Parse(await rejected.Content.ReadAsStringAsync());
+        Assert.Equal("portal_challenge_incorrect",
+            json.RootElement.GetProperty("code").GetString());
+        Assert.Equal(2, json.RootElement.GetProperty("damage").GetInt32());
+        Assert.Equal(18, json.RootElement.GetProperty("currentHealth").GetInt32());
+        Assert.True(json.RootElement.GetProperty("damageApplied").GetBoolean());
+        Assert.Equal(1, fake.Calls);
+        Assert.Equal("player-a", fake.Owner);
+        Assert.Equal(grant.Id, fake.GrantId);
+        Assert.False(grant.IsConsumed);
+    }
+
+    [Fact]
     public async Task Challenge_EnforcesServerSideRateLimitOnRepeatedInvalidAttempts()
     {
         var grant = CreateGrant("player-a", portalKey: PortalSequenceRules.PortalKey);
@@ -366,7 +406,7 @@ public sealed class PersonalContentTests
         out FakeRepository repository,
         out FakeEventStore events,
         out FakeUnitOfWork unitOfWork,
-        IWorldPortalMap? portalMap = null)
+        IWorldPortalMap? portalMap = null, FakeDamage? damage = null)
     {
         repository = new FakeRepository();
         events = new FakeEventStore();
@@ -378,11 +418,13 @@ public sealed class PersonalContentTests
         return new VuxoApiFactory(configureServices: services =>
         {
             services.RemoveAll<IExclusiveContentGrantRepository>();
+            services.RemoveAll<IPortalMistakeDamageRepository>();
             services.RemoveAll<IPlayerInventoryRepository>();
             services.RemoveAll<IGameEventStore>();
             services.RemoveAll<IUnitOfWork>();
             services.RemoveAll<IWorldPortalMap>();
             services.AddSingleton<IExclusiveContentGrantRepository>(repositoryInstance);
+            services.AddSingleton<IPortalMistakeDamageRepository>(damage ?? new FakeDamage());
             services.AddSingleton<IPlayerInventoryRepository>(new FakeInventoryRepository());
             services.AddSingleton<IGameEventStore>(eventsInstance);
             services.AddSingleton<IUnitOfWork>(unitOfWorkInstance);
@@ -541,6 +583,24 @@ public sealed class PersonalContentTests
         {
             SaveCalls++;
             return Task.FromResult(1);
+        }
+    }
+
+    private sealed class FakeDamage : IPortalMistakeDamageRepository
+    {
+        public int Calls { get; private set; }
+        public string? Owner { get; private set; }
+        public Guid? GrantId { get; private set; }
+        public PortalMistakeDamageResult? Result { get; init; }
+
+        public Task<PortalMistakeDamageResult?> ApplyFirstMistakeAsync(
+            string playerId, Guid grantId, DateTimeOffset now,
+            CancellationToken cancellationToken = default)
+        {
+            Calls++;
+            Owner = playerId;
+            GrantId = grantId;
+            return Task.FromResult(Result);
         }
     }
 
