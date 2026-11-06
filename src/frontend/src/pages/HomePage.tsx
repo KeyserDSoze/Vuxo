@@ -1,4 +1,4 @@
-import { ArrowForward, AutoAwesome, ExploreOutlined, PersonOutline, West } from '@mui/icons-material';
+import { ArrowForward, AutoAwesome, ExploreOutlined, PersonOutlined, West } from '@mui/icons-material';
 import { Box, Button, Chip, Stack, Typography, useMediaQuery } from '@mui/material';
 import { useRef, useState, type CSSProperties, type PointerEvent } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -22,7 +22,7 @@ const realmLinks: Record<Realm, string> = {
 
 const realmIcons = {
   world: ExploreOutlined,
-  character: PersonOutline,
+  character: PersonOutlined,
   portals: AutoAwesome,
 } as const;
 
@@ -146,7 +146,7 @@ export function HomePage() {
       </Box>
 
       <Box component="section" aria-labelledby="home-paths-title">
-        <Stack direction={{ xs: 'column', sm: 'row' }} gap={1} alignItems={{ xs: 'flex-start', sm: 'center' }} justifyContent="space-between" sx={{ mb: 2 }}>
+        <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ xs: 'flex-start', sm: 'center' }} justifyContent="space-between" sx={{ mb: 2, gap: 1 }}>
           <Box>
             <Typography variant="overline" color="primary.main" sx={{ fontWeight: 800, letterSpacing: '0.18em' }}>{t('home.pathsEyebrow')}</Typography>
             <Typography id="home-paths-title" component="h2" variant="h4" sx={{ fontWeight: 850, letterSpacing: '-0.035em' }}>{t('home.pathsTitle')}</Typography>
@@ -189,8 +189,8 @@ export function HomePage() {
             );
           })}
         </Box>
-        <Stack id="home-selected-path" data-testid="home-selected-path" direction={{ xs: 'column', sm: 'row' }} gap={2} alignItems={{ xs: 'stretch', sm: 'center' }} justifyContent="space-between"
-          sx={{ mt: 2, px: { xs: 1, sm: 2 }, py: 1 }}>
+        <Stack id="home-selected-path" data-testid="home-selected-path" direction={{ xs: 'column', sm: 'row' }} alignItems={{ xs: 'stretch', sm: 'center' }} justifyContent="space-between"
+          sx={{ gap: 2, mt: 2, px: { xs: 1, sm: 2 }, py: 1 }}>
           <Box>
             <Typography variant="body2" color="text.secondary">{t('home.selectedEyebrow')}</Typography>
             <Typography component="p" variant="subtitle1" sx={{ fontWeight: 750 }}>{t(`home.features.${realm}.preview`)}</Typography>
