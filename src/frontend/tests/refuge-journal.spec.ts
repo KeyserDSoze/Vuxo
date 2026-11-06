@@ -30,6 +30,15 @@ const portals = [
     portalKey: 'other.challenge', expiresAtUtc: null },
 ];
 
+test.beforeEach(async ({ page }) => {
+  // The completed-history read model is independent of item grants and
+  // currently available portal grants; keep legacy journal fixtures isolated.
+  await page.route('**/api/personal-content/history/completed*', route => route.fulfill({
+    headers: corsHeaders, contentType: 'application/json',
+    body: JSON.stringify({ items: [], page: 1, pageSize: 20, hasMore: false }),
+  }));
+});
+
 async function signIn(page: Page, language: 'it' | 'en' = 'it') {
   await page.addInitScript(({ language }) => {
     localStorage.clear();
@@ -87,7 +96,7 @@ test('reward grants display in chronological order and only available portal gra
   await expect(activePortals.nth(0)).toContainText('44444444');
   await expect(activePortals.nth(1)).toContainText('55555555');
   await expect(page.getByTestId('refuge-journal-portals-count')).toContainText('2');
-  await expect(page.getByTestId('refuge-journal-limits')).toContainText('non è lo storico completo');
+  await expect(page.getByTestId('refuge-journal-limits')).toContainText('Non è lo storico completo');
   await expect(page.getByTestId('refuge-journal-open-inventory')).toHaveAttribute('href', '#/inventory');
   await expect(page.getByTestId('refuge-journal-open-portals')).toHaveAttribute('href', '#/portals');
 });

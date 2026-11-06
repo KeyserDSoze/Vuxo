@@ -8,6 +8,7 @@ import { useTranslation } from 'react-i18next';
 import { Link as RouterLink } from 'react-router-dom';
 import type { VuxoSession } from '../features/auth/authSession';
 import { useStoredSession } from '../features/auth/useStoredSession';
+import { RefugePortalCompletionHistory } from '../features/refuge/RefugePortalCompletionHistory';
 import {
   fetchPlayerInventory, inventoryItemLabelKeys, type InventoryAward,
 } from '../features/inventory/inventoryApi';
@@ -36,6 +37,7 @@ function RefugeJournalSession({ session }: { session: VuxoSession | null }) {
   const [rewardRevision, setRewardRevision] = useState(0);
   const [portalRevision, setPortalRevision] = useState(0);
   const [filter, setFilter] = useState<JournalRewardFilter>('all');
+  const [historyRevision, setHistoryRevision] = useState(0);
 
   useEffect(() => {
     if (!session) return;
@@ -95,6 +97,7 @@ function RefugeJournalSession({ session }: { session: VuxoSession | null }) {
   const refreshAll = () => {
     refreshRewards();
     refreshPortals();
+    setHistoryRevision(value => value + 1);
   };
 
   return (
@@ -299,6 +302,7 @@ function RefugeJournalSession({ session }: { session: VuxoSession | null }) {
               )}
             </Stack>
           </Paper>
+          <RefugePortalCompletionHistory key={session.accessToken + ':' + historyRevision} />
           <Alert severity="info" data-testid="refuge-journal-limits">
             {t('refuge.journal.disclaimer')}
           </Alert>

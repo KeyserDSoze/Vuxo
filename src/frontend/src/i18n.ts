@@ -55,13 +55,27 @@ const initialization = i18n.use(initReactI18next).init({
         refuge: {
           journal: {
             title: 'Diario del Rifugio',
-            description: 'Rivedi gli oggetti ottenuti e le sfide personali ancora disponibili, anche senza entrare nella mappa.',
+            description: 'Rivedi ricompense, sfide ancora disponibili e portali completati con prova del server, fuori dalla mappa.',
             back: 'Torna al Rifugio',
             authRequired: 'Accedi al tuo account VUXO per consultare il diario personale.',
             signIn: 'Accedi',
             refreshAll: 'Aggiorna tutto',
             retry: 'Aggiorna',
             dateUnavailable: 'Data non disponibile',
+            completed: {
+              title: 'Portali completati e verificati',
+              description: 'Sfide di rune superate con una prova persistente del server, non dedotte dagli oggetti ricevuti.',
+              loading: 'Caricamento completamenti verificati…',
+              error: 'Impossibile recuperare i portali completati. Riprova senza ripetere la sfida.',
+              empty: 'Non risultano completamenti di rune verificati nello storico disponibile.',
+              verified: 'Sfida di rune completata',
+              at: 'Completata il {{date}}',
+              reference: 'Riferimento portale: {{reference}}',
+              source: 'Contenuto: {{key}}',
+              rule: 'Regola: {{version}}',
+              more: 'Mostra altri completamenti',
+              disclaimer: 'Sono visibili soltanto i completamenti dimostrati dagli eventi di audit. Tentativi falliti, portali scaduti e consumi storici privi di prova non vengono presentati come vittorie.'
+            },
             rewards: {
               title: 'Ricompense ottenute',
               description: 'Registrazioni effettive degli oggetti assegnati al tuo personaggio dal server.',
@@ -93,7 +107,7 @@ const initialization = i18n.use(initReactI18next).init({
               available: 'Disponibile',
               open: 'Vai ai portali'
             },
-            disclaimer: 'Questo diario mostra assegnazioni di oggetti e portali ancora disponibili. Non è lo storico completo delle avventure o dei portali superati: quel registro richiederà una futura API dedicata. Un oggetto non consumato non è necessariamente utilizzabile o equipaggiabile.'
+            disclaimer: 'Il diario distingue le assegnazioni di oggetti, le sfide disponibili e i completamenti verificati. Non è lo storico completo di tutti i tentativi e le avventure. Un oggetto non consumato non è necessariamente utilizzabile o equipaggiabile.'
           },
           rest: {
             description: 'Riposa al Rifugio per recuperare fino al 25% degli HP massimi di base. Puoi farlo una volta ogni 30 minuti. Non consuma oggetti.',
@@ -480,13 +494,27 @@ const initialization = i18n.use(initReactI18next).init({
         refuge: {
           journal: {
             title: 'Refuge journal',
-            description: 'Review the items you have earned and personal challenges still available, without opening the 2D world.',
+            description: 'Review rewards, available challenges and server-verified completed portals outside the 2D world.',
             back: 'Back to Refuge',
             authRequired: 'Sign in to your VUXO account to view your personal journal.',
             signIn: 'Sign in',
             refreshAll: 'Refresh all',
             retry: 'Refresh',
             dateUnavailable: 'Date unavailable',
+            completed: {
+              title: 'Verified completed portals',
+              description: 'Rune challenges proven by persistent server audit events, never inferred from item rewards.',
+              loading: 'Loading verified completions…',
+              error: 'Could not load completed portals. Retry without replaying the challenge.',
+              empty: 'No verified rune completions are present in the available history.',
+              verified: 'Rune challenge completed',
+              at: 'Completed on {{date}}',
+              reference: 'Portal reference: {{reference}}',
+              source: 'Content: {{key}}',
+              rule: 'Ruleset: {{version}}',
+              more: 'Load more completions',
+              disclaimer: 'Only completions supported by audit events are shown. Failed attempts, expired portals and legacy consumptions without proof are not displayed as victories.'
+            },
             rewards: {
               title: 'Earned rewards',
               description: 'Actual server records of items granted to your character.',
@@ -518,7 +546,7 @@ const initialization = i18n.use(initReactI18next).init({
               available: 'Available',
               open: 'Visit portals'
             },
-            disclaimer: 'This journal shows item grants and portals still available. It is not a complete history of adventures or completed portals; that will require a dedicated future API. An item that is not consumed is not necessarily usable or equippable.'
+            disclaimer: 'This journal separates earned items, available challenges and verified completions. It is not a complete history of every attempt or adventure. An unconsumed item is not necessarily usable or equippable.'
           },
           rest: {
             description: 'Rest at the Refuge to recover up to 25% of your base maximum HP. You can do this once every 30 minutes. No items are consumed.',
