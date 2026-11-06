@@ -12,17 +12,44 @@ const initialization = i18n.use(initReactI18next).init({
         shell: { theme: 'Tema', language: 'Lingua', navigation: 'Navigazione principale', openMenu: 'Apri menu', closeMenu: 'Chiudi', loadingPage: 'Caricamento pagina…', version: 'Versione {{version}}' },
         theme: { system: 'Sistema', light: 'Chiaro', dark: 'Scuro' },
         home: {
-          eyebrow: 'Versione {{version}} · First playable',
-          title: 'Il primo mondo di Vuxo sta nascendo.',
-          description: 'Esplora un mondo 2D condiviso, crea il tuo personaggio e preparati a un universo che cresce insieme ai giocatori.',
-          cta: 'Entra nel prototipo',
-          ctaSignIn: 'Accedi per iniziare',
-          ctaCharacter: 'Crea il personaggio',
-          ctaRefuge: 'Visita il Rifugio',
+          eyebrow: 'VUXO · {{version}} · Prima avventura',
+          chapter: 'Il richiamo dell’ignoto',
+          title: 'Oltre il portale, inizia tutto.',
+          description: 'Crea il tuo Vuxian, incontra altri esploratori e affronta sfide oltre ogni soglia. Questo mondo cambia con le scelte di chi lo attraversa.',
+          cta: 'Entra nel mondo',
+          ctaSignIn: 'Inizia l’avventura',
+          ctaCharacter: 'Crea il tuo Vuxian',
+          ctaRefuge: 'Scopri il Rifugio',
+          sceneLabel: 'Ingresso al mondo di Vuxo',
+          sceneFooter: 'Il mondo attende il tuo primo passo',
+          pathsEyebrow: 'Tre strade, un universo',
+          pathsTitle: 'Cosa vuoi scoprire?',
+          pathsHint: 'Scegli una strada e osserva il portale cambiare.',
+          pathSelected: 'Selezionato',
+          pathPreview: 'Scopri',
+          selectedEyebrow: 'La tua prossima avventura',
+          discoverPath: 'Esplora questo percorso',
+          portal: {
+            toggle: 'Risveglia o calma il portale',
+            hint: 'Tocca il portale per risvegliarlo',
+            awake: 'Il portale risplende! Toccalo di nuovo per calmarlo.'
+          },
           features: {
-            character: { title: 'Il tuo Vuxian', description: 'Crea un personaggio unico e scegli gli attributi che lo definiscono.' },
-            world: { title: 'Un mondo condiviso', description: 'Esplora un mondo 2D in compagnia di altri giocatori.' },
-            portals: { title: 'Portali e sfide', description: 'Scopri nuovi portali e affronta prove personali.' }
+            character: {
+              title: 'Il tuo Vuxian',
+              description: 'Un eroe tutto tuo, dal volto agli attributi: decidi chi attraverserà la soglia.',
+              preview: 'Dai forma al protagonista della tua storia.'
+            },
+            world: {
+              title: 'Un mondo condiviso',
+              description: 'Cammina tra altri esploratori in un universo 2D che prende vita.',
+              preview: 'Avventurati dove altri Vuxian stanno già esplorando.'
+            },
+            portals: {
+              title: 'Portali e sfide',
+              description: 'Scopri passaggi misteriosi, rune e guardiani con prove tutte da superare.',
+              preview: 'Ogni soglia nasconde una sfida diversa.'
+            }
           }
         },
         refuge: {
@@ -367,17 +394,44 @@ const initialization = i18n.use(initReactI18next).init({
         shell: { theme: 'Theme', language: 'Language', navigation: 'Main navigation', openMenu: 'Open menu', closeMenu: 'Close', loadingPage: 'Loading page…', version: 'Version {{version}}' },
         theme: { system: 'System', light: 'Light', dark: 'Dark' },
         home: {
-          eyebrow: 'Version {{version}} · First playable',
-          title: 'The first world of Vuxo is coming to life.',
-          description: 'Explore a shared 2D world, create your character and get ready for a universe that grows together with its players.',
-          cta: 'Enter the prototype',
-          ctaSignIn: 'Sign in to get started',
-          ctaCharacter: 'Create your character',
-          ctaRefuge: 'Visit your Refuge',
+          eyebrow: 'VUXO · {{version}} · First adventure',
+          chapter: 'The call of the unknown',
+          title: 'Beyond the portal, everything begins.',
+          description: 'Create your Vuxian, meet other explorers and face challenges beyond every threshold. This world changes with the choices of those who enter.',
+          cta: 'Enter the world',
+          ctaSignIn: 'Begin your adventure',
+          ctaCharacter: 'Create your Vuxian',
+          ctaRefuge: 'Discover the Refuge',
+          sceneLabel: 'Gateway into the world of Vuxo',
+          sceneFooter: 'The world awaits your first step',
+          pathsEyebrow: 'Three paths, one universe',
+          pathsTitle: 'What will you discover?',
+          pathsHint: 'Choose a path and watch the portal change.',
+          pathSelected: 'Selected',
+          pathPreview: 'Explore',
+          selectedEyebrow: 'Your next adventure',
+          discoverPath: 'Explore this path',
+          portal: {
+            toggle: 'Awaken or quiet the portal',
+            hint: 'Touch the portal to awaken it',
+            awake: 'The portal is glowing! Touch again to quiet it.'
+          },
           features: {
-            character: { title: 'Your Vuxian', description: 'Create a unique character and choose the attributes that define them.' },
-            world: { title: 'A shared world', description: 'Explore a 2D world alongside other players.' },
-            portals: { title: 'Portals and challenges', description: 'Discover new portals and take on personal challenges.' }
+            character: {
+              title: 'Your Vuxian',
+              description: 'Your own hero, from appearance to abilities: choose who crosses the threshold.',
+              preview: 'Shape the hero of your own story.'
+            },
+            world: {
+              title: 'A shared world',
+              description: 'Walk among other explorers in a living 2D universe.',
+              preview: 'Go where other Vuxians are already exploring.'
+            },
+            portals: {
+              title: 'Portals and challenges',
+              description: 'Discover mysterious passages, runes and guardians with challenges to overcome.',
+              preview: 'Every gateway hides a different challenge.'
+            }
           }
         },
         refuge: {

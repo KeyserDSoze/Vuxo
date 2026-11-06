@@ -9,7 +9,7 @@ test.beforeEach(async ({ page }) => {
 
 test('home exposes the first playable milestone', async ({ page }) => {
   await page.goto('./#/');
-  await expect(page.getByRole('heading', { name: /primo mondo di vuxo/i })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /oltre il portale/i })).toBeVisible();
 });
 
 test('phaser game route renders a canvas', async ({ page }) => {
@@ -33,10 +33,10 @@ test('theme preference cycles system-light-dark and persists', async ({ page }) 
 test('language can switch to English and persists', async ({ page }) => {
   await page.goto('./#/');
   await page.getByTestId('language-toggle').click();
-  await expect(page.getByRole('heading', { name: /first world of vuxo/i })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /beyond the portal/i })).toBeVisible();
   await expect.poll(() => page.evaluate(() => localStorage.getItem('vuxo.language'))).toBe('en');
   await page.reload();
-  await expect(page.getByRole('heading', { name: /first world of vuxo/i })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /beyond the portal/i })).toBeVisible();
   await expect.poll(() => page.evaluate(() => localStorage.getItem('vuxo.language'))).toBe('en');
 });
 
@@ -45,7 +45,7 @@ test('unsupported stored language falls back to Italian and updates document lan
   await page.addInitScript(() => localStorage.setItem('vuxo.language', 'fr'));
   await page.goto('./#/');
 
-  await expect(page.getByRole('heading', { name: /primo mondo di vuxo/i })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /oltre il portale/i })).toBeVisible();
   await expect.poll(() => page.evaluate(() => document.documentElement.lang)).toBe('it');
   await expect.poll(() => page.evaluate(() => localStorage.getItem('vuxo.language'))).toBe('it');
 });

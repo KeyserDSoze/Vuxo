@@ -10,7 +10,7 @@ test.beforeEach(async ({ page }) => {
 test('anonymous visitors cannot see the admin link on desktop or mobile', async ({ page }) => {
   await page.goto('./#/');
   await expect(page.getByTestId('desktop-nav').getByRole('link', { name: 'Admin' })).toHaveCount(0);
-  await expect(page.getByRole('link', { name: 'Accedi per iniziare' })).toHaveAttribute('href', '#/auth');
+  await expect(page.getByRole('link', { name: 'Inizia l’avventura' })).toHaveAttribute('href', '#/auth');
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByTestId('mobile-menu-toggle').click();
@@ -34,7 +34,7 @@ test('valid Administrator session shows the admin link and the game CTA', async 
   await seedSession(page, makeJwt('Administrator'));
   await page.goto('./#/');
   await expect(page.getByTestId('desktop-nav').getByRole('link', { name: 'Admin' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Entra nel prototipo' })).toHaveAttribute('href', '#/game');
+  await expect(page.getByRole('link', { name: 'Entra nel mondo' })).toHaveAttribute('href', '#/game');
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByTestId('mobile-menu-toggle').click();
