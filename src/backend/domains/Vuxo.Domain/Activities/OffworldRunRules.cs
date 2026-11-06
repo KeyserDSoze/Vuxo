@@ -14,6 +14,8 @@ public static class OffworldRunRules
     public static readonly TimeSpan StartCooldown = TimeSpan.FromMinutes(2);
     public static readonly TimeSpan DailyWindow = TimeSpan.FromDays(1);
     public const int MaximumDailyStarts = 12;
+    public const int DefaultHistoryResults = 10;
+    public const int MaximumHistoryResults = 20;
 
     public static void ValidateStart(DateTimeOffset now, DateTimeOffset? lastStart, int recentStarts)
     {
@@ -41,6 +43,7 @@ public static class OffworldRunErrorCodes
     public const string Expired = "activity_run_expired";
     public const string Completed = "activity_run_completed";
     public const string InvalidPath = "activity_run_invalid_path";
+    public const string HistoryLimitInvalid = "activity_history_limit_invalid";
 }
 
 public sealed class OffworldRunException(
@@ -62,8 +65,24 @@ public sealed record OffworldRunResult(
     int? StepsChecked,
     bool Replayed);
 
+/// <summary>Public read model: no proof, idempotency key, player ID or audit metadata.</summary>
+public sealed record OffworldRunHistoryEntry(
+    Guid RunId,
+    string ActivityKey,
+    string RulesVersion,
+    int PuzzleIndex,
+    DateTimeOffset StartedAtUtc,
+    DateTimeOffset ExpiresAtUtc,
+    string State,
+    DateTimeOffset? CompletedAtUtc,
+    int? StepsChecked);
+
 public interface IOffworldRunRepository
 {
+    Task<IReadOnlyList<OffworldRunHistoryEntry>> GetHistoryAsync(
+        string ownerId, int limit, DateTimeOffset now,
+        CancellationToken cancellationToken = default);
+
     Task<OffworldRunResult> StartAsync(string ownerId, Guid idempotencyKey,
         DateTimeOffset now, CancellationToken cancellationToken = default);
 
