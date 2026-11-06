@@ -3,7 +3,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link as RouterLink } from 'react-router-dom';
 import { useStoredSession } from '../features/auth/useStoredSession';
-import type { VuxoSession } from '../features/auth/authSession';
+import { readStoredSession, type VuxoSession } from '../features/auth/authSession';
+import { createOwnerActionGate, type OwnerActionGate } from '../features/inventory/ownerActionGate';
 import { browseInventory, equipmentSlotFor, type InventoryBrowseFilter, type InventoryBrowseSlot, type InventoryBrowseSort } from '../features/inventory/inventoryBrowse';
 import { InventoryLoadoutPanel } from '../features/inventory/InventoryLoadoutPanel';
 import { HealingItemAction } from '../features/inventory/HealingItemAction';
@@ -20,6 +21,7 @@ import {
 } from '../features/inventory/inventoryApi';
 
 const statKeys = ['strength', 'dexterity', 'intelligence', 'constitution', 'luck', 'faith'] as const;
+type ActionLease = { gate: OwnerActionGate; ticket: number };
 
 /** Reset all owner data and browse state immediately when the authenticated account changes. */
 export function InventoryPage() {
@@ -46,6 +48,22 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
   const [browseSlot, setBrowseSlot] = useState<InventoryBrowseSlot>('all');
   const [browseSort, setBrowseSort] = useState<InventoryBrowseSort>('name');
   const searchRef = useRef<HTMLInputElement | null>(null);
+  const ownerGate = useRef<OwnerActionGate | null>(null);
+  const mutationControllers = useRef(new Set<AbortController>());
+  const healingLease = useRef<ActionLease | null>(null);
+
+  // A keyed owner view owns exactly one mutation lane. StrictMode may rehearse
+  // effects: recreate the gate on every setup and invalidate previous tickets.
+  useEffect(() => {
+    const gate = createOwnerActionGate(session?.accessToken ?? null);
+    ownerGate.current = gate;
+    return () => {
+      gate.dispose();
+      for (const controller of mutationControllers.current) controller.abort();
+      mutationControllers.current.clear();
+      if (ownerGate.current === gate) ownerGate.current = null;
+    };
+  }, [session?.accessToken]);
 
   useEffect(() => {
     setItems([]);
@@ -123,6 +141,79 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
   const displayedItems = browseReady ? view.awards : items;
   const noMatches = canBrowse && displayedStacks.length === 0 && displayedItems.length === 0;
 
+  const isCurrentAction = ({ gate, ticket }: ActionLease) =>
+    ownerGate.current === gate &&
+    gate.isCurrent(ticket, readStoredSession()?.accessToken ?? null);
+
+  const beginOwnerAction = (): ActionLease | null => {
+    if (!browseReady || !session || equipmentBusy) return null;
+    const gate = ownerGate.current;
+    const ticket = gate?.acquire(readStoredSession()?.accessToken ?? null);
+    if (!gate || ticket == null) return null;
+    setEquipmentBusy(true); // disables all equip and healing buttons
+    return { gate, ticket };
+  };
+
+  const finishOwnerAction = (lease: ActionLease) => {
+    const stillCurrent = isCurrentAction(lease);
+    lease.gate.release(lease.ticket);
+    if (stillCurrent) setEquipmentBusy(false);
+  };
+
+  const beginHealing = () => {
+    const lease = beginOwnerAction();
+    if (!lease) return false;
+    healingLease.current = lease;
+    return true;
+  };
+
+  const finishHealing = () => {
+    const lease = healingLease.current;
+    healingLease.current = null;
+    if (lease) finishOwnerAction(lease);
+  };
+
+  const refreshAfterHealing = async (result: CharacterItemHealResult) => {
+    const lease = healingLease.current;
+    if (!lease || !isCurrentAction(lease)) return;
+    // The server committed the heal. Until all three reads complete, hide
+    // available grants *and* equipment to prevent duplicate spending.
+    setHealingResult(result);
+    setHealingRefreshError(false);
+    setLoading(true);
+    setEquipmentLoading(true);
+    setItems([]);
+    setStacks([]);
+    setLoadout(null);
+    setError(null);
+    setEquipmentError(null);
+
+    const controller = new AbortController();
+    mutationControllers.current.add(controller);
+    try {
+      const [awards, freshStacks, freshEquipment] = await Promise.all([
+        fetchPlayerInventory(controller.signal),
+        fetchInventoryStacks(controller.signal),
+        fetchEquipment(controller.signal),
+      ]);
+      if (!isCurrentAction(lease) || controller.signal.aborted) return;
+      setItems(awards);
+      setStacks(freshStacks);
+      setLoadout(freshEquipment);
+    } catch {
+      if (!isCurrentAction(lease) || controller.signal.aborted) return;
+      // Never restore an old stock snapshot after a committed heal.
+      setHealingRefreshError(true);
+      setEquipmentError('inventory_request_failed');
+    } finally {
+      mutationControllers.current.delete(controller);
+      if (isCurrentAction(lease) && !controller.signal.aborted) {
+        setLoading(false);
+        setEquipmentLoading(false);
+      }
+    }
+  };
+
   const resetBrowse = () => {
     setBrowseQuery('');
     setBrowseFilter('all');
@@ -139,7 +230,8 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
   };
 
   const refreshEquipment = () => {
-    if (equipmentBusy || equipmentLoading) return;
+    if (equipmentBusy || equipmentLoading ||
+        !session || readStoredSession()?.accessToken !== session.accessToken) return;
     // Synchronously hide the old snapshot when the user requests fresh data.
     setEquipmentLoading(true);
     setLoadout(null);
@@ -151,25 +243,32 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
     setEquipmentRevision(value => value + 1);
   };
 
-  const performEquipmentAction = async (action: () => Promise<EquipmentView>) => {
-    if (!browseReady || equipmentBusy || equipmentLoading) return;
-    setEquipmentBusy(true);
+  const performEquipmentAction = async (
+    action: (signal: AbortSignal) => Promise<EquipmentView>,
+  ) => {
+    const lease = beginOwnerAction();
+    if (!lease) return; // synchronous lease prevents double POST/DELETE
+    const controller = new AbortController();
+    mutationControllers.current.add(controller);
     try {
-      const result = await action();
-      // Only display a new loadout alongside the matching server stack snapshot.
-      const freshStacks = await fetchInventoryStacks();
+      const result = await action(controller.signal);
+      if (!isCurrentAction(lease) || controller.signal.aborted) return;
+      // Use the same owner and only publish a server-confirmed stack refresh.
+      const freshStacks = await fetchInventoryStacks(controller.signal);
+      if (!isCurrentAction(lease) || controller.signal.aborted) return;
       setLoadout(result);
       setStacks(freshStacks);
       setEquipmentError(null);
     } catch (reason) {
-      // The mutation may have succeeded despite a lost response or refresh failure.
-      // Never present stale grant availability; require a safe read-only refresh.
+      if (!isCurrentAction(lease) || controller.signal.aborted) return;
+      // Ambiguous write or refresh failure: hide stale available grants.
       setLoadout(null);
       setStacks([]);
       setEquipmentError(reason instanceof EquipmentApiError
         ? reason.code : 'inventory_request_failed');
     } finally {
-      setEquipmentBusy(false);
+      mutationControllers.current.delete(controller);
+      finishOwnerAction(lease);
     }
   };
 
@@ -218,7 +317,7 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
 
       {browseReady && loadout && (
         <InventoryLoadoutPanel loadout={loadout} busy={equipmentBusy}
-          onUnequip={slot => void performEquipmentAction(() => unequipInventoryItem(slot))}
+          onUnequip={slot => void performEquipmentAction(signal => unequipInventoryItem(slot, signal))}
           onFind={showAvailableSlot} onRefresh={refreshEquipment} />
       )}
       {healingResult && (
@@ -329,14 +428,14 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
                     {active && slot ? (
                       <Button data-testid="inventory-unequip" variant="outlined"
                         disabled={equipmentBusy || !browseReady}
-                        onClick={() => void performEquipmentAction(() => unequipInventoryItem(slot))}>
+                        onClick={() => void performEquipmentAction(signal => unequipInventoryItem(slot, signal))}>
                         {t('unequip')}
                       </Button>
                     ) : slot && stack.availableGrantIds.length > 0 ? (
                       <Button data-testid="inventory-equip" variant="contained"
                         disabled={equipmentBusy || !browseReady || occupied}
                         onClick={() => void performEquipmentAction(
-                          () => equipInventoryItem(stack.availableGrantIds[0])
+                          signal => equipInventoryItem(stack.availableGrantIds[0], signal)
                         )}>
                         {t('equip')}
                       </Button>
@@ -346,25 +445,9 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
                         grantId={stack.availableGrantIds[0]}
                         accessToken={session!.accessToken}
                         disabled={equipmentBusy || !browseReady}
-                        onHealed={result => {
-                          setHealingResult(result);
-                          setHealingRefreshError(false);
-                          void Promise.all([
-                            fetchInventoryStacks(),
-                            fetchPlayerInventory(),
-                          ]).then(([freshStacks, freshAwards]) => {
-                            setStacks(freshStacks);
-                            setItems(freshAwards);
-                          }).catch(() => {
-                            // Healing is already committed by the server, but the available
-                            // grant list could be stale: hide it until a fresh GET succeeds.
-                            setStacks([]);
-                            setItems([]);
-                            setLoadout(null);
-                            setEquipmentError('inventory_request_failed');
-                            setHealingRefreshError(true);
-                          });
-                        }} />
+                        onBegin={beginHealing}
+                        onFinished={finishHealing}
+                        onHealed={refreshAfterHealing} />
                     )}
                     {slot && <Chip size="small" label={t('slots.' + slot)} />}
                   </Stack>

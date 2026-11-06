@@ -8,12 +8,18 @@ type Props = {
   grantId: string;
   accessToken: string;
   disabled: boolean;
-  onHealed: (result: CharacterItemHealResult) => void;
+  onHealed: (result: CharacterItemHealResult) => Promise<void>;
+  onBegin: () => boolean;
+  onFinished: () => void;
 };
 
-export function HealingItemAction({ grantId, accessToken, disabled, onHealed }: Props) {
+export function HealingItemAction({
+  grantId, accessToken, disabled, onHealed, onBegin, onFinished,
+}: Props) {
   const { t } = useTranslation('translation', { keyPrefix: 'inventory' });
   const [busy, setBusy] = useState(false);
+  const [completed, setCompleted] = useState(false);
+  const inFlight = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const encounter = usePortalEncounterStatus(accessToken);
   const pendingKey = useRef<string | null>(null);
@@ -21,12 +27,17 @@ export function HealingItemAction({ grantId, accessToken, disabled, onHealed }: 
 
   useEffect(() => {
     pendingKey.current = null;
+    setCompleted(false);
     setError(null);
     return () => request.current?.abort();
-  }, [grantId]);
+  }, [grantId, accessToken]);
 
   const useItem = async () => {
-    if (busy || disabled || encounter.active || encounter.loading) return;
+    if (busy || inFlight.current || completed || disabled || encounter.active || encounter.loading) return;
+    // Reserve the shared owner lane synchronously: a second item or equipment
+    // button must not start a competing request before React re-renders.
+    if (!onBegin()) return;
+    inFlight.current = true;
     const key = pendingKey.current ?? crypto.randomUUID();
     pendingKey.current = key;
     const controller = new AbortController();
@@ -34,10 +45,11 @@ export function HealingItemAction({ grantId, accessToken, disabled, onHealed }: 
     setBusy(true);
     setError(null);
     try {
-      const result = await consumeHealingItem(grantId, key, controller.signal);
+      const result = await consumeHealingItem(grantId, key, accessToken, controller.signal);
       if (controller.signal.aborted) return;
       pendingKey.current = null;
-      onHealed(result);
+      setCompleted(true); // Never spend the same grant a second time in this view.
+      await onHealed(result); // Keep the lane until all owner reads finish.
     } catch (reason) {
       if (controller.signal.aborted) return;
       const code = reason instanceof CharacterItemHealError
@@ -49,6 +61,8 @@ export function HealingItemAction({ grantId, accessToken, disabled, onHealed }: 
           reason.status !== 429) pendingKey.current = null;
       setError(code);
     } finally {
+      inFlight.current = false;
+      onFinished();
       if (!controller.signal.aborted) setBusy(false);
       if (request.current === controller) request.current = null;
     }
@@ -57,7 +71,7 @@ export function HealingItemAction({ grantId, accessToken, disabled, onHealed }: 
   return (
     <Stack spacing={1} sx={{ alignItems: 'flex-start' }}>
       <Button data-testid="inventory-heal" variant="outlined"
-        disabled={busy || disabled || encounter.loading || encounter.active}
+        disabled={busy || completed || disabled || encounter.loading || encounter.active}
         startIcon={busy ? <CircularProgress size={18} color="inherit" /> : undefined}
         onClick={() => { void useItem(); }}>
         {t(busy ? 'healing.working' : error ? 'healing.retry' : 'healing.use')}

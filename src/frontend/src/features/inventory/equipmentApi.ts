@@ -42,12 +42,12 @@ export const fetchInventoryStacks = (signal?: AbortSignal) =>
 export const fetchEquipment = (signal?: AbortSignal) =>
   equipmentRequest<EquipmentView>('/api/equipment', 'GET', parseEquipmentView, signal);
 
-export const equipInventoryItem = async (grantId: string) =>
+export const equipInventoryItem = async (grantId: string, signal?: AbortSignal) =>
   requireEquipConfirmed(await equipmentRequest<EquipmentView>(
-    `/api/equipment/${encodeURIComponent(grantId)}/equip`, 'POST', parseEquipmentView
+    `/api/equipment/${encodeURIComponent(grantId)}/equip`, 'POST', parseEquipmentView, signal
   ), grantId);
 
-export const unequipInventoryItem = async (slot: 'relic' | 'charm') =>
+export const unequipInventoryItem = async (slot: 'relic' | 'charm', signal?: AbortSignal) =>
   requireUnequipConfirmed(await equipmentRequest<EquipmentView>(
-    `/api/equipment/${encodeURIComponent(slot)}`, 'DELETE', parseEquipmentView
+    `/api/equipment/${encodeURIComponent(slot)}`, 'DELETE', parseEquipmentView, signal
   ), slot);

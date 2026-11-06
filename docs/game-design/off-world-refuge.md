@@ -1,5 +1,11 @@
 # VUXO fuori dal mondo — Rifugio e attività (EPIC #70)
 
+## Sequenziamento delle azioni del giocatore (#120)
+
+Nella medesima sessione dell'Inventario le intenzioni di cura, equipaggiamento e rimozione sono serializzate da una *lease* effimera del frontend, distinta dalla transazione PostgreSQL. La lease usa il token soltanto per verificare che il giocatore corrente sia ancora il proprietario; non è un permesso di gioco e non sostituisce il controllo JWT del backend. Il completamento asincrono dell'azione può aggiornare React **solo se** la stessa lease è ancora valida. Logout/cambio account invalida le lease e interrompe le richieste ancora aperte, senza fingere che una POST già ricevuta dal server sia stata annullata.
+
+Dopo una cura effettivamente confermata, la UI nasconde immediatamente grant disponibili e slot, poi attende **tre letture autorevoli riuscite** dello stesso account prima di riattivare i comandi. Un errore di refresh mostra il successo già confermato della cura ma non ripristina gli oggetti precedenti: il retry è una GET, non un secondo POST. Un oggetto già consumato non resta riutilizzabile mentre il browser attende risposte lente. Test Node locali (6/6) e TypeScript strict superati sul gate; test Playwright di concorrenza e account-switch scritti ma in attesa di browser.
+
 ## Validazione delle mutazioni off-world (#120)
 
 Le azioni del Rifugio sono intenzioni inviate al server, non aggiornamenti del personaggio calcolati nel browser. Il nuovo `ownerMutationContracts.ts` conferma la **ricevuta server** per cura, riposo ed equipaggiamento: stessa UUID idempotente, grant consumato richiesto, HP e tempi coerenti; `replayed` esplicito; equip/unequip riflessi negli slot ritornati. Un HTTP 200 incompleto o falso resta **ambiguo**: la cura/riposo mantengono la UUID originale nel pulsante Riprova, perché il server potrebbe aver già effettuato il commit. Equip/unequip invece nascondono lo snapshot non affidabile e chiedono una lettura GET autorevole. Tutti gli errori continuano a bloccare le operazioni o a offrire una ripetizione sicura, senza scalare premi/HP locali.

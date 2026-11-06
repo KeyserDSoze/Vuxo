@@ -95,6 +95,20 @@ Mutation-specific release checks:
 - Successful `POST /api/equipment/{grantId}/equip` must include that exact grant in its confirmed loadout; `DELETE /api/equipment/{slot}` must return that slot empty. A contradictory 200 requires read-only refresh and no stale inventory controls.
 - Execute all four scenarios in `tests/owner-mutations.spec.ts` with Chromium, as well as the existing heal/rest/equipment suites, once a local browser setup is available. The four new Playwright tests are **not yet executed**.
 
+## Gate C0d: one in-flight owner mutation and account switch
+
+Offline Node/strict-TypeScript gate for the single-owner action lease:
+
+```bash
+cd src/frontend
+node --experimental-strip-types --test scripts/owner-action-gate.contract.test.mjs
+tsc --noEmit --strict --target ES2022 --module esnext src/features/inventory/ownerActionGate.ts
+```
+
+First local run on Node **22.16.0: 6/6 PASS**, standalone `tsc`: **PASS**. The module ensures only one pending action ticket per authenticated owner, rejects a foreign/anonymous session, and invalidates in-flight responses after logout, account switch and disposal. `npm run test:contracts` also discovers this suite with the others.
+
+When local Playwright is available, run `tests/owner-action-races.spec.ts` (4 new cases, **not executed**): delay a heal POST and its three follow-up GETs, verify no re-use of previous stock; delay equip and verify no overlapping heal; switch accounts during an in-flight equip POST and verify owner B never receives A's loadout; switch accounts during pending rest and ensure owner A's late HP cannot overwrite B. Exercise CORS preflight and ensure **only actual POST/DELETE** count as mutations.
+
 ## Gate C: browser and i18n regression
 
 ```bash
@@ -110,6 +124,7 @@ npx playwright test \
   tests/home-rune-teaser.spec.ts \
   tests/owner-read-contracts.spec.ts \
   tests/owner-mutations.spec.ts \
+  tests/owner-action-races.spec.ts \
   tests/inventory-browse.spec.ts \
   tests/inventory-loadout.spec.ts \
   tests/refuge-preparation.spec.ts \

@@ -10,15 +10,17 @@ export class CharacterItemHealError extends Error {
 }
 
 export async function consumeHealingItem(
-  grantId: string, idempotencyKey: string, signal?: AbortSignal,
+  grantId: string, idempotencyKey: string, accessToken: string,
+  signal?: AbortSignal,
 ): Promise<CharacterItemHealResult> {
-  const token = readStoredSession()?.accessToken;
-  if (!token) throw new CharacterItemHealError('inventory_authentication_required', 401);
+  // Never silently switch to another account's token for a pending intention.
+  if (!accessToken || readStoredSession()?.accessToken !== accessToken)
+    throw new CharacterItemHealError('inventory_authentication_required', 401);
   const response = await fetch(
     getApiBaseUrl() + '/api/characters/me/heal/' + encodeURIComponent(grantId), {
       method: 'POST', cache: 'no-store', signal,
       headers: {
-        Authorization: 'Bearer ' + token,
+        Authorization: 'Bearer ' + accessToken,
         'Idempotency-Key': idempotencyKey,
       },
     });
