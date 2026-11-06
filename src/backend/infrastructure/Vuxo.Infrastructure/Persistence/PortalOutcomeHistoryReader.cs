@@ -1,0 +1,121 @@
+using Microsoft.EntityFrameworkCore;
+using Vuxo.Application.PersonalContent;
+using Vuxo.Domain.PersonalContent;
+using Vuxo.Domain.Players;
+
+namespace Vuxo.Infrastructure.Persistence;
+
+/// <summary>
+/// Owner-bound UNION ALL of three verifiable event families. A failed answer
+/// without a persisted damage receipt, an expired grant, and an unfinished
+/// Guardian encounter are deliberately not asserted as resolved outcomes.
+/// </summary>
+public sealed class PortalOutcomeHistoryReader(VuxoDbContext db)
+    : IPortalOutcomeHistoryReader
+{
+    private const string SequenceAuditPayload = """{"data":{"challengeType":"sequence"}}""";
+
+    public async Task<PortalOutcomeHistoryPage> ListForPlayerAsync(
+        string playerId, int page, int pageSize,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(playerId);
+        if (page is < 1 or > 1000 || pageSize is < 1 or > 50)
+            throw new ArgumentOutOfRangeException(nameof(page), "Pagination is restricted to page 1..1000 and pageSize 1..50.");
+
+        var owner = playerId.Trim();
+
+        // A consumed grant is NOT proof of a sequence win. Only an audited
+        // server-verified challenge consumption supplies that evidence.
+        var completions =
+            from audit in db.GameEvents.AsNoTracking()
+            join grant in db.ExclusiveContentGrants.AsNoTracking()
+                on audit.CausationId equals (Guid?)grant.GrantEventId
+            where audit.PlayerId == owner
+                && audit.EventType == "exclusive_content.consumed"
+                && EF.Functions.JsonContains(audit.PayloadJson, SequenceAuditPayload)
+                && grant.PlayerId == owner
+                && grant.PortalKey == PortalSequenceRules.PortalKey
+                && grant.ConsumedAtUtc != null
+            select new
+            {
+                audit.EventId,
+                GrantId = grant.Id,
+                grant.ContentKey,
+                Kind = PortalOutcomeKinds.SequenceCompleted,
+                audit.RuleVersion,
+                audit.OccurredAtUtc
+            };
+
+        // One canonical damage receipt per grant records the first incorrect
+        // sequence consequence; it is not an aggregate of all failed answers.
+        var mistakes =
+            from mistake in db.PortalMistakeDamages.AsNoTracking()
+            join grant in db.ExclusiveContentGrants.AsNoTracking()
+                on new { Id = mistake.GrantId, mistake.PlayerId }
+                equals new { grant.Id, grant.PlayerId }
+            join audit in db.GameEvents.AsNoTracking()
+                on mistake.EventId equals audit.EventId
+            where mistake.PlayerId == owner && grant.PlayerId == owner
+                && grant.PortalKey == PortalSequenceRules.PortalKey
+                && audit.PlayerId == owner
+                && audit.EventType == "portal.sequence_mistake_damage"
+                && audit.CausationId == grant.GrantEventId
+            select new
+            {
+                audit.EventId,
+                GrantId = grant.Id,
+                grant.ContentKey,
+                Kind = PortalOutcomeKinds.SequenceFirstMistake,
+                audit.RuleVersion,
+                audit.OccurredAtUtc
+            };
+
+        // Terminal PvE turn receipts are immutable and have the matching
+        // server audit event. Retreat is NOT a sequence-challenge failure.
+        var guardianTerminals =
+            from turn in db.PortalGuardianTurns.AsNoTracking()
+            join grant in db.ExclusiveContentGrants.AsNoTracking()
+                on new { Id = turn.PortalGrantId, turn.PlayerId }
+                equals new { grant.Id, grant.PlayerId }
+            join audit in db.GameEvents.AsNoTracking()
+                on turn.TurnEventId equals audit.EventId
+            where turn.PlayerId == owner && grant.PlayerId == owner
+                && grant.PortalKey == PortalSequenceRules.PortalKey
+                && audit.PlayerId == owner
+                && audit.EventType == "portal.guardian_turn_resolved"
+                && audit.CausationId == turn.EncounterEventId
+                && (turn.Outcome == PortalGuardianRules.Victory ||
+                    turn.Outcome == PortalGuardianRules.Retreat)
+            select new
+            {
+                audit.EventId,
+                GrantId = grant.Id,
+                grant.ContentKey,
+                Kind = turn.Outcome == PortalGuardianRules.Victory
+                    ? PortalOutcomeKinds.GuardianVictory
+                    : PortalOutcomeKinds.GuardianRetreat,
+                audit.RuleVersion,
+                audit.OccurredAtUtc
+            };
+
+        // UNION ALL is executed in PostgreSQL, with a single bounded page,
+        // stable tie-break on audit event ID and no unbounded client fetch.
+        var rows = await completions
+            .Concat(mistakes)
+            .Concat(guardianTerminals)
+            .OrderByDescending(row => row.OccurredAtUtc)
+            .ThenByDescending(row => row.EventId)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize + 1)
+            .ToListAsync(cancellationToken);
+
+        return new PortalOutcomeHistoryPage(
+            rows.Take(pageSize)
+                .Select(row => new PortalOutcomeHistoryItem(
+                    row.EventId, row.GrantId, row.ContentKey, row.Kind,
+                    row.RuleVersion, row.OccurredAtUtc))
+                .ToArray(),
+            page, pageSize, rows.Count > pageSize);
+    }
+}

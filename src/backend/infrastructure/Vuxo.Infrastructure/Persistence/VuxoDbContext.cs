@@ -50,6 +50,7 @@ public sealed class VuxoDbContext(DbContextOptions<VuxoDbContext> options) : DbC
             entity.Property(x => x.Outcome).HasMaxLength(16);
             entity.HasIndex(x => new { x.PlayerId, x.IdempotencyKey }).IsUnique();
             entity.HasIndex(x => new { x.EncounterEventId, x.Turn }).IsUnique();
+            entity.HasIndex(x => new { x.PlayerId, x.OccurredAtUtc, x.TurnEventId });
             entity.HasIndex(x => x.TurnEventId).IsUnique();
             entity.HasOne<PlayerCharacterEntity>().WithMany()
                 .HasForeignKey(x => x.CharacterId).OnDelete(DeleteBehavior.Restrict);
@@ -102,6 +103,7 @@ public sealed class VuxoDbContext(DbContextOptions<VuxoDbContext> options) : DbC
             entity.HasIndex(x => new { x.CharacterId, x.IdempotencyKey }).IsUnique();
             entity.HasIndex(x => x.GrantId).IsUnique();
             entity.HasIndex(x => x.EventId).IsUnique();
+
             entity.HasOne<PlayerCharacterEntity>().WithMany()
                 .HasForeignKey(x => x.CharacterId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne<PlayerInventoryAwardEntity>().WithMany()
@@ -121,6 +123,7 @@ public sealed class VuxoDbContext(DbContextOptions<VuxoDbContext> options) : DbC
             entity.Property(x => x.PlayerId).HasMaxLength(200);
             entity.HasIndex(x => x.GrantId).IsUnique();
             entity.HasIndex(x => x.EventId).IsUnique();
+            entity.HasIndex(x => new { x.PlayerId, x.OccurredAtUtc, x.EventId });
             entity.HasOne<PlayerCharacterEntity>().WithMany()
                 .HasForeignKey(x => x.CharacterId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne<ExclusiveContentGrantEntity>().WithMany()

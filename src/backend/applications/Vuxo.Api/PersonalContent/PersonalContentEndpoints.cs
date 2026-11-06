@@ -132,6 +132,26 @@ public static class PersonalContentEndpoints
             })
             .RequireAuthorization();
 
+        // Read-only outcome timeline: only real, auditable consequences,
+        // never inferred failures from absent or expired grants.
+        endpoints.MapGet(
+            "/api/personal-content/history/outcomes",
+            async (ClaimsPrincipal user, IPortalOutcomeHistoryReader history,
+                int? page, int? pageSize, CancellationToken cancellationToken) =>
+            {
+                var playerId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrWhiteSpace(playerId)) return Results.Unauthorized();
+
+                var requestedPage = page ?? 1;
+                var requestedSize = pageSize ?? 20;
+                if (requestedPage is < 1 or > 1000 || requestedSize is < 1 or > 50)
+                    return Results.BadRequest(new { code = "portal_history_invalid_pagination" });
+
+                return Results.Ok(await history.ListForPlayerAsync(
+                    playerId, requestedPage, requestedSize, cancellationToken));
+            })
+            .RequireAuthorization();
+
         // Verified portal completions only: a consumed grant without a
         // sequence challenge audit event is NOT presented as a victory.
         endpoints.MapGet(

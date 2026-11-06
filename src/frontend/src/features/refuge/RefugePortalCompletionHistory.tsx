@@ -2,16 +2,20 @@ import { AutoAwesome, Refresh } from '@mui/icons-material';
 import { Alert, Box, Button, CircularProgress, Paper, Stack, Typography } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { fetchCompletedPortals, type CompletedPortal } from '../portals/portalHistoryApi';
+import { fetchCompletedPortals, fetchPortalOutcomes, type CompletedPortal, type PortalOutcome } from '../portals/portalHistoryApi';
 
 /**
  * Paginated, read-only verified sequence completions.
  * The parent remounts this component on refresh/account change so no owner
  * data or older pagination pages leak into a new read snapshot.
  */
+type HistoryMode = 'completed' | 'outcomes';
+type HistoryEntry = CompletedPortal | PortalOutcome;
+
 export function RefugePortalCompletionHistory() {
   const { t, i18n } = useTranslation();
-  const [entries, setEntries] = useState<CompletedPortal[]>([]);
+  const [mode, setMode] = useState<HistoryMode>('completed');
+  const [entries, setEntries] = useState<HistoryEntry[]>([]);
   const [page, setPage] = useState(1);
   const [attempt, setAttempt] = useState(0);
   const [hasMore, setHasMore] = useState(false);
@@ -23,7 +27,9 @@ export function RefugePortalCompletionHistory() {
     setLoading(true);
     setError(false);
     if (page === 1) setEntries([]);
-    void fetchCompletedPortals(page, 20, controller.signal)
+    void (mode === 'completed'
+      ? fetchCompletedPortals(page, 20, controller.signal)
+      : fetchPortalOutcomes(page, 20, controller.signal))
       .then(result => {
         if (controller.signal.aborted) return;
         setEntries(previous => page === 1 ? result.items : [...previous, ...result.items]);
@@ -36,7 +42,7 @@ export function RefugePortalCompletionHistory() {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [page, attempt]);
+  }, [page, attempt, mode]);
 
   const locale = i18n.resolvedLanguage?.startsWith('en') ? 'en-US' : 'it-IT';
   const formatDate = (value: string) => {
@@ -54,6 +60,16 @@ export function RefugePortalCompletionHistory() {
     setAttempt(previous => previous + 1);
   }
 
+  function chooseMode(nextMode: HistoryMode) {
+    if (nextMode === mode) return;
+    setEntries([]);
+    setHasMore(false);
+    setLoading(true);
+    setError(false);
+    setPage(1);
+    setMode(nextMode);
+  }
+
   return (
     <Paper component="section" aria-labelledby="refuge-journal-completed-title"
       data-testid="refuge-journal-completed" variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>
@@ -63,10 +79,14 @@ export function RefugePortalCompletionHistory() {
           <Box>
             <Typography id="refuge-journal-completed-title" component="h2"
               variant="h5" sx={{ fontWeight: 800 }}>
-              {t('refuge.journal.completed.title')}
+              {t(mode === 'completed'
+                ? 'refuge.journal.completed.title'
+                : 'refuge.journal.outcomes.title')}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              {t('refuge.journal.completed.description')}
+              {t(mode === 'completed'
+                ? 'refuge.journal.completed.description'
+                : 'refuge.journal.outcomes.description')}
             </Typography>
           </Box>
           <Button data-testid="refuge-journal-completed-refresh" startIcon={<Refresh />}
@@ -76,17 +96,37 @@ export function RefugePortalCompletionHistory() {
           </Button>
         </Stack>
 
+        <Stack direction="row" sx={{ gap: 1, flexWrap: 'wrap' }} role="group"
+          aria-label={t('refuge.journal.outcomes.modeLabel')}>
+          <Button data-testid="refuge-journal-mode-completed"
+            aria-pressed={mode === 'completed'}
+            variant={mode === 'completed' ? 'contained' : 'outlined'}
+            onClick={() => chooseMode('completed')} size="small">
+            {t('refuge.journal.outcomes.modes.completed')}
+          </Button>
+          <Button data-testid="refuge-journal-mode-outcomes"
+            aria-pressed={mode === 'outcomes'}
+            variant={mode === 'outcomes' ? 'contained' : 'outlined'}
+            onClick={() => chooseMode('outcomes')} size="small">
+            {t('refuge.journal.outcomes.modes.all')}
+          </Button>
+        </Stack>
+
         {loading && (
           <Stack role="status" direction="row" spacing={1.5} sx={{ alignItems: 'center' }}
             data-testid="refuge-journal-completed-loading">
             <CircularProgress size={23} />
-            <Typography>{t('refuge.journal.completed.loading')}</Typography>
+            <Typography>{t(mode === 'completed'
+              ? 'refuge.journal.completed.loading'
+              : 'refuge.journal.outcomes.loading')}</Typography>
           </Stack>
         )}
         {error && (
           <Stack spacing={1} sx={{ alignItems: 'flex-start' }}>
             <Alert severity="warning" data-testid="refuge-journal-completed-error" role="status">
-              {t('refuge.journal.completed.error')}
+              {t(mode === 'completed'
+                ? 'refuge.journal.completed.error'
+                : 'refuge.journal.outcomes.error')}
             </Alert>
             <Button data-testid="refuge-journal-completed-retry" onClick={() => setAttempt(v => v + 1)}>
               {t('refuge.journal.retry')}
@@ -95,24 +135,34 @@ export function RefugePortalCompletionHistory() {
         )}
         {!loading && !error && entries.length === 0 && (
           <Alert severity="info" data-testid="refuge-journal-completed-empty">
-            {t('refuge.journal.completed.empty')}
+            {t(mode === 'completed'
+              ? 'refuge.journal.completed.empty'
+              : 'refuge.journal.outcomes.empty')}
           </Alert>
         )}
         <Stack spacing={1.25} data-testid="refuge-journal-completed-list">
-          {entries.map(item => (
-            <Paper key={item.grantId} variant="outlined"
-              data-testid="refuge-journal-completed-entry" sx={{ p: 2 }}>
+          {entries.map(item => {
+            const isOutcome = 'kind' in item;
+            const outcomeKind = isOutcome ? item.kind : 'sequence_completed';
+            const date = isOutcome ? item.occurredAtUtc : item.completedAtUtc;
+            return (
+            <Paper key={isOutcome ? item.eventId : item.grantId} variant="outlined"
+              data-kind={outcomeKind} data-testid="refuge-journal-completed-entry" sx={{ p: 2 }}>
               <Stack direction={{ xs: 'column', sm: 'row' }}
                 sx={{ gap: 1, justifyContent: 'space-between', alignItems: { sm: 'flex-start' } }}>
                 <Stack spacing={0.5} sx={{ minWidth: 0 }}>
                   <Stack direction="row" sx={{ gap: 1, alignItems: 'center' }}>
                     <AutoAwesome fontSize="small" color="primary" aria-hidden="true" />
                     <Typography sx={{ fontWeight: 800 }}>
-                      {t('refuge.journal.completed.verified')}
+                      {t(mode === 'completed'
+                        ? 'refuge.journal.completed.verified'
+                        : 'refuge.journal.outcomes.kinds.' + outcomeKind)}
                     </Typography>
                   </Stack>
                   <Typography variant="body2" color="text.secondary">
-                    {t('refuge.journal.completed.at', { date: formatDate(item.completedAtUtc) })}
+                    {t(mode === 'completed'
+                      ? 'refuge.journal.completed.at'
+                      : 'refuge.journal.outcomes.at', { date: formatDate(date) })}
                   </Typography>
                   <Typography variant="caption" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>
                     {t('refuge.journal.completed.reference', { reference: item.grantId.slice(0, 8) })}
@@ -126,17 +176,21 @@ export function RefugePortalCompletionHistory() {
                 </Stack>
               </Stack>
             </Paper>
-          ))}
+          );})}
         </Stack>
         {!loading && !error && hasMore && (
           <Button data-testid="refuge-journal-completed-more" variant="outlined"
             onClick={() => setPage(value => value + 1)} sx={{ alignSelf: 'flex-start' }}>
-            {t('refuge.journal.completed.more')}
+            {t(mode === 'completed'
+              ? 'refuge.journal.completed.more'
+              : 'refuge.journal.outcomes.more')}
           </Button>
         )}
         <Typography variant="caption" color="text.secondary"
           data-testid="refuge-journal-completed-disclaimer">
-          {t('refuge.journal.completed.disclaimer')}
+          {t(mode === 'completed'
+            ? 'refuge.journal.completed.disclaimer'
+            : 'refuge.journal.outcomes.disclaimer')}
         </Typography>
       </Stack>
     </Paper>
