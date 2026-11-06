@@ -130,6 +130,86 @@ public sealed class OffworldRunPersistenceTests
     }
 
     [PostgresIntegrationFact]
+    public async Task History_IsOwnerScopedNewestFirstBoundedAndReadOnly()
+    {
+        await using var database = await PostgresDatabaseScope.CreateAsync();
+        await SeedAsync(database);
+        var clock = new DateTimeOffset(2026, 11, 6, 12, 0, 0, TimeSpan.Zero);
+        var firstKey = Guid.NewGuid();
+        Guid firstId;
+        await using (var db = database.CreateDbContext())
+        {
+            firstId = (await Repository(db).StartAsync("player-a", firstKey, clock)).RunId;
+        }
+
+        // Effective expiry must be visible even before a materializing write.
+        await using (var db = database.CreateDbContext())
+        {
+            var expired = await Repository(db).GetHistoryAsync("player-a", 10,
+                clock.AddMinutes(6));
+            var first = Assert.Single(expired);
+            Assert.Equal(firstId, first.RunId);
+            Assert.Equal(OffworldRunRules.Expired, first.State);
+            Assert.Null(first.StepsChecked);
+            Assert.Empty(await Repository(db).GetHistoryAsync("player-b", 10,
+                clock.AddMinutes(6)));
+        }
+        await using (var check = database.CreateDbContext())
+        {
+            // A history request must not update the persisted row or audit.
+            Assert.Equal(OffworldRunRules.Active,
+                (await check.OffworldActivityRuns.SingleAsync()).State);
+            Assert.Single((await new GameEventStore(check).QueryAsync(
+                new GameEventQuery(PlayerId: "player-a"))).Items);
+        }
+
+        Guid secondId;
+        await using (var db = database.CreateDbContext())
+        {
+            var second = await Repository(db).StartAsync("player-a",
+                Guid.NewGuid(), clock.AddMinutes(6));
+            secondId = second.RunId;
+            await Repository(db).CompleteAsync("player-a", secondId,
+                Guid.NewGuid(), Solve(second.PuzzleIndex), clock.AddMinutes(6).AddSeconds(15));
+        }
+
+        Guid newestId;
+        await using (var db = database.CreateDbContext())
+        {
+            newestId = (await Repository(db).StartAsync("player-a",
+                Guid.NewGuid(), clock.AddMinutes(9))).RunId;
+        }
+
+        await using (var db = database.CreateDbContext())
+        {
+            var rows = await Repository(db).GetHistoryAsync("player-a", 10,
+                clock.AddMinutes(9).AddSeconds(1));
+            Assert.Equal(new[] { newestId, secondId, firstId },
+                rows.Select(row => row.RunId).ToArray());
+            Assert.Equal(
+                new[] { OffworldRunRules.Active, OffworldRunRules.Completed,
+                    OffworldRunRules.Expired },
+                rows.Select(row => row.State).ToArray());
+            Assert.Null(rows[0].StepsChecked);
+            Assert.Equal(6, rows[1].StepsChecked);
+            Assert.Null(rows[2].CompletedAtUtc);
+            var bounded = await Repository(db).GetHistoryAsync("player-a", 1,
+                clock.AddMinutes(10));
+            Assert.Single(bounded);
+            Assert.Equal(newestId, bounded[0].RunId);
+            Assert.Empty(await Repository(db).GetHistoryAsync("player-b", 20,
+                clock.AddMinutes(10)));
+        }
+
+        await using var verify = database.CreateDbContext();
+        Assert.Equal(3, await verify.OffworldActivityRuns.CountAsync());
+        var eventCount = (await new GameEventStore(verify).QueryAsync(
+            new GameEventQuery(PlayerId: "player-a", Limit: 100))).Items.Count;
+        // First start + expiry, second start + completion, third start.
+        Assert.Equal(5, eventCount);
+    }
+
+    [PostgresIntegrationFact]
     public async Task ConcurrentStarts_OnlyOneTicketIsActive_AcrossDbContexts()
     {
         await using var database = await PostgresDatabaseScope.CreateAsync();
