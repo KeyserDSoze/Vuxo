@@ -6,6 +6,7 @@ import { Link as RouterLink } from 'react-router-dom';
 import { useStoredSession } from '../features/auth/useStoredSession';
 import { VerifiedRunePathPanel } from '../features/refuge/VerifiedRunePathPanel';
 import { RunePathHistoryPanel } from '../features/refuge/RunePathHistoryPanel';
+import { RunePathProgressPanel } from '../features/refuge/RunePathProgressPanel';
 
 // Three small, fixed, solvable puzzles. These are local practice maps, never
 // server-verified portal layouts or authoritative player positions.
@@ -117,6 +118,8 @@ export function RunePathPage() {
           <VerifiedRunePathPanel
             accessToken={session.accessToken} playerId={session.user.id}
             onRunChanged={notifyHistory} />
+          <RunePathProgressPanel
+            accessToken={session.accessToken} refreshSignal={historyVersion} />
           <RunePathHistoryPanel
             accessToken={session.accessToken} refreshSignal={historyVersion} />
         </Stack>
