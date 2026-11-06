@@ -66,8 +66,9 @@ function array(value: unknown, code: string): unknown[] {
   if (!Array.isArray(value)) return bad(code);
   return value;
 }
-function noDuplicates(values: string[], code: string): void {
-  if (new Set(values).size !== values.length) bad(code);
+function noDuplicates(values: string[], code: string, uuidIdentity = false): void {
+  const identities = uuidIdentity ? values.map(value => value.toLowerCase()) : values;
+  if (new Set(identities).size !== values.length) bad(code);
 }
 
 export function parsePlayerInventory(value: unknown): InventoryAward[] {
@@ -82,7 +83,7 @@ export function parsePlayerInventory(value: unknown): InventoryAward[] {
       ...(row.consumed === undefined ? {} : { consumed: row.consumed as boolean }),
     };
   });
-  noDuplicates(awards.map(item => item.grantId), code);
+  noDuplicates(awards.map(item => item.grantId), code, true);
   return awards;
 }
 
@@ -99,7 +100,7 @@ export function parseInventoryStacks(value: unknown): InventoryStack[] {
     return { itemKey: text(row.itemKey, code), quantity, equippedQuantity, availableGrantIds };
   });
   noDuplicates(stacks.map(stack => stack.itemKey), code);
-  noDuplicates(allGrants, code);
+  noDuplicates(allGrants, code, true);
   return stacks;
 }
 
@@ -115,7 +116,7 @@ export function parseEquipmentView(value: unknown): EquipmentView {
     };
   });
   noDuplicates(items.map(item => item.slot), code);
-  noDuplicates(items.map(item => item.grantId), code);
+  noDuplicates(items.map(item => item.grantId), code, true);
   let stats: EffectiveEquipmentStats | null = null;
   if (model.stats !== null) {
     const values = object(model.stats, code);
