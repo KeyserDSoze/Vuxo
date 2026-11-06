@@ -336,6 +336,19 @@
 }
 .vuxo-landing__hero[data-awake="true"] .vuxo-landing__portal-swirl { animation-duration: 3.5s; }
 .vuxo-landing__hero[data-awake="true"] .vuxo-landing__portal-shadow { opacity: .56; }
+.vuxo-landing__hero[data-sigil="success"] .vuxo-landing__portal-ring--outer {
+  box-shadow: 0 0 28px var(--landing-accent), inset 0 0 30px var(--landing-accent), 0 0 100px color-mix(in srgb, var(--landing-accent) 65%, transparent);
+  animation: vuxo-sigil-awaken .9s ease-out both;
+}
+.vuxo-landing__hero[data-sigil="success"] .vuxo-landing__portal-shadow { opacity: .9; }
+.vuxo-landing__hero[data-sigil="failure"] .vuxo-landing__portal-ring--outer {
+  filter: saturate(.5);
+  opacity: .65;
+}
+@keyframes vuxo-sigil-awaken {
+  from { transform: scale(.92); opacity: .5; }
+  to { transform: scale(1); opacity: 1; }
+}
 .vuxo-landing__scene-footer {
   position: absolute;
   left: 52px;
@@ -436,7 +449,8 @@
 @media (prefers-reduced-motion: reduce) {
   .vuxo-landing__star, .vuxo-landing__portal-aura, .vuxo-landing__portal-ring::before,
   .vuxo-landing__portal-ring::after, .vuxo-landing__portal-swirl,
-  .vuxo-landing__portal-glyph, .vuxo-landing__portal-instruction-pulse { animation: none !important; }
+  .vuxo-landing__portal-glyph, .vuxo-landing__portal-instruction-pulse,
+  .vuxo-landing__hero[data-sigil="success"] .vuxo-landing__portal-ring--outer { animation: none !important; }
   .vuxo-landing__portal, .vuxo-landing__scene-parallax, .vuxo-landing__path,
   .vuxo-landing__primary.MuiButton-root { transition: none !important; }
 }

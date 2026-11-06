@@ -32,7 +32,25 @@ const initialization = i18n.use(initReactI18next).init({
           portal: {
             toggle: 'Risveglia o calma il portale',
             hint: 'Tocca il portale per risvegliarlo',
-            awake: 'Il portale risplende! Toccalo di nuovo per calmarlo.'
+            awake: 'Il portale risplende! Il sigillo ti aspetta appena sotto.'
+          },
+          teaser: {
+            eyebrow: 'Il portale si è risvegliato',
+            title: 'Decifra il sigillo',
+            description: 'Un piccolo assaggio dell’avventura: osserva tre rune, memorizza l’ordine e prova a riaprirne il passaggio.',
+            disclaimer: 'Solo una prova locale: nessun premio, XP o progresso viene salvato.',
+            memorize: 'Memorizza queste rune nell’ordine mostrato.',
+            ready: 'Sono pronto',
+            repeat: 'Ora ripeti la sequenza e apri il sigillo.',
+            progress: 'Rune scelte: {{count}} di {{total}}',
+            runeChoices: 'Scegli le rune nell’ordine corretto',
+            restart: 'Ricomincia',
+            undo: 'Annulla ultima runa',
+            failure: 'Il sigillo non si è aperto. Osserva di nuovo le rune e riprova.',
+            retry: 'Osserva di nuovo',
+            success: 'Sigillo aperto! Il percorso scelto ti attende.',
+            continue: 'Prosegui verso il percorso',
+            again: 'Rigioca il sigillo'
           },
           features: {
             character: {
@@ -53,6 +71,93 @@ const initialization = i18n.use(initReactI18next).init({
           }
         },
         refuge: {
+          journey: {
+            title: 'Il prossimo passo',
+            description: 'Una guida pratica basata sulle informazioni disponibili. Scegli tu dove andare.',
+            step: 'Controllo {{index}}',
+            tone: { positive: 'Verificato', caution: 'Da valutare', unknown: 'Da verificare' },
+            disclaimer: 'Sono suggerimenti, non un giudizio di prontezza. Il server verifica sempre le regole di cura, inventario e incontri.',
+            actions: {
+              reviewHealth: 'Controlla cura e riposo',
+              character: 'Consulta il personaggio',
+              training: 'Allenati con le rune',
+              inventory: 'Apri inventario',
+              portals: 'Vai ai portali',
+              refresh: 'Rileggi i dati'
+            },
+            steps: {
+              health: {
+                down: {
+                  title: 'Il tuo Vuxian è a zero HP',
+                  description: 'Il riposo e il Seme del Bosco non funzionano a zero HP. Consulta lo stato del personaggio: questo non è un metodo di guarigione.'
+                },
+                recover: {
+                  title: 'Puoi recuperare salute',
+                  description: 'Non sei al massimo degli HP. Verifica riposo e cura: cooldown e incontri attivi sono sempre controllati dal server.'
+                },
+                full: {
+                  title: 'Salute al massimo',
+                  description: 'Gli HP letti dal server sono pieni. Se vuoi, sfrutta il Rifugio per allenare la memoria delle rune.'
+                }
+              },
+              equipment: {
+                unknown: {
+                  title: 'Equipaggiamento non verificato',
+                  description: 'Il server non ha confermato gli slot. Non possiamo sapere se siano vuoti o occupati.'
+                },
+                empty: {
+                  title: 'Nessuno slot equipaggiato',
+                  description: 'Reliquia e Amuleto risultano vuoti. Nell’inventario puoi controllare gli oggetti disponibili.'
+                },
+                partial: {
+                  title: 'Un solo slot equipaggiato',
+                  description: 'Uno tra Reliquia e Amuleto risulta vuoto. Controlla l’inventario per gli oggetti compatibili.'
+                },
+                equipped: {
+                  title: 'Entrambi gli slot occupati',
+                  description: 'Il server segnala Reliquia e Amuleto equipaggiati. Puoi comunque rivedere gli oggetti nell’inventario.'
+                }
+              },
+              encounter: {
+                unknown: {
+                  title: 'Incontro non verificato',
+                  description: 'Lo stato del portale non è disponibile. Non possiamo presumere che l’incontro sia terminato.'
+                },
+                active: {
+                  title: 'Incontro del portale in corso',
+                  description: 'Il server segnala un incontro attivo. Controlla il portale prima di tentare azioni che possono essere bloccate.'
+                },
+                idle: {
+                  title: 'Nessun incontro attivo segnalato',
+                  description: 'L’ultima lettura non indica incontri attivi. Puoi consultare i portali; il server decide quali azioni sono ammesse.'
+                }
+              }
+            }
+          },
+          preparation: {
+            title: 'Preparazione all’avventura',
+            description: 'Dati di sola lettura dal tuo personaggio e dalle API VUXO. Non sostituisce i controlli del server.',
+            refresh: 'Aggiorna preparazione',
+            loading: 'Caricamento preparazione…',
+            health: 'Salute',
+            hp: {
+              full: 'HP al massimo',
+              incomplete: 'HP da recuperare',
+              down: 'Zero HP: consulta le opzioni di cura'
+            },
+            equipment: 'Equipaggiamento',
+            slots: { relic: 'Reliquia', charm: 'Amuleto' },
+            empty: 'Slot vuoto',
+            unknownItem: 'Oggetto equipaggiato',
+            equipmentUnavailable: 'Impossibile leggere l’equipaggiamento. Riprova.',
+            encounter: 'Stato portale',
+            encounterActive: 'Incontro del portale attivo',
+            encounterIdle: 'Nessun incontro attivo segnalato',
+            encounterUnavailable: 'Impossibile leggere lo stato dell’incontro. Non presumere che sia libero.',
+            openInventory: 'Gestisci inventario',
+            openPortals: 'Apri i portali',
+            openWorld: 'Entra nel mondo'
+          },
           journal: {
             title: 'Diario del Rifugio',
             description: 'Rivedi ricompense, sfide ancora disponibili e portali completati con prova del server, fuori dalla mappa.',
@@ -336,6 +441,35 @@ const initialization = i18n.use(initReactI18next).init({
           awardedAt: 'Ottenuto il {{date}}',
           quantity: 'Quantità: {{count}}',
           stacksTitle: 'Pile di oggetti',
+          loadout: {
+            title: 'Il tuo equipaggiamento',
+            description: 'Reliquia e amuleto confermati dal server. Scegli cosa indossare dalle pile disponibili.',
+            loading: 'Sincronizzazione equipaggiamento…',
+            refresh: 'Aggiorna equipaggiamento',
+            empty: 'Nessun oggetto equipaggiato',
+            unknownItem: 'Oggetto equipaggiato',
+            equipped: 'Equipaggiato',
+            slotEmpty: 'Slot vuoto',
+            unequip: 'Rimuovi dallo slot',
+            replaceHint: 'Per sostituire questo oggetto, rimuovilo prima dallo slot.'
+            find: 'Cerca oggetti compatibili',
+            healingNote: 'Per consumare il Seme del Bosco come cura, rimuovilo prima dallo slot Amuleto.',
+            serverNote: 'Solo il server conferma equipaggiamento e consumi. La ricerca non cambia gli oggetti.'
+          },
+          browse: {
+            title: 'Trova i tuoi oggetti',
+            search: 'Cerca oggetti',
+            searchHint: 'Nome o codice dell’oggetto',
+            slotLabel: 'Slot',
+            slots: { all: 'Tutti gli slot' },
+            filterLabel: 'Mostra',
+            sortLabel: 'Ordina per',
+            filters: { all: 'Tutti', equipped: 'Equipaggiati', available: 'Disponibili' },
+            sorts: { name: 'Nome', quantity: 'Quantità (decrescente)' },
+            results: 'Voci visualizzate: {{shown}} su {{total}}',
+            noMatches: 'Nessun oggetto corrisponde a questi filtri. Gli oggetti non sono stati rimossi.',
+            clear: 'Cancella filtri'
+          },
           stackQuantity: 'Copie possedute: {{count}}',
           equippedQuantity: 'Equipaggiate: {{count}}',
           equip: 'Equipaggia',
@@ -490,7 +624,25 @@ const initialization = i18n.use(initReactI18next).init({
           portal: {
             toggle: 'Awaken or quiet the portal',
             hint: 'Touch the portal to awaken it',
-            awake: 'The portal is glowing! Touch again to quiet it.'
+            awake: 'The portal is glowing! Decode the sigil just below.'
+          },
+          teaser: {
+            eyebrow: 'The portal has awakened',
+            title: 'Decode the sigil',
+            description: 'A taste of the adventure: study three runes, remember their order, then try to reopen the passage.',
+            disclaimer: 'Local practice only: no rewards, XP or progress are saved.',
+            memorize: 'Remember these runes in the order shown.',
+            ready: "I'm ready",
+            repeat: 'Now repeat the sequence to open the sigil.',
+            progress: 'Runes selected: {{count}} of {{total}}',
+            runeChoices: 'Choose the runes in the correct order',
+            restart: 'Start over',
+            undo: 'Undo last rune',
+            failure: 'The sigil did not open. Study the runes and try again.',
+            retry: 'Study again',
+            success: 'Sigil unlocked! Your chosen path awaits.',
+            continue: 'Continue to your path',
+            again: 'Play the sigil again'
           },
           features: {
             character: {
@@ -511,6 +663,93 @@ const initialization = i18n.use(initReactI18next).init({
           }
         },
         refuge: {
+          journey: {
+            title: 'Your next step',
+            description: 'A practical guide based on the available information. You choose where to go.',
+            step: 'Check {{index}}',
+            tone: { positive: 'Checked', caution: 'Review', unknown: 'Not verified' },
+            disclaimer: 'These are suggestions, not a readiness score. The server always checks healing, inventory and encounter rules.',
+            actions: {
+              reviewHealth: 'Review healing and rest',
+              character: 'View character',
+              training: 'Practice runes',
+              inventory: 'Open inventory',
+              portals: 'Visit portals',
+              refresh: 'Refresh data'
+            },
+            steps: {
+              health: {
+                down: {
+                  title: 'Your Vuxian has zero HP',
+                  description: 'Rest and Grove Seeds cannot heal at zero HP. Review your character status; this does not restore health.'
+                },
+                recover: {
+                  title: 'Health can be restored',
+                  description: 'Your HP is below maximum. Review rest and healing: the server still checks cooldowns and active encounters.'
+                },
+                full: {
+                  title: 'Health is full',
+                  description: 'The server reports full HP. You can use Refuge to practice your rune memory.'
+                }
+              },
+              equipment: {
+                unknown: {
+                  title: 'Equipment not verified',
+                  description: 'The server did not confirm your slots. We cannot tell whether they are empty or equipped.'
+                },
+                empty: {
+                  title: 'No equipment slots filled',
+                  description: 'Relic and Charm are both empty. Open Inventory to see your available items.'
+                },
+                partial: {
+                  title: 'One equipment slot filled',
+                  description: 'Either Relic or Charm is empty. Review compatible items in your Inventory.'
+                },
+                equipped: {
+                  title: 'Both equipment slots filled',
+                  description: 'The server reports an equipped Relic and Charm. You can still review your loadout in Inventory.'
+                }
+              },
+              encounter: {
+                unknown: {
+                  title: 'Encounter not verified',
+                  description: 'The portal status is unavailable. We cannot assume an encounter has finished.'
+                },
+                active: {
+                  title: 'Portal encounter in progress',
+                  description: 'The server reports an active encounter. Check the portal before trying actions that may be restricted.'
+                },
+                idle: {
+                  title: 'No active encounter reported',
+                  description: 'The latest read reports no active encounter. Browse portals; the server still decides which actions are allowed.'
+                }
+              }
+            }
+          },
+          preparation: {
+            title: 'Adventure preparation',
+            description: 'Read-only information from your character and VUXO APIs. The server still verifies every action.',
+            refresh: 'Refresh preparation',
+            loading: 'Loading preparation…',
+            health: 'Health',
+            hp: {
+              full: 'Full HP',
+              incomplete: 'HP to recover',
+              down: 'Zero HP: review healing options'
+            },
+            equipment: 'Equipment',
+            slots: { relic: 'Relic', charm: 'Charm' },
+            empty: 'Empty slot',
+            unknownItem: 'Equipped item',
+            equipmentUnavailable: 'Could not load equipment. Please retry.',
+            encounter: 'Portal status',
+            encounterActive: 'Portal encounter active',
+            encounterIdle: 'No active encounter reported',
+            encounterUnavailable: 'Could not load encounter status. Do not assume it is clear.',
+            openInventory: 'Manage inventory',
+            openPortals: 'Open portals',
+            openWorld: 'Enter the world'
+          },
           journal: {
             title: 'Refuge journal',
             description: 'Review rewards, available challenges and server-verified completed portals outside the 2D world.',
@@ -794,6 +1033,35 @@ const initialization = i18n.use(initReactI18next).init({
           awardedAt: 'Earned on {{date}}',
           quantity: 'Quantity: {{count}}',
           stacksTitle: 'Item stacks',
+          loadout: {
+            title: 'Your equipment',
+            description: 'Server-confirmed relic and charm slots. Choose what to wear from your available stacks.',
+            loading: 'Synchronizing equipment…',
+            refresh: 'Refresh equipment',
+            empty: 'No item equipped',
+            unknownItem: 'Equipped item',
+            equipped: 'Equipped',
+            slotEmpty: 'Empty slot',
+            unequip: 'Unequip slot',
+            replaceHint: 'To replace this item, unequip it from the slot first.'
+            find: 'Find compatible items',
+            healingNote: 'To consume a Grove Seed for healing, first unequip it from the Charm slot.',
+            serverNote: 'Only the server confirms equipment and consumption. Browsing does not change items.'
+          },
+          browse: {
+            title: 'Find your items',
+            search: 'Search items',
+            searchHint: 'Item name or key',
+            slotLabel: 'Slot',
+            slots: { all: 'All slots' },
+            filterLabel: 'Show',
+            sortLabel: 'Sort by',
+            filters: { all: 'All', equipped: 'Equipped', available: 'Available' },
+            sorts: { name: 'Name', quantity: 'Quantity (high to low)' },
+            results: 'Entries shown: {{shown}} of {{total}}',
+            noMatches: 'No items match these filters. Your items have not been removed.',
+            clear: 'Clear filters'
+          },
           stackQuantity: 'Owned copies: {{count}}',
           equippedQuantity: 'Equipped: {{count}}',
           equip: 'Equip',

@@ -59,6 +59,61 @@ Un Diario navigabile da `/#/refuge` tramite `/#/refuge/journal` riunisce le info
 
 La suite Playwright introdotta da #118 copre guest, ordinamento cronologico, portali disponibili (non altri contenuti), filtri, errori/retry parziali, refresh globale, cambio account/logout e mobile inglese/dark senza Phaser o mutazioni. **Test non eseguiti** mentre quota Actions #112 resta bloccata. La feature deve rimanere su branch isolato fino a build/CI e review.
 
+## Integrazione delle esperienze off-world — issue #120
+
+Le superfici del gioco esterne a Phaser sono finalmente rappresentate in **un unico snapshot di codice di lavoro**: home con sigillo giocabile, inventario con filtri e slot Reliquia/Amuleto, Rifugio con salute autorevole + preparazione + guida alla prossima attività, Diario con assegnazioni inventario, portali disponibili, completamenti ed esiti auditati, ricompense collegate per causalità. L'integrazione non cambia gameplay e non sostituisce i controlli di proprietà o ricompensa del backend.
+
+La `RefugePage` combina le modifiche concorrenti: mantiene lo stato salute per token e il refresh coerente di preparazione (branch #117), **oltre** alla scheda Diario (branch #119). Il file delle risorse `i18n.ts` unisce, in entrambi i dizionari IT/EN, le sezioni `home.teaser`, `inventory.browse/loadout`, `refuge.preparation/journey/journal` e i dettagli delle ricompense verificate. I componenti, le API e i test originali dei branch restano intatti per consentire regressioni specifiche. Tre nuovi test Playwright sul branch integrato validano percorsi congiunti guest/owner e mobile.
+
+La struttura dei branch originali è preservata per audit e debug. **Il nuovo branch non è una release o un merge su main**, e nessuna suite è stata eseguita realmente in assenza di capacità CI (#112). La successiva revisione deve includere `npm run build`, test React/Playwright, `dotnet test`, integrazioni PostgreSQL/migrazioni e controllo del deploy GitHub Pages prima di qualunque merge.
+
+## Gestione del loadout nell'Inventario — issue #116
+
+La UI mostra i due slot correnti **solo quando** la lettura congiunta `GET /api/equipment` e `GET /api/inventory/stacks` è riuscita. Un caricamento incompleto o un errore non sono equivalenti a slot vuoto e non possono abilitare azioni sull'equipaggiamento.
+
+- L'utente può vedere **Reliquia** e **Amuleto**, trovare in inventario i tipi di oggetto compatibili usando il filtro locale `slot=relic|charm` insieme a `Disponibili`, ed equipaggiare con la POST già presente dalla pila. La tabella canonica `itemKey -> slot` rimane un'allowlist; il server verifica proprietà, grant e slot.
+- L'azione **Rimuovi dallo slot** è la DELETE owner-only esistente. Non sono consentite operazioni di swap automatico, mutazioni basate sullo score di UI né consumi/HP calcolati dal client.
+- L'evento di mutation riesce solo quando il server lo conferma. Per mostrare il nuovo stato, UI usa la risposta `EquipmentView` canonica **e** una nuova lettura delle pile. Una GET fallita o una risposta di mutation incerta nasconde il vecchio snapshot, blocca altre azioni e propone esclusivamente il refresh delle GET senza ripetere la mutation. Il refresh manuale azzera prima i dati potenzialmente stale e rilegge anche la cronologia dei grant inventario. Dopo una cura confermata ma non sincronizzata, la UI nasconde pile, premi e slot precedenti e non ripete il consumo: recupera lo stato via sole GET.
+- Un Seme del Bosco equipaggiato come amuleto va rimosso prima di richiedere la cura; i vincoli del server su lock, salute e idempotenza del consumabile non cambiano. Il pulsante esistente `HealingItemAction` usa correttamente le traduzioni `translation.inventory.*`.
+- Accessibilità: pulsanti focusabili, etichette IT/EN, nessuna animazione obbligatoria, card mobile 320px e temi MUI. Cambio account mantenuto isolato tramite remount del componente implementato in #115.
+
+Sette scenari Playwright predisposti, **non eseguiti** mentre GitHub Actions è bloccata dalla quota #112. Workstream stacked su `feature/115-inventory-browse`; merge e release solo dopo convalida.
+
+## Inventario consultabile — issue #115
+
+Le ricompense e le pile sono ancora e soltanto quelle lette dalle API owner-only `GET /api/inventory`, `GET /api/inventory/stacks` e `GET /api/equipment`. L'interfaccia React/MUI può filtrare e ordinare **in memoria** il materiale già caricato, senza introdurre query di ricerca al backend o alterare gli ID di grant.
+
+- Ricerca per nome localizzato o `itemKey` canonico, case/accent insensitive, con cambio lingua senza perdere le scelte.
+- Filtro Equipaggiati: grant ID effettivamente presenti in `equipment.items` e relativi `itemKey` per le pile; filtro Disponibili: grant ID in `inventory/stacks[].availableGrantIds`. Un item storico consumato non diventa nuovamente disponibile grazie a un filtro.
+- Sort per nome (collator IT/EN) o quantità decrescente, deterministic fallback per ID. Risultato senza corrispondenze non equivale a inventario vuoto e può essere azzerato.
+- L'area di navigazione/ricerca appare solo quando i dati necessari sono stati effettivamente caricati; se equipment/stack sono indisponibili, l'errore server resta visibile e non si mostrano filtri dalla falsa certezza.
+- L'intera vista inventario è `key`ed sul token di sessione, quindi al cambio account i dati e i filtri precedenti si smontano subito e le richieste dell'utente precedente vengono abortite. Non persistiamo preferenze di ricerca, risultati o risorse del personaggio.
+- Qualsiasi equip/unequip/consume continua a inviare solo intenzioni alle API esistenti, con gli stessi controlli server-side: il filtro non autorizza alcun premio o cura.
+
+Nuovi test Playwright per anonimato, ricerca IT/EN/Unicode, filtri di grant e item consumati, ordinamento, filtro senza risultati, nessuna nuova chiamata API, viewport scuro 320px e cambio sessione. Verifica CI e merge sospesi fino al ripristino della quota Actions (#112).
+
+## Percorso guidato di preparazione — issue #117
+
+La nuova guida contestuale `RefugeJourneyGuide` è interna al pannello `RefugePreparationBoard` dell'issue #114 e usa **gli stessi dati già letti**, senza endpoint aggiuntivi. La funzione pura `deriveJourneySteps` restituisce indicazioni, mai un punteggio di prontezza o un flag di autorizzazione:
+- Salute: 0 HP significa che riposo e Seme del Bosco non possono curare il personaggio secondo le regole correnti; il link porta alla scheda personaggio solo per consultazione. HP non pieni rimandano alla sezione Cura/Riposo già presente nel Rifugio; HP pieni offrono l'allenamento libero delle rune.
+- Equipaggiamento: 0, 1 o 2 slot confermati porta all'Inventario; se la richiesta fallisce, lo stato rimane **non verificato** con proposta di rilettura. Gli slot realmente equipaggiati provengono da `GET /api/equipment`.
+- Portali: incontro attivo porta alla pagina portali; assente propone consultazione; risposta fallita resta **stato sconosciuto** e permette un refresh. Lo stato è solo informativo: il server continua a verificare eventuali lock per combattimenti, cura e riposo.
+
+**Correzione refresh #114:** prima il pulsante incrementava solo il contatore di caricamento salute mentre `RefugePreparationBoard` aggiornava equipaggiamento e incontro soltanto quando cambiava il token. Ora il refresh invalida immediatamente i dati salute del token attivo, smonta la guida e ricarica la salute; dopo la nuova risposta del server ricrea `RefugePreparationBoard`, che legge di nuovo equipaggiamento e incontro. I risultati vecchi non restano visibili accanto a quelli nuovi durante la sincronizzazione. Ogni GET mantiene `AbortController` e cancellazione all'unmount. Su guest, 404 salute e logout il pannello non appare e nessuna GET di equipment/encounter viene effettuata dalla guida.
+
+La guida non salva una checklist o inventa missioni, non concede premi e non abilita né blocca pulsanti di gioco: le restrizioni restano autorevoli sul backend. Copie IT/EN, uso tastiera e viewport 320px. Nuovi test Playwright: piena salute, ferite/scroll al riposo, 0 HP, errori parziali+retry completo, ospite/404, cambio token/logout, EN/dark/mobile senza Phaser. CI in sospeso per quota Actions #112; sviluppo stacked sulla branch dell'issue #114.
+
+## Preparazione dell’avventura — issue #114 (UI di sola lettura)
+
+Il Rifugio può mostrare un **riepilogo della sessione** senza creare uno stato di gameplay parallelo. Il componente `RefugePreparationBoard` legge solo le API già esistenti (nessuna nuova route backend):
+- `GET /api/characters/me/health`: riutilizza i valori canonici già caricati in `RefugePage`, legati al token effettivo della sessione, comprese le modifiche confermate dal riposo server-side;
+- `GET /api/equipment`: due slot relic/charm effettivi, senza inferire che uno slot non letto sia vuoto;
+- `GET /api/characters/me/encounter`: stato attivo/non attivo, oppure sconosciuto se il server non risponde. La UI **non** decide se riposo, cura o ingresso nel mondo siano ammessi; la validazione e i blocchi restano nel backend.
+
+Il pannello compare solo con sessione e personaggio esistenti: gli ospiti e i 404 salute non richiedono dati di equipaggiamento/incontro. Il cambio account smonta il pannello e la vista HP non mostra risultati appartenenti al token precedente; ogni richiesta è cancellabile tramite AbortController. Il refresh manuale rilegge salute, equipaggiamento e incontro. La visualizzazione di HP mancanti/zero è soltanto informativa, senza score di prontezza, missioni, premi o persistenza nel browser.
+
+I test Playwright includono utente guest, stato autenticato con equipaggiamento e incontro attivi, fallimenti parziali e recupero, 404, switch/logout, aggiornamento dopo riposo server, i18n English/dark/mobile 320px. La validazione CI resta in sospeso per quota Actions esaurita (#112): non mergiare o distribuire finché non sono verificate build e suite.
+
 ## MVP 0.0.1 — issue #71
 
 - Route \`/#/refuge\`: accesso tramite home/menu, contenuti chiari e responsive, collegamenti agli editor/personaggio, inventario/equipaggiamento, portali personali e mondo.
