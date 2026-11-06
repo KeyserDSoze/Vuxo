@@ -31,6 +31,17 @@ public static class OffworldRunEndpoints
 
         // Discovery is read-only and owner-scoped. An unknown, expired or
         // completed run must never be returned, including to a second device.
+        // These milestones are server-derived practice statistics, never XP,
+        // inventory, unlocks or a claim that a human solved the fixed board.
+        endpoints.MapGet("/api/activities/runs/progress/rune-path", async (
+            ClaimsPrincipal user, OffworldRunService service,
+            CancellationToken cancellationToken) =>
+        {
+            var owner = user.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrWhiteSpace(owner)) return Results.Unauthorized();
+            return Results.Ok(await service.GetPracticeProgressAsync(owner, cancellationToken));
+        }).RequireAuthorization().RequireRateLimiting("activity-run");
+
         // A bounded, strictly read-only archive with no private proof or keys.
         // Put the literal history path ahead of the dynamic run ID route.
         endpoints.MapGet("/api/activities/runs/history/rune-path", async (
