@@ -52,6 +52,12 @@ dotnet test Vuxo.sln -c Release --no-build
 - Migrations `202611060001`, `202611060002` and `202611060003` applied in order against a disposable database.
 - Failed/expired/grant-only records are never labeled completed without a supported audit event.
 
+## CORS/preflight regression gate (QA fix #120)
+
+The Playwright fixtures in `inventory-loadout.spec.ts`, `inventory-browse.spec.ts`, `refuge-preparation.spec.ts` and `refuge-journey.spec.ts` now provide `Access-Control-Allow-Origin`, `Access-Control-Allow-Headers` for `Authorization, Content-Type, Idempotency-Key`, and explicit methods. **OPTIONS is a browser preflight, not an equipment mutation or a heal/rest request.** When a mocked DELETE/POST is expected, OPTIONS returns 204 without changing fake stock, rest keys or mutation counters.
+
+When running Gate C, pay particular attention to the existing tests asserting **exactly one actual** `DELETE /api/equipment/charm`, `POST /api/characters/me/heal/...` and `POST /api/characters/me/rest`. They must not pass by counting OPTIONS, and must not fail because an OPTIONS was rejected with HTTP 405. A successful preflight is not proof that the subsequent authenticated request was accepted by the backend; the mocked user-visible result is still a separate contract.
+
 ## Gate C: browser and i18n regression
 
 ```bash

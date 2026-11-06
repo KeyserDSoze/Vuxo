@@ -1,5 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'Authorization, Content-Type, Idempotency-Key',
+  'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
+};
+
 const equipment = {
   items: [
     { slot: 'relic', grantId: '11111111-1111-4111-8111-111111111111', itemKey: 'item.rune_shard.v1', equippedAtUtc: '2026-11-01T10:00:00Z' },
@@ -41,17 +47,17 @@ test('anonymous Refuge does not request preparation data or load Phaser', async 
 
 test('preparation renders canonical HP, equipped slots and active encounter in Italian', async ({ page }) => {
   const authorization: string[] = [];
-  await page.route('**/api/characters/me/health', route => route.fulfill({
+  await page.route('**/api/characters/me/health', route => route.fulfill({ headers: corsHeaders,
     contentType: 'application/json',
     body: JSON.stringify({ name: 'Vuxian', currentHealth: 9, maxHealth: 20, rulesVersion: 'character-health-v1' }),
   }));
   await page.route('**/api/equipment', route => {
-    authorization.push(route.request().headers()['authorization'] ?? '');
-    return route.fulfill({ contentType: 'application/json', body: JSON.stringify(equipment) });
+    if (route.request().method() === 'GET') authorization.push(route.request().headers()['authorization'] ?? '');
+    return route.fulfill({ headers: corsHeaders, contentType: 'application/json', body: JSON.stringify(equipment) });
   });
   await page.route('**/api/characters/me/encounter', route => {
-    authorization.push(route.request().headers()['authorization'] ?? '');
-    return route.fulfill({
+    if (route.request().method() === 'GET') authorization.push(route.request().headers()['authorization'] ?? '');
+    return route.fulfill({ headers: corsHeaders,
       contentType: 'application/json',
       body: JSON.stringify({ active: true, portalGrantId: '33333333-3333-4333-8333-333333333333', expiresAtUtc: '2099-01-01T00:00:00Z' }),
     });
@@ -77,21 +83,21 @@ test('independent equipment and encounter failures never masquerade as empty or 
   let equipmentRequests = 0;
   let encounterRequests = 0;
   let recovered = false;
-  await page.route('**/api/characters/me/health', route => route.fulfill({
+  await page.route('**/api/characters/me/health', route => route.fulfill({ headers: corsHeaders,
     contentType: 'application/json',
     body: JSON.stringify({ name: 'Vuxian', currentHealth: 20, maxHealth: 20, rulesVersion: 'character-health-v1' }),
   }));
   await page.route('**/api/equipment', route => {
     equipmentRequests++;
     return !recovered
-      ? route.fulfill({ status: 503 })
-      : route.fulfill({ contentType: 'application/json', body: JSON.stringify({ ...equipment, items: [] }) });
+      ? route.fulfill({ headers: corsHeaders, status: 503 })
+      : route.fulfill({ headers: corsHeaders, contentType: 'application/json', body: JSON.stringify({ ...equipment, items: [] }) });
   });
   await page.route('**/api/characters/me/encounter', route => {
     encounterRequests++;
     return !recovered
-      ? route.fulfill({ status: 503 })
-      : route.fulfill({ contentType: 'application/json', body: JSON.stringify({ active: false, portalGrantId: null, expiresAtUtc: null }) });
+      ? route.fulfill({ headers: corsHeaders, status: 503 })
+      : route.fulfill({ headers: corsHeaders, contentType: 'application/json', body: JSON.stringify({ active: false, portalGrantId: null, expiresAtUtc: null }) });
   });
   await page.goto('./#/refuge');
   await installSession(page);
@@ -116,7 +122,7 @@ test('character 404 does not trigger equipment and encounter requests', async ({
     const path = new URL(request.url()).pathname;
     if (/\/api\/(equipment|characters\/me\/encounter)/.test(path)) otherRequests.push(path);
   });
-  await page.route('**/api/characters/me/health', route => route.fulfill({ status: 404 }));
+  await page.route('**/api/characters/me/health', route => route.fulfill({ headers: corsHeaders, status: 404 }));
   await page.goto('./#/refuge');
   await installSession(page);
   await expect(page.getByTestId('refuge-health-not-found')).toBeVisible();
@@ -130,7 +136,7 @@ test('switching owner hides previous HP and equipment before the next owner resp
   await page.route('**/api/characters/me/health', async route => {
     const auth = route.request().headers()['authorization'];
     if (auth === 'Bearer readiness-owner-2') await waitForSecond;
-    return route.fulfill({
+    return route.fulfill({ headers: corsHeaders,
       contentType: 'application/json',
       body: JSON.stringify({
         name: auth === 'Bearer readiness-owner-1' ? 'First' : 'Second',
@@ -139,10 +145,10 @@ test('switching owner hides previous HP and equipment before the next owner resp
       }),
     });
   });
-  await page.route('**/api/equipment', route => route.fulfill({
+  await page.route('**/api/equipment', route => route.fulfill({ headers: corsHeaders,
     contentType: 'application/json', body: JSON.stringify(equipment),
   }));
-  await page.route('**/api/characters/me/encounter', route => route.fulfill({
+  await page.route('**/api/characters/me/encounter', route => route.fulfill({ headers: corsHeaders,
     contentType: 'application/json', body: JSON.stringify({ active: false, portalGrantId: null, expiresAtUtc: null }),
   }));
   await page.goto('./#/refuge');
@@ -167,15 +173,15 @@ test('switching owner hides previous HP and equipment before the next owner resp
 
 test('downed HP, empty equipment, inactive encounter and links work in mobile English dark mode', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 740 });
-  await page.route('**/api/characters/me/health', route => route.fulfill({
+  await page.route('**/api/characters/me/health', route => route.fulfill({ headers: corsHeaders,
     contentType: 'application/json',
     body: JSON.stringify({ name: 'Vuxian', currentHealth: 0, maxHealth: 20, rulesVersion: 'character-health-v1' }),
   }));
-  await page.route('**/api/equipment', route => route.fulfill({
+  await page.route('**/api/equipment', route => route.fulfill({ headers: corsHeaders,
     contentType: 'application/json',
     body: JSON.stringify({ ...equipment, items: [] }),
   }));
-  await page.route('**/api/characters/me/encounter', route => route.fulfill({
+  await page.route('**/api/characters/me/encounter', route => route.fulfill({ headers: corsHeaders,
     contentType: 'application/json',
     body: JSON.stringify({ active: false, portalGrantId: null, expiresAtUtc: null }),
   }));
@@ -196,21 +202,26 @@ test('downed HP, empty equipment, inactive encounter and links work in mobile En
 
 test('confirmed server rest updates both HP displays without inventing local healing', async ({ page }) => {
   const restKeys: string[] = [];
-  await page.route('**/api/characters/me/health', route => route.fulfill({
+  await page.route('**/api/characters/me/health', route => route.fulfill({ headers: corsHeaders,
     contentType: 'application/json',
     body: JSON.stringify({ name: 'Vuxian', currentHealth: 7, maxHealth: 20, rulesVersion: 'character-health-v1' }),
   }));
-  await page.route('**/api/equipment', route => route.fulfill({
+  await page.route('**/api/equipment', route => route.fulfill({ headers: corsHeaders,
     contentType: 'application/json', body: JSON.stringify({ ...equipment, items: [] }),
   }));
-  await page.route('**/api/characters/me/encounter', route => route.fulfill({
+  await page.route('**/api/characters/me/encounter', route => route.fulfill({ headers: corsHeaders,
     contentType: 'application/json',
     body: JSON.stringify({ active: false, portalGrantId: null, expiresAtUtc: null }),
   }));
   await page.route('**/api/characters/me/rest', route => {
+    // Preflight must not be treated as a rest attempt or consume a key.
+    if (route.request().method() === 'OPTIONS')
+      return route.fulfill({ headers: corsHeaders, status: 204 });
+    if (route.request().method() !== 'POST')
+      return route.fulfill({ headers: corsHeaders, status: 405 });
     const key = route.request().headers()['idempotency-key'] ?? '';
     restKeys.push(key);
-    return route.fulfill({
+    return route.fulfill({ headers: corsHeaders,
       contentType: 'application/json',
       body: JSON.stringify({
         idempotencyKey: key, previousHealth: 7, currentHealth: 12, maxHealth: 20,

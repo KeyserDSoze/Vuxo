@@ -1,5 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'Authorization, Content-Type, Idempotency-Key',
+  'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
+};
+
 const shard = '11111111-1111-4111-8111-111111111111';
 const seed = '22222222-2222-4222-8222-222222222222';
 const pearl = '33333333-3333-4333-8333-333333333333';
@@ -33,13 +39,13 @@ async function signIn(page: Page, id = 'owner-a', language: 'it' | 'en' = 'it') 
 }
 
 async function mockInventory(page: Page) {
-  await page.route('**/api/inventory', route => route.fulfill({
+  await page.route('**/api/inventory', route => route.fulfill({ headers: corsHeaders,
     contentType: 'application/json', body: JSON.stringify(awards),
   }));
-  await page.route('**/api/inventory/stacks', route => route.fulfill({
+  await page.route('**/api/inventory/stacks', route => route.fulfill({ headers: corsHeaders,
     contentType: 'application/json', body: JSON.stringify(stacks),
   }));
-  await page.route('**/api/equipment', route => route.fulfill({
+  await page.route('**/api/equipment', route => route.fulfill({ headers: corsHeaders,
     contentType: 'application/json', body: JSON.stringify(equipment),
   }));
 }
@@ -160,16 +166,16 @@ test('owner switch remounts inventory so previous items and filters are not flas
   const secondPending = new Promise<void>(resolve => { resolveSecond = resolve; });
   await page.route('**/api/inventory', async route => {
     if (route.request().headers()['authorization'] === 'Bearer test-token-owner-b') await secondPending;
-    await route.fulfill({
+    await route.fulfill({ headers: corsHeaders,
       contentType: 'application/json',
       body: JSON.stringify(route.request().headers()['authorization'] === 'Bearer test-token-owner-b' ? [] : awards),
     });
   });
-  await page.route('**/api/inventory/stacks', route => route.fulfill({
+  await page.route('**/api/inventory/stacks', route => route.fulfill({ headers: corsHeaders,
     contentType: 'application/json',
     body: JSON.stringify(route.request().headers()['authorization'] === 'Bearer test-token-owner-b' ? [] : stacks),
   }));
-  await page.route('**/api/equipment', route => route.fulfill({
+  await page.route('**/api/equipment', route => route.fulfill({ headers: corsHeaders,
     contentType: 'application/json',
     body: JSON.stringify(route.request().headers()['authorization'] === 'Bearer test-token-owner-b'
       ? { ...equipment, items: [] } : equipment),

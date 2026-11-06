@@ -1,5 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'Authorization, Content-Type, Idempotency-Key',
+  'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
+};
+
 const runeGrant = '11111111-1111-4111-8111-111111111111';
 const seedGrant = '22222222-2222-4222-8222-222222222222';
 const pearlGrant = '33333333-3333-4333-8333-333333333333';
@@ -46,29 +52,35 @@ async function mockLoadout(page: Page, initiallyEquipped = true) {
     }]),
     { itemKey: 'item.tidal_pearl.v1', quantity: 1, equippedQuantity: 0, availableGrantIds: [pearlGrant] },
   ];
-  await page.route('**/api/inventory', route => route.fulfill({
+  await page.route('**/api/inventory', route => route.fulfill({ headers: corsHeaders,
     contentType: 'application/json', body: JSON.stringify(awards.map(a =>
       a.grantId === seedGrant && seedSpent ? { ...a, consumed: true } : a)),
   }));
   await page.route('**/api/inventory/stacks', route => {
-    stackGets++;
+    if (route.request().method() === 'OPTIONS') return route.fulfill({ headers: corsHeaders, status: 204 });
+    if (route.request().method() === 'GET') stackGets++;
     if (failNextStack) {
       failNextStack = false;
-      return route.fulfill({ status: 503 });
+      return route.fulfill({ headers: corsHeaders, status: 503 });
     }
-    return route.fulfill({ contentType: 'application/json', body: JSON.stringify(stacks()) });
+    return route.fulfill({ headers: corsHeaders, contentType: 'application/json', body: JSON.stringify(stacks()) });
   });
   await page.route('**/api/equipment', route => {
-    equipmentGets++;
+    if (route.request().method() === 'OPTIONS') return route.fulfill({ headers: corsHeaders, status: 204 });
+    if (route.request().method() === 'GET') equipmentGets++;
     return failEquipment
-      ? route.fulfill({ status: 503 })
-      : route.fulfill({ contentType: 'application/json', body: JSON.stringify(equipment()) });
+      ? route.fulfill({ headers: corsHeaders, status: 503 })
+      : route.fulfill({ headers: corsHeaders, contentType: 'application/json', body: JSON.stringify(equipment()) });
   });
   await page.route('**/api/equipment/charm', route => {
-    if (route.request().method() !== 'DELETE') return route.fulfill({ status: 405 });
+    // Authorization triggers a browser CORS preflight. It is not an
+    // unequip mutation and must not be counted as a DELETE.
+    if (route.request().method() === 'OPTIONS')
+      return route.fulfill({ headers: corsHeaders, status: 204 });
+    if (route.request().method() !== 'DELETE') return route.fulfill({ headers: corsHeaders, status: 405 });
     deletes++;
     hasCharm = false;
-    return route.fulfill({ contentType: 'application/json', body: JSON.stringify(equipment()) });
+    return route.fulfill({ headers: corsHeaders, contentType: 'application/json', body: JSON.stringify(equipment()) });
   });
   return {
     deletes: () => deletes,
@@ -196,14 +208,18 @@ test('confirmed healing with failed inventory refresh cannot expose stale consum
   await signIn(page);
   const api = await mockLoadout(page, false);
   let healingPosts = 0;
-  await page.route('**/api/characters/me/encounter', route => route.fulfill({
+  await page.route('**/api/characters/me/encounter', route => route.fulfill({ headers: corsHeaders,
     contentType: 'application/json',
     body: JSON.stringify({ active: false, portalGrantId: null, expiresAtUtc: null }),
   }));
   await page.route('**/api/characters/me/heal/**', route => {
+    if (route.request().method() === 'OPTIONS')
+      return route.fulfill({ headers: corsHeaders, status: 204 });
+    if (route.request().method() !== 'POST')
+      return route.fulfill({ headers: corsHeaders, status: 405 });
     healingPosts++;
     api.markSeedSpent();
-    return route.fulfill({
+    return route.fulfill({ headers: corsHeaders,
       contentType: 'application/json',
       body: JSON.stringify({
         grantId: seedGrant,

@@ -1,5 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'Authorization, Content-Type, Idempotency-Key',
+  'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
+};
+
 const fullEquipment = {
   items: [
     { slot: 'relic', grantId: '11111111-1111-4111-8111-111111111111', itemKey: 'item.rune_shard.v1', equippedAtUtc: '2026-11-01T10:00:00Z' },
@@ -29,18 +35,18 @@ test.beforeEach(async ({ page }) => {
 test('full HP and two equipped slots provide advisory navigation, never a readiness score', async ({ page }) => {
   const mutations: string[] = [];
   page.on('request', request => {
-    if (request.method() !== 'GET' && /\/api\/(characters\/me|equipment)/.test(new URL(request.url()).pathname)) {
+    if (request.method() !== 'GET' && request.method() !== 'OPTIONS' && /\/api\/(characters\/me|equipment)/.test(new URL(request.url()).pathname)) {
       mutations.push(request.method() + ' ' + request.url());
     }
   });
-  await page.route('**/api/characters/me/health', route => route.fulfill({
+  await page.route('**/api/characters/me/health', route => route.fulfill({ headers: corsHeaders,
     contentType: 'application/json',
     body: JSON.stringify({ name: 'Hero', currentHealth: 20, maxHealth: 20, rulesVersion: 'v1' }),
   }));
-  await page.route('**/api/equipment', route => route.fulfill({
+  await page.route('**/api/equipment', route => route.fulfill({ headers: corsHeaders,
     contentType: 'application/json', body: JSON.stringify(fullEquipment),
   }));
-  await page.route('**/api/characters/me/encounter', route => route.fulfill({
+  await page.route('**/api/characters/me/encounter', route => route.fulfill({ headers: corsHeaders,
     contentType: 'application/json', body: JSON.stringify({ active: false, portalGrantId: null, expiresAtUtc: null }),
   }));
   await page.goto('./#/refuge');
@@ -56,14 +62,14 @@ test('full HP and two equipped slots provide advisory navigation, never a readin
 });
 
 test('missing HP and empty slots offer a focusable route to existing rest and inventory', async ({ page }) => {
-  await page.route('**/api/characters/me/health', route => route.fulfill({
+  await page.route('**/api/characters/me/health', route => route.fulfill({ headers: corsHeaders,
     contentType: 'application/json',
     body: JSON.stringify({ name: 'Hero', currentHealth: 9, maxHealth: 20, rulesVersion: 'v1' }),
   }));
-  await page.route('**/api/equipment', route => route.fulfill({
+  await page.route('**/api/equipment', route => route.fulfill({ headers: corsHeaders,
     contentType: 'application/json', body: JSON.stringify({ ...fullEquipment, items: [] }),
   }));
-  await page.route('**/api/characters/me/encounter', route => route.fulfill({
+  await page.route('**/api/characters/me/encounter', route => route.fulfill({ headers: corsHeaders,
     contentType: 'application/json', body: JSON.stringify({ active: true, portalGrantId: '33333333-3333-4333-8333-333333333333', expiresAtUtc: '2099-01-01T00:00:00Z' }),
   }));
   await page.goto('./#/refuge');
@@ -78,14 +84,14 @@ test('missing HP and empty slots offer a focusable route to existing rest and in
 });
 
 test('zero HP never suggests resting or Grove Seed healing as a remedy', async ({ page }) => {
-  await page.route('**/api/characters/me/health', route => route.fulfill({
+  await page.route('**/api/characters/me/health', route => route.fulfill({ headers: corsHeaders,
     contentType: 'application/json',
     body: JSON.stringify({ name: 'Hero', currentHealth: 0, maxHealth: 20, rulesVersion: 'v1' }),
   }));
-  await page.route('**/api/equipment', route => route.fulfill({
+  await page.route('**/api/equipment', route => route.fulfill({ headers: corsHeaders,
     contentType: 'application/json', body: JSON.stringify({ ...fullEquipment, items: [fullEquipment.items[0]] }),
   }));
-  await page.route('**/api/characters/me/encounter', route => route.fulfill({
+  await page.route('**/api/characters/me/encounter', route => route.fulfill({ headers: corsHeaders,
     contentType: 'application/json', body: JSON.stringify({ active: false, portalGrantId: null, expiresAtUtc: null }),
   }));
   await page.goto('./#/refuge');
@@ -102,7 +108,7 @@ test('failed equipment and encounter GET stay unknown and full refresh re-reads 
   const counts = { health: 0, equipment: 0, encounter: 0 };
   await page.route('**/api/characters/me/health', route => {
     counts.health++;
-    return route.fulfill({
+    return route.fulfill({ headers: corsHeaders,
       contentType: 'application/json',
       body: JSON.stringify({ name: 'Hero', currentHealth: recovered ? 20 : 11, maxHealth: 20, rulesVersion: 'v1' }),
     });
@@ -110,14 +116,14 @@ test('failed equipment and encounter GET stay unknown and full refresh re-reads 
   await page.route('**/api/equipment', route => {
     counts.equipment++;
     return recovered
-      ? route.fulfill({ contentType: 'application/json', body: JSON.stringify(fullEquipment) })
-      : route.fulfill({ status: 503 });
+      ? route.fulfill({ headers: corsHeaders, contentType: 'application/json', body: JSON.stringify(fullEquipment) })
+      : route.fulfill({ headers: corsHeaders, status: 503 });
   });
   await page.route('**/api/characters/me/encounter', route => {
     counts.encounter++;
     return recovered
-      ? route.fulfill({ contentType: 'application/json', body: JSON.stringify({ active: false, portalGrantId: null, expiresAtUtc: null }) })
-      : route.fulfill({ status: 503 });
+      ? route.fulfill({ headers: corsHeaders, contentType: 'application/json', body: JSON.stringify({ active: false, portalGrantId: null, expiresAtUtc: null }) })
+      : route.fulfill({ headers: corsHeaders, status: 503 });
   });
 
   await page.goto('./#/refuge');
@@ -141,17 +147,17 @@ test('guest and character 404 have no advisory checklist and no private equipmen
   let reads = 0;
   await page.route('**/api/equipment', route => {
     reads++;
-    return route.fulfill({ status: 401 });
+    return route.fulfill({ headers: corsHeaders, status: 401 });
   });
   await page.route('**/api/characters/me/encounter', route => {
     reads++;
-    return route.fulfill({ status: 401 });
+    return route.fulfill({ headers: corsHeaders, status: 401 });
   });
   await page.goto('./#/refuge');
   await expect(page.getByTestId('refuge-journey')).toHaveCount(0);
   expect(reads).toBe(0);
 
-  await page.route('**/api/characters/me/health', route => route.fulfill({ status: 404 }));
+  await page.route('**/api/characters/me/health', route => route.fulfill({ headers: corsHeaders, status: 404 }));
   await signIn(page);
   await expect(page.getByTestId('refuge-health-not-found')).toBeVisible();
   await expect(page.getByTestId('refuge-journey')).toHaveCount(0);
@@ -164,15 +170,15 @@ test('switching accounts hides the previous advice until owner-scoped reads comp
   await page.route('**/api/characters/me/health', async route => {
     const second = route.request().headers()['authorization'] === 'Bearer journey-owner-2';
     if (second) await secondPending;
-    await route.fulfill({
+    await route.fulfill({ headers: corsHeaders,
       contentType: 'application/json',
       body: JSON.stringify({ name: 'Hero', currentHealth: second ? 20 : 7, maxHealth: 20, rulesVersion: 'v1' }),
     });
   });
-  await page.route('**/api/equipment', route => route.fulfill({
+  await page.route('**/api/equipment', route => route.fulfill({ headers: corsHeaders,
     contentType: 'application/json', body: JSON.stringify(fullEquipment),
   }));
-  await page.route('**/api/characters/me/encounter', route => route.fulfill({
+  await page.route('**/api/characters/me/encounter', route => route.fulfill({ headers: corsHeaders,
     contentType: 'application/json', body: JSON.stringify({ active: false, portalGrantId: null, expiresAtUtc: null }),
   }));
   await page.goto('./#/refuge');
@@ -198,14 +204,14 @@ test('English dark mobile guide remains usable at 320px without Phaser', async (
   page.on('request', request => {
     if (/\/assets\/GamePage-[^/]+\.js/.test(new URL(request.url()).pathname)) gameChunks.push(request.url());
   });
-  await page.route('**/api/characters/me/health', route => route.fulfill({
+  await page.route('**/api/characters/me/health', route => route.fulfill({ headers: corsHeaders,
     contentType: 'application/json',
     body: JSON.stringify({ name: 'Hero', currentHealth: 18, maxHealth: 20, rulesVersion: 'v1' }),
   }));
-  await page.route('**/api/equipment', route => route.fulfill({
+  await page.route('**/api/equipment', route => route.fulfill({ headers: corsHeaders,
     contentType: 'application/json', body: JSON.stringify({ ...fullEquipment, items: [] }),
   }));
-  await page.route('**/api/characters/me/encounter', route => route.fulfill({
+  await page.route('**/api/characters/me/encounter', route => route.fulfill({ headers: corsHeaders,
     contentType: 'application/json', body: JSON.stringify({ active: false, portalGrantId: null, expiresAtUtc: null }),
   }));
   await page.goto('./#/refuge');
