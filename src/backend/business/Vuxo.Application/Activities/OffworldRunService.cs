@@ -18,6 +18,13 @@ public sealed class OffworldRunService(
             clock.GetUtcNow(), cancellationToken);
     }
 
+    public Task<OffworldRunResult?> GetActiveAsync(string ownerId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(ownerId);
+        return repository.GetActiveAsync(ownerId.Trim(), clock.GetUtcNow(), cancellationToken);
+    }
+
     public Task<OffworldRunResult?> GetAsync(string ownerId, Guid runId,
         CancellationToken cancellationToken = default)
     {
