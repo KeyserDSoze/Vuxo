@@ -104,6 +104,22 @@ public sealed class OffworldRunRepository(VuxoDbContext db, IGameEventStore even
         return ToResult(run, now, replayed: false);
     }
 
+    public async Task<OffworldRunResult?> GetActiveAsync(string ownerId,
+        DateTimeOffset now, CancellationToken cancellationToken = default)
+    {
+        // The database expiry check makes discovery valid across browser tabs,
+        // API instances and devices, without exposing another player's tickets.
+        // No character lock or event is needed for this strictly read-only call.
+        var active = await db.OffworldActivityRuns.AsNoTracking()
+            .Where(x => x.PlayerId == ownerId
+                && x.ActivityKey == OffworldRunRules.ActivityKey
+                && x.State == OffworldRunRules.Active
+                && x.ExpiresAtUtc > now)
+            .OrderByDescending(x => x.StartedAtUtc)
+            .FirstOrDefaultAsync(cancellationToken);
+        return active is null ? null : ToResult(active, now, replayed: false);
+    }
+
     public async Task<OffworldRunResult?> GetAsync(string ownerId, Guid runId,
         DateTimeOffset now, CancellationToken cancellationToken = default)
     {
