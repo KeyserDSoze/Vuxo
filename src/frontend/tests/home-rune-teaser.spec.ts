@@ -34,6 +34,42 @@ test('guest can awaken portal, decode its sigil and continue through auth', asyn
   await expect(page).toHaveURL(/#\/auth$/);
 });
 
+test('rune slots, undo and portal victory visuals remain in sync', async ({ page }) => {
+  const hero = page.getByTestId('home-hero');
+  await page.getByTestId('home-portal').click();
+  await page.getByTestId('home-rune-start').click();
+  await expect(hero).toHaveAttribute('data-sigil', 'answer');
+  const slots = page.getByTestId('home-rune-slot');
+  await expect(slots).toHaveCount(3);
+  await expect(page.getByTestId('home-rune-undo')).toBeDisabled();
+
+  await page.getByTestId('home-rune-choice-sun').click();
+  await expect(slots.first()).toHaveAttribute('data-filled', 'true');
+  await expect(slots.nth(1)).toHaveAttribute('data-filled', 'false');
+  await page.getByTestId('home-rune-undo').click();
+  await expect(slots.first()).toHaveAttribute('data-filled', 'false');
+  await expect(page.getByTestId('home-rune-progress')).toContainText('0 di 3');
+
+  for (const rune of ['sun', 'star', 'wave']) await page.getByTestId('home-rune-choice-' + rune).click();
+  await expect(hero).toHaveAttribute('data-sigil', 'success');
+  await expect(page.getByTestId('home-rune-success').getByRole('status')).toBeFocused();
+  await page.getByTestId('home-rune-again').click();
+  await expect(hero).toHaveAttribute('data-sigil', 'preview');
+  await page.getByTestId('home-portal').click();
+  await expect(hero).toHaveAttribute('data-sigil', 'idle');
+});
+
+test('wrong answer dims the portal and focuses accessible failure feedback', async ({ page }) => {
+  const hero = page.getByTestId('home-hero');
+  await page.getByTestId('home-portal').click();
+  await page.getByTestId('home-rune-start').click();
+  for (let i = 0; i < 3; i++) await page.getByTestId('home-rune-choice-moon').click();
+  await expect(hero).toHaveAttribute('data-sigil', 'failure');
+  await expect(page.getByTestId('home-rune-failure').getByRole('status')).toBeFocused();
+  await page.getByTestId('home-rune-retry').click();
+  await expect(hero).toHaveAttribute('data-sigil', 'preview');
+});
+
 test('wrong sigil reports failure, then lets the visitor memorize and retry', async ({ page }) => {
   await page.getByTestId('home-portal').click();
   await page.getByTestId('home-rune-start').click();
@@ -94,5 +130,32 @@ test('English teaser stays usable on a 320px dark mobile viewport', async ({ pag
   await expect(page.getByTestId('home-rune-teaser')).toContainText('no rewards, XP or progress');
   await page.getByTestId('home-rune-start').click();
   await expect(page.getByTestId('home-rune-progress')).toContainText('0 of 3');
+  await expect(page.getByTestId('home-rune-undo')).toHaveText('Undo last rune');
+  await expect(page.getByTestId('home-rune-slot')).toHaveCount(3);
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
+});
+
+test('reduced-motion setting keeps victory but disables portal victory animation', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.getByTestId('home-portal').click();
+  await page.getByTestId('home-rune-start').click();
+  for (const rune of ['sun', 'star', 'wave']) await page.getByTestId('home-rune-choice-' + rune).click();
+  await expect(page.getByTestId('home-hero')).toHaveAttribute('data-sigil', 'success');
+  await expect(page.locator('.vuxo-landing__portal-ring--outer')).toHaveCSS('animation-name', 'none');
+});
+
+test('guest teaser does not start Phaser or send gameplay API requests', async ({ page }) => {
+  const forbiddenRequests: string[] = [];
+  page.on('request', request => {
+    const pathname = new URL(request.url()).pathname;
+    if (/\/api\/(activities|characters\/me|portals|world)/.test(pathname) ||
+        /\/assets\/GamePage-[^/]+\.js$/.test(pathname)) {
+      forbiddenRequests.push(pathname);
+    }
+  });
+  await page.getByTestId('home-portal').click();
+  await page.getByTestId('home-rune-start').click();
+  for (const rune of ['sun', 'star', 'wave']) await page.getByTestId('home-rune-choice-' + rune).click();
+  await expect(page.getByTestId('home-rune-success')).toBeVisible();
+  expect(forbiddenRequests).toEqual([]);
 });

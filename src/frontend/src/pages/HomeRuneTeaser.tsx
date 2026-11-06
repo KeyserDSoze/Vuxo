@@ -1,13 +1,14 @@
 import { ArrowForward, AutoAwesome, Replay } from '@mui/icons-material';
 import { Alert, Box, Button, Chip, Paper, Stack, Typography } from '@mui/material';
 import { alpha } from '@mui/material/styles';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link as RouterLink } from 'react-router-dom';
 
 type Realm = 'world' | 'character' | 'portals';
 type Rune = 'sun' | 'moon' | 'star' | 'wave';
-type Phase = 'preview' | 'answer' | 'success' | 'failure';
+export type HomeSigilPhase = 'idle' | 'preview' | 'answer' | 'success' | 'failure';
+type Phase = Exclude<HomeSigilPhase, 'idle'>;
 
 /**
  * A deterministic, non-authoritative sample of VUXO rune play.
@@ -24,31 +25,48 @@ const sigils: Record<Realm, readonly Rune[]> = {
 type Props = {
   realm: Realm;
   destination: string;
+  onPhaseChange: (phase: HomeSigilPhase) => void;
 };
 
-export function HomeRuneTeaser({ realm, destination }: Props) {
+export function HomeRuneTeaser({ realm, destination, onPhaseChange }: Props) {
   const { t } = useTranslation();
   const sequence = sigils[realm];
   const [phase, setPhase] = useState<Phase>('preview');
   const [answer, setAnswer] = useState<Rune[]>([]);
+  const firstChoiceRef = useRef<HTMLButtonElement | null>(null);
+  const resultRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (phase === 'answer') firstChoiceRef.current?.focus();
+    if (phase === 'success' || phase === 'failure') resultRef.current?.focus();
+  }, [phase]);
 
   function selectRune(rune: Rune) {
     if (phase !== 'answer' || answer.length >= sequence.length) return;
     const next = [...answer, rune];
     setAnswer(next);
     if (next.length === sequence.length) {
-      setPhase(next.every((value, index) => value === sequence[index]) ? 'success' : 'failure');
+      const outcome = next.every((value, index) => value === sequence[index]) ? 'success' : 'failure';
+      setPhase(outcome);
+      onPhaseChange(outcome);
     }
   }
 
   function start() {
     setAnswer([]);
     setPhase('answer');
+    onPhaseChange('answer');
   }
 
   function reset() {
     setAnswer([]);
     setPhase('preview');
+    onPhaseChange('preview');
+  }
+
+  function undo() {
+    if (phase !== 'answer') return;
+    setAnswer(current => current.slice(0, -1));
   }
 
   return (
@@ -56,6 +74,7 @@ export function HomeRuneTeaser({ realm, destination }: Props) {
       component="section"
       id="home-rune-teaser"
       data-testid="home-rune-teaser"
+      data-phase={phase}
       aria-labelledby="home-rune-title"
       variant="outlined"
       sx={{
@@ -108,10 +127,29 @@ export function HomeRuneTeaser({ realm, destination }: Props) {
             <Box component="p" aria-live="polite" data-testid="home-rune-progress" sx={{ m: 0, color: 'text.secondary' }}>
               {t('home.teaser.progress', { count: answer.length, total: sequence.length })}
             </Box>
+            <Box data-testid="home-rune-slots" aria-hidden="true" sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+              {sequence.map((_, index) => (
+                <Box
+                  key={index}
+                  data-testid="home-rune-slot"
+                  data-filled={index < answer.length ? 'true' : 'false'}
+                  sx={{
+                    display: 'grid', placeItems: 'center', width: { xs: 46, sm: 54 },
+                    height: { xs: 46, sm: 54 }, borderRadius: 2,
+                    border: 1, borderColor: index < answer.length ? 'primary.main' : 'divider',
+                    bgcolor: index < answer.length ? 'action.selected' : 'action.hover',
+                    fontSize: 25, color: 'primary.main', fontWeight: 800,
+                  }}
+                >
+                  {answer[index] ? glyphs[answer[index]] : '·'}
+                </Box>
+              ))}
+            </Box>
             <Box role="group" aria-label={t('home.teaser.runeChoices')} sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2,minmax(0,1fr))', sm: 'repeat(4,minmax(0,1fr))' }, gap: 1.5, maxWidth: 630 }}>
               {runes.map(rune => (
                 <Button
                   key={rune}
+                  ref={rune === 'sun' ? firstChoiceRef : undefined}
                   data-testid={'home-rune-choice-' + rune}
                   variant="outlined"
                   size="large"
@@ -123,15 +161,20 @@ export function HomeRuneTeaser({ realm, destination }: Props) {
                 </Button>
               ))}
             </Box>
-            <Button data-testid="home-rune-reset" onClick={reset} startIcon={<Replay />} sx={{ alignSelf: 'flex-start' }}>
-              {t('home.teaser.restart')}
-            </Button>
+            <Stack direction={{ xs: 'column', sm: 'row' }} sx={{ gap: 1, alignItems: { xs: 'stretch', sm: 'center' } }}>
+              <Button data-testid="home-rune-undo" disabled={answer.length === 0} variant="outlined" onClick={undo}>
+                {t('home.teaser.undo')}
+              </Button>
+              <Button data-testid="home-rune-reset" onClick={reset} startIcon={<Replay />}>
+                {t('home.teaser.restart')}
+              </Button>
+            </Stack>
           </Stack>
         )}
 
         {phase === 'failure' && (
           <Stack spacing={1.5} sx={{ alignItems: 'flex-start' }} data-testid="home-rune-failure">
-            <Alert severity="warning" role="status" sx={{ width: '100%' }}>{t('home.teaser.failure')}</Alert>
+            <Alert ref={resultRef} tabIndex={-1} severity="warning" role="status" sx={{ width: '100%' }}>{t('home.teaser.failure')}</Alert>
             <Button data-testid="home-rune-retry" onClick={reset} variant="outlined" startIcon={<Replay />}>
               {t('home.teaser.retry')}
             </Button>
@@ -140,7 +183,7 @@ export function HomeRuneTeaser({ realm, destination }: Props) {
 
         {phase === 'success' && (
           <Stack spacing={1.5} sx={{ alignItems: 'flex-start' }} data-testid="home-rune-success">
-            <Alert severity="success" role="status" sx={{ width: '100%' }}>{t('home.teaser.success')}</Alert>
+            <Alert ref={resultRef} tabIndex={-1} severity="success" role="status" sx={{ width: '100%' }}>{t('home.teaser.success')}</Alert>
             <Stack direction={{ xs: 'column', sm: 'row' }} sx={{ gap: 1, alignItems: { xs: 'stretch', sm: 'center' } }}>
               <Button component={RouterLink} to={destination} data-testid="home-rune-continue" variant="contained" endIcon={<ArrowForward />}>
                 {t('home.teaser.continue')}

@@ -8,7 +8,7 @@ import { useBuildInfo } from '../features/version/BuildInfoProvider';
 import { useVuxoTheme } from '../theme/VuxoThemeProvider';
 import { vuxoDesignTokens } from '../theme/tokens';
 import { HomePortalScene } from './HomePortalScene';
-import { HomeRuneTeaser } from './HomeRuneTeaser';
+import { HomeRuneTeaser, type HomeSigilPhase } from './HomeRuneTeaser';
 import './home.css';
 
 type Realm = 'world' | 'character' | 'portals';
@@ -37,6 +37,7 @@ export function HomePage() {
   const heroRef = useRef<HTMLElement | null>(null);
   const [realm, setRealm] = useState<Realm>('world');
   const [awake, setAwake] = useState(false);
+  const [sigilPhase, setSigilPhase] = useState<HomeSigilPhase>('idle');
   const landing = vuxoDesignTokens.landing[effectiveMode];
   const sceneVariables = {
     '--landing-sky-top': landing.skyTop,
@@ -68,6 +69,7 @@ export function HomePage() {
   function chooseRealm(next: Realm) {
     setRealm(next);
     setAwake(false);
+    setSigilPhase('idle');
   }
 
   const selectedDestination = realm === 'world' && !signedIn ? '/auth' : realmLinks[realm];
@@ -80,6 +82,7 @@ export function HomePage() {
         data-testid="home-hero"
         data-realm={realm}
         data-awake={awake ? 'true' : 'false'}
+        data-sigil={awake ? sigilPhase : 'idle'}
         className="vuxo-landing__hero"
         style={sceneVariables}
         onPointerMove={moveScene}
@@ -132,7 +135,7 @@ export function HomePage() {
 
         <HomePortalScene
           awake={awake}
-          onToggle={() => setAwake(value => !value)}
+          onToggle={() => { setSigilPhase('idle'); setAwake(value => !value); }}
           toggleLabel={t('home.portal.toggle')}
           status={t(awake ? 'home.portal.awake' : 'home.portal.hint')}
         />
@@ -146,7 +149,7 @@ export function HomePage() {
         </Box>
       </Box>
 
-      {awake && <HomeRuneTeaser key={realm} realm={realm} destination={selectedDestination} />}
+      {awake && <HomeRuneTeaser key={realm} realm={realm} destination={selectedDestination} onPhaseChange={setSigilPhase} />}
 
       <Box component="section" aria-labelledby="home-paths-title">
         <Stack direction={{ xs: 'column', sm: 'row' }} sx={{ mb: 2, gap: 1, alignItems: { xs: 'flex-start', sm: 'center' }, justifyContent: 'space-between' }}>
