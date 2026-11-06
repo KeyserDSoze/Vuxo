@@ -1,10 +1,11 @@
 import { ArrowBack, ArrowDownward, ArrowForward, ArrowUpward } from '@mui/icons-material';
 import { Alert, Box, Button, Chip, Paper, Stack, Typography } from '@mui/material';
-import { useState, type KeyboardEvent } from 'react';
+import { useCallback, useState, type KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link as RouterLink } from 'react-router-dom';
 import { useStoredSession } from '../features/auth/useStoredSession';
 import { VerifiedRunePathPanel } from '../features/refuge/VerifiedRunePathPanel';
+import { RunePathHistoryPanel } from '../features/refuge/RunePathHistoryPanel';
 
 // Three small, fixed, solvable puzzles. These are local practice maps, never
 // server-verified portal layouts or authoritative player positions.
@@ -38,6 +39,8 @@ export function RunePathPage() {
   const { t } = useTranslation();
   const session = useStoredSession();
   const [mode, setMode] = useState<'local' | 'saved'>('local');
+  const [historyVersion, setHistoryVersion] = useState(0);
+  const notifyHistory = useCallback(() => setHistoryVersion(value => value + 1), []);
   const [puzzle, setPuzzle] = useState(0);
   const [phase, setPhase] = useState<'ready' | 'playing' | 'completed'>('ready');
   const [position, setPosition] = useState<Position>(startPosition);
@@ -110,8 +113,13 @@ export function RunePathPage() {
         </Stack>
       )}
       {session && mode === 'saved' ? (
-        <VerifiedRunePathPanel key={session.user.id}
-          accessToken={session.accessToken} playerId={session.user.id} />
+        <Stack spacing={2} key={session.user.id}>
+          <VerifiedRunePathPanel
+            accessToken={session.accessToken} playerId={session.user.id}
+            onRunChanged={notifyHistory} />
+          <RunePathHistoryPanel
+            accessToken={session.accessToken} refreshSignal={historyVersion} />
+        </Stack>
       ) : (
       <Paper variant="outlined" sx={{ p: { xs: 2, md: 4 } }}>
         <Stack spacing={2.5}>
