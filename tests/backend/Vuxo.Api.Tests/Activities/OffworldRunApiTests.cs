@@ -22,6 +22,8 @@ public sealed class OffworldRunApiTests
         Assert.Equal(HttpStatusCode.Unauthorized,
             (await client.GetAsync("/api/activities/runs/history/rune-path")).StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized,
+            (await client.GetAsync("/api/activities/runs/progress/rune-path")).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized,
             (await client.GetAsync($"/api/activities/runs/{Guid.NewGuid()}")).StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized,
             (await client.PostAsJsonAsync($"/api/activities/runs/{Guid.NewGuid()}/complete",
@@ -94,6 +96,57 @@ public sealed class OffworldRunApiTests
         Assert.Equal(HttpStatusCode.OK, committed.StatusCode);
         using var ended = await client.GetAsync("/api/activities/runs/active/rune-path");
         Assert.Equal(HttpStatusCode.NoContent, ended.StatusCode);
+    }
+
+    [Fact]
+    public async Task PracticeProgress_RequiresJwtAndNeverGrantsRewardsOrLeaksOwners()
+    {
+        var fake = new FakeRuns();
+        using var factory = Factory(fake);
+        using var client = factory.CreateClient();
+        await LoginAsync(client, "player-a");
+
+        using var empty = await client.GetAsync("/api/activities/runs/progress/rune-path");
+        Assert.Equal(HttpStatusCode.OK, empty.StatusCode);
+        var initial = await empty.Content.ReadFromJsonAsync<OffworldPracticeProgress>();
+        Assert.NotNull(initial);
+        Assert.Equal(0, initial.BoardsSolved);
+        Assert.False(initial.RewardsEnabled);
+
+        using var startIntent = NewPost("/api/activities/runs/rune-path", Guid.NewGuid());
+        using var started = await client.SendAsync(startIntent);
+        Assert.Equal(HttpStatusCode.Created, started.StatusCode);
+        var run = await started.Content.ReadFromJsonAsync<OffworldRunResult>();
+        Assert.NotNull(run);
+        using var finishIntent = NewPost($"/api/activities/runs/{run.RunId}/complete",
+            Guid.NewGuid(), new { moves = "DDDRRR", xp = 999999, reward = "legendary" });
+        using var finished = await client.SendAsync(finishIntent);
+        Assert.Equal(HttpStatusCode.OK, finished.StatusCode);
+
+        using var profileResponse = await client.GetAsync("/api/activities/runs/progress/rune-path");
+        Assert.Equal(HttpStatusCode.OK, profileResponse.StatusCode);
+        var profile = await profileResponse.Content.ReadFromJsonAsync<OffworldPracticeProgress>();
+        Assert.NotNull(profile);
+        Assert.Equal("player-a", fake.LastOwner);
+        Assert.Equal(1, profile.CompletedRuns);
+        Assert.Equal(1, profile.BoardsSolved);
+        Assert.Equal(OffworldPracticeProgressRules.MilestoneExplorer, profile.Milestone);
+        Assert.False(profile.RewardsEnabled);
+        Assert.Equal(0, profile.XpGranted);
+        Assert.Equal(0, profile.ItemsGranted);
+        Assert.Equal(OffworldPracticeProgressRules.RewardBlockReason,
+            profile.RewardBlockReason);
+        var payload = await profileResponse.Content.ReadAsStringAsync();
+        foreach (var forbidden in new[] { "playerId", "proofHash", "finishKey", "startKey" })
+            Assert.DoesNotContain(forbidden, payload, StringComparison.OrdinalIgnoreCase);
+
+        await LoginAsync(client, "player-b");
+        using var foreign = await client.GetAsync("/api/activities/runs/progress/rune-path");
+        Assert.Equal(HttpStatusCode.OK, foreign.StatusCode);
+        var blank = await foreign.Content.ReadFromJsonAsync<OffworldPracticeProgress>();
+        Assert.NotNull(blank);
+        Assert.Empty(blank.Boards);
+        Assert.Equal(0, blank.CompletedRuns);
     }
 
     [Fact]
@@ -251,6 +304,16 @@ public sealed class OffworldRunApiTests
             _active = true;
             return Task.FromResult(Build(false));
         }
+        public Task<OffworldPracticeProgress> GetPracticeProgressAsync(
+            string ownerId, CancellationToken cancellationToken = default)
+        {
+            LastOwner = ownerId;
+            var boards = _owner == ownerId && !_active
+                ? new[] { new OffworldPracticeBoardAggregate(0, 1, 6) }
+                : Array.Empty<OffworldPracticeBoardAggregate>();
+            return Task.FromResult(OffworldPracticeProgressRules.Build(boards));
+        }
+
         public Task<IReadOnlyList<OffworldRunHistoryEntry>> GetHistoryAsync(
             string ownerId, int limit, DateTimeOffset now,
             CancellationToken cancellationToken = default)

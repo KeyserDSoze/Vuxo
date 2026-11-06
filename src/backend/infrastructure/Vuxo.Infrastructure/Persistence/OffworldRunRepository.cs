@@ -104,6 +104,28 @@ public sealed class OffworldRunRepository(VuxoDbContext db, IGameEventStore even
         return ToResult(run, now, replayed: false);
     }
 
+    public async Task<OffworldPracticeProgress> GetPracticeProgressAsync(
+        string ownerId, CancellationToken cancellationToken = default)
+    {
+        // Aggregate on PostgreSQL rather than transferring an unbounded
+        // lifetime history. No inventory/XP/character writes or audit events.
+        // Rules version pins the evidence to exactly the current fixed boards.
+        var totals = await db.OffworldActivityRuns.AsNoTracking()
+            .Where(x => x.PlayerId == ownerId
+                && x.ActivityKey == OffworldRunRules.ActivityKey
+                && x.RulesVersion == RunePathPracticeRules.Version
+                && x.State == OffworldRunRules.Completed
+                && x.CompletedAtUtc != null
+                && x.StepsChecked != null
+                && x.PuzzleIndex >= 0
+                && x.PuzzleIndex < RunePathPracticeRules.PuzzleCount)
+            .GroupBy(x => x.PuzzleIndex)
+            .Select(group => new OffworldPracticeBoardAggregate(
+                group.Key, group.Count(), group.Min(x => x.StepsChecked!.Value)))
+            .ToListAsync(cancellationToken);
+        return OffworldPracticeProgressRules.Build(totals);
+    }
+
     public async Task<IReadOnlyList<OffworldRunHistoryEntry>> GetHistoryAsync(
         string ownerId, int limit, DateTimeOffset now,
         CancellationToken cancellationToken = default)

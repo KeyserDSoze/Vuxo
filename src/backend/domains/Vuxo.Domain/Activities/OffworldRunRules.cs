@@ -79,6 +79,9 @@ public sealed record OffworldRunHistoryEntry(
 
 public interface IOffworldRunRepository
 {
+    Task<OffworldPracticeProgress> GetPracticeProgressAsync(
+        string ownerId, CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<OffworldRunHistoryEntry>> GetHistoryAsync(
         string ownerId, int limit, DateTimeOffset now,
         CancellationToken cancellationToken = default);
