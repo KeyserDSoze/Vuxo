@@ -98,6 +98,8 @@ export function VerifiedRunePathPanel({ accessToken, playerId }: Props) {
   const [recovering, setRecovering] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [nextAllowed, setNextAllowed] = useState<string | null>(null);
+  const [remoteNotice, setRemoteNotice] = useState<'completed' | 'expired' | null>(null);
+  const [syncOffline, setSyncOffline] = useState(false);
   const startKey = useRef<string | null>(null);
   const finishKey = useRef<string | null>(null);
   const controllers = useRef(new Set<AbortController>());
@@ -188,6 +190,90 @@ export function VerifiedRunePathPanel({ accessToken, playerId }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accessToken, storageKey]);
 
+  // Read-only foreground polling. Multiple tabs never POST new sessions:
+  // PostgreSQL/JWT is authoritative for completion and expiry, while local
+  // steps are strictly visual. Pause while a local mutation/recovery is active.
+  useEffect(() => {
+    if (!ticket || ticket.state !== 'active' || recovering || busy) return;
+    const runId = ticket.runId;
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let request: AbortController | null = null;
+    let retryMs = 15_000;
+
+    const schedule = (delay: number) => {
+      if (stopped || document.visibilityState !== 'visible') return;
+      timer = window.setTimeout(() => { void check(); }, delay);
+    };
+    const check = async () => {
+      if (stopped || request || document.visibilityState !== 'visible') return;
+      const controller = new AbortController();
+      request = controller;
+      let stopAfterThisCheck = false;
+      try {
+        const current = await fetchRunePathSession(accessToken, runId, controller.signal);
+        if (stopped || controller.signal.aborted || current.runId !== runId) return;
+        retryMs = 15_000;
+        setSyncOffline(false);
+        if (current.state === 'completed' || current.state === 'expired') {
+          // An old request may not overwrite a different ticket. The effect is
+          // torn down as soon as current state is no longer "active".
+          setTicket(previous => previous?.runId === runId && previous.state === 'active'
+            ? current : previous);
+          setBoard(null);
+          setMoves('');
+          setBumps(0);
+          setError(null);
+          setRemoteNotice(current.state);
+          saveRun(storageKey, { runId, moves: '' });
+          stopAfterThisCheck = true;
+        }
+      } catch (reason) {
+        if (stopped || controller.signal.aborted) return;
+        if (reason instanceof RunePathSessionApiError && reason.status === 404) {
+          // An invalid/deleted run ID is never reused for another player.
+          setTicket(null);
+          setBoard(null);
+          setMoves('');
+          setError(reason.code);
+          saveRun(storageKey, null);
+          stopAfterThisCheck = true;
+        } else if (reason instanceof RunePathSessionApiError &&
+          (reason.status === 401 || reason.status === 403)) {
+          // Do not continue rendering an authorized board after auth fails.
+          setBoard(null);
+          setError('activity_run_unavailable');
+          stopAfterThisCheck = true;
+        } else {
+          // Temporary offline/429/5xx errors must not delete a valid ticket,
+          // reset local moves or generate duplicate completion requests.
+          setSyncOffline(true);
+          retryMs = Math.min(retryMs * 2, 60_000);
+        }
+      } finally {
+        if (request === controller) request = null;
+        if (!stopped && !stopAfterThisCheck) schedule(retryMs);
+      }
+    };
+    const visibilityChanged = () => {
+      if (timer !== undefined) window.clearTimeout(timer);
+      if (document.visibilityState !== 'visible') {
+        request?.abort();
+      } else {
+        // Refresh as soon as a player returns from another device/tab.
+        void check();
+      }
+    };
+    document.addEventListener('visibilitychange', visibilityChanged);
+    schedule(15_000);
+    return () => {
+      stopped = true;
+      if (timer !== undefined) window.clearTimeout(timer);
+      request?.abort();
+      document.removeEventListener('visibilitychange', visibilityChanged);
+    };
+  }, [accessToken, ticket?.runId, ticket?.state, busy, recovering, storageKey]);
+
   const start = async () => {
     if (busy || recovering) return;
     const key = startKey.current ?? crypto.randomUUID();
@@ -195,6 +281,8 @@ export function VerifiedRunePathPanel({ accessToken, playerId }: Props) {
     const controller = makeController();
     setBusy(true);
     setError(null);
+    setRemoteNotice(null);
+    setSyncOffline(false);
     try {
       const remote = await startRunePathSession(accessToken, key, controller.signal);
       if (controller.signal.aborted) return;
@@ -319,6 +407,8 @@ export function VerifiedRunePathPanel({ accessToken, playerId }: Props) {
     setMoves('');
     setBumps(0);
     setError(null);
+    setRemoteNotice(null);
+    setSyncOffline(false);
     finishKey.current = null;
     startKey.current = null;
   };
@@ -331,6 +421,16 @@ export function VerifiedRunePathPanel({ accessToken, playerId }: Props) {
         <Alert severity="info" data-testid="verified-path-disclaimer">
           {t('refuge.path.server.disclaimer')}
         </Alert>
+        {remoteNotice && (
+          <Alert severity="info" data-testid="verified-path-remote-update" role="status">
+            {t('refuge.path.server.sync.' + remoteNotice)}
+          </Alert>
+        )}
+        {syncOffline && ticket?.state === 'active' && (
+          <Alert severity="warning" data-testid="verified-path-sync-offline">
+            {t('refuge.path.server.sync.offline')}
+          </Alert>
+        )}
         {error && (
           <Alert severity="warning" data-testid="verified-path-error">
             {t('refuge.path.server.errors.' + error, {
