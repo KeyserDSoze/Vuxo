@@ -34,6 +34,8 @@ test.beforeEach(async ({ page }) => {
   // so they cannot accidentally depend on a local development backend.
   await page.route('**/api/activities/runs/active/rune-path', route =>
     route.fulfill({ status: 204, body: '' }));
+  await page.route('**/api/activities/runs/history/rune-path*', route =>
+    json(route, { items: [] }));
   await page.addInitScript(() => {
     localStorage.clear();
     // addInitScript also runs on reload: keep a ticket to test recovery.
@@ -87,8 +89,11 @@ test('server-owned board survives refresh, sends only moves, and displays canoni
   await openVerified(page);
   // Recorded mode may perform one read-only active-ticket lookup; it must
   // not start a run or request gameplay rewards until the player clicks Start.
-  expect(allRequests).toHaveLength(1);
-  expect(allRequests[0]).toContain('/api/activities/runs/active/rune-path');
+  expect(allRequests).toContainEqual(expect.stringContaining(
+    '/api/activities/runs/active/rune-path'));
+  expect(allRequests).toContainEqual(expect.stringContaining(
+    '/api/activities/runs/history/rune-path'));
+  expect(createKeys).toHaveLength(0);
   await page.getByTestId('verified-path-start').click();
   await expect(page.getByTestId('verified-path-board').locator('button')).toHaveCount(16);
   await expect(page.getByTestId('verified-path-cell-1-0')).toBeDisabled();
@@ -343,4 +348,64 @@ test('remote expiry is authoritative; a transient status outage preserves local 
   await expect(page.getByTestId('verified-path-board')).toHaveCount(0);
   await expect(page.getByTestId('verified-path-expired')).toBeVisible();
   expect(starts).toBe(1);
+});
+
+test('private recorded history renders verified results and refreshes without starting a run', async ({ page }) => {
+  let calls = 0;
+  const history = {
+    items: [
+      { ...ticket('completed'), stepsChecked: 6 },
+      { ...ticket('expired'), runId: '00000000-0000-4000-8000-000000000022' },
+    ],
+  };
+  await page.route('**/api/activities/runs/history/rune-path*', route => {
+    calls++;
+    expect(route.request().headers()['authorization']).toBe('Bearer e2e-rune-session-token');
+    expect(route.request().method()).toBe('GET');
+    return json(route, history);
+  });
+  let starts = 0;
+  await page.route('**/api/activities/runs/rune-path', route => {
+    starts++;
+    return json(route, ticket(), 201);
+  });
+  await openVerified(page);
+  await expect(page.getByTestId('path-history-item')).toHaveCount(2);
+  await expect(page.getByTestId('path-history-item').first()).toContainText('6 mosse verificate');
+  await expect(page.getByTestId('path-history-item').last()).toContainText('Sessione scaduta');
+  await page.getByTestId('path-history-refresh').click();
+  await expect.poll(() => calls).toBe(2);
+  expect(starts).toBe(0);
+  await page.getByTestId('language-toggle').click();
+  await expect(page.getByTestId('path-history-panel')).toContainText('My sessions');
+  await expect(page.getByTestId('path-history-item').first()).toContainText('verified moves');
+  await page.setViewportSize({ width: 320, height: 760 });
+  await expect.poll(() => page.evaluate(() =>
+    document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
+});
+
+test('history has no cross-account leakage and displays bounded errors/empty state', async ({ page }) => {
+  await page.route('**/api/activities/runs/history/rune-path*', route => {
+    const auth = route.request().headers()['authorization'];
+    if (auth === 'Bearer e2e-rune-session-token')
+      return json(route, { items: [{ ...ticket('completed'), stepsChecked: 6 }] });
+    return json(route, { items: [] });
+  });
+  await openVerified(page);
+  await expect(page.getByTestId('path-history-item')).toHaveCount(1);
+
+  await page.evaluate(() => {
+    localStorage.setItem('vuxo.auth.user', JSON.stringify({
+      id: 'different-player', displayName: 'Another Hero', email: null,
+    }));
+    localStorage.setItem('vuxo.accessToken', 'second-owner-token');
+    window.dispatchEvent(new Event('vuxo:session-changed'));
+  });
+  await expect(page.getByTestId('path-history-empty')).toBeVisible();
+  await expect(page.getByTestId('path-history-item')).toHaveCount(0);
+
+  await page.route('**/api/activities/runs/history/rune-path*', route =>
+    json(route, { code: 'activity_run_unavailable' }, 503));
+  await page.getByTestId('path-history-refresh').click();
+  await expect(page.getByTestId('path-history-error')).toBeVisible();
 });
