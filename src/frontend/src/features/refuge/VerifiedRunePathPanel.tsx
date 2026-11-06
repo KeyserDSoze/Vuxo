@@ -197,7 +197,7 @@ export function VerifiedRunePathPanel({ accessToken, playerId }: Props) {
     if (!ticket || ticket.state !== 'active' || recovering || busy) return;
     const runId = ticket.runId;
     let stopped = false;
-    let timer: ReturnType<typeof setTimeout> | undefined;
+    let timer: number | undefined;
     let request: AbortController | null = null;
     let retryMs = 15_000;
 
