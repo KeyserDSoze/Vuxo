@@ -225,6 +225,7 @@ export function VerifiedRunePathPanel({ accessToken, playerId, onRunChanged }: P
           setBumps(0);
           setError(null);
           setRemoteNotice(current.state);
+          onRunChanged?.(); // Refresh history from the server after a remote result.
           saveRun(storageKey, { runId, moves: '' });
           stopAfterThisCheck = true;
         }
@@ -272,7 +273,7 @@ export function VerifiedRunePathPanel({ accessToken, playerId, onRunChanged }: P
       request?.abort();
       document.removeEventListener('visibilitychange', visibilityChanged);
     };
-  }, [accessToken, ticket?.runId, ticket?.state, busy, recovering, storageKey]);
+  }, [accessToken, ticket?.runId, ticket?.state, busy, recovering, storageKey, onRunChanged]);
 
   const start = async () => {
     if (busy || recovering) return;
