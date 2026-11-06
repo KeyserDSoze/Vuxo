@@ -185,3 +185,16 @@ Acceptance: the home teaser and Journal do not import Phaser chunks; guests neve
 The historic results are constrained by actual persisted server evidence. Do not invent failed attempts, expiry states, Guardian rewards or old item provenance. The current offset pagination is deterministic on a stable database snapshot, but concurrent new outcomes can shift later pages; plan a cursor/snapshot follow-up if this becomes material.
 
 **Do not put any secret, access token or PostgreSQL connection string in a GitHub issue, commit or chat.**
+
+## Gate C0g: API owner-read UUID identity normalization (#120)
+
+The frontend's runtime parsers must reject duplicate grant IDs even when the same UUID appears with different letter casing in inventory awards, within or across stack available IDs, or across equipped slots. Canonical item keys retain their original case-sensitive comparison. The parser must reject the entire invalid response and never infer additional items or rewards.
+
+Run with Node.js 22+ from `src/frontend`:
+
+```bash
+node --experimental-strip-types --test scripts/owner-read.contract.test.mjs
+tsc --noEmit --strict --target ES2022 --module esnext src/features/contracts/ownerReadContracts.ts
+```
+
+**Evidence:** Node 22.16.0 **16/16 PASS** (12 existing + 4 new regression tests) and isolated strict TypeScript **PASS**. Both committed Git blob SHAs match the exact locally executed files. The comprehensive React build, Chromium/Playwright, backend/.NET and real PostgreSQL integration suites have **NOT** been run for this revision. Keep issue #120 open and do not open a PR, merge or deploy while #112 remains blocked.
