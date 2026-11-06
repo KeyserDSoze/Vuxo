@@ -67,6 +67,10 @@ public interface IOffworldRunRepository
     Task<OffworldRunResult> StartAsync(string ownerId, Guid idempotencyKey,
         DateTimeOffset now, CancellationToken cancellationToken = default);
 
+    // Active owner-only discovery is read-only; expired/completed tickets are never returned.
+    Task<OffworldRunResult?> GetActiveAsync(string ownerId,
+        DateTimeOffset now, CancellationToken cancellationToken = default);
+
     Task<OffworldRunResult?> GetAsync(string ownerId, Guid runId,
         DateTimeOffset now, CancellationToken cancellationToken = default);
 
