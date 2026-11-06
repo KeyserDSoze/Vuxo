@@ -183,3 +183,25 @@ test('English dark 320px keyboard mode displays retreat separately without Phase
     document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
   expect(game).toEqual([]);
 });
+
+test('invalid outcome kind never displays a fake Guardian victory and can be retried', async ({ page }) => {
+  await signIn(page);
+  await baseFixtures(page);
+  let corrupt = true;
+  await page.route('**/api/personal-content/history/outcomes*', route => route.fulfill({
+    headers: corsHeaders, contentType: 'application/json',
+    body: JSON.stringify({ items: [corrupt
+      ? { ...events[3], kind: 'guardian_win', rewardItemKey: 'item.grove_seed.v1' }
+      : events[3]], page: 1, pageSize: 20, hasMore: false }),
+  }));
+  await page.goto('./#/refuge/journal');
+  await page.getByTestId('refuge-journal-mode-outcomes').click();
+  await expect(page.getByTestId('refuge-journal-completed-error')).toBeVisible();
+  await expect(page.getByTestId('refuge-journal-completed-entry')).toHaveCount(0);
+  corrupt = false;
+  await page.getByTestId('refuge-journal-completed-retry').click();
+  const entry = page.getByTestId('refuge-journal-completed-entry');
+  await expect(entry).toHaveCount(1);
+  await expect(entry).toContainText('Ritirata dal Guardiano');
+  await expect(entry.getByTestId('refuge-journal-verified-reward')).toHaveCount(0);
+});

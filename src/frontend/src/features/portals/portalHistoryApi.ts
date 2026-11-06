@@ -1,25 +1,16 @@
 import { getApiBaseUrl } from '../character/appearance';
 import { readStoredSession } from '../auth/authSession';
+import { parsePortalCompletionPage, parsePortalOutcomePage } from './portalHistoryContract';
 
-export type CompletedPortal = {
-  grantId: string;
-  contentKey: string;
-  ruleVersion: string;
-  grantedAtUtc: string;
-  completedAtUtc: string;
-  rewardItemKey?: string | null;
-};
+export type {
+  CompletedPortal, PortalCompletionPage, PortalOutcome,
+  PortalOutcomeKind, PortalOutcomePage,
+} from './portalHistoryContract';
 
-export type PortalCompletionPage = {
-  items: CompletedPortal[];
-  page: number;
-  pageSize: number;
-  hasMore: boolean;
-};
-
+/** Read-only owner history; never trust an unvalidated JSON response. */
 export async function fetchCompletedPortals(
   page = 1, pageSize = 20, signal?: AbortSignal,
-): Promise<PortalCompletionPage> {
+) {
   const token = readStoredSession()?.accessToken;
   if (!token) throw new Error('portal_history_authentication_required');
   const response = await fetch(
@@ -27,39 +18,17 @@ export async function fetchCompletedPortals(
     { headers: { Authorization: `Bearer ${token}` }, signal },
   );
   if (!response.ok) throw new Error('portal_history_request_failed');
-  return response.json() as Promise<PortalCompletionPage>;
+  const raw: unknown = await response.json();
+  return parsePortalCompletionPage(raw, page);
 }
 
 /**
- * Immutable, evidence-backed event timeline. A first-mistake damage receipt is
- * not a count of failed attempts; retreat is not a rune sequence failure.
+ * A first mistake is not an aggregate of failed attempts, and a retreat
+ * must not inherit a rune completion reward. Verify the server payload.
  */
-export type PortalOutcomeKind =
-  | 'sequence_completed'
-  | 'sequence_first_mistake'
-  | 'guardian_victory'
-  | 'guardian_retreat';
-
-export type PortalOutcome = {
-  eventId: string;
-  grantId: string;
-  contentKey: string;
-  kind: PortalOutcomeKind;
-  ruleVersion: string;
-  occurredAtUtc: string;
-  rewardItemKey?: string | null;
-};
-
-export type PortalOutcomePage = {
-  items: PortalOutcome[];
-  page: number;
-  pageSize: number;
-  hasMore: boolean;
-};
-
 export async function fetchPortalOutcomes(
   page = 1, pageSize = 20, signal?: AbortSignal,
-): Promise<PortalOutcomePage> {
+) {
   const token = readStoredSession()?.accessToken;
   if (!token) throw new Error('portal_history_authentication_required');
   const response = await fetch(
@@ -67,5 +36,6 @@ export async function fetchPortalOutcomes(
     { headers: { Authorization: `Bearer ${token}` }, signal },
   );
   if (!response.ok) throw new Error('portal_outcomes_request_failed');
-  return response.json() as Promise<PortalOutcomePage>;
+  const raw: unknown = await response.json();
+  return parsePortalOutcomePage(raw, page);
 }

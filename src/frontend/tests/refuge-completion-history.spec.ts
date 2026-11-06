@@ -174,3 +174,24 @@ test('English dark mobile 320px verified timeline supports keyboard pagination w
     document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
   expect(unwanted).toEqual([]);
 });
+
+test('invalid completed-history JSON stays an error and retry recovers without invented entries', async ({ page }) => {
+  await signIn(page);
+  await emptyOtherPanels(page);
+  let corrupt = true;
+  await page.route('**/api/personal-content/history/completed*', route => route.fulfill({
+    headers: corsHeaders, contentType: 'application/json',
+    body: JSON.stringify(corrupt
+      ? { items: [completed[0]], page: 1, pageSize: 20, hasMore: 'false' }
+      : { items: [completed[0]], page: 1, pageSize: 20, hasMore: false }),
+  }));
+  await page.goto('./#/refuge/journal');
+  await expect(page.getByTestId('refuge-journal-completed-error')).toBeVisible();
+  await expect(page.getByTestId('refuge-journal-completed-entry')).toHaveCount(0);
+  await expect(page.getByTestId('refuge-journal-completed-empty')).toHaveCount(0);
+  await expect(page.getByTestId('refuge-journal-rewards-empty')).toBeVisible();
+  corrupt = false;
+  await page.getByTestId('refuge-journal-completed-retry').click();
+  await expect(page.getByTestId('refuge-journal-completed-entry')).toHaveCount(1);
+  await expect(page.getByTestId('refuge-journal-completed-error')).toHaveCount(0);
+});

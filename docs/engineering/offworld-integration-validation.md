@@ -59,6 +59,19 @@ The Playwright fixtures in `inventory-loadout.spec.ts`, `inventory-browse.spec.t
 
 When running Gate C, pay particular attention to the existing tests asserting **exactly one actual** `DELETE /api/equipment/charm`, `POST /api/characters/me/heal/...` and `POST /api/characters/me/rest`. They must not pass by counting OPTIONS, and must not fail because an OPTIONS was rejected with HTTP 405. A successful preflight is not proof that the subsequent authenticated request was accepted by the backend; the mocked user-visible result is still a separate contract.
 
+## Gate C0: owner history JSON contract tests (no browser or GitHub Actions)
+
+With Node.js 22+ installed, run the standalone validation suite **before** the full Playwright build:
+
+```bash
+cd src/frontend
+npm run test:contracts
+```
+
+This requires no connected API, Chromium or PostgreSQL and uses the Node test runner with built-in TypeScript stripping. It checks canonical rune completions, all four outcome kinds, duplicate IDs, pagination, invalid dates/UUIDs, missing rewards and responses that wrongly attribute rune rewards to Guardian or first-mistake results. The first local execution on Node **22.16.0 passed 8/8** and the parser passed an isolated `tsc --noEmit --strict` check. Both are useful early smoke tests, **not evidence that the complete frontend compiles or that the backend query works**.
+
+When Gate C (Playwright) becomes runnable, also execute the new malformed-response/retry scenarios in `refuge-completion-history.spec.ts` and `refuge-outcome-history.spec.ts`. Confirm the Journal shows an error, renders **zero invented entries**, and recovers on retry. Never treat `npm run test:contracts` alone as release approval.
+
 ## Gate C: browser and i18n regression
 
 ```bash
