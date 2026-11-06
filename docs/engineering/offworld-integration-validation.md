@@ -51,6 +51,7 @@ dotnet test Vuxo.sln -c Release --no-build
 - Owner isolation across different player IDs, audit/causation agreement, no false Guardian award. `PortalRewardProvenancePersistenceTests` must persist AND reject all three forgeries: wrong cause, correct cause but wrong grant correlation, and correct cause/correlation but wrong item key. The legitimate canonical reward must still appear on both history endpoints.
 - Migrations `202611060001`, `202611060002` and `202611060003` applied in order against a disposable database.
 - Failed/expired/grant-only records are never labeled completed without a supported audit event.
+- Verify negative audit-corruption checks in `PortalCompletionHistoryPersistenceTests` and `PortalOutcomeHistoryPersistenceTests`: mismatched completion correlation/rules, first-mistake correlation/rules, missing or mismatched Guardian encounter-start causation/correlation and terminal-turn correlation must all exclude the corresponding event. Confirm the other owner's genuine events are still visible.
 
 ## CORS/preflight regression gate (QA fix #120)
 

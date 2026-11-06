@@ -30,6 +30,10 @@ La ricompensa canonica `PlayerInventoryAward` conserva già `GrantId`, `PlayerId
 
 QA predisposta: test HTTP sulla serializzazione dei DTO, test PostgreSQL del consumo reale con premi supportati/assenti/causazione volutamente falsata e cross-owner, quattro Playwright per premio verificato, primo errore/Guardiano senza falsa associazione, paginazione e cambio account su mobile IT/EN/dark. **Non eseguiti** finché GitHub Actions è bloccata da #112.
 
+### Integrità aggiuntiva del registro: eventi audit e incontro (#120)
+
+La verifica della sequenza richiede ora che `exclusive_content.consumed` corrisponda anche a `CorrelationId` e `RuleVersion` del grant; la ricevuta `portal.sequence_mistake_damage` deve rispettare `CorrelationId` del grant e versione specifica del danno. Per **Guardian**, una ricevuta di turno terminale non basta: serve l'evento immutabile `portal.encounter_started` referenziato da `EncounterEventId`, con `PlayerId`, `CorrelationId`, `RuleVersion=PortalEncounterRules.Version` e `CausationId=grant.GrantEventId`; il turno `portal.guardian_turn_resolved` conserva causa `EncounterEventId`, correlazione del grant e versione PvE riconosciuta. In assenza di questo collegamento l'esito non è elencato. I nuovi assert PostgreSQL falsificano selettivamente questi metadati dopo la creazione di eventi reali: nessuna retroattribuzione di vittorie, cambio di gameplay o migrazione.
+
 ## Esiti verificati delle avventure — issue #119, seconda tranche
 
 La nuova consultazione `GET /api/personal-content/history/outcomes?page=1&pageSize=20` integra il registro dei completamenti già realizzato. Il read model `PortalOutcomeHistoryReader` combina tramite `UNION ALL` tre insiemi persistenti, con una pagina massima di 50 righe, limite a 1000 pagine, sort `OccurredAtUtc DESC, EventId DESC` ed evento unico per chiave:

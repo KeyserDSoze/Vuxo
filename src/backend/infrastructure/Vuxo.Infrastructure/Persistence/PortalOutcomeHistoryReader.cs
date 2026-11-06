@@ -37,6 +37,8 @@ public sealed class PortalOutcomeHistoryReader(VuxoDbContext db)
                 && grant.PlayerId == owner
                 && grant.PortalKey == PortalSequenceRules.PortalKey
                 && grant.ConsumedAtUtc != null
+                && audit.CorrelationId == grant.CorrelationId
+                && audit.RuleVersion == grant.RuleVersion
             select new
             {
                 audit.EventId,
@@ -61,6 +63,8 @@ public sealed class PortalOutcomeHistoryReader(VuxoDbContext db)
                 && audit.PlayerId == owner
                 && audit.EventType == "portal.sequence_mistake_damage"
                 && audit.CausationId == grant.GrantEventId
+                && audit.CorrelationId == grant.CorrelationId
+                && audit.RuleVersion == PortalMistakeDamageRules.Version
             select new
             {
                 audit.EventId,
@@ -71,8 +75,8 @@ public sealed class PortalOutcomeHistoryReader(VuxoDbContext db)
                 audit.OccurredAtUtc
             };
 
-        // Terminal PvE turn receipts are immutable and have the matching
-        // server audit event. Retreat is NOT a sequence-challenge failure.
+        // Terminal PvE turn receipts need BOTH their audited turn and the
+        // original audited encounter start, causally linked to this grant. Retreat is NOT a sequence-challenge failure.
         var guardianTerminals =
             from turn in db.PortalGuardianTurns.AsNoTracking()
             join grant in db.ExclusiveContentGrants.AsNoTracking()
@@ -80,11 +84,21 @@ public sealed class PortalOutcomeHistoryReader(VuxoDbContext db)
                 equals new { grant.Id, grant.PlayerId }
             join audit in db.GameEvents.AsNoTracking()
                 on turn.TurnEventId equals audit.EventId
+            join encounterStart in db.GameEvents.AsNoTracking()
+                on turn.EncounterEventId equals encounterStart.EventId
             where turn.PlayerId == owner && grant.PlayerId == owner
                 && grant.PortalKey == PortalSequenceRules.PortalKey
                 && audit.PlayerId == owner
                 && audit.EventType == "portal.guardian_turn_resolved"
                 && audit.CausationId == turn.EncounterEventId
+                && audit.CorrelationId == grant.CorrelationId
+                && (audit.RuleVersion == PortalGuardianRules.Version ||
+                    audit.RuleVersion == PortalGuardianRules.CurrentVersion)
+                && encounterStart.PlayerId == owner
+                && encounterStart.EventType == "portal.encounter_started"
+                && encounterStart.CausationId == grant.GrantEventId
+                && encounterStart.CorrelationId == grant.CorrelationId
+                && encounterStart.RuleVersion == PortalEncounterRules.Version
                 && (turn.Outcome == PortalGuardianRules.Victory ||
                     turn.Outcome == PortalGuardianRules.Retreat)
             select new

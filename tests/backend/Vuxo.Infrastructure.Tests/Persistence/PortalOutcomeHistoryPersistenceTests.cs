@@ -57,6 +57,27 @@ public sealed class PortalOutcomeHistoryPersistenceTests
         var replay = await new PortalMistakeDamageRepository(repeatDb, new GameEventStore(repeatDb))
             .ApplyFirstMistakeAsync("player-a", grant.Id, now);
         Assert.Null(replay); // grant already consumed, no new receipt
+
+        // An audit with matching EventId/CausationId must still share the
+        // original grant correlation and canonical mistake rule version.
+        var mistakeEvent = await verification.GameEvents.AsNoTracking()
+            .SingleAsync(x => x.EventType == "portal.sequence_mistake_damage");
+        await verification.GameEvents
+            .Where(x => x.EventId == mistakeEvent.EventId)
+            .ExecuteUpdateAsync(update => update.SetProperty(
+                x => x.CorrelationId, Guid.NewGuid()));
+        var noForgedMistake = await reader.ListForPlayerAsync("player-a", 1, 20);
+        Assert.Equal(PortalOutcomeKinds.SequenceCompleted,
+            Assert.Single(noForgedMistake.Items).Kind);
+
+        await verification.GameEvents
+            .Where(x => x.EventId == mistakeEvent.EventId)
+            .ExecuteUpdateAsync(update => update
+                .SetProperty(x => x.CorrelationId, grant.CorrelationId)
+                .SetProperty(x => x.RuleVersion, "forged-mistake-rules"));
+        Assert.Equal(PortalOutcomeKinds.SequenceCompleted, Assert.Single(
+            (await reader.ListForPlayerAsync("player-a", 1, 20)).Items).Kind);
+        Assert.Empty((await reader.ListForPlayerAsync("player-b", 1, 20)).Items);
     }
 
     [PostgresIntegrationFact]
@@ -93,6 +114,36 @@ public sealed class PortalOutcomeHistoryPersistenceTests
             terminal.Kind);
         Assert.Equal(PortalGuardianRules.CurrentVersion, terminal.RuleVersion);
         Assert.Empty((await history.ListForPlayerAsync("player-b", 1, 20)).Items);
+
+        var encounterStartId = await verify.PortalGuardianTurns.AsNoTracking()
+            .Select(x => x.EncounterEventId).Distinct().SingleAsync();
+
+        // A turn alone cannot prove a terminal outcome if its encounter-start
+        // event is no longer causally tied to this portal grant.
+        await verify.GameEvents
+            .Where(x => x.EventId == encounterStartId)
+            .ExecuteUpdateAsync(update => update.SetProperty(
+                x => x.CausationId, (Guid?)Guid.NewGuid()));
+        Assert.Empty((await history.ListForPlayerAsync("player-a", 1, 20)).Items);
+
+        // Even the correct encounter start must have the owner correlation.
+        await verify.GameEvents
+            .Where(x => x.EventId == encounterStartId)
+            .ExecuteUpdateAsync(update => update
+                .SetProperty(x => x.CausationId, (Guid?)grant.GrantEventId)
+                .SetProperty(x => x.CorrelationId, Guid.NewGuid()));
+        Assert.Empty((await history.ListForPlayerAsync("player-a", 1, 20)).Items);
+
+        // A forged terminal-turn correlation must likewise be excluded.
+        await verify.GameEvents
+            .Where(x => x.EventId == encounterStartId)
+            .ExecuteUpdateAsync(update => update.SetProperty(
+                x => x.CorrelationId, grant.CorrelationId));
+        await verify.GameEvents
+            .Where(x => x.EventId == terminal.EventId)
+            .ExecuteUpdateAsync(update => update.SetProperty(
+                x => x.CorrelationId, Guid.NewGuid()));
+        Assert.Empty((await history.ListForPlayerAsync("player-a", 1, 20)).Items);
     }
 
     private static async Task<ExclusiveContentGrant> SeedAsync(PostgresDatabaseScope database)

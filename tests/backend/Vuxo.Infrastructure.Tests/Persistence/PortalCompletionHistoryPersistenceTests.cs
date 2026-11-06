@@ -79,6 +79,32 @@ public sealed class PortalCompletionHistoryPersistenceTests
         });
         Assert.Equal(anotherOwner.Id, Assert.Single(otherPage.Items).GrantId);
         Assert.False(otherPage.HasMore);
+
+        // A valid consumed grant is not sufficient if its supposedly verified
+        // completion event disagrees with the original grant's correlation.
+        var firstAudit = await verification.GameEvents.AsNoTracking()
+            .SingleAsync(x => x.EventType == "exclusive_content.consumed"
+                && x.CausationId == first.GrantEventId);
+        await verification.GameEvents
+            .Where(x => x.EventId == firstAudit.EventId)
+            .ExecuteUpdateAsync(update => update.SetProperty(
+                x => x.CorrelationId, Guid.NewGuid()));
+
+        var withoutWrongCorrelation = await reader.ListCompletedForPlayerAsync("player-a", 1, 20);
+        Assert.Equal(second.Id, Assert.Single(withoutWrongCorrelation.Items).GrantId);
+
+        // Equally reject a real consumption event with forged rule metadata.
+        var secondAudit = await verification.GameEvents.AsNoTracking()
+            .SingleAsync(x => x.EventType == "exclusive_content.consumed"
+                && x.CausationId == second.GrantEventId);
+        await verification.GameEvents
+            .Where(x => x.EventId == secondAudit.EventId)
+            .ExecuteUpdateAsync(update => update.SetProperty(
+                x => x.RuleVersion, "forged-rules"));
+        Assert.Empty((await reader.ListCompletedForPlayerAsync("player-a", 1, 20)).Items);
+        // The other owner's legitimate completion remains untouched.
+        Assert.Equal(anotherOwner.Id, Assert.Single(
+            (await reader.ListCompletedForPlayerAsync("player-b", 1, 20)).Items).GrantId);
     }
 
     private static ExclusiveContentGrant NewGrant(

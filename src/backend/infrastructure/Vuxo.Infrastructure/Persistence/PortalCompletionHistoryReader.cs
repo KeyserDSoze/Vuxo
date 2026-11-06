@@ -33,6 +33,8 @@ public sealed class PortalCompletionHistoryReader(VuxoDbContext dbContext)
                 && grant.PlayerId == owner
                 && grant.PortalKey == PortalSequenceRules.PortalKey
                 && grant.ConsumedAtUtc != null
+                && eventRecord.CorrelationId == grant.CorrelationId
+                && eventRecord.RuleVersion == grant.RuleVersion
             orderby eventRecord.OccurredAtUtc descending, eventRecord.EventId descending
             select new
             {
