@@ -104,6 +104,27 @@ public sealed class OffworldRunRepository(VuxoDbContext db, IGameEventStore even
         return ToResult(run, now, replayed: false);
     }
 
+    public async Task<IReadOnlyList<OffworldRunHistoryEntry>> GetHistoryAsync(
+        string ownerId, int limit, DateTimeOffset now,
+        CancellationToken cancellationToken = default)
+    {
+        // Restricted to the caller's JWT subject and the canonical activity.
+        // Bounded, stable ordering avoids scanning or exposing another account.
+        // An effective expired state is projected without changing the database.
+        var runs = await db.OffworldActivityRuns.AsNoTracking()
+            .Where(x => x.PlayerId == ownerId
+                && x.ActivityKey == OffworldRunRules.ActivityKey)
+            .OrderByDescending(x => x.StartedAtUtc)
+            .ThenByDescending(x => x.Id)
+            .Take(limit)
+            .ToListAsync(cancellationToken);
+        return runs.Select(run => new OffworldRunHistoryEntry(
+            run.Id, run.ActivityKey, run.RulesVersion, run.PuzzleIndex,
+            run.StartedAtUtc, run.ExpiresAtUtc,
+            OffworldRunRules.CurrentState(run.State, run.ExpiresAtUtc, now),
+            run.CompletedAtUtc, run.StepsChecked)).ToArray();
+    }
+
     public async Task<OffworldRunResult?> GetActiveAsync(string ownerId,
         DateTimeOffset now, CancellationToken cancellationToken = default)
     {
