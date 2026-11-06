@@ -1,8 +1,10 @@
-import { Alert, Box, Button, Chip, CircularProgress, Paper, Stack, Typography } from '@mui/material';
-import { useEffect, useState } from 'react';
+import { Alert, Box, Button, Chip, CircularProgress, FormControl, Grid, InputLabel, MenuItem, Paper, Select, Stack, TextField, Typography } from '@mui/material';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link as RouterLink } from 'react-router-dom';
 import { useStoredSession } from '../features/auth/useStoredSession';
+import type { VuxoSession } from '../features/auth/authSession';
+import { browseInventory, type InventoryBrowseFilter, type InventoryBrowseSort } from '../features/inventory/inventoryBrowse';
 import { HealingItemAction } from '../features/inventory/HealingItemAction';
 import type { CharacterItemHealResult } from '../features/inventory/consumableApi';
 import {
@@ -24,9 +26,14 @@ function slotFor(itemKey: string): 'relic' | 'charm' | null {
   return null;
 }
 
+/** Reset all owner data and browse state immediately when the authenticated account changes. */
 export function InventoryPage() {
-  const { t, i18n } = useTranslation('inventory');
   const session = useStoredSession();
+  return <InventorySessionPage key={session?.accessToken ?? 'guest'} session={session} />;
+}
+
+function InventorySessionPage({ session }: { session: VuxoSession | null }) {
+  const { t, i18n } = useTranslation('translation', { keyPrefix: 'inventory' });
   const [items, setItems] = useState<InventoryAward[]>([]);
   const [loading, setLoading] = useState(Boolean(session));
   const [error, setError] = useState<string | null>(null);
@@ -36,6 +43,9 @@ export function InventoryPage() {
   const [equipmentBusy, setEquipmentBusy] = useState(false);
   const [healingResult, setHealingResult] = useState<CharacterItemHealResult | null>(null);
   const [healingRefreshError, setHealingRefreshError] = useState(false);
+  const [browseQuery, setBrowseQuery] = useState('');
+  const [browseFilter, setBrowseFilter] = useState<InventoryBrowseFilter>('all');
+  const [browseSort, setBrowseSort] = useState<InventoryBrowseSort>('name');
 
   useEffect(() => {
     setItems([]);
@@ -80,6 +90,29 @@ export function InventoryPage() {
     return () => controller.abort();
   }, [session?.accessToken]);
 
+  const browseReady = Boolean(session && !loading && !error && !equipmentError && loadout);
+  const canBrowse = browseReady && (stacks.length > 0 || items.length > 0);
+  const view = useMemo(() => loadout
+    ? browseInventory({
+        stacks, awards: items, loadout, query: browseQuery, filter: browseFilter,
+        sort: browseSort, locale: i18n.resolvedLanguage?.startsWith('en') ? 'en' : 'it',
+        itemLabel: itemKey => {
+          const key = inventoryItemLabelKeys[itemKey];
+          return key ? t('items.' + key) : itemKey;
+        },
+      })
+    : { stacks, awards: items },
+  [stacks, items, loadout, browseQuery, browseFilter, browseSort, i18n.resolvedLanguage, t]);
+  const displayedStacks = browseReady ? view.stacks : stacks;
+  const displayedItems = browseReady ? view.awards : items;
+  const noMatches = canBrowse && displayedStacks.length === 0 && displayedItems.length === 0;
+
+  const resetBrowse = () => {
+    setBrowseQuery('');
+    setBrowseFilter('all');
+    setBrowseSort('name');
+  };
+
   const performEquipmentAction = async (action: () => Promise<EquipmentView>) => {
     if (equipmentBusy) return;
     setEquipmentBusy(true);
@@ -116,7 +149,7 @@ export function InventoryPage() {
           {t('errors.' + error, { defaultValue: t('errors.inventory_request_failed') })}
         </Alert>
       )}
-      {session && !loading && !error && items.length === 0 && (
+      {session && !loading && !error && !equipmentError && loadout && items.length === 0 && stacks.length === 0 && (
         <Alert severity="info" data-testid="inventory-empty">{t('empty')}</Alert>
       )}
 
@@ -140,10 +173,65 @@ export function InventoryPage() {
           {t('healing.refreshError')}
         </Alert>
       )}
-      {stacks.length > 0 && (
+      {canBrowse && (
+        <Paper variant="outlined" data-testid="inventory-browse-controls" sx={{ p: { xs: 2, sm: 3 } }}>
+          <Stack spacing={2}>
+            <Typography component="h2" variant="h6" sx={{ fontWeight: 800 }}>{t('browse.title')}</Typography>
+            <Grid container spacing={1.5}>
+              <Grid size={{ xs: 12, sm: 6, md: 6 }}>
+                <TextField fullWidth label={t('browse.search')} value={browseQuery}
+                  onChange={event => setBrowseQuery(event.target.value)}
+                  placeholder={t('browse.searchHint')}
+                  slotProps={{ htmlInput: { 'data-testid': 'inventory-browse-search' } }}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                <FormControl fullWidth>
+                  <InputLabel id="inventory-browse-filter-label">{t('browse.filterLabel')}</InputLabel>
+                  <Select labelId="inventory-browse-filter-label" data-testid="inventory-browse-filter"
+                    value={browseFilter} label={t('browse.filterLabel')}
+                    onChange={event => setBrowseFilter(event.target.value as InventoryBrowseFilter)}>
+                    <MenuItem value="all">{t('browse.filters.all')}</MenuItem>
+                    <MenuItem value="equipped">{t('browse.filters.equipped')}</MenuItem>
+                    <MenuItem value="available">{t('browse.filters.available')}</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                <FormControl fullWidth>
+                  <InputLabel id="inventory-browse-sort-label">{t('browse.sortLabel')}</InputLabel>
+                  <Select labelId="inventory-browse-sort-label" data-testid="inventory-browse-sort"
+                    value={browseSort} label={t('browse.sortLabel')}
+                    onChange={event => setBrowseSort(event.target.value as InventoryBrowseSort)}>
+                    <MenuItem value="name">{t('browse.sorts.name')}</MenuItem>
+                    <MenuItem value="quantity">{t('browse.sorts.quantity')}</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+            </Grid>
+            <Stack direction={{ xs: 'column', sm: 'row' }} sx={{ gap: 1, alignItems: { sm: 'center' }, justifyContent: 'space-between' }}>
+              <Typography data-testid="inventory-browse-results" component="p" variant="body2" color="text.secondary" aria-live="polite">
+                {t('browse.results', { shown: displayedStacks.length + displayedItems.length, total: stacks.length + items.length })}
+              </Typography>
+              {(browseQuery || browseFilter !== 'all' || browseSort !== 'name') && (
+                <Button data-testid="inventory-browse-clear" size="small" onClick={resetBrowse} sx={{ alignSelf: 'flex-start' }}>
+                  {t('browse.clear')}
+                </Button>
+              )}
+            </Stack>
+            {noMatches && (
+              <Alert severity="info" data-testid="inventory-browse-empty" role="status">
+                {t('browse.noMatches')}
+              </Alert>
+            )}
+          </Stack>
+        </Paper>
+      )}
+
+      {displayedStacks.length > 0 && (
         <Stack spacing={1.5} data-testid="inventory-stacks">
           <Typography variant="h5">{t('stacksTitle')}</Typography>
-          {stacks.map(stack => {
+          {displayedStacks.map(stack => {
             const labelKey = inventoryItemLabelKeys[stack.itemKey];
             const slot = slotFor(stack.itemKey);
             const active = loadout?.items.find(item => item.itemKey === stack.itemKey);
@@ -226,10 +314,10 @@ export function InventoryPage() {
         </Paper>
       )}
 
-      {items.length > 0 && (
+      {displayedItems.length > 0 && (
         <Stack spacing={1.5} data-testid="inventory-items">
-          <Typography variant="h5">{t('owned', { count: items.length })}</Typography>
-          {items.map(award => {
+          <Typography variant="h5">{t('owned', { count: displayedItems.length })}</Typography>
+          {displayedItems.map(award => {
             const labelKey = inventoryItemLabelKeys[award.itemKey];
             return (
               <Paper key={award.grantId} variant="outlined" sx={{ p: { xs: 2, md: 3 } }}

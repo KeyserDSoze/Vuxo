@@ -18,7 +18,11 @@ Quando una issue cambia stato in modo significativo, aggiornare la riga corrispo
 
 | Issue | Tipo | Versione | Area | Stato | Test/Stato verifica | Risoluzione / prossimo passo |
 |---|---|---:|---|---|---|---|
-| #109 | Feature/UX | 0.0.1 | Immersive landing + interactive portal | In progress | Playwright (portal, realm selectors, pointer, keyboard, reduced motion, i18n and responsive); CI PR pending | Original SVG/CSS hero, no Phaser load, theme tokens, guest/auth and Refuge routing; review CI before closure |
+| #115 | Feature/UX | 0.0.1 | Inventory browse: localized search, filters and sort | In progress | 7 Playwright tests authored, not executed; GitHub Actions exhausted (#112) | Branch feature/115-inventory-browse, no new API/mutation, guarded by session key; CI/review before merge |
+| #114 | Feature/UX | 0.0.1 | Refuge read-only adventure preparation | In progress | 7 Playwright scenarios authored on isolated branch; CI blocked by #112 | feature/114-refuge-preparation, commit 8f3d692; not merged |
+| #113 | Feature/UX | 0.0.1 | Home playable rune sigil | In progress | 9 Playwright scenarios authored on isolated branch; CI blocked by #112 | feature/113-home-rune-teaser, commit dbddc231; not merged |
+| #112 | Bug/Delivery | 0.0.1 | GitHub Actions usage limit exhausted | Blocked | User confirmed budget/quota; Pages build skipped steps; rerun failed #42198656624 | No new GitHub Actions, PRs or merge until quota restored; https://vuxo.app still old frontend |
+| #109 | Feature/UX | 0.0.1 | Immersive landing + interactive portal | Done | PR #111 CI #42195079264 success: 100 Playwright; live #42195079030 success | Merged to main d1035cc5; release to GitHub Pages blocked by #112 |
 | #70 | Epic | 0.0.1+ | Off-world gameplay and Refuge | In progress | Architettura/design in docs/game-design/off-world-refuge.md; slice #71 in CI | Cura autorevole #72 e minigiochi a reward #73 pianificati; no client-authoritative economy |
 | #71 | Feature | 0.0.1 | Refuge hub and free rune training | Done | PR #74 CI #41942702087: 68/68 Playwright, build/backend/Docker verdi; live E2E #41942702124 verde | Rifugio e allenamento rune 3/4/6, nav/mobile/i18n, nessun reward locale; mergiata in main a5adb254; issue chiusa #71 |
 | #75 | Feature | 0.0.1 | Persisted current HP + Refuge read view | Done | PR #76 CI #41946315211: 281 xUnit, 72 Playwright, Docker success; real E2E #41946315179 success | GET owner-only; migration/backfill+constraint; Refuge HP IT/EN; healing #72 |
