@@ -65,6 +65,26 @@ export function startRunePathSession(
   }).then(readResponse<RunePathTicket>);
 }
 
+/**
+ * Look up only the current authenticated owner's active Rune Path ticket.
+ * A 204 is the normal, non-error "no active run" response. There is no
+ * cross-device step synchronization: only the server-owned board and ticket
+ * transfer, and the second device starts its visual route from the beginning.
+ */
+export async function fetchActiveRunePathSession(
+  token: string,
+  signal?: AbortSignal,
+): Promise<RunePathTicket | null> {
+  const response = await fetch(getApiBaseUrl() + '/api/activities/runs/active/rune-path', {
+    method: 'GET',
+    cache: 'no-store',
+    headers: { Authorization: 'Bearer ' + token },
+    signal,
+  });
+  if (response.status === 204) return null;
+  return readResponse<RunePathTicket>(response);
+}
+
 export function fetchRunePathSession(
   token: string,
   runId: string,
