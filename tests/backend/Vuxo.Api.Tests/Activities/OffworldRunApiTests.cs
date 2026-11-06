@@ -18,6 +18,8 @@ public sealed class OffworldRunApiTests
         Assert.Equal(HttpStatusCode.Unauthorized,
             (await client.PostAsync("/api/activities/runs/rune-path", null)).StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized,
+            (await client.GetAsync("/api/activities/runs/active/rune-path")).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized,
             (await client.GetAsync($"/api/activities/runs/{Guid.NewGuid()}")).StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized,
             (await client.PostAsJsonAsync($"/api/activities/runs/{Guid.NewGuid()}/complete",
@@ -56,6 +58,40 @@ public sealed class OffworldRunApiTests
         Assert.NotNull(final);
         Assert.Equal(OffworldRunRules.Completed, final.State);
         Assert.False(final.Replayed);
+    }
+
+    [Fact]
+    public async Task ActiveDiscovery_OnlyReturnsTheJwtOwnersUnexpiredRun()
+    {
+        var fake = new FakeRuns();
+        using var factory = Factory(fake);
+        using var client = factory.CreateClient();
+        await LoginAsync(client, "player-a");
+        using var empty = await client.GetAsync("/api/activities/runs/active/rune-path");
+        Assert.Equal(HttpStatusCode.NoContent, empty.StatusCode);
+
+        using var started = NewPost("/api/activities/runs/rune-path", Guid.NewGuid());
+        using var start = await client.SendAsync(started);
+        Assert.Equal(HttpStatusCode.Created, start.StatusCode);
+        using var current = await client.GetAsync("/api/activities/runs/active/rune-path");
+        Assert.Equal(HttpStatusCode.OK, current.StatusCode);
+        var active = await current.Content.ReadFromJsonAsync<OffworldRunResult>();
+        Assert.NotNull(active);
+        Assert.Equal("rune-path", active.ActivityKey);
+        Assert.Equal("player-a", fake.LastOwner);
+
+        // A different JWT cannot discover the first account's run.
+        await LoginAsync(client, "player-b");
+        using var foreign = await client.GetAsync("/api/activities/runs/active/rune-path");
+        Assert.Equal(HttpStatusCode.NoContent, foreign.StatusCode);
+
+        await LoginAsync(client, "player-a");
+        using var complete = NewPost($"/api/activities/runs/{active.RunId}/complete",
+            Guid.NewGuid(), new { moves = "DDDRRR" });
+        using var committed = await client.SendAsync(complete);
+        Assert.Equal(HttpStatusCode.OK, committed.StatusCode);
+        using var ended = await client.GetAsync("/api/activities/runs/active/rune-path");
+        Assert.Equal(HttpStatusCode.NoContent, ended.StatusCode);
     }
 
     [Theory]
@@ -148,6 +184,8 @@ public sealed class OffworldRunApiTests
         public Guid? FinishKey { get; private set; }
         public string? LastPath { get; private set; }
         public string? ErrorCode { get; init; }
+        private string? _owner;
+        private bool _active;
         private readonly Guid _runId = Guid.NewGuid();
         private readonly DateTimeOffset _start = DateTimeOffset.UtcNow;
         public Task<OffworldRunResult> StartAsync(string ownerId, Guid key,
@@ -155,8 +193,18 @@ public sealed class OffworldRunApiTests
         {
             LastOwner = ownerId;
             StartKey = key;
+            _owner = ownerId;
+            _active = true;
             return Task.FromResult(Build(false));
         }
+        public Task<OffworldRunResult?> GetActiveAsync(string ownerId,
+            DateTimeOffset now, CancellationToken cancellationToken = default)
+        {
+            LastOwner = ownerId;
+            return Task.FromResult<OffworldRunResult?>(
+                _active && _owner == ownerId ? Build(false) : null);
+        }
+
         public Task<OffworldRunResult?> GetAsync(string ownerId, Guid runId,
             DateTimeOffset now, CancellationToken cancellationToken = default)
         {
@@ -171,6 +219,7 @@ public sealed class OffworldRunApiTests
             FinishKey = key;
             LastPath = path;
             if (ErrorCode is not null) throw new OffworldRunException(ErrorCode);
+            _active = false;
             return Task.FromResult(Build(true));
         }
         private OffworldRunResult Build(bool complete) =>
