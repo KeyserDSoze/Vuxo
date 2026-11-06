@@ -108,6 +108,16 @@ const initialization = i18n.use(initReactI18next).init({
               runId: 'Sessione: {{id}}',
               puzzle: 'Mappa assegnata dal server: {{number}}',
               remaining: 'Tempo rimasto: {{seconds}} s',
+              history: {
+                title: 'Le mie sessioni',
+                description: 'Ultime 10 sessioni registrate sul server. Nessun XP o premio.',
+                refresh: 'Aggiorna cronologia',
+                loading: 'Caricamento delle sessioni…',
+                empty: 'Nessuna sessione registrata. Inizia un percorso per creare la prima.',
+                error: 'Impossibile caricare la cronologia. Riprova.',
+                map: 'Percorso {{number}}',
+                steps: '{{count}} mosse verificate'
+              },
               sync: {
                 completed: 'Questa sessione è stata completata su un altro dispositivo. Il server ha confermato il risultato.',
                 expired: 'La sessione è scaduta sul server. Non è più possibile inviare mosse.',
@@ -552,6 +562,16 @@ const initialization = i18n.use(initReactI18next).init({
               runId: 'Session: {{id}}',
               puzzle: 'Server-assigned board: {{number}}',
               remaining: 'Time left: {{seconds}} s',
+              history: {
+                title: 'My sessions',
+                description: 'Your last 10 server-recorded sessions. No XP or rewards.',
+                refresh: 'Refresh history',
+                loading: 'Loading sessions…',
+                empty: 'No recorded sessions yet. Start a run to create one.',
+                error: 'Could not load your history. Please retry.',
+                map: 'Path {{number}}',
+                steps: '{{count}} verified moves'
+              },
               sync: {
                 completed: 'This session was completed on another device. The server confirmed the result.',
                 expired: 'This session expired on the server. New moves can no longer be submitted.',
