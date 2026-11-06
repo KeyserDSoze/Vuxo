@@ -30,6 +30,29 @@ export const vuxoDesignTokens = {
     h2LetterSpacing: '-0.03em',
     buttonWeight: 700,
   },
+  landing: {
+    light: {
+      // The illustrated scene is intentionally a night-sky vista in both app themes.
+      skyTop: '#122045',
+      skyBottom: '#243b5e',
+      horizon: '#487b89',
+      landBack: '#203a52',
+      land: '#111c3e',
+      text: '#f9fbff',
+      muted: '#d4e6ef',
+      realms: { world: '#9bf2e5', character: '#ffd68e', portals: '#e2b2ff' },
+    },
+    dark: {
+      skyTop: '#060f28',
+      skyBottom: '#181638',
+      horizon: '#3b4773',
+      landBack: '#111d37',
+      land: '#070e22',
+      text: '#f5f8ff',
+      muted: '#c3cbdf',
+      realms: { world: '#82e7d7', character: '#ffc77b', portals: '#cba8ff' },
+    },
+  },
   palette: {
     light: {
       primary: '#3157d5',
