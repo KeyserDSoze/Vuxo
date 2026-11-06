@@ -193,3 +193,40 @@ test('downed HP, empty equipment, inactive encounter and links work in mobile En
   await expect.poll(() => page.evaluate(() =>
     document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
 });
+
+test('confirmed server rest updates both HP displays without inventing local healing', async ({ page }) => {
+  const restKeys: string[] = [];
+  await page.route('**/api/characters/me/health', route => route.fulfill({
+    contentType: 'application/json',
+    body: JSON.stringify({ name: 'Vuxian', currentHealth: 7, maxHealth: 20, rulesVersion: 'character-health-v1' }),
+  }));
+  await page.route('**/api/equipment', route => route.fulfill({
+    contentType: 'application/json', body: JSON.stringify({ ...equipment, items: [] }),
+  }));
+  await page.route('**/api/characters/me/encounter', route => route.fulfill({
+    contentType: 'application/json',
+    body: JSON.stringify({ active: false, portalGrantId: null, expiresAtUtc: null }),
+  }));
+  await page.route('**/api/characters/me/rest', route => {
+    const key = route.request().headers()['idempotency-key'] ?? '';
+    restKeys.push(key);
+    return route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({
+        idempotencyKey: key, previousHealth: 7, currentHealth: 12, maxHealth: 20,
+        restoredHealth: 5, replayed: false, restedAtUtc: '2026-11-06T10:00:00Z',
+        nextRestAtUtc: '2026-11-06T10:30:00Z',
+      }),
+    });
+  });
+
+  await page.goto('./#/refuge');
+  await installSession(page);
+  await expect(page.getByTestId('refuge-preparation-hp-count')).toHaveText('7 / 20 HP');
+  await page.getByTestId('refuge-rest-button').click();
+  await expect(page.getByTestId('refuge-rest-success')).toBeVisible();
+  await expect(page.getByTestId('refuge-health-count')).toHaveText('12 / 20 HP');
+  await expect(page.getByTestId('refuge-preparation-hp-count')).toHaveText('12 / 20 HP');
+  expect(restKeys).toHaveLength(1);
+  expect(restKeys[0]).toMatch(/^[0-9a-f-]{36}$/i);
+});

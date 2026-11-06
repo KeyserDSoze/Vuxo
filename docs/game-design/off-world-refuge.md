@@ -20,7 +20,7 @@ Il Rifugio può mostrare un **riepilogo della sessione** senza creare uno stato 
 
 Il pannello compare solo con sessione e personaggio esistenti: gli ospiti e i 404 salute non richiedono dati di equipaggiamento/incontro. Il cambio account smonta il pannello e la vista HP non mostra risultati appartenenti al token precedente; ogni richiesta è cancellabile tramite AbortController. Il refresh manuale rilegge salute, equipaggiamento e incontro. La visualizzazione di HP mancanti/zero è soltanto informativa, senza score di prontezza, missioni, premi o persistenza nel browser.
 
-I test Playwright includono utente guest, stato autenticato con equipaggiamento e incontro attivi, fallimenti parziali e recupero, 404, switch/logout, i18n English/dark/mobile 320px. La validazione CI resta in sospeso per quota Actions esaurita (#112): non mergiare o distribuire finché non sono verificate build e suite.
+I test Playwright includono utente guest, stato autenticato con equipaggiamento e incontro attivi, fallimenti parziali e recupero, 404, switch/logout, aggiornamento dopo riposo server, i18n English/dark/mobile 320px. La validazione CI resta in sospeso per quota Actions esaurita (#112): non mergiare o distribuire finché non sono verificate build e suite.
 
 ## MVP 0.0.1 — issue #71
 
