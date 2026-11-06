@@ -243,9 +243,12 @@ test('second device discovers and completes an owner-only PostgreSQL ticket', as
       headers: { Authorization: 'Bearer ' + token },
     });
     expect(after.status()).toBe(204);
-    await page.reload();
-    await page.getByTestId('path-mode-saved').click();
+    await page.bringToFront();
+    await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+    await expect(page.getByTestId('verified-path-remote-update'))
+      .toContainText('completed on another device');
     await expect(page.getByTestId('verified-path-completed')).toBeVisible();
+    await expect(page.getByTestId('verified-path-board')).toHaveCount(0);
   } finally {
     await second.close();
   }
