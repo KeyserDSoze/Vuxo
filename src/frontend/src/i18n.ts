@@ -108,6 +108,11 @@ const initialization = i18n.use(initReactI18next).init({
               runId: 'Sessione: {{id}}',
               puzzle: 'Mappa assegnata dal server: {{number}}',
               remaining: 'Tempo rimasto: {{seconds}} s',
+              sync: {
+                completed: 'Questa sessione è stata completata su un altro dispositivo. Il server ha confermato il risultato.',
+                expired: 'La sessione è scaduta sul server. Non è più possibile inviare mosse.',
+                offline: 'Impossibile aggiornare lo stato dal server. Le mosse locali restano disponibili; riproveremo automaticamente.'
+              },
               submit: 'Conferma percorso sul server',
               reset: 'Ricomincia il percorso',
               new: 'Nuova sessione',
@@ -547,6 +552,11 @@ const initialization = i18n.use(initReactI18next).init({
               runId: 'Session: {{id}}',
               puzzle: 'Server-assigned board: {{number}}',
               remaining: 'Time left: {{seconds}} s',
+              sync: {
+                completed: 'This session was completed on another device. The server confirmed the result.',
+                expired: 'This session expired on the server. New moves can no longer be submitted.',
+                offline: 'Could not refresh the server status. Local moves remain available; we will retry automatically.'
+              },
               submit: 'Confirm route with server',
               reset: 'Reset route',
               new: 'New session',
