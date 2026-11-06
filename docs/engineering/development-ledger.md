@@ -18,7 +18,8 @@ Quando una issue cambia stato in modo significativo, aggiornare la riga corrispo
 
 | Issue | Tipo | Versione | Area | Stato | Test/Stato verifica | Risoluzione / prossimo passo |
 |---|---|---:|---|---|---|---|
-| #118 | Feature/UX | 0.0.1 | Refuge Journal: item grant history + active portals | In progress | 8 Playwright scenarios authored, pending CI (#112) | New read-only lazy route and Refuge card. No backend writes; not complete portal victory history; isolate until CI |
+| #119 | Feature/Backend | 0.0.1+ | Owner-only paginated history of completed portals | Planned | API/DB contract and xUnit not started | Track historical portal outcomes, rules and correlated grants authoritatively; cannot infer from #118 rewards |
+| #118 | Feature/UX | 0.0.1 | Refuge Journal: item grant history + active portals | In progress | 9 Playwright scenarios authored, pending CI (#112) | New read-only lazy route and Refuge card. No backend writes; not complete portal victory history (#119); isolate until CI |
 | #117 | Feature/UX | 0.0.1 | Refuge contextual adventure guide + full refresh | In progress | 7 Playwright scenarios authored, not run (#112) | Isolated feature/117-refuge-adventure-guide stacked on #114, commit 95632a52 |
 | #116 | Feature/UX | 0.0.1 | Relic/charm loadout and safe resync | In progress | 7 Playwright scenarios authored, not run (#112) | Isolated feature/116-inventory-loadout stacked on #115, commit 9a2ef000 |
 | #115 | Feature/UX | 0.0.1 | Inventory search/filter/sort | In progress | 7 Playwright scenarios authored, not run (#112) | Isolated feature/115-inventory-browse, commit 42af71d1 |

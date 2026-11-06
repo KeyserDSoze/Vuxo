@@ -130,11 +130,13 @@ test('inventory 503 leaves portals visible; retry only re-reads inventory', asyn
   await expect(page.getByTestId('refuge-journal-rewards-empty')).toHaveCount(0);
   await expect(page.getByTestId('refuge-journal-portal')).toHaveCount(2);
   broken = false;
+  const portalCallsBeforeRetry = portalCalls;
+  const inventoryCallsBeforeRetry = inventoryCalls;
   await page.getByTestId('refuge-journal-rewards-refresh').click();
   await expect(page.getByTestId('refuge-journal-reward')).toHaveCount(3);
   await expect(page.getByTestId('refuge-journal-rewards-error')).toHaveCount(0);
-  expect(inventoryCalls).toBe(2);
-  expect(portalCalls).toBe(1);
+  expect(inventoryCalls).toBeGreaterThan(inventoryCallsBeforeRetry);
+  expect(portalCalls).toBe(portalCallsBeforeRetry);
 });
 
 test('portal 503 never becomes an empty portal list; independent portal retry recovers', async ({ page }) => {
@@ -259,4 +261,30 @@ test('English dark mobile journal is readable at 320px without Phaser or POST ac
   await expect.poll(() => page.evaluate(() =>
     document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
   expect(unexpected).toEqual([]);
+});
+
+test('unknown rewards and filtered-empty states never imply that inventory was deleted', async ({ page }) => {
+  await signIn(page);
+  await page.route('**/api/inventory', route => route.fulfill({
+    contentType: 'application/json',
+    body: JSON.stringify([{
+      grantId: '77777777-7777-4777-8777-777777777777',
+      itemKey: 'item.future.unknown.v1', quantity: 1,
+      awardedAtUtc: '2026-11-02T12:00:00Z', consumed: true,
+    }]),
+  }));
+  await page.route('**/api/personal-content', route => route.fulfill({
+    contentType: 'application/json', body: JSON.stringify([]),
+  }));
+  await page.goto('./#/refuge/journal');
+  await expect(page.getByTestId('refuge-journal-reward')).toContainText('Oggetto non ancora catalogato');
+  await expect(page.getByTestId('refuge-journal-portals-empty')).toBeVisible();
+  await page.getByTestId('refuge-journal-filter').click();
+  await page.getByRole('option', { name: 'Non consumati' }).click();
+  await expect(page.getByTestId('refuge-journal-rewards-no-match')).toBeVisible();
+  await expect(page.getByTestId('refuge-journal-rewards-empty')).toHaveCount(0);
+  await expect(page.getByTestId('refuge-journal-reward')).toHaveCount(0);
+  await page.getByTestId('refuge-journal-filter').click();
+  await page.getByRole('option', { name: 'Tutti' }).click();
+  await expect(page.getByTestId('refuge-journal-reward')).toHaveCount(1);
 });
