@@ -100,3 +100,31 @@ test('untrusted owner or reward fields are never copied into UI read models', ()
   assert.equal('isReadyForCombat' in parseCharacterHealth({ ...health, isReadyForCombat: true }), false);
   assert.equal('rewardKey' in parsePortalEncounterStatus({ ...active, rewardKey: 'fake' }), false);
 });
+
+test('inventory rejects UUID aliases even when the grant IDs differ only in letter case', () => {
+  const grant = 'abcdefab-abcd-4abc-8abc-abcdefabcdef';
+  const first = { ...inventoryAward, grantId: grant };
+  bad(() => parsePlayerInventory([first, { ...first, grantId: grant.toUpperCase() }]), 'inventory_invalid_response');
+});
+test('stacks reject case-variant UUID aliases in one stack or across stacks', () => {
+  const grant = 'abcdefab-abcd-4abc-8abc-abcdefabcdef';
+  for (const response of [
+    [{ ...inventoryStack, quantity: 2, equippedQuantity: 0, availableGrantIds: [grant, grant.toUpperCase()] }],
+    [{ ...inventoryStack, quantity: 2, equippedQuantity: 0, availableGrantIds: [grant] },
+      { ...inventoryStack, itemKey: 'item.grove_seed.v1', quantity: 1, equippedQuantity: 0, availableGrantIds: [grant.toUpperCase()] }],
+  ]) bad(() => parseInventoryStacks(response), 'inventory_invalid_response');
+});
+test('equipment rejects case-variant UUID aliases across different slots', () => {
+  const grant = 'abcdefab-abcd-4abc-8abc-abcdefabcdef';
+  bad(() => parseEquipmentView({ ...equipment, items: [
+    { ...equipped, grantId: grant }, { ...equipped, slot: 'charm', grantId: grant.toUpperCase() },
+  ] }), 'equipment_invalid_response');
+});
+test('distinct UUIDs remain valid and itemKey identities are not lowercased', () => {
+  const grant = 'abcdefab-abcd-4abc-8abc-abcdefabcdef';
+  assert.equal(parsePlayerInventory([{ ...inventoryAward, grantId: grant }, { ...inventoryAward, grantId: grant2 }]).length, 2);
+  assert.equal(parseInventoryStacks([
+    { ...inventoryStack, itemKey: 'ITEM.rune_shard.v1', quantity: 1, equippedQuantity: 0, availableGrantIds: [grant] },
+    { ...inventoryStack, itemKey: 'item.rune_shard.v1', quantity: 1, equippedQuantity: 0, availableGrantIds: [grant2] },
+  ]).length, 2);
+});
