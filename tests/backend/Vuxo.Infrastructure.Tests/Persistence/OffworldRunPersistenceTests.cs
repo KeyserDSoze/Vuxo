@@ -210,6 +210,70 @@ public sealed class OffworldRunPersistenceTests
     }
 
     [PostgresIntegrationFact]
+    public async Task PracticeProgress_IsDerivedFromVerifiedCompletions_WithoutRewardsOrAudit()
+    {
+        await using var database = await PostgresDatabaseScope.CreateAsync();
+        await SeedAsync(database);
+        var start = new DateTimeOffset(2026, 11, 6, 9, 0, 0, TimeSpan.Zero);
+
+        await using (var db = database.CreateDbContext())
+        {
+            var empty = await Repository(db).GetPracticeProgressAsync("player-a");
+            Assert.Equal(0, empty.CompletedRuns);
+            Assert.Equal(OffworldPracticeProgressRules.MilestoneNewcomer, empty.Milestone);
+            Assert.Empty((await new GameEventStore(db).QueryAsync(
+                new GameEventQuery(PlayerId: "player-a"))).Items);
+        }
+
+        // Deterministic fixture: persist distinct canonical boards, then
+        // complete them using the same normal validator/transaction as gameplay.
+        for (var i = 0; i < 5; i++)
+        {
+            await using var db = database.CreateDbContext();
+            var now = start.AddMinutes(i * 3);
+            var issued = await Repository(db).StartAsync("player-a", Guid.NewGuid(), now);
+            var entity = await db.OffworldActivityRuns.SingleAsync(x => x.Id == issued.RunId);
+            var puzzle = i switch { 0 => 0, 1 => 0, 2 => 1, 3 => 2, _ => 2 };
+            entity.PuzzleIndex = puzzle;
+            await db.SaveChangesAsync();
+            await Repository(db).CompleteAsync("player-a", issued.RunId,
+                Guid.NewGuid(), Solve(puzzle), now.AddSeconds(20));
+            if (i == 4)
+            {
+                entity.RulesVersion = "rune-path-practice-legacy";
+                await db.SaveChangesAsync();
+            }
+        }
+
+        await using (var anotherDevice = database.CreateDbContext())
+        {
+            var progress = await Repository(anotherDevice)
+                .GetPracticeProgressAsync("player-a");
+            Assert.Equal(4, progress.CompletedRuns); // one legacy version omitted
+            Assert.Equal(3, progress.BoardsSolved);
+            Assert.Equal(OffworldPracticeProgressRules.MilestoneCartographer,
+                progress.Milestone);
+            Assert.Equal(new[] { 0, 1, 2 }, progress.Boards.Select(x => x.PuzzleIndex));
+            Assert.Equal(new[] { 2, 1, 1 }, progress.Boards.Select(x => x.CompletedRuns));
+            Assert.All(progress.Boards, x => Assert.Equal(6, x.BestSteps));
+            Assert.False(progress.RewardsEnabled);
+            Assert.Equal(0, progress.XpGranted);
+            Assert.Equal(0, progress.ItemsGranted);
+            Assert.Equal(OffworldPracticeProgressRules.RewardBlockReason,
+                progress.RewardBlockReason);
+            var foreign = await Repository(anotherDevice)
+                .GetPracticeProgressAsync("player-b");
+            Assert.Equal(0, foreign.CompletedRuns);
+            Assert.Empty(foreign.Boards);
+        }
+
+        await using var verify = database.CreateDbContext();
+        Assert.Equal(5, await verify.OffworldActivityRuns.CountAsync());
+        Assert.Equal(10, (await new GameEventStore(verify).QueryAsync(
+            new GameEventQuery(PlayerId: "player-a", Limit: 100))).Items.Count);
+    }
+
+    [PostgresIntegrationFact]
     public async Task ConcurrentStarts_OnlyOneTicketIsActive_AcrossDbContexts()
     {
         await using var database = await PostgresDatabaseScope.CreateAsync();
