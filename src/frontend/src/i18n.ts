@@ -53,6 +53,69 @@ const initialization = i18n.use(initReactI18next).init({
           }
         },
         refuge: {
+          journey: {
+            title: 'Il prossimo passo',
+            description: 'Una guida pratica basata sulle informazioni disponibili. Scegli tu dove andare.',
+            step: 'Controllo {{index}}',
+            tone: { positive: 'Verificato', caution: 'Da valutare', unknown: 'Da verificare' },
+            disclaimer: 'Sono suggerimenti, non un giudizio di prontezza. Il server verifica sempre le regole di cura, inventario e incontri.',
+            actions: {
+              reviewHealth: 'Controlla cura e riposo',
+              character: 'Consulta il personaggio',
+              training: 'Allenati con le rune',
+              inventory: 'Apri inventario',
+              portals: 'Vai ai portali',
+              refresh: 'Rileggi i dati'
+            },
+            steps: {
+              health: {
+                down: {
+                  title: 'Il tuo Vuxian è a zero HP',
+                  description: 'Il riposo e il Seme del Bosco non funzionano a zero HP. Consulta lo stato del personaggio: questo non è un metodo di guarigione.'
+                },
+                recover: {
+                  title: 'Puoi recuperare salute',
+                  description: 'Non sei al massimo degli HP. Verifica riposo e cura: cooldown e incontri attivi sono sempre controllati dal server.'
+                },
+                full: {
+                  title: 'Salute al massimo',
+                  description: 'Gli HP letti dal server sono pieni. Se vuoi, sfrutta il Rifugio per allenare la memoria delle rune.'
+                }
+              },
+              equipment: {
+                unknown: {
+                  title: 'Equipaggiamento non verificato',
+                  description: 'Il server non ha confermato gli slot. Non possiamo sapere se siano vuoti o occupati.'
+                },
+                empty: {
+                  title: 'Nessuno slot equipaggiato',
+                  description: 'Reliquia e Amuleto risultano vuoti. Nell’inventario puoi controllare gli oggetti disponibili.'
+                },
+                partial: {
+                  title: 'Un solo slot equipaggiato',
+                  description: 'Uno tra Reliquia e Amuleto risulta vuoto. Controlla l’inventario per gli oggetti compatibili.'
+                },
+                equipped: {
+                  title: 'Entrambi gli slot occupati',
+                  description: 'Il server segnala Reliquia e Amuleto equipaggiati. Puoi comunque rivedere gli oggetti nell’inventario.'
+                }
+              },
+              encounter: {
+                unknown: {
+                  title: 'Incontro non verificato',
+                  description: 'Lo stato del portale non è disponibile. Non possiamo presumere che l’incontro sia terminato.'
+                },
+                active: {
+                  title: 'Incontro del portale in corso',
+                  description: 'Il server segnala un incontro attivo. Controlla il portale prima di tentare azioni che possono essere bloccate.'
+                },
+                idle: {
+                  title: 'Nessun incontro attivo segnalato',
+                  description: 'L’ultima lettura non indica incontri attivi. Puoi consultare i portali; il server decide quali azioni sono ammesse.'
+                }
+              }
+            }
+          },
           preparation: {
             title: 'Preparazione all’avventura',
             description: 'Dati di sola lettura dal tuo personaggio e dalle API VUXO. Non sostituisce i controlli del server.',
@@ -460,6 +523,69 @@ const initialization = i18n.use(initReactI18next).init({
           }
         },
         refuge: {
+          journey: {
+            title: 'Your next step',
+            description: 'A practical guide based on the available information. You choose where to go.',
+            step: 'Check {{index}}',
+            tone: { positive: 'Checked', caution: 'Review', unknown: 'Not verified' },
+            disclaimer: 'These are suggestions, not a readiness score. The server always checks healing, inventory and encounter rules.',
+            actions: {
+              reviewHealth: 'Review healing and rest',
+              character: 'View character',
+              training: 'Practice runes',
+              inventory: 'Open inventory',
+              portals: 'Visit portals',
+              refresh: 'Refresh data'
+            },
+            steps: {
+              health: {
+                down: {
+                  title: 'Your Vuxian has zero HP',
+                  description: 'Rest and Grove Seeds cannot heal at zero HP. Review your character status; this does not restore health.'
+                },
+                recover: {
+                  title: 'Health can be restored',
+                  description: 'Your HP is below maximum. Review rest and healing: the server still checks cooldowns and active encounters.'
+                },
+                full: {
+                  title: 'Health is full',
+                  description: 'The server reports full HP. You can use Refuge to practice your rune memory.'
+                }
+              },
+              equipment: {
+                unknown: {
+                  title: 'Equipment not verified',
+                  description: 'The server did not confirm your slots. We cannot tell whether they are empty or equipped.'
+                },
+                empty: {
+                  title: 'No equipment slots filled',
+                  description: 'Relic and Charm are both empty. Open Inventory to see your available items.'
+                },
+                partial: {
+                  title: 'One equipment slot filled',
+                  description: 'Either Relic or Charm is empty. Review compatible items in your Inventory.'
+                },
+                equipped: {
+                  title: 'Both equipment slots filled',
+                  description: 'The server reports an equipped Relic and Charm. You can still review your loadout in Inventory.'
+                }
+              },
+              encounter: {
+                unknown: {
+                  title: 'Encounter not verified',
+                  description: 'The portal status is unavailable. We cannot assume an encounter has finished.'
+                },
+                active: {
+                  title: 'Portal encounter in progress',
+                  description: 'The server reports an active encounter. Check the portal before trying actions that may be restricted.'
+                },
+                idle: {
+                  title: 'No active encounter reported',
+                  description: 'The latest read reports no active encounter. Browse portals; the server still decides which actions are allowed.'
+                }
+              }
+            }
+          },
           preparation: {
             title: 'Adventure preparation',
             description: 'Read-only information from your character and VUXO APIs. The server still verifies every action.',

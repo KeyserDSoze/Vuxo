@@ -11,6 +11,17 @@ Due cicli complementari:
 
 Il giocatore può aprire il Rifugio e agire per pochi minuti senza avviare Phaser, ma quando torna nel mondo trova gli stessi oggetti e attributi verificati dal server.
 
+## Percorso guidato di preparazione — issue #117
+
+La nuova guida contestuale `RefugeJourneyGuide` è interna al pannello `RefugePreparationBoard` dell'issue #114 e usa **gli stessi dati già letti**, senza endpoint aggiuntivi. La funzione pura `deriveJourneySteps` restituisce indicazioni, mai un punteggio di prontezza o un flag di autorizzazione:
+- Salute: 0 HP significa che riposo e Seme del Bosco non possono curare il personaggio secondo le regole correnti; il link porta alla scheda personaggio solo per consultazione. HP non pieni rimandano alla sezione Cura/Riposo già presente nel Rifugio; HP pieni offrono l'allenamento libero delle rune.
+- Equipaggiamento: 0, 1 o 2 slot confermati porta all'Inventario; se la richiesta fallisce, lo stato rimane **non verificato** con proposta di rilettura. Gli slot realmente equipaggiati provengono da `GET /api/equipment`.
+- Portali: incontro attivo porta alla pagina portali; assente propone consultazione; risposta fallita resta **stato sconosciuto** e permette un refresh. Lo stato è solo informativo: il server continua a verificare eventuali lock per combattimenti, cura e riposo.
+
+**Correzione refresh #114:** prima il pulsante incrementava solo il contatore di caricamento salute mentre `RefugePreparationBoard` aggiornava equipaggiamento e incontro soltanto quando cambiava il token. Ora il refresh invalida immediatamente i dati salute del token attivo, smonta la guida e ricarica la salute; dopo la nuova risposta del server ricrea `RefugePreparationBoard`, che legge di nuovo equipaggiamento e incontro. I risultati vecchi non restano visibili accanto a quelli nuovi durante la sincronizzazione. Ogni GET mantiene `AbortController` e cancellazione all'unmount. Su guest, 404 salute e logout il pannello non appare e nessuna GET di equipment/encounter viene effettuata dalla guida.
+
+La guida non salva una checklist o inventa missioni, non concede premi e non abilita né blocca pulsanti di gioco: le restrizioni restano autorevoli sul backend. Copie IT/EN, uso tastiera e viewport 320px. Nuovi test Playwright: piena salute, ferite/scroll al riposo, 0 HP, errori parziali+retry completo, ospite/404, cambio token/logout, EN/dark/mobile senza Phaser. CI in sospeso per quota Actions #112; sviluppo stacked sulla branch dell'issue #114.
+
 ## Preparazione dell’avventura — issue #114 (UI di sola lettura)
 
 Il Rifugio può mostrare un **riepilogo della sessione** senza creare uno stato di gameplay parallelo. Il componente `RefugePreparationBoard` legge solo le API già esistenti (nessuna nuova route backend):

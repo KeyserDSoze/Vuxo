@@ -60,6 +60,20 @@ export function RefugePage() {
     return () => controller.abort();
   }, [session?.accessToken, healthRetry]);
 
+  function reviewHealth() {
+    const section = document.getElementById('refuge-health');
+    section?.scrollIntoView({ behavior: 'auto', block: 'start' });
+    section?.focus();
+  }
+
+  function refreshPreparation() {
+    if (!session) return;
+    // Unmount the previous equipment/encounter snapshot before reloading HP.
+    // The new board then fetches the other owner-scoped read models as a unit.
+    setHealthRecord({ token: session.accessToken, status: 'loading', health: null });
+    setHealthRetry(value => value + 1);
+  }
+
   return (
     <Stack spacing={3} data-testid="refuge-page">
       <Paper variant="outlined" sx={{ p: { xs: 3, sm: 4, md: 5 } }}>
@@ -111,7 +125,7 @@ export function RefugePage() {
       </Grid>
 
       {session && (
-        <Paper data-testid="refuge-health" variant="outlined" sx={{ p: { xs: 2.5, sm: 3 } }}>
+        <Paper id="refuge-health" tabIndex={-1} data-testid="refuge-health" variant="outlined" sx={{ p: { xs: 2.5, sm: 3 } }}>
           <Stack spacing={2}>
             <Typography variant="h6" component="h2">{t('refuge.health.title')}</Typography>
             <Typography color="text.secondary">{t('refuge.health.description')}</Typography>
@@ -165,7 +179,8 @@ export function RefugePage() {
           key={session.accessToken}
           accessToken={session.accessToken}
           health={health}
-          onRefresh={() => setHealthRetry(value => value + 1)}
+          onRefresh={refreshPreparation}
+          onReviewHealth={reviewHealth}
         />
       )}
 

@@ -7,6 +7,7 @@ import type { CharacterHealth } from '../features/health/characterHealthApi';
 import { fetchPortalEncounterStatus, type PortalEncounterStatus } from '../features/health/portalEncounterApi';
 import { fetchEquipment, type EquipmentView } from '../features/inventory/equipmentApi';
 import { inventoryItemLabelKeys } from '../features/inventory/inventoryApi';
+import { RefugeJourneyGuide } from './RefugeJourneyGuide';
 
 type ReadinessSnapshot = {
   equipment: EquipmentView | null;
@@ -19,6 +20,7 @@ type Props = {
   accessToken: string;
   health: CharacterHealth;
   onRefresh: () => void;
+  onReviewHealth: () => void;
 };
 
 const slots = ['relic', 'charm'] as const;
@@ -27,7 +29,7 @@ const slots = ['relic', 'charm'] as const;
  * Read-only preparation snapshot; never decides combat eligibility, rewards or
  * cooldown. All three models originate from the authenticated owner APIs.
  */
-export function RefugePreparationBoard({ accessToken, health, onRefresh }: Props) {
+export function RefugePreparationBoard({ accessToken, health, onRefresh, onReviewHealth }: Props) {
   const { t } = useTranslation();
   const [snapshot, setSnapshot] = useState<ReadinessSnapshot | null>(null);
 
@@ -154,6 +156,12 @@ export function RefugePreparationBoard({ accessToken, health, onRefresh }: Props
               </Paper>
             </Grid>
           </Grid>
+        )}
+
+        {snapshot && (
+          <RefugeJourneyGuide health={health} equipment={snapshot.equipment}
+            encounter={snapshot.encounter} onRefresh={onRefresh}
+            onReviewHealth={onReviewHealth} />
         )}
 
         <Stack direction={{ xs: 'column', sm: 'row' }} sx={{ gap: 1, flexWrap: 'wrap' }}>
