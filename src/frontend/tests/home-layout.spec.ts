@@ -14,7 +14,7 @@ for (const width of [320, 390, 768, 1280]) {
 
     const heading = page.getByRole('heading', { level: 1, name: /oltre il portale/i });
     await expect(heading).toBeVisible();
-    await expect(page.getByTestId('home-highlights').getByRole('heading', { level: 3 })).toHaveCount(3);
+    await expect(page.getByTestId('home-highlights').getByRole('button')).toHaveCount(3);
 
     const bounds = await heading.boundingBox();
     expect(bounds).not.toBeNull();
