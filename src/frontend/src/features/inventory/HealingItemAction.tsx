@@ -12,7 +12,7 @@ type Props = {
 };
 
 export function HealingItemAction({ grantId, accessToken, disabled, onHealed }: Props) {
-  const { t } = useTranslation('inventory');
+  const { t } = useTranslation('translation', { keyPrefix: 'inventory' });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const encounter = usePortalEncounterStatus(accessToken);

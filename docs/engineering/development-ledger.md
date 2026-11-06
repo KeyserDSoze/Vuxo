@@ -18,6 +18,7 @@ Quando una issue cambia stato in modo significativo, aggiornare la riga corrispo
 
 | Issue | Tipo | Versione | Area | Stato | Test/Stato verifica | Risoluzione / prossimo passo |
 |---|---|---:|---|---|---|---|
+| #116 | Feature/UX | 0.0.1 | Inventory loadout slots and safe refresh | In progress | Seven additional Playwright scenarios authored, not executed; Actions blocked #112 | Stacked on #115 branch; server-confirmed relic/charm, filtering compatible available grants, safe unequip/refresh; review before merge |
 | #115 | Feature/UX | 0.0.1 | Inventory browse: localized search, filters and sort | In progress | 7 Playwright tests authored, not executed; GitHub Actions exhausted (#112) | Branch feature/115-inventory-browse, no new API/mutation, guarded by session key; CI/review before merge |
 | #114 | Feature/UX | 0.0.1 | Refuge read-only adventure preparation | In progress | 7 Playwright scenarios authored on isolated branch; CI blocked by #112 | feature/114-refuge-preparation, commit 8f3d692; not merged |
 | #113 | Feature/UX | 0.0.1 | Home playable rune sigil | In progress | 9 Playwright scenarios authored on isolated branch; CI blocked by #112 | feature/113-home-rune-teaser, commit dbddc231; not merged |
