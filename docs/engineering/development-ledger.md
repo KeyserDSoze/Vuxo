@@ -18,7 +18,7 @@ Quando una issue cambia stato in modo significativo, aggiornare la riga corrispo
 
 | Issue | Tipo | Versione | Area | Stato | Test/Stato verifica | Risoluzione / prossimo passo |
 |---|---|---:|---|---|---|---|
-| #70 | Epic | 0.0.1+ | Off-world gameplay and Refuge | In progress | Architettura/design in docs/game-design/off-world-refuge.md; slice #71 in CI | Cura autorevole #72 e minigiochi a reward #73 pianificati; no client-authoritative economy |
+| #109 | Feature/UX | 0.0.1 | Immersive landing + interactive portal | In progress | Playwright (portal, realm selectors, pointer, keyboard, reduced motion, i18n and responsive); CI PR pending | Original SVG/CSS hero, no Phaser load, theme tokens, guest/auth and Refuge routing; review CI before closure |\n| #70 | Epic | 0.0.1+ | Off-world gameplay and Refuge | In progress | Architettura/design in docs/game-design/off-world-refuge.md; slice #71 in CI | Cura autorevole #72 e minigiochi a reward #73 pianificati; no client-authoritative economy |
 | #71 | Feature | 0.0.1 | Refuge hub and free rune training | Done | PR #74 CI #41942702087: 68/68 Playwright, build/backend/Docker verdi; live E2E #41942702124 verde | Rifugio e allenamento rune 3/4/6, nav/mobile/i18n, nessun reward locale; mergiata in main a5adb254; issue chiusa #71 |
 | #75 | Feature | 0.0.1 | Persisted current HP + Refuge read view | Done | PR #76 CI #41946315211: 281 xUnit, 72 Playwright, Docker success; real E2E #41946315179 success | GET owner-only; migration/backfill+constraint; Refuge HP IT/EN; healing #72 |
 | #77 | Bug/Test | 0.0.1 | Concurrent telemetry test | Done | CI #41946315211: 111 API xUnit success incl. concurrent meter | ConcurrentQueue in MeterListener test only, no runtime changes |
