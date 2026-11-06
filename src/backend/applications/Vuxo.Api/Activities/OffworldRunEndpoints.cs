@@ -29,6 +29,18 @@ public static class OffworldRunEndpoints
             catch (OffworldRunException e) { return Error(e); }
         }).RequireAuthorization().RequireRateLimiting("activity-run");
 
+        // Discovery is read-only and owner-scoped. An unknown, expired or
+        // completed run must never be returned, including to a second device.
+        endpoints.MapGet("/api/activities/runs/active/rune-path", async (
+            ClaimsPrincipal user, OffworldRunService service,
+            CancellationToken cancellationToken) =>
+        {
+            var owner = user.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrWhiteSpace(owner)) return Results.Unauthorized();
+            var run = await service.GetActiveAsync(owner, cancellationToken);
+            return run is null ? Results.NoContent() : Results.Ok(run);
+        }).RequireAuthorization().RequireRateLimiting("activity-run");
+
         endpoints.MapGet("/api/activities/runs/{runId:guid}", async (
             Guid runId, ClaimsPrincipal user, OffworldRunService service,
             CancellationToken cancellationToken) =>
