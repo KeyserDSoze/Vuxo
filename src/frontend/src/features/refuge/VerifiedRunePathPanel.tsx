@@ -83,9 +83,9 @@ function errorCode(error: unknown): string {
   return error instanceof RunePathSessionApiError ? error.code : 'activity_run_unavailable';
 }
 
-type Props = { accessToken: string; playerId: string };
+type Props = { accessToken: string; playerId: string; onRunChanged?: () => void };
 
-export function VerifiedRunePathPanel({ accessToken, playerId }: Props) {
+export function VerifiedRunePathPanel({ accessToken, playerId, onRunChanged }: Props) {
   const { t } = useTranslation();
   // Only an opaque run id + untrusted visual path are stored, never XP or score.
   const storageKey = 'vuxo.refuge.rune-path.run.' + playerId;
@@ -288,6 +288,7 @@ export function VerifiedRunePathPanel({ accessToken, playerId }: Props) {
       if (controller.signal.aborted) return;
       saveRun(storageKey, { runId: remote.runId, moves: '' });
       setTicket(remote);
+      onRunChanged?.();
       setBoard(null);
       setMoves('');
       setBumps(0);
@@ -372,6 +373,7 @@ export function VerifiedRunePathPanel({ accessToken, playerId }: Props) {
         accessToken, ticket.runId, key, moves, controller.signal);
       if (controller.signal.aborted) return;
       setTicket(result);
+      onRunChanged?.();
       finishKey.current = null;
       saveRun(storageKey, { runId: result.runId, moves: '' });
     } catch (reason) {
