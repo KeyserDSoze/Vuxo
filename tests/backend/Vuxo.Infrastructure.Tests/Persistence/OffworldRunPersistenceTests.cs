@@ -82,6 +82,54 @@ public sealed class OffworldRunPersistenceTests
     }
 
     [PostgresIntegrationFact]
+    public async Task OwnerActiveDiscovery_ExpiresAtBoundaryAndStopsAfterCompletion()
+    {
+        await using var database = await PostgresDatabaseScope.CreateAsync();
+        await SeedAsync(database);
+        var now = new DateTimeOffset(2026, 11, 6, 1, 0, 0, TimeSpan.Zero);
+        OffworldRunResult issued;
+        await using (var db = database.CreateDbContext())
+        {
+            Assert.Null(await Repository(db).GetActiveAsync("player-a", now));
+            issued = await Repository(db).StartAsync("player-a", Guid.NewGuid(), now);
+        }
+
+        // Cross-device query uses another DbContext and returns only owner data.
+        await using (var secondDevice = database.CreateDbContext())
+        {
+            var discovered = await Repository(secondDevice).GetActiveAsync("player-a", now);
+            Assert.NotNull(discovered);
+            Assert.Equal(issued.RunId, discovered.RunId);
+            Assert.Equal(issued.PuzzleIndex, discovered.PuzzleIndex);
+            Assert.Equal(OffworldRunRules.Active, discovered.State);
+            Assert.Null(await Repository(secondDevice).GetActiveAsync("player-b", now));
+            Assert.Null(await Repository(secondDevice).GetActiveAsync(
+                "player-a", issued.ExpiresAtUtc));
+            Assert.Null(await Repository(secondDevice).GetActiveAsync(
+                "player-a", issued.ExpiresAtUtc.AddSeconds(1)));
+        }
+
+        await using (var firstDevice = database.CreateDbContext())
+        {
+            await Repository(firstDevice).CompleteAsync("player-a", issued.RunId,
+                Guid.NewGuid(), Solve(issued.PuzzleIndex), now.AddSeconds(20));
+        }
+        await using (var check = database.CreateDbContext())
+        {
+            Assert.Null(await Repository(check).GetActiveAsync(
+                "player-a", now.AddSeconds(21)));
+            Assert.Equal(OffworldRunRules.Completed,
+                (await Repository(check).GetAsync("player-a", issued.RunId,
+                    now.AddSeconds(21)))!.State);
+        }
+
+        // Discovery is side-effect free: start + completion only, no discovery audit.
+        await using var verify = database.CreateDbContext();
+        Assert.Equal(2, (await new GameEventStore(verify).QueryAsync(
+            new GameEventQuery(PlayerId: "player-a"))).Items.Count);
+    }
+
+    [PostgresIntegrationFact]
     public async Task ConcurrentStarts_OnlyOneTicketIsActive_AcrossDbContexts()
     {
         await using var database = await PostgresDatabaseScope.CreateAsync();
