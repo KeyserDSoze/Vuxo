@@ -45,7 +45,6 @@ test('aborted session does not publish a completed read', async () => {
     return [stack(1, 1), equipped];
   }, controller.signal), { message: 'inventory_snapshot_cancelled' });
 });
-
 test('case-variant grant in available and equipped is rejected', () => {
   const id = 'abcdefab-abcd-4abc-8abc-abcdefabcdef';
   invalid(stack(2, 1, [id.toUpperCase()]), { items: [{ ...equipped.items[0], grantId: id }] });
