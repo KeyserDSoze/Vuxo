@@ -18,6 +18,17 @@ public sealed class OffworldRunService(
             clock.GetUtcNow(), cancellationToken);
     }
 
+    public Task<IReadOnlyList<OffworldRunHistoryEntry>> GetHistoryAsync(
+        string ownerId, int limit = OffworldRunRules.DefaultHistoryResults,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(ownerId);
+        if (limit < 1 || limit > OffworldRunRules.MaximumHistoryResults)
+            throw new OffworldRunException(OffworldRunErrorCodes.HistoryLimitInvalid);
+        return repository.GetHistoryAsync(ownerId.Trim(), limit, clock.GetUtcNow(),
+            cancellationToken);
+    }
+
     public Task<OffworldRunResult?> GetActiveAsync(string ownerId,
         CancellationToken cancellationToken = default)
     {
