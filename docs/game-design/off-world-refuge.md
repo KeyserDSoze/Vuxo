@@ -1,5 +1,13 @@
 # VUXO fuori dal mondo — Rifugio e attività (EPIC #70)
 
+## Rientro nell'app e verifica dello stato del portale (#120)
+
+I dati letti dal Rifugio e dall'Inventario non sono aggiornati in tempo reale quando altri dispositivi modificano il personaggio. Per evitare di presentare HP e oggetti obsoleti al ritorno, le viste ora richiedono una nuova lettura owner-only su `focus` e `visibilitychange`. Gli eventi sovrapposti sono deduplicati; non si avvia una seconda lettura quando è già in corso un caricamento e non si interrompe una mutazione locale pendente. Per l'Inventario le GET passano anche attraverso il controllo di coerenza stock/equipaggiamento; per il Rifugio viene ricaricata la salute e quindi la scheda di preparazione con equipaggiamento e stato portale. Si tratta di sincronizzazione **al rientro**, non di push realtime, e il backend resta la fonte autorevole.
+
+Uno stato incontro sconosciuto (errore rete, 503 o JSON invalido) non è uno stato inattivo: cure e riposo devono mostrare **avviso distinto e controllo di riprova**, senza autorizzare un POST finché non è tornato un valore valido. Il backend conserva il blocco definitivo delle mutazioni durante gli incontri, anche se lo stato letto dal browser diventa obsoleto.
+
+Sono passati in locale 8 test Node del gate focus e il suo controllo TypeScript strict. Quattro nuove regressioni Playwright e il build completo attendono il collaudo fuori da GitHub Actions (#112).
+
 ## Coerenza delle letture fra dispositivi (#120)
 
 Due dispositivi possono modificare lo stesso inventario mentre il browser esegue le GET `/api/inventory/stacks` e `/api/equipment` separatamente. Pur essendo ciascuna risposta valida, **la coppia può essere contraddittoria**: un oggetto risulta contemporaneamente equipaggiato e disponibile, oppure la quantità equipaggiata nello stack non corrisponde ai due slot. `inventorySnapshotConsistency.ts` verifica la coerenza prima di abilitarne l'uso; se necessario ripete **una sola volta entrambe le GET**, poi richiede aggiornamento manuale senza ripristinare dati obsoleti. Anche dopo un equip/unequip la risposta dell'azione non viene trattata come snapshot definitivo: viene effettuata una nuova lettura coerente dello stato proprietario. Dopo una cura il refresh coerente si accompagna alla lettura delle assegnazioni inventario. Il browser non diventa arbitro del combattimento né sostituisce i vincoli di integrità del database.

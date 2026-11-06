@@ -33,7 +33,7 @@ export function HealingItemAction({
   }, [grantId, accessToken]);
 
   const useItem = async () => {
-    if (busy || inFlight.current || completed || disabled || encounter.active || encounter.loading) return;
+    if (busy || inFlight.current || completed || disabled || encounter.active || encounter.loading || encounter.unavailable) return;
     // Reserve the shared owner lane synchronously: a second item or equipment
     // button must not start a competing request before React re-renders.
     if (!onBegin()) return;
@@ -71,7 +71,7 @@ export function HealingItemAction({
   return (
     <Stack spacing={1} sx={{ alignItems: 'flex-start' }}>
       <Button data-testid="inventory-heal" variant="outlined"
-        disabled={busy || completed || disabled || encounter.loading || encounter.active}
+        disabled={busy || completed || disabled || encounter.loading || encounter.active || encounter.unavailable}
         startIcon={busy ? <CircularProgress size={18} color="inherit" /> : undefined}
         onClick={() => { void useItem(); }}>
         {t(busy ? 'healing.working' : error ? 'healing.retry' : 'healing.use')}
@@ -80,6 +80,15 @@ export function HealingItemAction({
         <Alert data-testid="inventory-heal-encounter" severity="warning">
           {t('healing.encounterActive')}{' '}
           <Button data-testid="inventory-encounter-refresh" size="small"
+            disabled={encounter.loading} onClick={encounter.refresh}>
+            {t('healing.refreshEncounter')}
+          </Button>
+        </Alert>
+      )}
+      {encounter.unavailable && (
+        <Alert data-testid="inventory-heal-encounter-unavailable" severity="warning">
+          {t('healing.encounterUnavailable')}{' '}
+          <Button data-testid="inventory-encounter-retry" size="small"
             disabled={encounter.loading} onClick={encounter.refresh}>
             {t('healing.refreshEncounter')}
           </Button>

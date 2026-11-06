@@ -24,5 +24,7 @@ export function usePortalEncounterStatus(accessToken: string) {
 
   const refresh = useCallback(() => setRevision(value => value + 1), []);
 
-  return { active: status?.active ?? false, loading, refresh };
+  // A failed owner GET is UNKNOWN, not evidence that no encounter exists.
+  // Callers must block healing/rest and offer an explicit retry on failure.
+  return { active: status?.active ?? false, unavailable: !loading && status === null, loading, refresh };
 }

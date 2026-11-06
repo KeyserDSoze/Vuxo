@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link as RouterLink } from 'react-router-dom';
 import { useStoredSession } from '../features/auth/useStoredSession';
+import { useOwnerFocusRefresh } from '../features/auth/useOwnerFocusRefresh';
 import { readStoredSession, type VuxoSession } from '../features/auth/authSession';
 import { createOwnerActionGate, type OwnerActionGate } from '../features/inventory/ownerActionGate';
 import { browseInventory, equipmentSlotFor, type InventoryBrowseFilter, type InventoryBrowseSlot, type InventoryBrowseSort } from '../features/inventory/inventoryBrowse';
@@ -251,6 +252,14 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
     setInventoryRevision(value => value + 1);
     setEquipmentRevision(value => value + 1);
   };
+
+  // Revalidate the owner snapshot when returning from the game or another
+  // device. Skip requests during healing/equipment writes and pending reads.
+  useOwnerFocusRefresh(
+    session?.accessToken ?? null,
+    refreshEquipment,
+    () => !loading && !equipmentLoading && !equipmentBusy,
+  );
 
   const performEquipmentAction = async (
     action: (signal: AbortSignal) => Promise<EquipmentView>,

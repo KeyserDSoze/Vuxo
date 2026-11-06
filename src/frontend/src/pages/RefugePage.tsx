@@ -1,9 +1,11 @@
 import { AutoAwesome, BackpackOutlined, ExploreOutlined, FavoriteBorder, HistoryEduOutlined, PersonOutlined, SportsEsportsOutlined } from '@mui/icons-material';
 import { Alert, Button, Chip, CircularProgress, Grid, LinearProgress, Paper, Stack, Typography } from '@mui/material';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link as RouterLink } from 'react-router-dom';
 import { useStoredSession } from '../features/auth/useStoredSession';
+import { useOwnerFocusRefresh } from '../features/auth/useOwnerFocusRefresh';
+import { readStoredSession } from '../features/auth/authSession';
 import { fetchCharacterHealth, type CharacterHealth, type CharacterHealthApiError } from '../features/health/characterHealthApi';
 import { CharacterRestAction } from '../features/health/CharacterRestAction';
 import { RefugePreparationBoard } from './RefugePreparationBoard';
@@ -27,6 +29,7 @@ export function RefugePage() {
     health: CharacterHealth | null;
   } | null>(null);
   const [healthRetry, setHealthRetry] = useState(0);
+  const restBusyOwner = useRef<string | null>(null);
   const currentRecord = session && healthRecord?.token === session.accessToken ? healthRecord : null;
   const health = currentRecord?.status === 'ready' ? currentRecord.health : null;
   const healthLoading = Boolean(session && (!currentRecord || currentRecord.status === 'loading'));
@@ -60,6 +63,14 @@ export function RefugePage() {
       });
     return () => controller.abort();
   }, [session?.accessToken, healthRetry]);
+
+  // Foreground tab refresh is read-only and owner-scoped. Never unmount or
+  // abort a pending rest just because the tab regains focus.
+  useOwnerFocusRefresh(
+    session?.accessToken ?? null,
+    refreshPreparation,
+    () => !healthLoading && restBusyOwner.current !== session?.accessToken,
+  );
 
   function reviewHealth() {
     const section = document.getElementById('refuge-health');
@@ -160,6 +171,11 @@ export function RefugePage() {
                   sx={{ height: 10, borderRadius: 2 }} />
                 <Typography variant="caption" color="text.secondary">{t('refuge.health.baseMaxNote')}</Typography>
                 <CharacterRestAction accessToken={session.accessToken} health={health}
+                  onBusyChange={busy => {
+                    if (readStoredSession()?.accessToken === session.accessToken) {
+                      restBusyOwner.current = busy ? session.accessToken : null;
+                    }
+                  }}
                   onRested={result => setHealthRecord(current =>
                     current?.token === session.accessToken && current.health
                       ? { ...current, health: {

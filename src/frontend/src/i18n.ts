@@ -241,6 +241,7 @@ const initialization = i18n.use(initReactI18next).init({
             success: 'Riposo completato! Hai recuperato {{amount}} HP.',
             cooldown: 'Hai già riposato di recente. Riprova dopo 30 minuti dall’ultimo riposo.',
             encounterActive: 'Un incontro del portale è ancora attivo. Completa la sfida o attendi che termini prima di riposare.',
+            encounterUnavailable: 'Impossibile verificare lo stato del portale. Il riposo è sospeso finché non aggiorni il controllo.',
             refreshEncounter: 'Aggiorna stato incontro',
             full: 'Sei già in piena salute.',
             downed: 'Con zero HP non puoi riposare: servirà un altro tipo di cura.',
@@ -428,6 +429,7 @@ const initialization = i18n.use(initReactI18next).init({
             refuge: 'Vedi salute nel Rifugio',
             refreshError: 'Cura confermata, ma impossibile aggiornare le quantità. Ricarica l’inventario.',
             encounterActive: 'Incontro del portale attivo: puoi usare il Seme del Bosco dopo la sfida o alla scadenza.',
+            encounterUnavailable: 'Stato del portale non verificabile: la cura rimane sospesa finché non aggiorni il controllo.',
             refreshEncounter: 'Aggiorna stato incontro'
           },
           title: 'Inventario',
@@ -451,7 +453,7 @@ const initialization = i18n.use(initReactI18next).init({
             equipped: 'Equipaggiato',
             slotEmpty: 'Slot vuoto',
             unequip: 'Rimuovi dallo slot',
-            replaceHint: 'Per sostituire questo oggetto, rimuovilo prima dallo slot.'
+            replaceHint: 'Per sostituire questo oggetto, rimuovilo prima dallo slot.',
             find: 'Cerca oggetti compatibili',
             healingNote: 'Per consumare il Seme del Bosco come cura, rimuovilo prima dallo slot Amuleto.',
             serverNote: 'Solo il server conferma equipaggiamento e consumi. La ricerca non cambia gli oggetti.'
@@ -833,6 +835,7 @@ const initialization = i18n.use(initReactI18next).init({
             success: 'Rest completed! You recovered {{amount}} HP.',
             cooldown: 'You have rested recently. Try again 30 minutes after your last rest.',
             encounterActive: 'A portal encounter is still active. Finish the challenge or wait for it to end before resting.',
+            encounterUnavailable: 'Could not verify portal encounter status. Rest is paused until you refresh the check.',
             refreshEncounter: 'Refresh encounter status',
             full: 'Your health is already full.',
             downed: 'You cannot rest at zero HP. Another type of healing will be needed.',
@@ -1020,6 +1023,7 @@ const initialization = i18n.use(initReactI18next).init({
             refuge: 'View health in Refuge',
             refreshError: 'Healing confirmed, but available stock could not be refreshed. Reload inventory.',
             encounterActive: 'A portal encounter is active. Use the Grove Seed after the challenge ends or the encounter expires.',
+            encounterUnavailable: 'Portal encounter status is unavailable. Healing is paused until you refresh the check.',
             refreshEncounter: 'Refresh encounter status'
           },
           title: 'Inventory',
@@ -1043,7 +1047,7 @@ const initialization = i18n.use(initReactI18next).init({
             equipped: 'Equipped',
             slotEmpty: 'Empty slot',
             unequip: 'Unequip slot',
-            replaceHint: 'To replace this item, unequip it from the slot first.'
+            replaceHint: 'To replace this item, unequip it from the slot first.',
             find: 'Find compatible items',
             healingNote: 'To consume a Grove Seed for healing, first unequip it from the Charm slot.',
             serverNote: 'Only the server confirms equipment and consumption. Browsing does not change items.'

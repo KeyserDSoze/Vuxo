@@ -125,6 +125,22 @@ Once PostgreSQL is available, run the two new `CharacterHealingPersistenceTests`
 
 Once Chromium is available, run `tests/inventory-cross-device.spec.ts` (3 new scenarios, **not executed**): persistent torn pairs show safe errors until refresh; a single stale read is resolved by bounded reread; a valid equip POST superseded by another device must display the latest owner GET and never invent another equip.
 
+## Gate C0f: foreground owner sync + unknown encounter status
+
+`npm run test:contracts` discovers `scripts/owner-focus.contract.test.mjs` alongside the other pure suites. It can also be run directly:
+
+```bash
+cd src/frontend
+node --experimental-strip-types --test scripts/owner-focus.contract.test.mjs
+tsc --noEmit --strict --target ES2022 --module esnext src/features/auth/ownerFocusGate.ts
+```
+
+First local execution on Node **22.16.0: 8/8 PASS**, standalone strict TypeScript **PASS**. Check that owner refresh is initiated only for the current authenticated user, only in a visible tab, never while the page is loading or committing a write, and only once for a paired focus/visibility event. This does not replace actual multi-device E2E or database tests.
+
+When running Gate C in Chromium, include **`tests/owner-foreground-sync.spec.ts`** (4 authored scenarios, **not executed**). Switch an owner's stock or HP/encounter state in the API fixture while the page is inactive; returning to the tab must re-read without creating POSTs. Mock a 503 encounter-status response: neither `POST /api/characters/me/rest` nor `POST /api/characters/me/heal` should be possible until the status GET is retried successfully. Test Italian/English strings and verify no misleading 'active encounter' claim on an unavailable response.
+
+The two missing commas in the IT/EN `inventory.loadout.replaceHint` dictionaries were fixed during this slice. **Run the full `npm run build`** when dependencies are available to verify all TypeScript/translation syntax, rather than treating structural inspection as compilation.
+
 ## Gate C: browser and i18n regression
 
 ```bash
@@ -142,6 +158,7 @@ npx playwright test \
   tests/owner-mutations.spec.ts \
   tests/owner-action-races.spec.ts \
   tests/inventory-cross-device.spec.ts \
+  tests/owner-foreground-sync.spec.ts \
   tests/inventory-browse.spec.ts \
   tests/inventory-loadout.spec.ts \
   tests/refuge-preparation.spec.ts \

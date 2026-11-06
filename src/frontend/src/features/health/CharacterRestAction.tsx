@@ -10,9 +10,10 @@ type Props = {
   accessToken: string;
   health: CharacterHealth;
   onRested: (outcome: CharacterRestResult) => void;
+  onBusyChange?: (busy: boolean) => void;
 };
 
-export function CharacterRestAction({ accessToken, health, onRested }: Props) {
+export function CharacterRestAction({ accessToken, health, onRested, onBusyChange }: Props) {
   const { t } = useTranslation();
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -36,9 +37,10 @@ export function CharacterRestAction({ accessToken, health, onRested }: Props) {
 
   const canRest = health.currentHealth > 0 && health.currentHealth < health.maxHealth;
   const attempt = async () => {
-    if (!canRest || encounter.active || encounter.loading || busy || inFlight.current ||
+    if (!canRest || encounter.active || encounter.loading || encounter.unavailable || busy || inFlight.current ||
         feedback === 'success' || readStoredSession()?.accessToken !== accessToken) return;
     inFlight.current = true;
+    onBusyChange?.(true);
     const key = pendingKey.current ?? crypto.randomUUID();
     pendingKey.current = key;
     const controller = new AbortController();
@@ -73,6 +75,7 @@ export function CharacterRestAction({ accessToken, health, onRested }: Props) {
       // account's in-flight lock or change its busy state.
       if (activeRequest.current === controller) {
         inFlight.current = false;
+        onBusyChange?.(false);
         activeRequest.current = null;
         if (!controller.signal.aborted) setBusy(false);
       }
@@ -93,6 +96,15 @@ export function CharacterRestAction({ accessToken, health, onRested }: Props) {
           <Button data-testid="refuge-encounter-refresh" size="small"
             disabled={encounter.loading}
             onClick={encounter.refresh}>
+            {t('refuge.rest.refreshEncounter')}
+          </Button>
+        </Alert>
+      )}
+      {encounter.unavailable && (
+        <Alert data-testid="refuge-rest-encounter-unavailable" severity="warning">
+          {t('refuge.rest.encounterUnavailable')}{' '}
+          <Button data-testid="refuge-encounter-retry" size="small"
+            disabled={encounter.loading} onClick={encounter.refresh}>
             {t('refuge.rest.refreshEncounter')}
           </Button>
         </Alert>
@@ -120,7 +132,7 @@ export function CharacterRestAction({ accessToken, health, onRested }: Props) {
         <Button
           data-testid="refuge-rest-button"
           variant="contained"
-          disabled={busy || encounter.loading || encounter.active || feedback === 'success'}
+          disabled={busy || encounter.loading || encounter.active || encounter.unavailable || feedback === 'success'}
           onClick={() => { void attempt(); }}
           startIcon={busy ? <CircularProgress size={18} color="inherit" /> : undefined}
         >
