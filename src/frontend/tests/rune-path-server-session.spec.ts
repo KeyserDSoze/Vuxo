@@ -272,3 +272,75 @@ test('two independent browser contexts discover the same owner ticket and a comp
     await other.close();
   }
 });
+
+test('visible tab detects a remote server completion without reloading or creating another ticket', async ({ page }) => {
+  let state: 'active' | 'completed' = 'active';
+  let reads = 0;
+  let starts = 0;
+  await page.route('**/api/activities/runs/rune-path', route => {
+    starts++;
+    return json(route, ticket(), 201);
+  });
+  await page.route('**/api/activities/rune-path/puzzles/0', route => json(route, board));
+  await page.route('**/api/activities/runs/' + id, route => {
+    reads++;
+    expect(route.request().headers()['authorization']).toBe('Bearer e2e-rune-session-token');
+    return json(route, ticket(state));
+  });
+  await openVerified(page);
+  await page.getByTestId('verified-path-start').click();
+  await expect(page.getByTestId('verified-path-board')).toBeVisible();
+  await page.getByTestId('verified-path-step-down').click();
+  await expect(page.getByTestId('verified-path-moves')).toContainText('1');
+
+  // The second device has completed the same server-issued ticket. Returning
+  // to this tab requests the authoritative GET without a page reload.
+  state = 'completed';
+  await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+  await expect(page.getByTestId('verified-path-remote-update'))
+    .toContainText('completata su un altro dispositivo');
+  await expect(page.getByTestId('verified-path-completed')).toBeVisible();
+  await expect(page.getByTestId('verified-path-board')).toHaveCount(0);
+  expect(reads).toBeGreaterThanOrEqual(1);
+  expect(starts).toBe(1);
+  const saved = await page.evaluate(() =>
+    sessionStorage.getItem('vuxo.refuge.rune-path.run.rune-player'));
+  expect(JSON.parse(saved ?? 'null')).toEqual({ runId: id, moves: '' });
+});
+
+test('remote expiry is authoritative; a transient status outage preserves local moves', async ({ page }) => {
+  let state: 'active' | 'expired' = 'active';
+  let offline = true;
+  let starts = 0;
+  await page.route('**/api/activities/runs/rune-path', route => {
+    starts++;
+    return json(route, ticket(), 201);
+  });
+  await page.route('**/api/activities/rune-path/puzzles/0', route => json(route, board));
+  await page.route('**/api/activities/runs/' + id, route => offline
+    ? json(route, { code: 'activity_run_unavailable' }, 503)
+    : json(route, ticket(state)));
+  await openVerified(page);
+  await page.getByTestId('verified-path-start').click();
+  await expect(page.getByTestId('verified-path-board')).toBeVisible();
+  await page.getByTestId('verified-path-step-down').click();
+  await expect(page.getByTestId('verified-path-moves')).toContainText('1');
+
+  await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+  await expect(page.getByTestId('verified-path-sync-offline')).toBeVisible();
+  await expect(page.getByTestId('verified-path-board')).toBeVisible();
+  await expect(page.getByTestId('verified-path-moves')).toContainText('1');
+
+  // Reconnection does not replay a POST or discard the player's visual path.
+  offline = false;
+  await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+  await expect(page.getByTestId('verified-path-sync-offline')).toHaveCount(0);
+  await expect(page.getByTestId('verified-path-moves')).toContainText('1');
+  state = 'expired';
+  await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+  await expect(page.getByTestId('verified-path-remote-update'))
+    .toContainText('scaduta sul server');
+  await expect(page.getByTestId('verified-path-board')).toHaveCount(0);
+  await expect(page.getByTestId('verified-path-expired')).toBeVisible();
+  expect(starts).toBe(1);
+});
