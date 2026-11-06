@@ -1,15 +1,6 @@
 import { getApiBaseUrl } from '../character/appearance';
-
-export type CharacterRestResult = {
-  idempotencyKey: string;
-  previousHealth: number;
-  currentHealth: number;
-  maxHealth: number;
-  restoredHealth: number;
-  restedAtUtc: string;
-  nextRestAtUtc: string;
-  replayed: boolean;
-};
+import { parseCharacterRestResult, type CharacterRestResult } from '../contracts/ownerMutationContracts';
+export type { CharacterRestResult } from '../contracts/ownerMutationContracts';
 
 export class CharacterRestApiError extends Error {
   constructor(
@@ -49,5 +40,5 @@ export async function restCharacter(
       error?.nextAllowedAtUtc,
     );
   }
-  return response.json() as Promise<CharacterRestResult>;
+  return parseCharacterRestResult(await response.json() as unknown, idempotencyKey);
 }

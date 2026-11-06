@@ -1,5 +1,6 @@
 import { getApiBaseUrl } from '../character/appearance';
 import { readStoredSession } from '../auth/authSession';
+import { requireEquipConfirmed, requireUnequipConfirmed } from '../contracts/ownerMutationContracts';
 import {
   parseInventoryStacks, parseEquipmentView,
   type InventoryStack, type EquipmentView,
@@ -41,12 +42,12 @@ export const fetchInventoryStacks = (signal?: AbortSignal) =>
 export const fetchEquipment = (signal?: AbortSignal) =>
   equipmentRequest<EquipmentView>('/api/equipment', 'GET', parseEquipmentView, signal);
 
-export const equipInventoryItem = (grantId: string) =>
-  equipmentRequest<EquipmentView>(
+export const equipInventoryItem = async (grantId: string) =>
+  requireEquipConfirmed(await equipmentRequest<EquipmentView>(
     `/api/equipment/${encodeURIComponent(grantId)}/equip`, 'POST', parseEquipmentView
-  );
+  ), grantId);
 
-export const unequipInventoryItem = (slot: 'relic' | 'charm') =>
-  equipmentRequest<EquipmentView>(
+export const unequipInventoryItem = async (slot: 'relic' | 'charm') =>
+  requireUnequipConfirmed(await equipmentRequest<EquipmentView>(
     `/api/equipment/${encodeURIComponent(slot)}`, 'DELETE', parseEquipmentView
-  );
+  ), slot);

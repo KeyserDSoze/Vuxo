@@ -85,6 +85,16 @@ Required: all **20** Node contract cases pass (8 history + 12 owner-read), and t
 
 When Chromium is available, explicitly run `tests/owner-read-contracts.spec.ts` (4 new authored scenarios) together with the existing inventory/refuge suites. A duplicate inventory grant, duplicate equipment slot, HP exceeding max and an idle encounter carrying a portal ID must display an error or unknown state, not a falsely usable owner snapshot. Retry and refresh should restore the genuine server state. **These browser tests are not executed yet.** Do not treat the pure module tests as a complete React build.
 
+## Gate C0c: rest, item-healing and equipment mutations
+
+`npm run test:contracts` now also discovers `src/frontend/scripts/owner-mutations.contract.test.mjs`. Run it on Node 22+ with the other pure suites. The first isolated mutation run on Node **22.16.0 passed 11/11 tests** and `ownerMutationContracts.ts` passed `tsc --noEmit --strict --target ES2022 --module esnext`. These passes do **not** establish a working browser or database.
+
+Mutation-specific release checks:
+- A successful `POST /api/characters/me/rest` must echo the **same idempotency UUID**, coherent HP change, a valid timestamp and a later cooldown time. An invalid HTTP 200 must keep the pending UUID for a safe retry; never render speculative HP.
+- A successful `POST /api/characters/me/heal/{grantId}` must echo **both the UUID and grantId** with consistent HP, consumption time and boolean replay state. Malformed 200 must retain the UUID; do not consume local stock.
+- Successful `POST /api/equipment/{grantId}/equip` must include that exact grant in its confirmed loadout; `DELETE /api/equipment/{slot}` must return that slot empty. A contradictory 200 requires read-only refresh and no stale inventory controls.
+- Execute all four scenarios in `tests/owner-mutations.spec.ts` with Chromium, as well as the existing heal/rest/equipment suites, once a local browser setup is available. The four new Playwright tests are **not yet executed**.
+
 ## Gate C: browser and i18n regression
 
 ```bash
@@ -99,6 +109,7 @@ Playwright uses `playwright.config.ts` to build and serve the preview itself. At
 npx playwright test \
   tests/home-rune-teaser.spec.ts \
   tests/owner-read-contracts.spec.ts \
+  tests/owner-mutations.spec.ts \
   tests/inventory-browse.spec.ts \
   tests/inventory-loadout.spec.ts \
   tests/refuge-preparation.spec.ts \

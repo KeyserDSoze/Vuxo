@@ -1,16 +1,7 @@
 import { getApiBaseUrl } from '../character/appearance';
 import { readStoredSession } from '../auth/authSession';
-
-export type CharacterItemHealResult = {
-  grantId: string;
-  idempotencyKey: string;
-  previousHealth: number;
-  currentHealth: number;
-  maxHealth: number;
-  restoredHealth: number;
-  consumedAtUtc: string;
-  replayed: boolean;
-};
+import { parseCharacterItemHealResult, type CharacterItemHealResult } from '../contracts/ownerMutationContracts';
+export type { CharacterItemHealResult } from '../contracts/ownerMutationContracts';
 
 export class CharacterItemHealError extends Error {
   constructor(public readonly code: string, public readonly status: number) {
@@ -41,5 +32,5 @@ export async function consumeHealingItem(
     }
     throw new CharacterItemHealError(code, response.status);
   }
-  return response.json() as Promise<CharacterItemHealResult>;
+  return parseCharacterItemHealResult(await response.json() as unknown, grantId, idempotencyKey);
 }

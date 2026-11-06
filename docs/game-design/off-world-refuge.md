@@ -1,5 +1,11 @@
 # VUXO fuori dal mondo — Rifugio e attività (EPIC #70)
 
+## Validazione delle mutazioni off-world (#120)
+
+Le azioni del Rifugio sono intenzioni inviate al server, non aggiornamenti del personaggio calcolati nel browser. Il nuovo `ownerMutationContracts.ts` conferma la **ricevuta server** per cura, riposo ed equipaggiamento: stessa UUID idempotente, grant consumato richiesto, HP e tempi coerenti; `replayed` esplicito; equip/unequip riflessi negli slot ritornati. Un HTTP 200 incompleto o falso resta **ambiguo**: la cura/riposo mantengono la UUID originale nel pulsante Riprova, perché il server potrebbe aver già effettuato il commit. Equip/unequip invece nascondono lo snapshot non affidabile e chiedono una lettura GET autorevole. Tutti gli errori continuano a bloccare le operazioni o a offrire una ripetizione sicura, senza scalare premi/HP locali.
+
+Sono stati eseguiti 11 test Node e il controllo TypeScript `strict` sul modulo puro; 4 nuovi browser test su risposte positive incongruenti sono pronti ma non eseguiti. La validazione completa `React + browser + .NET + PostgreSQL` rimane obbligatoria prima di qualunque merge/deploy (#112).
+
 ## Dati proprietari sicuri nelle schermate off-world (#120)
 
 Il Rifugio e l'Inventario non deducono mai HP, slot, quantità o stato di incontro dal browser. I rispettivi endpoint proprietari (`/api/inventory`, `/api/inventory/stacks`, `/api/equipment`, `/api/characters/me/health`, `/api/characters/me/encounter`) vengono ora controllati dal modulo puro `ownerReadContracts.ts` prima che React mostri i risultati. Il parser scarta proprietà non attendibili (seed, ID proprietario non richiesto, flag di prontezza inventati) e rifiuta grant/slot duplicati, conteggi impossibili, valori HP non validi e incontri contraddittori. L'errore provoca gli stati già esistenti di avviso e ripetizione della lettura: **non** autorizza azioni e **non** muta il backend. Le risposte alle mutazioni `equip`/`unequip` sono controllate prima di aggiornare lo stato visibile. La compatibilità con record storici che non includono `consumed` rimane, senza inventare disponibilità: i grant disponibili continuano a provenire dagli stack del server.
