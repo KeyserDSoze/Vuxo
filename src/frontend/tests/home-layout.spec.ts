@@ -32,7 +32,7 @@ test('home remains legible in English with dark theme on mobile', async ({ page 
 
   await page.getByTestId('language-toggle').click();
   await expect(page.getByRole('heading', { level: 1, name: /beyond the portal/i })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'A shared world' })).toBeVisible();
+  await expect(page.getByTestId('home-realm-world').getByText('A shared world')).toBeVisible();
 
   await page.getByTestId('theme-toggle').click();
   await page.getByTestId('theme-toggle').click();
