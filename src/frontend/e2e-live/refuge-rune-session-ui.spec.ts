@@ -172,6 +172,85 @@ test('React Refuge finishes a real persisted Rune Path with PostgreSQL after ref
     .toBe(true);
 });
 
+test('second device discovers and completes an owner-only PostgreSQL ticket', async ({
+  page, browser, request,
+}) => {
+  const owner = 'live-rune-cross-device-' + randomUUID();
+  const token = await login(request, owner);
+  await createCharacter(request, token);
+  await page.addInitScript(({ token, owner }) => {
+    localStorage.clear();
+    localStorage.setItem('vuxo.language', 'en');
+    localStorage.setItem('vuxo.accessToken', token);
+    localStorage.setItem('vuxo.auth.expiresAtUtc',
+      new Date(Date.now() + 60 * 60 * 1000).toISOString());
+    localStorage.setItem('vuxo.auth.user', JSON.stringify({
+      id: owner, displayName: 'Rune Path Live', email: null,
+    }));
+  }, { token, owner });
+
+  await page.goto('./#/refuge/path');
+  await page.getByTestId('path-mode-saved').click();
+  await expect(page.getByTestId('verified-path-ready')).toBeVisible();
+  const creating = page.waitForResponse(reply =>
+    reply.url().endsWith('/api/activities/runs/rune-path') &&
+    reply.request().method() === 'POST');
+  await page.getByTestId('verified-path-start').click();
+  const created = await creating;
+  expect(created.status()).toBe(201);
+  const ticket = await created.json() as { runId: string; puzzleIndex: number };
+  await expect(page.getByTestId('verified-path-game')).toBeVisible();
+
+  const foreignToken = await login(request, 'live-rune-foreign-' + randomUUID());
+  const foreign = await request.get(api + '/api/activities/runs/active/rune-path', {
+    headers: { Authorization: 'Bearer ' + foreignToken },
+  });
+  expect(foreign.status()).toBe(204);
+  const active = await request.get(api + '/api/activities/runs/active/rune-path', {
+    headers: { Authorization: 'Bearer ' + token },
+  });
+  expect(active.status()).toBe(200);
+  expect((await active.json() as { runId: string }).runId).toBe(ticket.runId);
+
+  const second = await browser.newPage();
+  try {
+    await second.addInitScript(({ token, owner }) => {
+      localStorage.clear();
+      sessionStorage.clear();
+      localStorage.setItem('vuxo.language', 'en');
+      localStorage.setItem('vuxo.accessToken', token);
+      localStorage.setItem('vuxo.auth.expiresAtUtc',
+        new Date(Date.now() + 60 * 60 * 1000).toISOString());
+      localStorage.setItem('vuxo.auth.user', JSON.stringify({
+        id: owner, displayName: 'Rune Path Live', email: null,
+      }));
+    }, { token, owner });
+    await second.goto('http://127.0.0.1:4173/Vuxo/#/refuge/path');
+    await second.getByTestId('path-mode-saved').click();
+    await expect(second.getByTestId('verified-path-game')).toBeVisible();
+    await expect(second.getByTestId('verified-path-moves')).toContainText('0');
+    const boardReply = await request.get(
+      api + '/api/activities/rune-path/puzzles/' + ticket.puzzleIndex);
+    expect(boardReply.status()).toBe(200);
+    const route = solve(await boardReply.json() as Board);
+    for (const move of route) await pressMove(second, move);
+    await expect(second.getByTestId('verified-path-submit')).toBeEnabled();
+    await second.getByTestId('verified-path-submit').click();
+    await expect(second.getByTestId('verified-path-completed')).toBeVisible();
+
+    // Completed runs are no longer discoverable by other tabs or devices.
+    const after = await request.get(api + '/api/activities/runs/active/rune-path', {
+      headers: { Authorization: 'Bearer ' + token },
+    });
+    expect(after.status()).toBe(204);
+    await page.reload();
+    await page.getByTestId('path-mode-saved').click();
+    await expect(page.getByTestId('verified-path-completed')).toBeVisible();
+  } finally {
+    await second.close();
+  }
+});
+
 test('guest can play local Rune Path without any run ticket API traffic', async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem('vuxo.language', 'it');
