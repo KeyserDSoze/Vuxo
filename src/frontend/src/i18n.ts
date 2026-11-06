@@ -108,6 +108,26 @@ const initialization = i18n.use(initReactI18next).init({
               runId: 'Sessione: {{id}}',
               puzzle: 'Mappa assegnata dal server: {{number}}',
               remaining: 'Tempo rimasto: {{seconds}} s',
+              progress: {
+                title: 'Progressi di allenamento',
+                description: 'Risultati di pratica confermati dal server, non abilità certificate.',
+                refresh: 'Aggiorna progressi',
+                loading: 'Caricamento dei progressi…',
+                error: 'Non è stato possibile caricare i progressi. Riprova.',
+                boards: 'Mappe completate: {{solved}} su {{total}}',
+                completions: 'Percorsi completati: {{count}}',
+                map: 'Mappa {{number}}',
+                best: 'Miglior percorso: {{count}} mosse',
+                boardCompletions: '{{count}} completamenti',
+                notSolved: 'Da completare',
+                noRewards: 'Queste tappe sono solo informative. Le mappe possono essere risolte da bot: nessun XP, oggetto, moneta o premio viene assegnato.',
+                milestones: {
+                  newcomer: 'Primi passi',
+                  explorer: 'Esploratore delle rune',
+                  navigator: 'Navigatore delle rune',
+                  cartographer: 'Cartografo delle rune'
+                }
+              },
               history: {
                 title: 'Le mie sessioni',
                 description: 'Ultime 10 sessioni registrate sul server. Nessun XP o premio.',
@@ -562,6 +582,26 @@ const initialization = i18n.use(initReactI18next).init({
               runId: 'Session: {{id}}',
               puzzle: 'Server-assigned board: {{number}}',
               remaining: 'Time left: {{seconds}} s',
+              progress: {
+                title: 'Practice progress',
+                description: 'Server-confirmed practice results, not certified human skill.',
+                refresh: 'Refresh progress',
+                loading: 'Loading progress…',
+                error: 'Could not load practice progress. Please retry.',
+                boards: 'Boards completed: {{solved}} of {{total}}',
+                completions: 'Completed paths: {{count}}',
+                map: 'Board {{number}}',
+                best: 'Best path: {{count}} moves',
+                boardCompletions: '{{count}} completions',
+                notSolved: 'Not completed yet',
+                noRewards: 'These milestones are informational only. Bots can solve the boards: no XP, items, coins or rewards are granted.',
+                milestones: {
+                  newcomer: 'First steps',
+                  explorer: 'Rune Explorer',
+                  navigator: 'Rune Navigator',
+                  cartographer: 'Rune Cartographer'
+                }
+              },
               history: {
                 title: 'My sessions',
                 description: 'Your last 10 server-recorded sessions. No XP or rewards.',
