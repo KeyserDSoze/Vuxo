@@ -12,9 +12,9 @@ for (const width of [320, 390, 768, 1280]) {
     await page.setViewportSize({ width, height: 800 });
     await page.goto('./#/');
 
-    const heading = page.getByRole('heading', { level: 1, name: /primo mondo di Vuxo/i });
+    const heading = page.getByRole('heading', { level: 1, name: /oltre il portale/i });
     await expect(heading).toBeVisible();
-    await expect(page.getByTestId('home-highlights').getByRole('heading', { level: 2 })).toHaveCount(3);
+    await expect(page.getByTestId('home-highlights').getByRole('heading', { level: 3 })).toHaveCount(3);
 
     const bounds = await heading.boundingBox();
     expect(bounds).not.toBeNull();
@@ -31,8 +31,8 @@ test('home remains legible in English with dark theme on mobile', async ({ page 
   await page.goto('./#/');
 
   await page.getByTestId('language-toggle').click();
-  await expect(page.getByRole('heading', { level: 1, name: /first world of Vuxo/i })).toBeVisible();
-  await expect(page.getByText('A shared world')).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: /beyond the portal/i })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'A shared world' })).toBeVisible();
 
   await page.getByTestId('theme-toggle').click();
   await page.getByTestId('theme-toggle').click();
