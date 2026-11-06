@@ -45,3 +45,23 @@ test('aborted session does not publish a completed read', async () => {
     return [stack(1, 1), equipped];
   }, controller.signal), { message: 'inventory_snapshot_cancelled' });
 });
+
+test('case-variant grant in available and equipped is rejected', () => {
+  const id = 'abcdefab-abcd-4abc-8abc-abcdefabcdef';
+  invalid(stack(2, 1, [id.toUpperCase()]), { items: [{ ...equipped.items[0], grantId: id }] });
+});
+test('duplicated available grants across distinct stacks are rejected even with UUID case changes', () => {
+  const id = 'abcdefab-abcd-4abc-8abc-abcdefabcdef';
+  invalid([{ itemKey: 'item.rune_shard.v1', quantity: 1, equippedQuantity: 0, availableGrantIds: [id] },
+    { itemKey: 'item.grove_seed.v1', quantity: 1, equippedQuantity: 0, availableGrantIds: [id.toUpperCase()] }], empty);
+});
+test('duplicated equipped grant across slots is rejected despite matching equipped counts', () => {
+  const id = 'abcdefab-abcd-4abc-8abc-abcdefabcdef';
+  invalid(stack(2, 2), { items: [
+    { ...equipped.items[0], grantId: id },
+    { ...equipped.items[0], grantId: id.toUpperCase(), slot: 'charm' },
+  ] });
+});
+test('duplicate stack keys must not silently overwrite previous quantities', () => {
+  invalid([...stack(1, 0, [rune]), ...stack(1, 0, [seed])], empty);
+});
