@@ -8,6 +8,7 @@ import { useBuildInfo } from '../features/version/BuildInfoProvider';
 import { useVuxoTheme } from '../theme/VuxoThemeProvider';
 import { vuxoDesignTokens } from '../theme/tokens';
 import { HomePortalScene } from './HomePortalScene';
+import { HomeRuneTeaser } from './HomeRuneTeaser';
 import './home.css';
 
 type Realm = 'world' | 'character' | 'portals';
@@ -144,6 +145,8 @@ export function HomePage() {
           <Box className="vuxo-landing__scene-footer-line" aria-hidden="true" />
         </Box>
       </Box>
+
+      {awake && <HomeRuneTeaser key={realm} realm={realm} destination={selectedDestination} />}
 
       <Box component="section" aria-labelledby="home-paths-title">
         <Stack direction={{ xs: 'column', sm: 'row' }} sx={{ mb: 2, gap: 1, alignItems: { xs: 'flex-start', sm: 'center' }, justifyContent: 'space-between' }}>

@@ -32,7 +32,24 @@ const initialization = i18n.use(initReactI18next).init({
           portal: {
             toggle: 'Risveglia o calma il portale',
             hint: 'Tocca il portale per risvegliarlo',
-            awake: 'Il portale risplende! Toccalo di nuovo per calmarlo.'
+            awake: 'Il portale risplende! Il sigillo ti aspetta appena sotto.'
+          },
+          teaser: {
+            eyebrow: 'Il portale si è risvegliato',
+            title: 'Decifra il sigillo',
+            description: 'Un piccolo assaggio dell’avventura: osserva tre rune, memorizza l’ordine e prova a riaprirne il passaggio.',
+            disclaimer: 'Solo una prova locale: nessun premio, XP o progresso viene salvato.',
+            memorize: 'Memorizza queste rune nell’ordine mostrato.',
+            ready: 'Sono pronto',
+            repeat: 'Ora ripeti la sequenza e apri il sigillo.',
+            progress: 'Rune scelte: {{count}} di {{total}}',
+            runeChoices: 'Scegli le rune nell’ordine corretto',
+            restart: 'Ricomincia',
+            failure: 'Il sigillo non si è aperto. Osserva di nuovo le rune e riprova.',
+            retry: 'Osserva di nuovo',
+            success: 'Sigillo aperto! Il percorso scelto ti attende.',
+            continue: 'Prosegui verso il percorso',
+            again: 'Rigioca il sigillo'
           },
           features: {
             character: {
@@ -414,7 +431,24 @@ const initialization = i18n.use(initReactI18next).init({
           portal: {
             toggle: 'Awaken or quiet the portal',
             hint: 'Touch the portal to awaken it',
-            awake: 'The portal is glowing! Touch again to quiet it.'
+            awake: 'The portal is glowing! Decode the sigil just below.'
+          },
+          teaser: {
+            eyebrow: 'The portal has awakened',
+            title: 'Decode the sigil',
+            description: 'A taste of the adventure: study three runes, remember their order, then try to reopen the passage.',
+            disclaimer: 'Local practice only: no rewards, XP or progress are saved.',
+            memorize: 'Remember these runes in the order shown.',
+            ready: "I'm ready",
+            repeat: 'Now repeat the sequence to open the sigil.',
+            progress: 'Runes selected: {{count}} of {{total}}',
+            runeChoices: 'Choose the runes in the correct order',
+            restart: 'Start over',
+            failure: 'The sigil did not open. Study the runes and try again.',
+            retry: 'Study again',
+            success: 'Sigil unlocked! Your chosen path awaits.',
+            continue: 'Continue to your path',
+            again: 'Play the sigil again'
           },
           features: {
             character: {
