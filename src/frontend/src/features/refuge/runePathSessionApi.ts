@@ -49,6 +49,26 @@ async function readResponse<T>(response: Response): Promise<T> {
   return response.json() as Promise<T>;
 }
 
+export type RunePathHistoryEntry = Pick<RunePathTicket,
+  'runId' | 'activityKey' | 'rulesVersion' | 'puzzleIndex' |
+  'startedAtUtc' | 'expiresAtUtc' | 'state' |
+  'completedAtUtc' | 'stepsChecked'>;
+
+export async function fetchRunePathHistory(
+  token: string,
+  signal?: AbortSignal,
+): Promise<RunePathHistoryEntry[]> {
+  // The server enforces owner-only filtering and a bounded newest-first page.
+  const response = await fetch(getApiBaseUrl() + '/api/activities/runs/history/rune-path?limit=10', {
+    method: 'GET',
+    cache: 'no-store',
+    headers: { Authorization: 'Bearer ' + token },
+    signal,
+  });
+  const data = await readResponse<{ items: RunePathHistoryEntry[] }>(response);
+  return data.items;
+}
+
 export function startRunePathSession(
   token: string,
   idempotencyKey: string,
