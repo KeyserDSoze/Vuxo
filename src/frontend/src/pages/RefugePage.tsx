@@ -1,4 +1,4 @@
-import { AutoAwesome, BackpackOutlined, ExploreOutlined, FavoriteBorder, PersonOutlined, SportsEsportsOutlined } from '@mui/icons-material';
+import { AutoAwesome, BackpackOutlined, ExploreOutlined, FavoriteBorder, HistoryEduOutlined, PersonOutlined, SportsEsportsOutlined } from '@mui/icons-material';
 import { Alert, Button, Chip, CircularProgress, Grid, LinearProgress, Paper, Stack, Typography } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -10,6 +10,7 @@ import { CharacterRestAction } from '../features/health/CharacterRestAction';
 const activities = [
   { key: 'character', to: '/character', icon: PersonOutlined, authenticated: false },
   { key: 'inventory', to: '/inventory', icon: BackpackOutlined, authenticated: true },
+  { key: 'journal', to: '/refuge/journal', icon: HistoryEduOutlined, authenticated: true },
   { key: 'portals', to: '/portals', icon: AutoAwesome, authenticated: true },
   { key: 'training', to: '/refuge/training', icon: SportsEsportsOutlined, authenticated: false },
 ] as const;

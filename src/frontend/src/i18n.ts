@@ -53,6 +53,48 @@ const initialization = i18n.use(initReactI18next).init({
           }
         },
         refuge: {
+          journal: {
+            title: 'Diario del Rifugio',
+            description: 'Rivedi gli oggetti ottenuti e le sfide personali ancora disponibili, anche senza entrare nella mappa.',
+            back: 'Torna al Rifugio',
+            authRequired: 'Accedi al tuo account VUXO per consultare il diario personale.',
+            signIn: 'Accedi',
+            refreshAll: 'Aggiorna tutto',
+            retry: 'Aggiorna',
+            dateUnavailable: 'Data non disponibile',
+            rewards: {
+              title: 'Ricompense ottenute',
+              description: 'Registrazioni effettive degli oggetti assegnati al tuo personaggio dal server.',
+              loading: 'Caricamento ricompense…',
+              error: 'Non è stato possibile leggere la cronologia delle ricompense. Riprova.',
+              filterLabel: 'Stato degli oggetti',
+              filters: { all: 'Tutti', notConsumed: 'Non consumati', consumed: 'Consumati' },
+              count: 'Registrazioni visualizzate: {{shown}} su {{total}}',
+              empty: 'Non risultano ancora oggetti assegnati al tuo personaggio.',
+              noMatch: 'Non ci sono ricompense con questo stato. Cambia filtro per visualizzare le altre.',
+              unknownItem: 'Oggetto non ancora catalogato',
+              awarded: 'Ricevuto il {{date}}',
+              quantity: 'Quantità registrata: {{count}}',
+              consumed: 'Consumato',
+              notConsumed: 'Non consumato',
+              openInventory: 'Apri l’inventario'
+            },
+            portals: {
+              title: 'Portali ancora disponibili',
+              description: 'Sono le sfide attualmente restituite dal server, non un elenco di portali completati.',
+              loading: 'Caricamento portali disponibili…',
+              error: 'Non è stato possibile verificare i portali disponibili. Riprova.',
+              count: 'Portali disponibili: {{count}}',
+              empty: 'Nessun portale disponibile segnalato al momento. Questo non significa che non ne hai mai completati.',
+              sequence: 'Sfida di memoria delle rune',
+              reference: 'Riferimento: {{reference}}',
+              expires: 'Scadenza segnalata: {{date}}',
+              noExpiry: 'Nessuna scadenza segnalata',
+              available: 'Disponibile',
+              open: 'Vai ai portali'
+            },
+            disclaimer: 'Questo diario mostra assegnazioni di oggetti e portali ancora disponibili. Non è lo storico completo delle avventure o dei portali superati: quel registro richiederà una futura API dedicata. Un oggetto non consumato non è necessariamente utilizzabile o equipaggiabile.'
+          },
           rest: {
             description: 'Riposa al Rifugio per recuperare fino al 25% degli HP massimi di base. Puoi farlo una volta ogni 30 minuti. Non consuma oggetti.',
             action: 'Riposa',
@@ -90,6 +132,7 @@ const initialization = i18n.use(initReactI18next).init({
           cards: {
             character: { title: 'Personaggio', description: 'Aspetto, attributi e preparazione del tuo Vuxian.' },
             inventory: { title: 'Inventario ed equipaggiamento', description: 'Controlla gli oggetti conquistati ed equipaggia reliquie e amuleti.' },
+            journal: { title: 'Diario del Rifugio', description: 'Rivedi gli oggetti ottenuti e i portali ancora disponibili.' },
             portals: { title: 'Portali personali', description: 'Affronta sfide assegnate al tuo personaggio, con risultati verificati dal server.' },
             training: { title: 'Allenamento', description: 'Prova un minigioco di memoria delle rune, anche con il mondo offline.' }
           },
@@ -435,6 +478,48 @@ const initialization = i18n.use(initReactI18next).init({
           }
         },
         refuge: {
+          journal: {
+            title: 'Refuge journal',
+            description: 'Review the items you have earned and personal challenges still available, without opening the 2D world.',
+            back: 'Back to Refuge',
+            authRequired: 'Sign in to your VUXO account to view your personal journal.',
+            signIn: 'Sign in',
+            refreshAll: 'Refresh all',
+            retry: 'Refresh',
+            dateUnavailable: 'Date unavailable',
+            rewards: {
+              title: 'Earned rewards',
+              description: 'Actual server records of items granted to your character.',
+              loading: 'Loading rewards…',
+              error: 'Could not load your reward history. Please retry.',
+              filterLabel: 'Item status',
+              filters: { all: 'All', notConsumed: 'Not consumed', consumed: 'Consumed' },
+              count: 'Entries shown: {{shown}} of {{total}}',
+              empty: 'No item grants have been recorded for your character yet.',
+              noMatch: 'No rewards have this status. Change the filter to see other entries.',
+              unknownItem: 'Item not yet cataloged',
+              awarded: 'Received on {{date}}',
+              quantity: 'Recorded quantity: {{count}}',
+              consumed: 'Consumed',
+              notConsumed: 'Not consumed',
+              openInventory: 'Open inventory'
+            },
+            portals: {
+              title: 'Portals still available',
+              description: 'These are challenges currently returned by the server, not a list of completed portals.',
+              loading: 'Loading available portals…',
+              error: 'Could not check your available portals. Please retry.',
+              count: 'Available portals: {{count}}',
+              empty: 'No portal is currently reported as available. This does not mean you never completed one.',
+              sequence: 'Rune memory challenge',
+              reference: 'Reference: {{reference}}',
+              expires: 'Reported expiry: {{date}}',
+              noExpiry: 'No expiry reported',
+              available: 'Available',
+              open: 'Visit portals'
+            },
+            disclaimer: 'This journal shows item grants and portals still available. It is not a complete history of adventures or completed portals; that will require a dedicated future API. An item that is not consumed is not necessarily usable or equippable.'
+          },
           rest: {
             description: 'Rest at the Refuge to recover up to 25% of your base maximum HP. You can do this once every 30 minutes. No items are consumed.',
             action: 'Rest',
@@ -472,6 +557,7 @@ const initialization = i18n.use(initReactI18next).init({
           cards: {
             character: { title: 'Character', description: 'Appearance, attributes and preparation of your Vuxian.' },
             inventory: { title: 'Inventory and equipment', description: 'View earned items and equip relics and charms.' },
+            journal: { title: 'Refuge journal', description: 'Review your earned items and portals still available.' },
             portals: { title: 'Personal portals', description: 'Take on challenges assigned to your character, with results verified by the server.' },
             training: { title: 'Training', description: 'Try a rune memory minigame, even while the world is offline.' }
           },

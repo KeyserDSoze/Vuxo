@@ -18,7 +18,14 @@ Quando una issue cambia stato in modo significativo, aggiornare la riga corrispo
 
 | Issue | Tipo | Versione | Area | Stato | Test/Stato verifica | Risoluzione / prossimo passo |
 |---|---|---:|---|---|---|---|
-| #109 | Feature/UX | 0.0.1 | Immersive landing + interactive portal | In progress | Playwright (portal, realm selectors, pointer, keyboard, reduced motion, i18n and responsive); CI PR pending | Original SVG/CSS hero, no Phaser load, theme tokens, guest/auth and Refuge routing; review CI before closure |
+| #118 | Feature/UX | 0.0.1 | Refuge Journal: item grant history + active portals | In progress | 8 Playwright scenarios authored, pending CI (#112) | New read-only lazy route and Refuge card. No backend writes; not complete portal victory history; isolate until CI |
+| #117 | Feature/UX | 0.0.1 | Refuge contextual adventure guide + full refresh | In progress | 7 Playwright scenarios authored, not run (#112) | Isolated feature/117-refuge-adventure-guide stacked on #114, commit 95632a52 |
+| #116 | Feature/UX | 0.0.1 | Relic/charm loadout and safe resync | In progress | 7 Playwright scenarios authored, not run (#112) | Isolated feature/116-inventory-loadout stacked on #115, commit 9a2ef000 |
+| #115 | Feature/UX | 0.0.1 | Inventory search/filter/sort | In progress | 7 Playwright scenarios authored, not run (#112) | Isolated feature/115-inventory-browse, commit 42af71d1 |
+| #114 | Feature/UX | 0.0.1 | Refuge adventure preparation | In progress | 7 Playwright scenarios authored, not run (#112) | Isolated feature/114-refuge-preparation, commit 8f3d692 |
+| #113 | Feature/UX | 0.0.1 | Home interactive sigil | In progress | 9 Playwright scenarios authored, not run (#112) | Isolated feature/113-home-rune-teaser, commit dbddc231 |
+| #112 | Bug/Delivery | 0.0.1 | GitHub Actions quota exhausted | Blocked | User confirmed budget cap; Pages deployment failed before steps | No PR, merge, deploy or Actions until usage available; main frontend differs from public Pages |
+| #109 | Feature/UX | 0.0.1 | Immersive landing + interactive portal | Done | PR #111 CI 42195079264 100 Playwright/backend/Docker green; E2E 42195079030 green | Merged main d1035cc5. GitHub Pages deployment blocked by #112 |
 | #70 | Epic | 0.0.1+ | Off-world gameplay and Refuge | In progress | Architettura/design in docs/game-design/off-world-refuge.md; slice #71 in CI | Cura autorevole #72 e minigiochi a reward #73 pianificati; no client-authoritative economy |
 | #71 | Feature | 0.0.1 | Refuge hub and free rune training | Done | PR #74 CI #41942702087: 68/68 Playwright, build/backend/Docker verdi; live E2E #41942702124 verde | Rifugio e allenamento rune 3/4/6, nav/mobile/i18n, nessun reward locale; mergiata in main a5adb254; issue chiusa #71 |
 | #75 | Feature | 0.0.1 | Persisted current HP + Refuge read view | Done | PR #76 CI #41946315211: 281 xUnit, 72 Playwright, Docker success; real E2E #41946315179 success | GET owner-only; migration/backfill+constraint; Refuge HP IT/EN; healing #72 |
