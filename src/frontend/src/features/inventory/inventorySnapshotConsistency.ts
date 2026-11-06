@@ -20,13 +20,21 @@ export function assertEquipmentStackConsistency(
   const counts = new Map<string, number>();
   const available = new Set<string>();
   for (const stack of stacks) {
+    if (counts.has(stack.itemKey)) throw new Error('inventory_snapshot_conflict');
     counts.set(stack.itemKey, 0);
-    for (const id of stack.availableGrantIds) available.add(id.toLowerCase());
+    for (const id of stack.availableGrantIds) {
+      const canonicalId = id.toLowerCase();
+      if (available.has(canonicalId)) throw new Error('inventory_snapshot_conflict');
+      available.add(canonicalId);
+    }
   }
+  const equippedGrants = new Set<string>();
   for (const item of equipment.items) {
-    if (available.has(item.grantId.toLowerCase()) || !counts.has(item.itemKey)) {
+    const canonicalId = item.grantId.toLowerCase();
+    if (equippedGrants.has(canonicalId) || available.has(canonicalId) || !counts.has(item.itemKey)) {
       throw new Error('inventory_snapshot_conflict');
     }
+    equippedGrants.add(canonicalId);
     counts.set(item.itemKey, (counts.get(item.itemKey) ?? 0) + 1);
   }
   for (const stack of stacks) {
