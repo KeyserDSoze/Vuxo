@@ -36,6 +36,14 @@ test.beforeEach(async ({ page }) => {
     route.fulfill({ status: 204, body: '' }));
   await page.route('**/api/activities/runs/history/rune-path*', route =>
     json(route, { items: [] }));
+  await page.route('**/api/activities/runs/progress/rune-path', route =>
+    json(route, {
+      activityKey: 'rune-path', rulesVersion: 'rune-path-practice-v1',
+      completedRuns: 0, boardsSolved: 0, totalBoards: 3,
+      milestone: 'newcomer', boards: [],
+      rewardsEnabled: false, xpGranted: 0, itemsGranted: 0,
+      rewardBlockReason: 'automatable_practice',
+    }));
   await page.addInitScript(() => {
     localStorage.clear();
     // addInitScript also runs on reload: keep a ticket to test recovery.
@@ -408,4 +416,87 @@ test('history has no cross-account leakage and displays bounded errors/empty sta
     json(route, { code: 'activity_run_unavailable' }, 503));
   await page.getByTestId('path-history-refresh').click();
   await expect(page.getByTestId('path-history-error')).toBeVisible();
+});
+
+test('server practice milestones show board bests, mobile IT/EN and zero reward entitlements', async ({ page }) => {
+  let calls = 0;
+  const body = {
+    activityKey: 'rune-path', rulesVersion: 'rune-path-practice-v1',
+    completedRuns: 5, boardsSolved: 2, totalBoards: 3,
+    milestone: 'navigator',
+    boards: [
+      { puzzleIndex: 0, completedRuns: 4, bestSteps: 6 },
+      { puzzleIndex: 2, completedRuns: 1, bestSteps: 7 },
+    ],
+    rewardsEnabled: false, xpGranted: 0, itemsGranted: 0,
+    rewardBlockReason: 'automatable_practice',
+  };
+  await page.route('**/api/activities/runs/progress/rune-path', route => {
+    calls++;
+    expect(route.request().headers()['authorization'])
+      .toBe('Bearer e2e-rune-session-token');
+    expect(route.request().method()).toBe('GET');
+    return json(route, body);
+  });
+  let starts = 0;
+  await page.route('**/api/activities/runs/rune-path', route => {
+    starts++;
+    return json(route, ticket(), 201);
+  });
+  await page.setViewportSize({ width: 320, height: 760 });
+  await openVerified(page);
+  await expect(page.getByTestId('path-progress-stage')).toContainText('Navigatore');
+  await expect(page.getByTestId('path-progress-counts')).toContainText('2 su 3');
+  await expect(page.getByTestId('path-progress-total')).toContainText('5');
+  await expect(page.getByTestId('path-progress-board-0')).toContainText('6 mosse');
+  await expect(page.getByTestId('path-progress-board-1')).toContainText('Da completare');
+  await expect(page.getByTestId('path-progress-board-2')).toContainText('7 mosse');
+  await expect(page.getByTestId('path-progress-reward-notice')).toContainText('nessun XP');
+  await page.getByTestId('path-progress-refresh').click();
+  await expect.poll(() => calls).toBe(2);
+  expect(starts).toBe(0);
+  await page.getByTestId('language-toggle').click();
+  await expect(page.getByTestId('path-progress-panel')).toContainText('Practice progress');
+  await expect(page.getByTestId('path-progress-stage')).toContainText('Rune Navigator');
+  await expect(page.getByTestId('path-progress-reward-notice')).toContainText('no XP');
+  await expect.poll(() => page.evaluate(() =>
+    document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1
+  )).toBe(true);
+});
+
+test('practice progress is owner-isolated and handles a read failure without client awards', async ({ page }) => {
+  await page.route('**/api/activities/runs/progress/rune-path', route => {
+    if (route.request().headers()['authorization'] === 'Bearer e2e-rune-session-token')
+      return json(route, {
+        activityKey: 'rune-path', rulesVersion: 'rune-path-practice-v1',
+        completedRuns: 3, boardsSolved: 1, totalBoards: 3,
+        milestone: 'explorer', boards: [{ puzzleIndex: 0, completedRuns: 3, bestSteps: 6 }],
+        rewardsEnabled: false, xpGranted: 0, itemsGranted: 0,
+        rewardBlockReason: 'automatable_practice',
+      });
+    return json(route, {
+      activityKey: 'rune-path', rulesVersion: 'rune-path-practice-v1',
+      completedRuns: 0, boardsSolved: 0, totalBoards: 3,
+      milestone: 'newcomer', boards: [],
+      rewardsEnabled: false, xpGranted: 0, itemsGranted: 0,
+      rewardBlockReason: 'automatable_practice',
+    });
+  });
+  await openVerified(page);
+  await expect(page.getByTestId('path-progress-counts')).toContainText('1 su 3');
+  await page.evaluate(() => {
+    localStorage.setItem('vuxo.auth.user', JSON.stringify({
+      id: 'another-player', displayName: 'Another Hero', email: null,
+    }));
+    localStorage.setItem('vuxo.accessToken', 'another-player-token');
+    window.dispatchEvent(new Event('vuxo:session-changed'));
+  });
+  await expect(page.getByTestId('path-progress-counts')).toContainText('0 su 3');
+  await expect(page.getByTestId('path-progress-stage')).toContainText('Primi passi');
+  await page.route('**/api/activities/runs/progress/rune-path', route =>
+    json(route, { code: 'activity_run_unavailable' }, 503));
+  await page.getByTestId('path-progress-refresh').click();
+  await expect(page.getByTestId('path-progress-error')).toBeVisible();
+  await expect(page.getByTestId('path-progress-reward-notice')).toContainText('nessun XP');
+  await expect(page.getByTestId('path-progress-content')).toHaveCount(0);
 });
