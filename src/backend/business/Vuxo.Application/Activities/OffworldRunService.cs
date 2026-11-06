@@ -18,6 +18,13 @@ public sealed class OffworldRunService(
             clock.GetUtcNow(), cancellationToken);
     }
 
+    public Task<OffworldPracticeProgress> GetPracticeProgressAsync(
+        string ownerId, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(ownerId);
+        return repository.GetPracticeProgressAsync(ownerId.Trim(), cancellationToken);
+    }
+
     public Task<IReadOnlyList<OffworldRunHistoryEntry>> GetHistoryAsync(
         string ownerId, int limit = OffworldRunRules.DefaultHistoryResults,
         CancellationToken cancellationToken = default)
