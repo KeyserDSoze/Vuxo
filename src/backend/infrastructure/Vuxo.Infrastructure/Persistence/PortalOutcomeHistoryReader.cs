@@ -110,12 +110,24 @@ public sealed class PortalOutcomeHistoryReader(VuxoDbContext db)
             .Take(pageSize + 1)
             .ToListAsync(cancellationToken);
 
+        var visibleRows = rows.Take(pageSize).ToArray();
+        // Only successful sequence consumption events can be causally related
+        // to canonical inventory grants. A Guardian victory/retreat is NOT
+        // an inventory award and must not inherit a same-grant reward.
+        var completedRows = visibleRows
+            .Where(row => row.Kind == PortalOutcomeKinds.SequenceCompleted)
+            .Select(row => (row.EventId, row.GrantId))
+            .ToArray();
+        var provenRewards = await PortalRewardProvenanceReader.ForCompletionsAsync(
+            db, owner, completedRows, cancellationToken);
+
         return new PortalOutcomeHistoryPage(
-            rows.Take(pageSize)
-                .Select(row => new PortalOutcomeHistoryItem(
-                    row.EventId, row.GrantId, row.ContentKey, row.Kind,
-                    row.RuleVersion, row.OccurredAtUtc))
-                .ToArray(),
+            visibleRows.Select(row => new PortalOutcomeHistoryItem(
+                row.EventId, row.GrantId, row.ContentKey, row.Kind,
+                row.RuleVersion, row.OccurredAtUtc,
+                row.Kind == PortalOutcomeKinds.SequenceCompleted
+                    ? provenRewards.GetValueOrDefault((row.EventId, row.GrantId))
+                    : null)).ToArray(),
             page, pageSize, rows.Count > pageSize);
     }
 }

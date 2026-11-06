@@ -25,7 +25,8 @@ public sealed record PortalOutcomeHistoryItem(
     string ContentKey,
     string Kind,
     string RuleVersion,
-    DateTimeOffset OccurredAtUtc);
+    DateTimeOffset OccurredAtUtc,
+    string? RewardItemKey = null);
 
 public sealed record PortalOutcomeHistoryPage(
     IReadOnlyList<PortalOutcomeHistoryItem> Items,

@@ -11,6 +11,19 @@ Due cicli complementari:
 
 Il giocatore può aprire il Rifugio e agire per pochi minuti senza avviare Phaser, ma quando torna nel mondo trova gli stessi oggetti e attributi verificati dal server.
 
+## Provenienza verificata delle ricompense — issue #119, terza tranche
+
+La ricompensa canonica `PlayerInventoryAward` conserva già `GrantId`, `PlayerId`, `AwardEventId`, `CorrelationId` e `CausationId`. La sequenza di rune, quando viene risolta correttamente, scrive nella **stessa unità di lavoro** l'evento di consumo `exclusive_content.consumed`, l'assegnazione inventario (solo per oggetti presenti nel catalogo) e l'evento audit `inventory.item_awarded`. Il nuovo `PortalRewardProvenanceReader` associa un oggetto a un risultato **solo** dopo questi controlli:
+
+- Il risultato base è già una **sequenza completata** provata dall'evento `exclusive_content.consumed` con `data.challengeType=sequence`, proprietario corretto, grant consumato e collegamento `CausationId=GrantEventId`.
+- `player_inventory_awards.PlayerId` deve coincidere con l'owner JWT; la chiave di grant dell'award deve coincidere con il grant dell'esito **della pagina corrente**; `award.CausationId` deve essere esattamente l'ID dell'evento di consumo della sequenza verificata.
+- Deve esistere un **evento audit distinto** `inventory.item_awarded` con `EventId=award.AwardEventId`, proprietario identico, `CausationId=award.CausationId` e `CorrelationId=award.CorrelationId`. Una riga award isolata, una causalità sbagliata o il medesimo grant senza prova non bastano.
+- Solo in quel caso i DTO di `history/completed` e di `history/outcomes` mostrano `rewardItemKey`; altrimenti `null`. Errori di rune, vittorie e ritirate del Guardiano **non** ereditano l'eventuale premio della sequenza sul medesimo grant. Non si tenta alcun collegamento inventato tra la vittoria PvE e la ricompensa.
+- Il resolver legge soltanto gli EventId della pagina già limitata (max 50 righe) e verifica i grant in memoria contro quella pagina dopo la query owner-only. Aggiunto indice `IX_player_inventory_awards_PlayerId_CausationId_GrantId` (migrazione `202611060003_PortalRewardProvenanceIndex`), senza modificare storico/premi o generare backfill.
+- La scheda del Diario mostra **Ricompensa verificata: [nome localizzato]** solo se il server restituisce `rewardItemKey`. Per chiavi future sconosciute, etichetta “Oggetto non ancora catalogato” senza inferire altre proprietà. Le due modalità di storico mantengono paginazione, retry, refresh e isolamento account.
+
+QA predisposta: test HTTP sulla serializzazione dei DTO, test PostgreSQL del consumo reale con premi supportati/assenti/causazione volutamente falsata e cross-owner, quattro Playwright per premio verificato, primo errore/Guardiano senza falsa associazione, paginazione e cambio account su mobile IT/EN/dark. **Non eseguiti** finché GitHub Actions è bloccata da #112.
+
 ## Esiti verificati delle avventure — issue #119, seconda tranche
 
 La nuova consultazione `GET /api/personal-content/history/outcomes?page=1&pageSize=20` integra il registro dei completamenti già realizzato. Il read model `PortalOutcomeHistoryReader` combina tramite `UNION ALL` tre insiemi persistenti, con una pagina massima di 50 righe, limite a 1000 pagine, sort `OccurredAtUtc DESC, EventId DESC` ed evento unico per chiave:

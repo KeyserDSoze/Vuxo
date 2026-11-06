@@ -30,7 +30,7 @@ public sealed class PortalCompletionHistoryApiTests
     public async Task History_UsesJwtSubjectAndReturnsOnlySafeCompletedFields()
     {
         var reader = new FakeReader();
-        reader.Records.Add(("player-a", NewCompletion(1)));
+        reader.Records.Add(("player-a", NewCompletion(1) with { RewardItemKey = "item.grove_seed.v1" }));
         reader.Records.Add(("player-b", NewCompletion(2)));
         using var factory = CreateFactory(reader);
         using var client = factory.CreateClient();
@@ -45,6 +45,7 @@ public sealed class PortalCompletionHistoryApiTests
         var entry = Assert.Single(root.GetProperty("items").EnumerateArray().ToArray());
         Assert.Equal(NewId(1), entry.GetProperty("grantId").GetGuid());
         Assert.Equal("portal.memory.grove", entry.GetProperty("contentKey").GetString());
+        Assert.Equal("item.grove_seed.v1", entry.GetProperty("rewardItemKey").GetString());
         Assert.Equal("personal-content-v1", entry.GetProperty("ruleVersion").GetString());
         Assert.True(entry.TryGetProperty("completedAtUtc", out _));
         Assert.True(entry.TryGetProperty("grantedAtUtc", out _));

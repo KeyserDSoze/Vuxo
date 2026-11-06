@@ -7,6 +7,7 @@ export type CompletedPortal = {
   ruleVersion: string;
   grantedAtUtc: string;
   completedAtUtc: string;
+  rewardItemKey?: string | null;
 };
 
 export type PortalCompletionPage = {
@@ -46,6 +47,7 @@ export type PortalOutcome = {
   kind: PortalOutcomeKind;
   ruleVersion: string;
   occurredAtUtc: string;
+  rewardItemKey?: string | null;
 };
 
 export type PortalOutcomePage = {

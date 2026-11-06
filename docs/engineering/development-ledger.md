@@ -18,7 +18,7 @@ Quando una issue cambia stato in modo significativo, aggiornare la riga corrispo
 
 | Issue | Tipo | Versione | Area | Stato | Test/Stato verifica | Risoluzione / prossimo passo |
 |---|---|---:|---|---|---|---|
-| #119 | Feature/Full-stack | 0.0.1+ | Verified portal completions + auditable outcome timeline | In progress | 2 API suites, 3 PostgreSQL integration tests, 10 new Playwright cases authored; NOT RUN (#112) | Outcome expansion stacked on #119 baseline: first rune mistake damage, Guardian victory/retreat, canonical sequence completion; read-only owner-filtered UNION ALL, bounded paging; CI pending |
+| #119 | Feature/Full-stack | 0.0.1+ | Verified portal outcomes + causal reward provenance | In progress | 2 API suites extended, 4 PostgreSQL integration tests, 14 new Playwright scenarios authored; NOT RUN (#112) | Third slice stacked on outcome history: link item awards to audited sequence completions only when owner, grant, causation and award-audit agree; no automatic Guardian rewards; bounded page lookup; CI pending |
 | #118 | Feature/UX | 0.0.1 | Refuge Journal: item grant history + active portals | In progress | 9 Playwright scenarios authored, pending CI (#112) | New read-only lazy route and Refuge card. No backend writes; not complete portal victory history (#119); isolate until CI |
 | #117 | Feature/UX | 0.0.1 | Refuge contextual adventure guide + full refresh | In progress | 7 Playwright scenarios authored, not run (#112) | Isolated feature/117-refuge-adventure-guide stacked on #114, commit 95632a52 |
 | #116 | Feature/UX | 0.0.1 | Relic/charm loadout and safe resync | In progress | 7 Playwright scenarios authored, not run (#112) | Isolated feature/116-inventory-loadout stacked on #115, commit 9a2ef000 |
