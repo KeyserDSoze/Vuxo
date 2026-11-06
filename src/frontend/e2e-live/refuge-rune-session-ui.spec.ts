@@ -159,6 +159,24 @@ test('React Refuge finishes a real persisted Rune Path with PostgreSQL after ref
   expect(stored.status()).toBe(200);
   expect((await stored.json() as { state: string }).state).toBe('completed');
 
+  // The real PostgreSQL history is owner-only and reflects the same receipt.
+  const history = await request.get(
+    api + '/api/activities/runs/history/rune-path?limit=5',
+    { headers: { Authorization: 'Bearer ' + token } });
+  expect(history.status()).toBe(200);
+  const archive = await history.json() as {
+    items: Array<{ runId: string; state: string; stepsChecked: number | null }>
+  };
+  const entry = archive.items.find(item => item.runId === ticket.runId);
+  expect(entry).toMatchObject({
+    state: 'completed', stepsChecked: solution.length,
+  });
+  const historyText = JSON.stringify(archive);
+  for (const secret of ['proofHash', 'playerId', 'startKey', 'finishKey'])
+    expect(historyText).not.toContain(secret);
+  await expect(page.getByTestId('path-history-item').first())
+    .toContainText('verified moves');
+
   // Client-side reload is never a new server-issued run or reward grant.
   await page.reload();
   await page.getByTestId('path-mode-saved').click();
@@ -249,6 +267,9 @@ test('second device discovers and completes an owner-only PostgreSQL ticket', as
       .toContainText('completed on another device');
     await expect(page.getByTestId('verified-path-completed')).toBeVisible();
     await expect(page.getByTestId('verified-path-board')).toHaveCount(0);
+    // The receiving browser refreshes its history when remote status updates.
+    await expect(page.getByTestId('path-history-item').first())
+      .toContainText('verified moves');
   } finally {
     await second.close();
   }
