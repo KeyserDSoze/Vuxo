@@ -1,5 +1,11 @@
 # VUXO fuori dal mondo — Rifugio e attività (EPIC #70)
 
+## Dati proprietari sicuri nelle schermate off-world (#120)
+
+Il Rifugio e l'Inventario non deducono mai HP, slot, quantità o stato di incontro dal browser. I rispettivi endpoint proprietari (`/api/inventory`, `/api/inventory/stacks`, `/api/equipment`, `/api/characters/me/health`, `/api/characters/me/encounter`) vengono ora controllati dal modulo puro `ownerReadContracts.ts` prima che React mostri i risultati. Il parser scarta proprietà non attendibili (seed, ID proprietario non richiesto, flag di prontezza inventati) e rifiuta grant/slot duplicati, conteggi impossibili, valori HP non validi e incontri contraddittori. L'errore provoca gli stati già esistenti di avviso e ripetizione della lettura: **non** autorizza azioni e **non** muta il backend. Le risposte alle mutazioni `equip`/`unequip` sono controllate prima di aggiornare lo stato visibile. La compatibilità con record storici che non includono `consumed` rimane, senza inventare disponibilità: i grant disponibili continuano a provenire dagli stack del server.
+
+Sono stati eseguiti localmente 12 test Node per questi modelli e gli 8 test già presenti sullo storico; entrambi i moduli passano il controllo TypeScript strict isolato. I quattro nuovi Playwright e l'intera build frontend/backend sono ancora da eseguire prima del merge (#112).
+
 ## Problema e visione
 
 VUXO non deve richiedere sempre l'ingresso nel mondo Phaser. Il **Rifugio** è un'esperienza React/MUI utilizzabile anche da mobile per sessioni brevi, con lo stesso account e lo stesso personaggio del mondo. Non è un gioco separato, non ha una seconda economia e non altera le regole server-authoritative.

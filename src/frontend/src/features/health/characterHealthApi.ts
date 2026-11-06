@@ -1,11 +1,6 @@
 import { getApiBaseUrl } from '../character/appearance';
-
-export type CharacterHealth = {
-  name: string;
-  currentHealth: number;
-  maxHealth: number;
-  rulesVersion: string;
-};
+import { parseCharacterHealth, type CharacterHealth } from '../contracts/ownerReadContracts';
+export type { CharacterHealth } from '../contracts/ownerReadContracts';
 
 export class CharacterHealthApiError extends Error {
   constructor(public readonly code: string, public readonly status: number) {
@@ -31,5 +26,5 @@ export async function fetchCharacterHealth(
       response.status,
     );
   }
-  return response.json() as Promise<CharacterHealth>;
+  return parseCharacterHealth(await response.json() as unknown);
 }

@@ -72,6 +72,19 @@ This requires no connected API, Chromium or PostgreSQL and uses the Node test ru
 
 When Gate C (Playwright) becomes runnable, also execute the new malformed-response/retry scenarios in `refuge-completion-history.spec.ts` and `refuge-outcome-history.spec.ts`. Confirm the Journal shows an error, renders **zero invented entries**, and recovers on retry. Never treat `npm run test:contracts` alone as release approval.
 
+## Gate C0b: owner inventory, health and encounter contracts
+
+The same offline command now executes both contract suites:
+
+```bash
+cd src/frontend
+npm run test:contracts
+```
+
+Required: all **20** Node contract cases pass (8 history + 12 owner-read), and the pure modules `portalHistoryContract.ts` and `ownerReadContracts.ts` pass standalone strict TypeScript checks. The first combined local run on Node 22.16.0 yielded **20/20 PASS**, with both modules checked by `tsc --noEmit --strict --target ES2022 --module esnext`.
+
+When Chromium is available, explicitly run `tests/owner-read-contracts.spec.ts` (4 new authored scenarios) together with the existing inventory/refuge suites. A duplicate inventory grant, duplicate equipment slot, HP exceeding max and an idle encounter carrying a portal ID must display an error or unknown state, not a falsely usable owner snapshot. Retry and refresh should restore the genuine server state. **These browser tests are not executed yet.** Do not treat the pure module tests as a complete React build.
+
 ## Gate C: browser and i18n regression
 
 ```bash
@@ -85,6 +98,7 @@ Playwright uses `playwright.config.ts` to build and serve the preview itself. At
 ```bash
 npx playwright test \
   tests/home-rune-teaser.spec.ts \
+  tests/owner-read-contracts.spec.ts \
   tests/inventory-browse.spec.ts \
   tests/inventory-loadout.spec.ts \
   tests/refuge-preparation.spec.ts \

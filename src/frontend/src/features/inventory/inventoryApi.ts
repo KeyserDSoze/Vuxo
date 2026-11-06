@@ -1,13 +1,7 @@
 import { getApiBaseUrl } from '../character/appearance';
 import { readStoredSession } from '../auth/authSession';
-
-export type InventoryAward = {
-  grantId: string;
-  itemKey: string;
-  quantity: number;
-  awardedAtUtc: string;
-  consumed?: boolean;
-};
+import { parsePlayerInventory, type InventoryAward } from '../contracts/ownerReadContracts';
+export type { InventoryAward } from '../contracts/ownerReadContracts';
 
 export const inventoryItemLabelKeys: Readonly<Record<string, string>> = {
   'item.rune_shard.v1': 'runeShard',
@@ -41,5 +35,5 @@ export async function fetchPlayerInventory(signal?: AbortSignal): Promise<Invent
     throw new InventoryApiError(code, response.status);
   }
 
-  return response.json() as Promise<InventoryAward[]>;
+  return parsePlayerInventory(await response.json() as unknown);
 }

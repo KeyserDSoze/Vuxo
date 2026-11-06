@@ -1,10 +1,6 @@
 import { getApiBaseUrl } from '../character/appearance';
-
-export type PortalEncounterStatus = {
-  active: boolean;
-  portalGrantId: string | null;
-  expiresAtUtc: string | null;
-};
+import { parsePortalEncounterStatus, type PortalEncounterStatus } from '../contracts/ownerReadContracts';
+export type { PortalEncounterStatus } from '../contracts/ownerReadContracts';
 
 /**
  * Owner-only read model, never a client-controlled combat flag. The response
@@ -19,5 +15,5 @@ export async function fetchPortalEncounterStatus(
     signal,
   });
   if (!response.ok) throw new Error('encounter_status_unavailable');
-  return response.json() as Promise<PortalEncounterStatus>;
+  return parsePortalEncounterStatus(await response.json() as unknown);
 }
