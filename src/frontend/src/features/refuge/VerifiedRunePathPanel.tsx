@@ -3,7 +3,7 @@ import { Alert, Box, Button, Chip, CircularProgress, Paper, Stack, Typography } 
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  completeRunePathSession, fetchRunePathBoard, fetchRunePathSession,
+  completeRunePathSession, fetchActiveRunePathSession, fetchRunePathBoard, fetchRunePathSession,
   RunePathSessionApiError, startRunePathSession,
   type RunePathBoard, type RunePathPosition, type RunePathTicket,
 } from './runePathSessionApi';
@@ -116,36 +116,51 @@ export function VerifiedRunePathPanel({ accessToken, playerId }: Props) {
 
   const recover = async (controller: AbortController) => {
     const saved = readSavedRun(storageKey);
-    if (!saved) return;
     try {
-      const remote = await fetchRunePathSession(accessToken, saved.runId, controller.signal);
+      let remote: RunePathTicket | null = null;
+      let visualMoves = saved?.moves ?? '';
+      if (saved) {
+        try {
+          remote = await fetchRunePathSession(accessToken, saved.runId, controller.signal);
+        } catch (reason) {
+          if (!(reason instanceof RunePathSessionApiError) ||
+              reason.code !== 'activity_run_not_found') throw reason;
+          // A deleted/foreign ticket must not block discovering the owner's
+          // actual active run on another browser or device.
+          saveRun(storageKey, null);
+          visualMoves = '';
+        }
+      }
+      if (!remote) {
+        remote = await fetchActiveRunePathSession(accessToken, controller.signal);
+        visualMoves = ''; // Another device's steps are never assumed.
+      }
       if (controller.signal.aborted) return;
+      if (!remote) {
+        setTicket(null);
+        setBoard(null);
+        setMoves('');
+        return;
+      }
       if (remote.state === 'completed' || remote.state === 'expired') {
         setTicket(remote);
         setBoard(null);
         setMoves('');
+        saveRun(storageKey, { runId: remote.runId, moves: '' });
         return;
       }
       const canonical = await fetchRunePathBoard(remote.puzzleIndex, controller.signal);
       if (controller.signal.aborted) return;
       if (!validateBoard(canonical, remote))
         throw new RunePathSessionApiError('activity_run_invalid_board', 502);
-      const restoredMoves = traceMoves(canonical, saved.moves) === null ? '' : saved.moves;
+      const restoredMoves = traceMoves(canonical, visualMoves) === null ? '' : visualMoves;
       setTicket(remote);
       setBoard(canonical);
       setMoves(restoredMoves);
       saveRun(storageKey, { runId: remote.runId, moves: restoredMoves });
     } catch (reason) {
       if (controller.signal.aborted) return;
-      const code = errorCode(reason);
-      if (code === 'activity_run_not_found') {
-        saveRun(storageKey, null);
-        setTicket(null);
-        setBoard(null);
-        setMoves('');
-      } else {
-        setError(code);
-      }
+      setError(errorCode(reason));
     }
   };
 
@@ -334,6 +349,12 @@ export function VerifiedRunePathPanel({ accessToken, playerId }: Props) {
           </Stack>
         )}
 
+        {!recovering && !ticket && error === 'activity_run_active' && (
+          <Button variant="outlined" data-testid="verified-path-discover"
+            disabled={busy} onClick={() => { void resume(); }}>
+            {t('refuge.path.server.discover')}
+          </Button>
+        )}
         {!recovering && !ticket && (
           <Stack spacing={1.5} sx={{ alignItems: "flex-start" }} data-testid="verified-path-ready">
             <Typography color="text.secondary">{t('refuge.path.server.instructions')}</Typography>
