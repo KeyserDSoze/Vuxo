@@ -1,5 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'Authorization, Content-Type',
+  'Access-Control-Allow-Methods': 'GET, OPTIONS',
+};
+
 const runeGrant = '11111111-1111-4111-8111-111111111111';
 const groveGrant = '22222222-2222-4222-8222-222222222222';
 const tideGrant = '33333333-3333-4333-8333-333333333333';
@@ -38,10 +44,10 @@ async function signIn(page: Page, language: 'it' | 'en' = 'it') {
 }
 
 async function mockJournal(page: Page) {
-  await page.route('**/api/inventory', route => route.fulfill({
+  await page.route('**/api/inventory', route => route.fulfill({ headers: corsHeaders,
     contentType: 'application/json', body: JSON.stringify(rewards),
   }));
-  await page.route('**/api/personal-content', route => route.fulfill({
+  await page.route('**/api/personal-content', route => route.fulfill({ headers: corsHeaders,
     contentType: 'application/json', body: JSON.stringify(portals),
   }));
 }
@@ -118,12 +124,12 @@ test('inventory 503 leaves portals visible; retry only re-reads inventory', asyn
   await page.route('**/api/inventory', route => {
     inventoryCalls++;
     return broken
-      ? route.fulfill({ status: 503 })
-      : route.fulfill({ contentType: 'application/json', body: JSON.stringify(rewards) });
+      ? route.fulfill({ headers: corsHeaders, status: 503 })
+      : route.fulfill({ headers: corsHeaders, contentType: 'application/json', body: JSON.stringify(rewards) });
   });
   await page.route('**/api/personal-content', route => {
     portalCalls++;
-    return route.fulfill({ contentType: 'application/json', body: JSON.stringify(portals) });
+    return route.fulfill({ headers: corsHeaders, contentType: 'application/json', body: JSON.stringify(portals) });
   });
   await page.goto('./#/refuge/journal');
   await expect(page.getByTestId('refuge-journal-rewards-error')).toBeVisible();
@@ -142,11 +148,11 @@ test('inventory 503 leaves portals visible; retry only re-reads inventory', asyn
 test('portal 503 never becomes an empty portal list; independent portal retry recovers', async ({ page }) => {
   await signIn(page);
   let broken = true;
-  await page.route('**/api/inventory', route => route.fulfill({
+  await page.route('**/api/inventory', route => route.fulfill({ headers: corsHeaders,
     contentType: 'application/json', body: JSON.stringify(rewards),
   }));
   await page.route('**/api/personal-content', route =>
-    broken ? route.fulfill({ status: 503 }) : route.fulfill({
+    broken ? route.fulfill({ headers: corsHeaders, status: 503 }) : route.fulfill({ headers: corsHeaders,
       contentType: 'application/json', body: JSON.stringify([]),
     }),
   );
@@ -169,14 +175,14 @@ test('full refresh hides stale records until both owner reads finish', async ({ 
   const portalsGate = new Promise<void>(resolve => { finishPortals = resolve; });
   await page.route('**/api/inventory', async route => {
     if (refreshed) await rewardsGate;
-    return route.fulfill({
+    return route.fulfill({ headers: corsHeaders,
       contentType: 'application/json',
       body: JSON.stringify(refreshed ? [] : rewards),
     });
   });
   await page.route('**/api/personal-content', async route => {
     if (refreshed) await portalsGate;
-    return route.fulfill({
+    return route.fulfill({ headers: corsHeaders,
       contentType: 'application/json',
       body: JSON.stringify(refreshed ? [] : portals),
     });
@@ -203,12 +209,12 @@ test('account switch and logout immediately hide the previous owner journal', as
   await page.route('**/api/inventory', async route => {
     const second = route.request().headers()['authorization'] === 'Bearer journal-owner-two';
     if (second) await waitSecond;
-    return route.fulfill({ contentType: 'application/json', body: JSON.stringify(second ? [] : rewards) });
+    return route.fulfill({ headers: corsHeaders, contentType: 'application/json', body: JSON.stringify(second ? [] : rewards) });
   });
   await page.route('**/api/personal-content', async route => {
     const second = route.request().headers()['authorization'] === 'Bearer journal-owner-two';
     if (second) await waitSecond;
-    return route.fulfill({ contentType: 'application/json', body: JSON.stringify(second ? [] : portals) });
+    return route.fulfill({ headers: corsHeaders, contentType: 'application/json', body: JSON.stringify(second ? [] : portals) });
   });
   await page.goto('./#/refuge/journal');
   await expect(page.getByTestId('refuge-journal-reward')).toHaveCount(3);
@@ -243,7 +249,7 @@ test('English dark mobile journal is readable at 320px without Phaser or POST ac
   const unexpected: string[] = [];
   page.on('request', request => {
     const pathname = new URL(request.url()).pathname;
-    if (request.method() !== 'GET' && /\/api\/(inventory|personal-content)/.test(pathname)) {
+    if (request.method() !== 'GET' && request.method() !== 'OPTIONS' && /\/api\/(inventory|personal-content)/.test(pathname)) {
       unexpected.push(request.url());
     }
     if (/\/assets\/GamePage-[^/]+\.js/.test(pathname)) unexpected.push(request.url());
@@ -265,7 +271,7 @@ test('English dark mobile journal is readable at 320px without Phaser or POST ac
 
 test('unknown rewards and filtered-empty states never imply that inventory was deleted', async ({ page }) => {
   await signIn(page);
-  await page.route('**/api/inventory', route => route.fulfill({
+  await page.route('**/api/inventory', route => route.fulfill({ headers: corsHeaders,
     contentType: 'application/json',
     body: JSON.stringify([{
       grantId: '77777777-7777-4777-8777-777777777777',
@@ -273,7 +279,7 @@ test('unknown rewards and filtered-empty states never imply that inventory was d
       awardedAtUtc: '2026-11-02T12:00:00Z', consumed: true,
     }]),
   }));
-  await page.route('**/api/personal-content', route => route.fulfill({
+  await page.route('**/api/personal-content', route => route.fulfill({ headers: corsHeaders,
     contentType: 'application/json', body: JSON.stringify([]),
   }));
   await page.goto('./#/refuge/journal');
