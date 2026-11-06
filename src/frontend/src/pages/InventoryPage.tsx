@@ -7,6 +7,7 @@ import { readStoredSession, type VuxoSession } from '../features/auth/authSessio
 import { createOwnerActionGate, type OwnerActionGate } from '../features/inventory/ownerActionGate';
 import { browseInventory, equipmentSlotFor, type InventoryBrowseFilter, type InventoryBrowseSlot, type InventoryBrowseSort } from '../features/inventory/inventoryBrowse';
 import { InventoryLoadoutPanel } from '../features/inventory/InventoryLoadoutPanel';
+import { readConsistentEquipmentSnapshot } from '../features/inventory/inventorySnapshotConsistency';
 import { HealingItemAction } from '../features/inventory/HealingItemAction';
 import type { CharacterItemHealResult } from '../features/inventory/consumableApi';
 import {
@@ -99,13 +100,16 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
     // Hide the previous snapshot until both owner-scoped reads succeed.
     setLoadout(null);
     setStacks([]);
-    void Promise.all([
-      fetchInventoryStacks(controller.signal),
-      fetchEquipment(controller.signal),
-    ]).then(([stackData, equipmentData]) => {
+    void readConsistentEquipmentSnapshot(
+      () => Promise.all([
+        fetchInventoryStacks(controller.signal),
+        fetchEquipment(controller.signal),
+      ]),
+      controller.signal,
+    ).then(snapshot => {
       if (controller.signal.aborted) return;
-      setStacks(stackData);
-      setLoadout(equipmentData);
+      setStacks(snapshot.stacks);
+      setLoadout(snapshot.equipment);
     }).catch(reason => {
       if (controller.signal.aborted) return;
       setEquipmentError(reason instanceof EquipmentApiError
@@ -191,15 +195,20 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
     const controller = new AbortController();
     mutationControllers.current.add(controller);
     try {
-      const [awards, freshStacks, freshEquipment] = await Promise.all([
+      const [awards, snapshot] = await Promise.all([
         fetchPlayerInventory(controller.signal),
-        fetchInventoryStacks(controller.signal),
-        fetchEquipment(controller.signal),
+        readConsistentEquipmentSnapshot(
+          () => Promise.all([
+            fetchInventoryStacks(controller.signal),
+            fetchEquipment(controller.signal),
+          ]),
+          controller.signal,
+        ),
       ]);
       if (!isCurrentAction(lease) || controller.signal.aborted) return;
       setItems(awards);
-      setStacks(freshStacks);
-      setLoadout(freshEquipment);
+      setStacks(snapshot.stacks);
+      setLoadout(snapshot.equipment);
     } catch {
       if (!isCurrentAction(lease) || controller.signal.aborted) return;
       // Never restore an old stock snapshot after a committed heal.
@@ -251,13 +260,20 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
     const controller = new AbortController();
     mutationControllers.current.add(controller);
     try {
-      const result = await action(controller.signal);
+      await action(controller.signal); // validates the mutation receipt
       if (!isCurrentAction(lease) || controller.signal.aborted) return;
-      // Use the same owner and only publish a server-confirmed stack refresh.
-      const freshStacks = await fetchInventoryStacks(controller.signal);
+      // Another device may have changed equipment since the POST. Re-read
+      // BOTH owner models; never pair the old POST result with new stacks.
+      const snapshot = await readConsistentEquipmentSnapshot(
+        () => Promise.all([
+          fetchInventoryStacks(controller.signal),
+          fetchEquipment(controller.signal),
+        ]),
+        controller.signal,
+      );
       if (!isCurrentAction(lease) || controller.signal.aborted) return;
-      setLoadout(result);
-      setStacks(freshStacks);
+      setLoadout(snapshot.equipment);
+      setStacks(snapshot.stacks);
       setEquipmentError(null);
     } catch (reason) {
       if (!isCurrentAction(lease) || controller.signal.aborted) return;

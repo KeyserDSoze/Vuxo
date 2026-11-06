@@ -1,5 +1,11 @@
 # VUXO fuori dal mondo — Rifugio e attività (EPIC #70)
 
+## Coerenza delle letture fra dispositivi (#120)
+
+Due dispositivi possono modificare lo stesso inventario mentre il browser esegue le GET `/api/inventory/stacks` e `/api/equipment` separatamente. Pur essendo ciascuna risposta valida, **la coppia può essere contraddittoria**: un oggetto risulta contemporaneamente equipaggiato e disponibile, oppure la quantità equipaggiata nello stack non corrisponde ai due slot. `inventorySnapshotConsistency.ts` verifica la coerenza prima di abilitarne l'uso; se necessario ripete **una sola volta entrambe le GET**, poi richiede aggiornamento manuale senza ripristinare dati obsoleti. Anche dopo un equip/unequip la risposta dell'azione non viene trattata come snapshot definitivo: viene effettuata una nuova lettura coerente dello stato proprietario. Dopo una cura il refresh coerente si accompagna alla lettura delle assegnazioni inventario. Il browser non diventa arbitro del combattimento né sostituisce i vincoli di integrità del database.
+
+Le transazioni di cura/riposo continuano a serializzarsi tramite lock PostgreSQL sul personaggio; i vincoli di equipaggiamento e i trigger di esclusione fra consumo e equip restano l'ultima autorità. Sono stati predisposti due test con DbContext indipendenti per verificare questo comportamento reale, ma **non sono ancora stati eseguiti**. Gli 11 test Node locali del comparatore sono superati; i 3 Playwright sulla vista multi-dispositivo attendono Chromium.
+
 ## Sequenziamento delle azioni del giocatore (#120)
 
 Nella medesima sessione dell'Inventario le intenzioni di cura, equipaggiamento e rimozione sono serializzate da una *lease* effimera del frontend, distinta dalla transazione PostgreSQL. La lease usa il token soltanto per verificare che il giocatore corrente sia ancora il proprietario; non è un permesso di gioco e non sostituisce il controllo JWT del backend. Il completamento asincrono dell'azione può aggiornare React **solo se** la stessa lease è ancora valida. Logout/cambio account invalida le lease e interrompe le richieste ancora aperte, senza fingere che una POST già ricevuta dal server sia stata annullata.

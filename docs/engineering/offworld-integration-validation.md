@@ -109,6 +109,22 @@ First local run on Node **22.16.0: 6/6 PASS**, standalone `tsc`: **PASS**. The m
 
 When local Playwright is available, run `tests/owner-action-races.spec.ts` (4 new cases, **not executed**): delay a heal POST and its three follow-up GETs, verify no re-use of previous stock; delay equip and verify no overlapping heal; switch accounts during an in-flight equip POST and verify owner B never receives A's loadout; switch accounts during pending rest and ensure owner A's late HP cannot overwrite B. Exercise CORS preflight and ensure **only actual POST/DELETE** count as mutations.
 
+## Gate C0e: multi-device snapshot coherence
+
+Run the dependency-free Node suite (it is also included by `npm run test:contracts`):
+
+```bash
+cd src/frontend
+node --experimental-strip-types --test scripts/inventory-snapshot.contract.test.mjs
+tsc --noEmit --strict --target ES2022 --module esnext src/features/inventory/inventorySnapshotConsistency.ts
+```
+
+First local execution on Node **22.16.0 passed 11/11** and the isolated strict TypeScript check passed. The parser rejects contradictory availability/equipment views, retries **both** owner GETs once for a torn read, then fails closed. This does not provide a transaction or cross-device live push: server enforcement remains mandatory.
+
+Once PostgreSQL is available, run the two new `CharacterHealingPersistenceTests` cases `TwoDevicesRestAndHeal_CharacterLockPreservesBothHpMutationsAndAudit` and `TwoDevicesEquipDistinctAwardsIntoSameSlot_OnlyOneCommitAndAudit`. Confirm actual PostgreSQL execution, not skip. The required result is **one rest receipt, one heal receipt, two corresponding audit events and final 20 HP** for the first test; **one equipped charm slot, one remaining available grant and one equip audit** for the second. Replayed rest/heal keys must not duplicate mutations.
+
+Once Chromium is available, run `tests/inventory-cross-device.spec.ts` (3 new scenarios, **not executed**): persistent torn pairs show safe errors until refresh; a single stale read is resolved by bounded reread; a valid equip POST superseded by another device must display the latest owner GET and never invent another equip.
+
 ## Gate C: browser and i18n regression
 
 ```bash
@@ -125,6 +141,7 @@ npx playwright test \
   tests/owner-read-contracts.spec.ts \
   tests/owner-mutations.spec.ts \
   tests/owner-action-races.spec.ts \
+  tests/inventory-cross-device.spec.ts \
   tests/inventory-browse.spec.ts \
   tests/inventory-loadout.spec.ts \
   tests/refuge-preparation.spec.ts \

@@ -141,6 +141,128 @@ public sealed class CharacterHealingPersistenceTests
     }
 
     [PostgresIntegrationFact]
+    public async Task TwoDevicesRestAndHeal_CharacterLockPreservesBothHpMutationsAndAudit()
+    {
+        await using var database = await PostgresDatabaseScope.CreateAsync();
+        var award = await SeedAsync(database);
+        var now = DateTimeOffset.UtcNow;
+        var healKey = Guid.NewGuid();
+        var restKey = Guid.NewGuid();
+
+        async Task<CharacterHealingResult> HealOnDeviceAsync()
+        {
+            await using var db = database.CreateDbContext();
+            return await Store(db).HealAsync("player-a", award.GrantId, healKey, now);
+        }
+        async Task<CharacterRestResult> RestOnDeviceAsync()
+        {
+            await using var db = database.CreateDbContext();
+            return await new CharacterRestRepository(db, new GameEventStore(db))
+                .RestAsync("player-a", restKey, now);
+        }
+
+        // Separate DbContexts emulate two API nodes/phones writing at once.
+        var healTask = HealOnDeviceAsync();
+        var restTask = RestOnDeviceAsync();
+        await Task.WhenAll(healTask, restTask);
+        Assert.False(healTask.Result.Replayed);
+        Assert.False(restTask.Result.Replayed);
+        Assert.Equal(10, healTask.Result.RestoredHealth);
+        Assert.Equal(5, restTask.Result.RestoredHealth);
+
+        await using (var check = database.CreateDbContext())
+        {
+            var character = await new PlayerCharacterRepository(check)
+                .GetByOwnerIdAsync("player-a");
+            Assert.Equal(20, character!.CurrentHealth);
+            Assert.Single(await check.CharacterItemHeals.AsNoTracking().ToListAsync());
+            Assert.Single(await check.CharacterRestActions.AsNoTracking().ToListAsync());
+            Assert.Empty(await Equipment(check).GetStacksAsync("player-a"));
+            Assert.Single(await new PlayerInventoryRepository(check).GetForPlayerAsync("player-a"));
+            var audit = await new GameEventStore(check).QueryAsync(
+                new GameEventQuery(PlayerId: "player-a"));
+            Assert.Equal(2, audit.Total);
+            Assert.Contains(audit.Items, x => x.Envelope.EventType == "character.item_healed");
+            Assert.Contains(audit.Items, x => x.Envelope.EventType == "character.rest_completed");
+        }
+
+        // Both devices can replay their OWN receipt without spending again.
+        Assert.True((await HealOnDeviceAsync()).Replayed);
+        Assert.True((await RestOnDeviceAsync()).Replayed);
+        await using var verified = database.CreateDbContext();
+        Assert.Equal(20, (await new PlayerCharacterRepository(verified)
+            .GetByOwnerIdAsync("player-a"))!.CurrentHealth);
+        Assert.Equal(2, (await new GameEventStore(verified).QueryAsync(
+            new GameEventQuery(PlayerId: "player-a"))).Total);
+        Assert.Empty((await new PlayerInventoryRepository(verified)
+            .GetForPlayerAsync("player-b")));
+    }
+
+    [PostgresIntegrationFact]
+    public async Task TwoDevicesEquipDistinctAwardsIntoSameSlot_OnlyOneCommitAndAudit()
+    {
+        await using var database = await PostgresDatabaseScope.CreateAsync();
+        var first = await SeedAsync(database);
+        var now = DateTimeOffset.UtcNow;
+        var secondGrant = ExclusiveContentGrant.Create(
+            Guid.NewGuid(), Guid.NewGuid(), "player-a",
+            "portal.pearl", PortalSequenceRules.PortalKey, "dialog.pearl",
+            InventoryItemCatalog.TidalPearl, 4243, "personal-content-v1",
+            Guid.NewGuid(), null, now.AddMinutes(-5), now.AddHours(1));
+        Assert.True(secondGrant.TryConsume(now));
+        var second = PlayerInventoryAward.FromConsumedGrant(
+            secondGrant, Guid.NewGuid(), Guid.NewGuid(), now);
+        await using (var seedDb = database.CreateDbContext())
+        {
+            await new ExclusiveContentGrantRepository(seedDb).AddAsync(secondGrant);
+            await new PlayerInventoryRepository(seedDb).AddAsync(second);
+            await seedDb.SaveChangesAsync();
+        }
+
+        async Task<string> EquipOnDeviceAsync(Guid id)
+        {
+            await using var db = database.CreateDbContext();
+            try
+            {
+                await Equipment(db).EquipAsync("player-a", id);
+                return "equipped";
+            }
+            catch (EquipmentException ex) when (
+                ex.Code == EquipmentErrorCodes.SlotOccupied ||
+                ex.Code == EquipmentErrorCodes.AlreadyEquipped)
+            {
+                return "slot_conflict";
+            }
+            catch (DbUpdateException)
+            {
+                // PostgreSQL's primary/unique constraint is the last line of
+                // defense if both devices checked the same empty charm slot.
+                return "db_conflict";
+            }
+        }
+
+        var responses = await Task.WhenAll(
+            EquipOnDeviceAsync(first.GrantId), EquipOnDeviceAsync(second.GrantId));
+        Assert.Single(responses, code => code == "equipped");
+        Assert.Single(responses, code => code is "slot_conflict" or "db_conflict");
+        await using var check = database.CreateDbContext();
+        var equipped = Assert.Single(
+            await new PlayerEquipmentRepository(check).GetForPlayerAsync("player-a"));
+        Assert.Equal(EquipmentRules.Charm, equipped.Slot);
+        Assert.Contains(equipped.GrantId, new[] { first.GrantId, second.GrantId });
+        var stack = await Equipment(check).GetStacksAsync("player-a");
+        Assert.Equal(2, stack.Sum(x => x.Quantity));
+        Assert.Equal(1, stack.Sum(x => x.EquippedQuantity));
+        Assert.Single(stack.SelectMany(x => x.AvailableGrantIds));
+        Assert.Empty(await check.CharacterItemHeals.AsNoTracking().ToListAsync());
+        var audit = await new GameEventStore(check).QueryAsync(
+            new GameEventQuery(PlayerId: "player-a"));
+        Assert.Single(audit.Items);
+        Assert.Equal("inventory.equipped", audit.Items[0].Envelope.EventType);
+        Assert.Empty(await new PlayerEquipmentRepository(check).GetForPlayerAsync("player-b"));
+    }
+
+    [PostgresIntegrationFact]
     public async Task OwnerNotFoundAndUnsupportedItem_AreRejectedWithoutSpending()
     {
         await using var database = await PostgresDatabaseScope.CreateAsync();
