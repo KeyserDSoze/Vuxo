@@ -31,6 +31,23 @@ public static class OffworldRunEndpoints
 
         // Discovery is read-only and owner-scoped. An unknown, expired or
         // completed run must never be returned, including to a second device.
+        // A bounded, strictly read-only archive with no private proof or keys.
+        // Put the literal history path ahead of the dynamic run ID route.
+        endpoints.MapGet("/api/activities/runs/history/rune-path", async (
+            int? limit, ClaimsPrincipal user, OffworldRunService service,
+            CancellationToken cancellationToken) =>
+        {
+            var owner = user.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrWhiteSpace(owner)) return Results.Unauthorized();
+            var count = limit ?? OffworldRunRules.DefaultHistoryResults;
+            if (count < 1 || count > OffworldRunRules.MaximumHistoryResults)
+                return Results.BadRequest(new {
+                    code = OffworldRunErrorCodes.HistoryLimitInvalid
+                });
+            var items = await service.GetHistoryAsync(owner, count, cancellationToken);
+            return Results.Ok(new { items });
+        }).RequireAuthorization().RequireRateLimiting("activity-run");
+
         endpoints.MapGet("/api/activities/runs/active/rune-path", async (
             ClaimsPrincipal user, OffworldRunService service,
             CancellationToken cancellationToken) =>
