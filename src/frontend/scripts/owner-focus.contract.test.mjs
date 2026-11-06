@@ -47,3 +47,17 @@ test('a new session gets its own gate with no inherited throttling', () => {
   assert.equal(newGate.shouldRefresh(input({ token: 'owner-b' })), true);
   assert.equal(oldGate.shouldRefresh(input({ token: 'owner-b' })), false);
 });
+
+test('invalid throttle configuration does not disable burst suppression', () => {
+  for (const interval of [NaN, Infinity, -1]) {
+    const gate = createOwnerFocusGate('owner-a', interval);
+    assert.equal(gate.shouldRefresh(input({ now: 5000 })), true);
+    assert.equal(gate.shouldRefresh(input({ now: 5001 })), false);
+    assert.equal(gate.shouldRefresh(input({ now: 6500 })), true);
+  }
+});
+test('explicit zero throttle remains supported for callers that need it', () => {
+  const gate = createOwnerFocusGate('owner-a', 0);
+  assert.equal(gate.shouldRefresh(input({ now: 5000 })), true);
+  assert.equal(gate.shouldRefresh(input({ now: 5000 })), true);
+});
