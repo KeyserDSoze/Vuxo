@@ -50,7 +50,7 @@ public static class OffworldPracticeProgressRules
             RewardsEnabled: false,
             XpGranted: 0,
             ItemsGranted: 0,
-            RewardBlockReason);
+            RewardBlockReason: RewardBlockReason);
     }
 }
 
