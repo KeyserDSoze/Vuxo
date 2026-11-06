@@ -250,7 +250,8 @@ test('two independent browser contexts discover the same owner ticket and a comp
       currentState = 'completed';
       return json(route, ticket('completed'));
     });
-    await other.goto('./#/refuge/path');
+    // Browser.newPage() creates an independent context without the fixture baseURL.
+    await other.goto('http://127.0.0.1:4173/Vuxo/#/refuge/path');
     await other.getByTestId('path-mode-saved').click();
     await expect(other.getByTestId('verified-path-game')).toBeVisible();
     await expect(other.getByTestId('verified-path-moves')).toContainText('0');
