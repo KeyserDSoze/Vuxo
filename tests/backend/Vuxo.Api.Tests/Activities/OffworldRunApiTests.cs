@@ -20,6 +20,8 @@ public sealed class OffworldRunApiTests
         Assert.Equal(HttpStatusCode.Unauthorized,
             (await client.GetAsync("/api/activities/runs/active/rune-path")).StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized,
+            (await client.GetAsync("/api/activities/runs/history/rune-path")).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized,
             (await client.GetAsync($"/api/activities/runs/{Guid.NewGuid()}")).StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized,
             (await client.PostAsJsonAsync($"/api/activities/runs/{Guid.NewGuid()}/complete",
@@ -92,6 +94,56 @@ public sealed class OffworldRunApiTests
         Assert.Equal(HttpStatusCode.OK, committed.StatusCode);
         using var ended = await client.GetAsync("/api/activities/runs/active/rune-path");
         Assert.Equal(HttpStatusCode.NoContent, ended.StatusCode);
+    }
+
+    [Fact]
+    public async Task History_IsBoundedOwnerOnlyAndDoesNotDisclosePrivateReceiptFields()
+    {
+        var fake = new FakeRuns();
+        using var factory = Factory(fake);
+        using var client = factory.CreateClient();
+
+        await LoginAsync(client, "player-a");
+        using var empty = await client.GetAsync("/api/activities/runs/history/rune-path");
+        Assert.Equal(HttpStatusCode.OK, empty.StatusCode);
+        var initial = await empty.Content.ReadFromJsonAsync<HistoryEnvelope>();
+        Assert.NotNull(initial);
+        Assert.Empty(initial.Items);
+        Assert.Equal(10, fake.HistoryLimit);
+
+        foreach (var invalid in new[] { 0, -1, 21 })
+        {
+            using var response = await client.GetAsync(
+                $"/api/activities/runs/history/rune-path?limit={invalid}");
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+            var problem = await response.Content.ReadFromJsonAsync<Error>();
+            Assert.Equal(OffworldRunErrorCodes.HistoryLimitInvalid, problem?.Code);
+        }
+
+        using var create = NewPost("/api/activities/runs/rune-path", Guid.NewGuid());
+        using var start = await client.SendAsync(create);
+        Assert.Equal(HttpStatusCode.Created, start.StatusCode);
+        using var page = await client.GetAsync("/api/activities/runs/history/rune-path?limit=1");
+        Assert.Equal(HttpStatusCode.OK, page.StatusCode);
+        var found = await page.Content.ReadFromJsonAsync<HistoryEnvelope>();
+        Assert.NotNull(found);
+        Assert.Single(found.Items);
+        Assert.Equal("player-a", fake.LastOwner);
+        Assert.Equal(1, fake.HistoryLimit);
+        Assert.Equal("rune-path", found.Items[0].ActivityKey);
+
+        var body = await page.Content.ReadAsStringAsync();
+        Assert.DoesNotContain("playerId", body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("startKey", body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("finishKey", body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("proofHash", body, StringComparison.OrdinalIgnoreCase);
+
+        await LoginAsync(client, "player-b");
+        using var foreign = await client.GetAsync("/api/activities/runs/history/rune-path");
+        Assert.Equal(HttpStatusCode.OK, foreign.StatusCode);
+        var other = await foreign.Content.ReadFromJsonAsync<HistoryEnvelope>();
+        Assert.NotNull(other);
+        Assert.Empty(other.Items);
     }
 
     [Theory]
@@ -176,10 +228,12 @@ public sealed class OffworldRunApiTests
     }
 
     private sealed record Login(string AccessToken, string TokenType);
+    private sealed record HistoryEnvelope(OffworldRunHistoryEntry[] Items);
     private sealed record Error(string Code);
     private sealed class FakeRuns : IOffworldRunRepository
     {
         public string? LastOwner { get; private set; }
+        public int? HistoryLimit { get; private set; }
         public Guid? StartKey { get; private set; }
         public Guid? FinishKey { get; private set; }
         public string? LastPath { get; private set; }
@@ -197,6 +251,24 @@ public sealed class OffworldRunApiTests
             _active = true;
             return Task.FromResult(Build(false));
         }
+        public Task<IReadOnlyList<OffworldRunHistoryEntry>> GetHistoryAsync(
+            string ownerId, int limit, DateTimeOffset now,
+            CancellationToken cancellationToken = default)
+        {
+            LastOwner = ownerId;
+            HistoryLimit = limit;
+            IReadOnlyList<OffworldRunHistoryEntry> result =
+                _owner == ownerId
+                    ? new[] { new OffworldRunHistoryEntry(
+                        _runId, "rune-path", RunePathPracticeRules.Version, 0,
+                        _start, _start.AddMinutes(5),
+                        _active ? OffworldRunRules.Active : OffworldRunRules.Completed,
+                        _active ? null : _start.AddSeconds(20),
+                        _active ? null : 6) }
+                    : Array.Empty<OffworldRunHistoryEntry>();
+            return Task.FromResult(result);
+        }
+
         public Task<OffworldRunResult?> GetActiveAsync(string ownerId,
             DateTimeOffset now, CancellationToken cancellationToken = default)
         {
