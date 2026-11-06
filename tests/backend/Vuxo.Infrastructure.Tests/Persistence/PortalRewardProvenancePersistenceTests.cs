@@ -18,17 +18,21 @@ public sealed class PortalRewardProvenancePersistenceTests
         var realReward = NewGrant("player-a", InventoryItemCatalog.GroveSeed, now);
         var noReward = NewGrant("player-a", "legacy.unknown.reward", now);
         var falseLink = NewGrant("player-a", "legacy.unknown.reward", now);
+        // A correct completion event ID is insufficient if the award
+        // contradicts the grant's canonical correlation or reward key.
+        var wrongCorrelation = NewGrant("player-a", "legacy.unknown.reward", now);
+        var wrongItemKey = NewGrant("player-a", "legacy.unknown.reward", now);
         var foreignReward = NewGrant("player-b", InventoryItemCatalog.TidalPearl, now);
         await using (var setup = database.CreateDbContext())
         {
             await setup.Database.MigrateAsync();
             var repo = new ExclusiveContentGrantRepository(setup);
-            foreach (var grant in new[] { realReward, noReward, falseLink, foreignReward })
+            foreach (var grant in new[] { realReward, noReward, falseLink, wrongCorrelation, wrongItemKey, foreignReward })
                 await repo.AddAsync(grant);
             await setup.SaveChangesAsync();
         }
 
-        foreach (var grant in new[] { realReward, noReward, falseLink, foreignReward })
+        foreach (var grant in new[] { realReward, noReward, falseLink, wrongCorrelation, wrongItemKey, foreignReward })
         {
             await using var db = database.CreateDbContext();
             var service = new ExclusiveContentService(
@@ -51,6 +55,36 @@ public sealed class PortalRewardProvenancePersistenceTests
                 awardEventId, "inventory.item_awarded", GameEventVisibilityScope.Player,
                 falseLink.PlayerId, falseLink.CorrelationId, wrongCause,
                 falseLink.RuleVersion, now), "{}");
+            // The award has the correct verified completion event ID and
+            // matches its own audit, but invents a different correlation.
+            var correctCorrelationCause = await db.GameEvents.AsNoTracking()
+                .Where(x => x.EventType == "exclusive_content.consumed"
+                    && x.CausationId == wrongCorrelation.GrantEventId)
+                .Select(x => x.EventId).SingleAsync();
+            var fakeCorrelation = Guid.NewGuid();
+            var correlationAwardEventId = Guid.NewGuid();
+            await new PlayerInventoryRepository(db).AddAsync(new PlayerInventoryAward(
+                wrongCorrelation.Id, correlationAwardEventId, wrongCorrelation.PlayerId,
+                wrongCorrelation.RewardKey, now, fakeCorrelation, correctCorrelationCause));
+            await new GameEventStore(db).AppendAsync(new GameEventEnvelope(
+                correlationAwardEventId, "inventory.item_awarded", GameEventVisibilityScope.Player,
+                wrongCorrelation.PlayerId, fakeCorrelation, correctCorrelationCause,
+                wrongCorrelation.RuleVersion, now), "{}");
+
+            // This time correlation and causation are genuine, but the award
+            // names a different item than the original grant promised.
+            var correctItemCause = await db.GameEvents.AsNoTracking()
+                .Where(x => x.EventType == "exclusive_content.consumed"
+                    && x.CausationId == wrongItemKey.GrantEventId)
+                .Select(x => x.EventId).SingleAsync();
+            var itemAwardEventId = Guid.NewGuid();
+            await new PlayerInventoryRepository(db).AddAsync(new PlayerInventoryAward(
+                wrongItemKey.Id, itemAwardEventId, wrongItemKey.PlayerId,
+                InventoryItemCatalog.RuneShard, now, wrongItemKey.CorrelationId, correctItemCause));
+            await new GameEventStore(db).AppendAsync(new GameEventEnvelope(
+                itemAwardEventId, "inventory.item_awarded", GameEventVisibilityScope.Player,
+                wrongItemKey.PlayerId, wrongItemKey.CorrelationId, correctItemCause,
+                wrongItemKey.RuleVersion, now), "{}");
             await db.SaveChangesAsync();
         }
 
@@ -61,24 +95,36 @@ public sealed class PortalRewardProvenancePersistenceTests
             .SingleAsync(x => x.EventId == realAward.AwardEventId);
         Assert.Equal(realAward.CausationId, awardEvent.CausationId);
         Assert.Equal(realAward.CorrelationId, awardEvent.CorrelationId);
+        // Ensure the intentionally inconsistent records were persisted:
+        // a NULL history attribution must result from the reader's checks.
+        var wrongCorrelationAward = await verification.PlayerInventoryAwards.AsNoTracking()
+            .SingleAsync(x => x.GrantId == wrongCorrelation.Id);
+        Assert.NotEqual(wrongCorrelation.CorrelationId, wrongCorrelationAward.CorrelationId);
+        var wrongItemAward = await verification.PlayerInventoryAwards.AsNoTracking()
+            .SingleAsync(x => x.GrantId == wrongItemKey.Id);
+        Assert.NotEqual(wrongItemKey.RewardKey, wrongItemAward.ItemKey);
 
         var completed = await new PortalCompletionHistoryReader(verification)
             .ListCompletedForPlayerAsync("player-a", 1, 20);
-        Assert.Equal(3, completed.Items.Count);
+        Assert.Equal(5, completed.Items.Count);
         Assert.Equal(InventoryItemCatalog.GroveSeed,
             Assert.Single(completed.Items, x => x.GrantId == realReward.Id).RewardItemKey);
         Assert.Null(Assert.Single(completed.Items, x => x.GrantId == noReward.Id).RewardItemKey);
         Assert.Null(Assert.Single(completed.Items, x => x.GrantId == falseLink.Id).RewardItemKey);
+        Assert.Null(Assert.Single(completed.Items, x => x.GrantId == wrongCorrelation.Id).RewardItemKey);
+        Assert.Null(Assert.Single(completed.Items, x => x.GrantId == wrongItemKey.Id).RewardItemKey);
 
         var outcomes = await new PortalOutcomeHistoryReader(verification)
             .ListForPlayerAsync("player-a", 1, 20);
-        Assert.Equal(3, outcomes.Items.Count);
+        Assert.Equal(5, outcomes.Items.Count);
         Assert.All(outcomes.Items, row =>
             Assert.Equal(PortalOutcomeKinds.SequenceCompleted, row.Kind));
         Assert.Equal(InventoryItemCatalog.GroveSeed,
             Assert.Single(outcomes.Items, x => x.GrantId == realReward.Id).RewardItemKey);
         Assert.Null(Assert.Single(outcomes.Items, x => x.GrantId == noReward.Id).RewardItemKey);
         Assert.Null(Assert.Single(outcomes.Items, x => x.GrantId == falseLink.Id).RewardItemKey);
+        Assert.Null(Assert.Single(outcomes.Items, x => x.GrantId == wrongCorrelation.Id).RewardItemKey);
+        Assert.Null(Assert.Single(outcomes.Items, x => x.GrantId == wrongItemKey.Id).RewardItemKey);
         Assert.DoesNotContain(outcomes.Items, row => row.GrantId == foreignReward.Id);
 
         var otherOwner = await new PortalOutcomeHistoryReader(verification)

@@ -13,6 +13,12 @@ Il giocatore può aprire il Rifugio e agire per pochi minuti senza avviare Phase
 
 ## Provenienza verificata delle ricompense — issue #119, terza tranche
 
+### QA di provenance rafforzata (#120)
+
+Per qualificare una ricompensa come effettivamente proveniente dal completamento di una sequenza, il read model rilegge il grant proprietario e l'audit di consumo: `RewardKey`, `CorrelationId`, `RuleVersion`, `GrantEventId`, `ConsumedAtUtc` e i dati del record `PlayerInventoryAward` devono essere coerenti con **entrambi** gli eventi audit di consumo e assegnazione. Una ricevuta aggiunta artificialmente con lo stesso `CausationId` ma correlazione difforme o chiave oggetto diversa dal grant non è attribuibile, anche se il grant è stato realmente risolto. L'attribuzione resta un arricchimento **read-only**, non crea o toglie oggetti. Test PostgreSQL di forgery aggiunti in #120 e in attesa di esecuzione.
+
+
+
 La ricompensa canonica `PlayerInventoryAward` conserva già `GrantId`, `PlayerId`, `AwardEventId`, `CorrelationId` e `CausationId`. La sequenza di rune, quando viene risolta correttamente, scrive nella **stessa unità di lavoro** l'evento di consumo `exclusive_content.consumed`, l'assegnazione inventario (solo per oggetti presenti nel catalogo) e l'evento audit `inventory.item_awarded`. Il nuovo `PortalRewardProvenanceReader` associa un oggetto a un risultato **solo** dopo questi controlli:
 
 - Il risultato base è già una **sequenza completata** provata dall'evento `exclusive_content.consumed` con `data.challengeType=sequence`, proprietario corretto, grant consumato e collegamento `CausationId=GrantEventId`.

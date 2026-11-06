@@ -48,7 +48,7 @@ dotnet test Vuxo.sln -c Release --no-build
 `VUXO_TEST_POSTGRES_CONNECTION_STRING` is read by `PostgresIntegrationFactAttribute`. **A green test run that skipped those tests is NOT sufficient.** Confirm the PostgreSQL integration tests actually executed, especially:
 
 - `PortalCompletionHistoryPersistenceTests`, `PortalOutcomeHistoryPersistenceTests` and `PortalRewardProvenancePersistenceTests`.
-- Owner isolation across different player IDs, audit/causation agreement, no false Guardian award, forged causation excluded.
+- Owner isolation across different player IDs, audit/causation agreement, no false Guardian award. `PortalRewardProvenancePersistenceTests` must persist AND reject all three forgeries: wrong cause, correct cause but wrong grant correlation, and correct cause/correlation but wrong item key. The legitimate canonical reward must still appear on both history endpoints.
 - Migrations `202611060001`, `202611060002` and `202611060003` applied in order against a disposable database.
 - Failed/expired/grant-only records are never labeled completed without a supported audit event.
 
