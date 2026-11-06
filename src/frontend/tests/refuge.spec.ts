@@ -1,6 +1,11 @@
 import { expect, test } from '@playwright/test';
 
 test.beforeEach(async ({ page }) => {
+  // Refuge preparation reads equipped slots for authenticated visitors.
+  await page.route('**/api/equipment', route => route.fulfill({
+    contentType: 'application/json',
+    body: JSON.stringify({ items: [], stats: null, ruleVersion: 'equipment-v1' }),
+  }));
   await page.route('**/api/characters/me/encounter', route => route.fulfill({
     contentType: 'application/json',
     body: JSON.stringify({ active: false, portalGrantId: null, expiresAtUtc: null }),

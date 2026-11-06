@@ -6,6 +6,7 @@ import { Link as RouterLink } from 'react-router-dom';
 import { useStoredSession } from '../features/auth/useStoredSession';
 import { fetchCharacterHealth, type CharacterHealth, type CharacterHealthApiError } from '../features/health/characterHealthApi';
 import { CharacterRestAction } from '../features/health/CharacterRestAction';
+import { RefugePreparationBoard } from './RefugePreparationBoard';
 
 const activities = [
   { key: 'character', to: '/character', icon: PersonOutlined, authenticated: false },
@@ -17,35 +18,44 @@ const activities = [
 export function RefugePage() {
   const { t } = useTranslation();
   const session = useStoredSession();
-  const [health, setHealth] = useState<CharacterHealth | null>(null);
-  const [healthLoading, setHealthLoading] = useState(Boolean(session));
-  const [healthError, setHealthError] = useState<string | null>(null);
+  // Key private health by the actual session token, so switching accounts can
+  // never render the previous user's HP while the new request is pending.
+  const [healthRecord, setHealthRecord] = useState<{
+    token: string;
+    status: 'loading' | 'ready' | 'notFound' | 'unavailable';
+    health: CharacterHealth | null;
+  } | null>(null);
   const [healthRetry, setHealthRetry] = useState(0);
+  const currentRecord = session && healthRecord?.token === session.accessToken ? healthRecord : null;
+  const health = currentRecord?.status === 'ready' ? currentRecord.health : null;
+  const healthLoading = Boolean(session && (!currentRecord || currentRecord.status === 'loading'));
+  const healthError = currentRecord?.status === 'notFound' ? 'notFound'
+    : currentRecord?.status === 'unavailable' ? 'unavailable' : null;
 
   useEffect(() => {
     if (!session) {
-      setHealth(null);
-      setHealthError(null);
-      setHealthLoading(false);
+      setHealthRecord(null);
       return;
     }
 
+    const token = session.accessToken;
     const controller = new AbortController();
-    setHealth(null);
-    setHealthError(null);
-    setHealthLoading(true);
-    void fetchCharacterHealth(session.accessToken, controller.signal)
+    setHealthRecord({ token, status: 'loading', health: null });
+    void fetchCharacterHealth(token, controller.signal)
       .then(value => {
-        if (!controller.signal.aborted) setHealth(value);
+        if (!controller.signal.aborted) {
+          setHealthRecord({ token, status: 'ready', health: value });
+        }
       })
       .catch(error => {
         if (!controller.signal.aborted) {
-          setHealthError((error as CharacterHealthApiError).code === 'character_not_found'
-            ? 'notFound' : 'unavailable');
+          setHealthRecord({
+            token,
+            status: (error as CharacterHealthApiError).code === 'character_not_found'
+              ? 'notFound' : 'unavailable',
+            health: null,
+          });
         }
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setHealthLoading(false);
       });
     return () => controller.abort();
   }, [session?.accessToken, healthRetry]);
@@ -135,13 +145,28 @@ export function RefugePage() {
                   sx={{ height: 10, borderRadius: 2 }} />
                 <Typography variant="caption" color="text.secondary">{t('refuge.health.baseMaxNote')}</Typography>
                 <CharacterRestAction accessToken={session.accessToken} health={health}
-                  onRested={result => setHealth(current => current ? {
-                    ...current, currentHealth: result.currentHealth, maxHealth: result.maxHealth
-                  } : current)} />
+                  onRested={result => setHealthRecord(current =>
+                    current?.token === session.accessToken && current.health
+                      ? { ...current, health: {
+                        ...current.health,
+                        currentHealth: result.currentHealth,
+                        maxHealth: result.maxHealth,
+                      } }
+                      : current
+                  )} />
               </Stack>
             )}
           </Stack>
         </Paper>
+      )}
+
+      {session && health && (
+        <RefugePreparationBoard
+          key={session.accessToken}
+          accessToken={session.accessToken}
+          health={health}
+          onRefresh={() => setHealthRetry(value => value + 1)}
+        />
       )}
 
       <Paper data-testid="refuge-care" variant="outlined" sx={{ p: { xs: 2.5, sm: 3 } }}>

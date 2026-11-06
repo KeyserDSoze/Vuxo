@@ -53,7 +53,32 @@ const initialization = i18n.use(initReactI18next).init({
           }
         },
         refuge: {
+          preparation: {
+            title: 'Preparazione all’avventura',
+            description: 'Dati di sola lettura dal tuo personaggio e dalle API VUXO. Non sostituisce i controlli del server.',
+            refresh: 'Aggiorna preparazione',
+            loading: 'Caricamento preparazione…',
+            health: 'Salute',
+            hp: {
+              full: 'HP al massimo',
+              incomplete: 'HP da recuperare',
+              down: 'Zero HP: consulta le opzioni di cura'
+            },
+            equipment: 'Equipaggiamento',
+            slots: { relic: 'Reliquia', charm: 'Amuleto' },
+            empty: 'Slot vuoto',
+            unknownItem: 'Oggetto equipaggiato',
+            equipmentUnavailable: 'Impossibile leggere l’equipaggiamento. Riprova.',
+            encounter: 'Stato portale',
+            encounterActive: 'Incontro del portale attivo',
+            encounterIdle: 'Nessun incontro attivo segnalato',
+            encounterUnavailable: 'Impossibile leggere lo stato dell’incontro. Non presumere che sia libero.',
+            openInventory: 'Gestisci inventario',
+            openPortals: 'Apri i portali',
+            openWorld: 'Entra nel mondo'
+          },
           rest: {
+
             description: 'Riposa al Rifugio per recuperare fino al 25% degli HP massimi di base. Puoi farlo una volta ogni 30 minuti. Non consuma oggetti.',
             action: 'Riposa',
             retry: 'Riprova il riposo',
@@ -435,7 +460,32 @@ const initialization = i18n.use(initReactI18next).init({
           }
         },
         refuge: {
+          preparation: {
+            title: 'Adventure preparation',
+            description: 'Read-only information from your character and VUXO APIs. The server still verifies every action.',
+            refresh: 'Refresh preparation',
+            loading: 'Loading preparation…',
+            health: 'Health',
+            hp: {
+              full: 'Full HP',
+              incomplete: 'HP to recover',
+              down: 'Zero HP: review healing options'
+            },
+            equipment: 'Equipment',
+            slots: { relic: 'Relic', charm: 'Charm' },
+            empty: 'Empty slot',
+            unknownItem: 'Equipped item',
+            equipmentUnavailable: 'Could not load equipment. Please retry.',
+            encounter: 'Portal status',
+            encounterActive: 'Portal encounter active',
+            encounterIdle: 'No active encounter reported',
+            encounterUnavailable: 'Could not load encounter status. Do not assume it is clear.',
+            openInventory: 'Manage inventory',
+            openPortals: 'Open portals',
+            openWorld: 'Enter the world'
+          },
           rest: {
+
             description: 'Rest at the Refuge to recover up to 25% of your base maximum HP. You can do this once every 30 minutes. No items are consumed.',
             action: 'Rest',
             retry: 'Retry rest',

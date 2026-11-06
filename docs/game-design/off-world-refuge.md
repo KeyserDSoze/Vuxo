@@ -11,6 +11,17 @@ Due cicli complementari:
 
 Il giocatore può aprire il Rifugio e agire per pochi minuti senza avviare Phaser, ma quando torna nel mondo trova gli stessi oggetti e attributi verificati dal server.
 
+## Preparazione dell’avventura — issue #114 (UI di sola lettura)
+
+Il Rifugio può mostrare un **riepilogo della sessione** senza creare uno stato di gameplay parallelo. Il componente `RefugePreparationBoard` legge solo le API già esistenti (nessuna nuova route backend):
+- `GET /api/characters/me/health`: riutilizza i valori canonici già caricati in `RefugePage`, legati al token effettivo della sessione, comprese le modifiche confermate dal riposo server-side;
+- `GET /api/equipment`: due slot relic/charm effettivi, senza inferire che uno slot non letto sia vuoto;
+- `GET /api/characters/me/encounter`: stato attivo/non attivo, oppure sconosciuto se il server non risponde. La UI **non** decide se riposo, cura o ingresso nel mondo siano ammessi; la validazione e i blocchi restano nel backend.
+
+Il pannello compare solo con sessione e personaggio esistenti: gli ospiti e i 404 salute non richiedono dati di equipaggiamento/incontro. Il cambio account smonta il pannello e la vista HP non mostra risultati appartenenti al token precedente; ogni richiesta è cancellabile tramite AbortController. Il refresh manuale rilegge salute, equipaggiamento e incontro. La visualizzazione di HP mancanti/zero è soltanto informativa, senza score di prontezza, missioni, premi o persistenza nel browser.
+
+I test Playwright includono utente guest, stato autenticato con equipaggiamento e incontro attivi, fallimenti parziali e recupero, 404, switch/logout, i18n English/dark/mobile 320px. La validazione CI resta in sospeso per quota Actions esaurita (#112): non mergiare o distribuire finché non sono verificate build e suite.
+
 ## MVP 0.0.1 — issue #71
 
 - Route \`/#/refuge\`: accesso tramite home/menu, contenuti chiari e responsive, collegamenti agli editor/personaggio, inventario/equipaggiamento, portali personali e mondo.
