@@ -177,6 +177,35 @@ test('React Refuge finishes a real persisted Rune Path with PostgreSQL after ref
   await expect(page.getByTestId('path-history-item').first())
     .toContainText('verified moves');
 
+  const practice = await request.get(
+    api + '/api/activities/runs/progress/rune-path',
+    { headers: { Authorization: 'Bearer ' + token } });
+  expect(practice.status()).toBe(200);
+  const profile = await practice.json() as {
+    completedRuns: number; boardsSolved: number; totalBoards: number;
+    milestone: string; boards: Array<{ puzzleIndex: number; bestSteps: number }>;
+    rewardsEnabled: boolean; xpGranted: number; itemsGranted: number;
+    rewardBlockReason: string;
+  };
+  expect(profile).toMatchObject({
+    completedRuns: 1, boardsSolved: 1, totalBoards: 3,
+    milestone: 'explorer', rewardsEnabled: false, xpGranted: 0,
+    itemsGranted: 0, rewardBlockReason: 'automatable_practice',
+  });
+  expect(profile.boards).toEqual([{
+    puzzleIndex: ticket.puzzleIndex, completedRuns: 1, bestSteps: solution.length,
+  }]);
+  await expect(page.getByTestId('path-progress-stage')).toContainText('Rune Explorer');
+  await expect(page.getByTestId('path-progress-counts')).toContainText('1 of 3');
+  await expect(page.getByTestId('path-progress-reward-notice')).toContainText('no XP');
+
+  const strangerToken = await login(request, 'live-practice-foreign-' + randomUUID());
+  const strangerProfile = await request.get(
+    api + '/api/activities/runs/progress/rune-path',
+    { headers: { Authorization: 'Bearer ' + strangerToken } });
+  expect(strangerProfile.status()).toBe(200);
+  expect((await strangerProfile.json() as { completedRuns: number }).completedRuns).toBe(0);
+
   // Client-side reload is never a new server-issued run or reward grant.
   await page.reload();
   await page.getByTestId('path-mode-saved').click();
@@ -270,6 +299,8 @@ test('second device discovers and completes an owner-only PostgreSQL ticket', as
     // The receiving browser refreshes its history when remote status updates.
     await expect(page.getByTestId('path-history-item').first())
       .toContainText('verified moves');
+    await expect(page.getByTestId('path-progress-stage')).toContainText('Rune Explorer');
+    await expect(page.getByTestId('path-progress-total')).toContainText('1');
   } finally {
     await second.close();
   }
