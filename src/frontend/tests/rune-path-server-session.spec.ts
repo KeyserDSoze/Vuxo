@@ -85,7 +85,10 @@ test('server-owned board survives refresh, sends only moves, and displays canoni
   });
 
   await openVerified(page);
-  expect(allRequests).toEqual([]); // Local mode does not contact the activity API.
+  // Recorded mode may perform one read-only active-ticket lookup; it must
+  // not start a run or request gameplay rewards until the player clicks Start.
+  expect(allRequests).toHaveLength(1);
+  expect(allRequests[0]).toContain('/api/activities/runs/active/rune-path');
   await page.getByTestId('verified-path-start').click();
   await expect(page.getByTestId('verified-path-board').locator('button')).toHaveCount(16);
   await expect(page.getByTestId('verified-path-cell-1-0')).toBeDisabled();
