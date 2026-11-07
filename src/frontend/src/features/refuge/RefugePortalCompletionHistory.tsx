@@ -1,10 +1,11 @@
 import { AutoAwesome, Refresh } from '@mui/icons-material';
 import { Alert, Box, Button, Chip, CircularProgress, Paper, Stack, Typography } from '@mui/material';
 import { inventoryItemLabelKeys } from '../inventory/inventoryApi';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { readForCurrentOwner } from '../auth/ownerReadFence';
-import { fetchCompletedPortals, fetchPortalOutcomes, type CompletedPortal, type PortalOutcome,
+import { appendPortalHistoryPage, type HistoryEntry, type HistoryMode } from './portalHistoryPageMerge';
+import { fetchCompletedPortals, fetchPortalOutcomes,
   type PortalCompletionPage, type PortalOutcomePage } from '../portals/portalHistoryApi';
 
 /**
@@ -12,13 +13,13 @@ import { fetchCompletedPortals, fetchPortalOutcomes, type CompletedPortal, type 
  * The parent remounts this component on refresh/account change so no owner
  * data or older pagination pages leak into a new read snapshot.
  */
-type HistoryMode = 'completed' | 'outcomes';
-type HistoryEntry = CompletedPortal | PortalOutcome;
-
-export function RefugePortalCompletionHistory({ accessToken }: { accessToken: string }) {
+ export function RefugePortalCompletionHistory({ accessToken }: { accessToken: string }) {
   const { t, i18n } = useTranslation();
   const [mode, setMode] = useState<HistoryMode>('completed');
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
+  // React state alone is not a synchronous pagination cursor: response
+  // validation must inspect the exact latest accepted page before appending.
+  const acceptedEntries = useRef<HistoryEntry[]>([]);
   const [page, setPage] = useState(1);
   const [attempt, setAttempt] = useState(0);
   const [hasMore, setHasMore] = useState(false);
@@ -29,17 +30,31 @@ export function RefugePortalCompletionHistory({ accessToken }: { accessToken: st
     const controller = new AbortController();
     setLoading(true);
     setError(false);
-    if (page === 1) setEntries([]);
+    if (page === 1) {
+      acceptedEntries.current = [];
+      setEntries([]);
+    }
     void readForCurrentOwner<PortalCompletionPage | PortalOutcomePage>(accessToken, () => mode === 'completed'
       ? fetchCompletedPortals(page, 20, controller.signal)
       : fetchPortalOutcomes(page, 20, controller.signal), controller.signal)
       .then(result => {
         if (controller.signal.aborted) return;
-        setEntries(previous => page === 1 ? result.items : [...previous, ...result.items]);
+        // Offset pagination can overlap when another device inserts a
+        // completion between GET page 1 and GET page 2. Do not display
+        // duplicate grants/events or a newer row after an older one.
+        const next = appendPortalHistoryPage(acceptedEntries.current, result.items, mode, page);
+        acceptedEntries.current = next;
+        setEntries(next);
         setHasMore(result.hasMore);
       })
       .catch(() => {
-        if (!controller.signal.aborted) setError(true);
+        if (controller.signal.aborted) return;
+        // On a partial-page error even the earlier pages may be stale.
+        // Clear everything and force a fresh page-one retry.
+        acceptedEntries.current = [];
+        setEntries([]);
+        setHasMore(false);
+        setError(true);
       })
       .finally(() => {
         if (!controller.signal.aborted) setLoading(false);
@@ -56,6 +71,7 @@ export function RefugePortalCompletionHistory({ accessToken }: { accessToken: st
   };
 
   function refresh() {
+    acceptedEntries.current = [];
     setEntries([]);
     setHasMore(false);
     setLoading(true);
@@ -65,6 +81,7 @@ export function RefugePortalCompletionHistory({ accessToken }: { accessToken: st
 
   function chooseMode(nextMode: HistoryMode) {
     if (nextMode === mode) return;
+    acceptedEntries.current = [];
     setEntries([]);
     setHasMore(false);
     setLoading(true);
@@ -131,7 +148,7 @@ export function RefugePortalCompletionHistory({ accessToken }: { accessToken: st
                 ? 'refuge.journal.completed.error'
                 : 'refuge.journal.outcomes.error')}
             </Alert>
-            <Button data-testid="refuge-journal-completed-retry" onClick={() => setAttempt(v => v + 1)}>
+            <Button data-testid="refuge-journal-completed-retry" onClick={refresh}>
               {t('refuge.journal.retry')}
             </Button>
           </Stack>
