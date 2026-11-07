@@ -304,3 +304,27 @@ npm run test:e2e
 **Executed locally:** Node 22.16.0 **7/7 PASS**, isolated strict TS compile **PASS** for two dependency-free modules, using exact text as committed: `authSession.ts` blob `09be2041654bf1e3b6cc5d146d5673af91ad6423`, `ownerReadFence.ts` `9bff468f0883d36d6cdd7a45cc081db00a57f436`, `inventorySnapshotConsistency.ts` `3dabb557751fa54778cd4c65eebcddb939993a78`, and new test `owner-read-fence.contract.test.mjs` `10cdecca28a375041f524bdc92279720af106493`. Matrix: matching token, guest/stale preflight refusal, late successful GET after account switch, logout/expiry, AbortSignal before start/after response, active-owner transport failure and prevented cross-owner retry after torn snapshot.
 
 **Authored but not executed:** three additional Playwright flows in `offworld-integrated-navigation.spec.ts`: delayed owner-A inventory under Journal, delayed owner-A inventory under Inventory, and delayed owner-A HP under Refuge after owner B logs in. These are added to the three pre-existing integration scenarios (six total). **Not run:** full contract aggregate, React production build, Playwright browser, backend .NET/xUnit, PostgreSQL and production deploy. GitHub Actions quota #112 remains blocked. Keep issue #120 open; no PR, merge or deployment.
+
+
+## Gate C0n: account-owned portal/Guardian intentions and Phaser remount (#120)
+
+**Root cause:** the rune challenge screen previously read its session only during rendering, while `submitPortalChallenge()` independently obtained the currently stored JWT at POST time. Account A could prepare the sequence, switch to B, and submit the old intention under B's bearer token; its in-flight challenge GET and completion receipt were not fenced. The Guardian duel had the same ambient-JWT issue for a pending card/turn, and a still-mounted Phaser world could retain private portal/dialog state across account changes.
+
+**Code changes (no server or gameplay rules changed):** `PortalChallengesPage` now uses `useStoredSession()` and a keyed owner child to reset grants, secret previews, answers, completion/error/reward state. It reuses the proven `createOwnerActionGate()` to reserve a synchronous lease before starting a challenge or sending an answer. Stale/aborted responses never publish; the active owner is checked on both sides of GET and on receipt, all pending fetches are aborted on unmount and the success response must match the requested grant. `portalApi.ts` propagates `AbortSignal` for challenge GET and POST. `GuardianDuel` similarly isolates owner/turn/replay key, requires a live lease before card POST, fences both status and history reads and only accepts matching grant and idempotency receipts. The canonical status refresh clears a resolved old turn's replay key. `GamePage` remounts the Phaser tree by token so a new owner never inherits the previous private portal dialog or stale markers.
+
+```bash
+cd src/frontend
+node --experimental-strip-types --test scripts/portal-owner-lane.contract.test.mjs
+tsc --noEmit --strict --lib ES2022,DOM --target ES2022 --module esnext --allowImportingTsExtensions \\
+  src/features/auth/ownerReadFence.ts src/features/inventory/ownerActionGate.ts
+# Still required from a full local checkout with React, browser and backend dependencies:
+npm run test:contracts
+npm run build
+npx playwright test tests/portal-owner-session.spec.ts tests/world-portals.spec.ts tests/portals.spec.ts
+npm run test:e2e
+# See earlier gates for dotnet build/test and real PostgreSQL.
+```
+
+**Actually executed locally:** Node v22.16.0 **4/4 PASS** for `portal-owner-lane.contract.test.mjs`, isolated `tsc --noEmit --strict` **PASS** for the two imported dependency-free TypeScript modules. Local Git hashes **exactly match** the branch: `authSession.ts` `09be2041654bf1e3b6cc5d146d5673af91ad6423`, `ownerReadFence.ts` `9bff468f0883d36d6cdd7a45cc081db00a57f436`, `ownerActionGate.ts` `b5d45d99b0931ad2acbd2cbd6f01ec16af0eb43c`, test `portal-owner-lane.contract.test.mjs` `4d1aa8a4ff999e10915b6e09cd2a039f37509383`. Covered delayed preview GET after switching owner, synchronous submit lease, stale success receipt, logout and expired sessions.
+
+**Authored but not executed:** four `portal-owner-session.spec.ts` cases (delayed grants, delayed secret preview, late successful POST after A→B, rapid duplicate POST), plus one `world-portals.spec.ts` logout case for Phaser dialog/markers. Existing `portals.spec.ts` and Guardian/world E2E flows remain intact. **Not run:** any Playwright browser scenario, full TypeScript React build, full `npm run test:contracts`, .NET/xUnit or PostgreSQL. Do not claim integration verified. GitHub Actions quota blocker #112 remains; #120 stays open. No PR, merge or deployment.
