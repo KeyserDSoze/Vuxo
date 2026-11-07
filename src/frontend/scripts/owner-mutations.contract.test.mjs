@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   parseCharacterRestResult, parseCharacterItemHealResult,
   requireEquipConfirmed, requireUnequipConfirmed,
-} from '../src/ownerMutationContracts.ts';
+} from '../src/features/contracts/ownerMutationContracts.ts';
 
 const key = '11111111-1111-4111-8111-111111111111';
 const otherKey = '22222222-2222-4222-8222-222222222222';
@@ -73,4 +73,20 @@ test('unequip confirmation requires the requested slot to be empty', () => {
   assert.throws(() => requireUnequipConfirmed({ items: [{ slot: 'relic', grantId }] }, 'relic'), {
     message: 'equipment_invalid_response',
   });
+});
+
+
+test('equip confirmation rejects non-UUID requested grants even if payload echoes them', () => {
+  assert.throws(() => requireEquipConfirmed({ items: [{ grantId: 'not-a-guid' }] }, 'not-a-guid'), {
+    message: 'equipment_invalid_response',
+  });
+});
+test('idempotency and heal grant UUIDs may differ only in letter casing', () => {
+  const letterGrant = 'abcdefab-abcd-4abc-8abc-abcdefabcdef';
+  const letterKey = 'fedcbafe-dcba-4cba-8cba-fedcbafedcba';
+  assert.equal(parseCharacterRestResult({ ...rest, idempotencyKey: letterKey.toUpperCase() }, letterKey).idempotencyKey,
+    letterKey.toUpperCase());
+  assert.equal(parseCharacterItemHealResult({ ...heal, grantId: letterGrant.toUpperCase(),
+    idempotencyKey: letterKey.toUpperCase() }, letterGrant, letterKey).grantId, letterGrant.toUpperCase());
+  assert.equal(requireEquipConfirmed({ items: [{ grantId: letterGrant.toUpperCase() }] }, letterGrant).items.length, 1);
 });
