@@ -225,6 +225,34 @@ public sealed class PortalCompletionHistoryPersistenceTests
         Assert.Null(third.NextCursor);
     }
 
+
+    [PostgresIntegrationFact]
+    public async Task CompletionKeyset_ExecutedSqlSeeksWithoutOffset_LegacyKeepsBoundedOffset()
+    {
+        await using var database = await PostgresDatabaseScope.CreateAsync();
+        await using (var setup = database.CreateDbContext())
+            await setup.Database.MigrateAsync();
+
+        var capture = new PortalHistorySqlCapture();
+        await using var db = database.CreateDbContext(capture);
+        var history = new PortalCompletionHistoryReader(db);
+        var bookmark = PortalHistoryCursor.Encode(DateTimeOffset.UtcNow, Guid.NewGuid());
+
+        await history.ListCompletedForPlayerAsync("player-a", 2, 20, cursor: bookmark);
+        var seek = capture.LatestPagedQuery().ToUpperInvariant();
+        Assert.Contains("LIMIT", seek);
+        Assert.Contains("ORDER BY", seek);
+        Assert.Contains(" < ", seek);
+        Assert.DoesNotContain("OFFSET", seek);
+        Assert.Contains("EXCLUSIVE_CONTENT_GRANTS", seek);
+
+        capture.Clear();
+        await history.ListCompletedForPlayerAsync("player-a", 2, 20);
+        var legacy = capture.LatestPagedQuery().ToUpperInvariant();
+        Assert.Contains("OFFSET", legacy);
+        Assert.Contains("LIMIT", legacy);
+    }
+
     private static ExclusiveContentGrant NewGrant(
         string owner, DateTimeOffset now, string portalKey) =>
         ExclusiveContentGrant.Create(

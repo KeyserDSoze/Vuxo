@@ -266,6 +266,35 @@ public sealed class PortalOutcomeHistoryPersistenceTests
         Assert.Null(second.NextCursor);
     }
 
+
+    [PostgresIntegrationFact]
+    public async Task OutcomeKeyset_ExecutedUnionSqlSeeksWithoutOffset_LegacyStillUsesOffset()
+    {
+        await using var database = await PostgresDatabaseScope.CreateAsync();
+        await using (var setup = database.CreateDbContext())
+            await setup.Database.MigrateAsync();
+
+        var capture = new PortalHistorySqlCapture();
+        await using var db = database.CreateDbContext(capture);
+        var history = new PortalOutcomeHistoryReader(db);
+        var bookmark = PortalHistoryCursor.Encode(DateTimeOffset.UtcNow, Guid.NewGuid());
+
+        await history.ListForPlayerAsync("player-a", 2, 20, cursor: bookmark);
+        var seek = capture.LatestPagedQuery().ToUpperInvariant();
+        Assert.Contains("LIMIT", seek);
+        Assert.Contains("ORDER BY", seek);
+        Assert.Contains(" < ", seek);
+        Assert.DoesNotContain("OFFSET", seek);
+        Assert.Contains("PORTAL_MISTAKE_DAMAGES", seek);
+        Assert.Contains("PORTAL_GUARDIAN_TURNS", seek);
+
+        capture.Clear();
+        await history.ListForPlayerAsync("player-a", 2, 20);
+        var legacy = capture.LatestPagedQuery().ToUpperInvariant();
+        Assert.Contains("OFFSET", legacy);
+        Assert.Contains("LIMIT", legacy);
+    }
+
     private static async Task<ExclusiveContentGrant> SeedAsync(PostgresDatabaseScope database)
     {
         var now = DateTimeOffset.UtcNow;

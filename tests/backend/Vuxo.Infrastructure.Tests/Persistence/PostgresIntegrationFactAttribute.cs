@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Npgsql;
 using Vuxo.Infrastructure.Persistence;
 using Xunit;
@@ -62,12 +63,12 @@ internal sealed class PostgresDatabaseScope : IAsyncDisposable
         return new PostgresDatabaseScope(adminBuilder.ConnectionString, databaseName, databaseBuilder.ConnectionString);
     }
 
-    public VuxoDbContext CreateDbContext()
+    public VuxoDbContext CreateDbContext(params IInterceptor[] interceptors)
     {
-        var options = new DbContextOptionsBuilder<VuxoDbContext>()
-            .UseNpgsql(ConnectionString)
-            .Options;
-        return new VuxoDbContext(options);
+        var builder = new DbContextOptionsBuilder<VuxoDbContext>().UseNpgsql(ConnectionString);
+        if (interceptors.Length > 0)
+            builder.AddInterceptors(interceptors);
+        return new VuxoDbContext(builder.Options);
     }
 
     public async ValueTask DisposeAsync()
