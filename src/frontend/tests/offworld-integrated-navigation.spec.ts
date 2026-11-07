@@ -115,3 +115,73 @@ test('English mobile dark flows keep navigation, focus and no horizontal overflo
   await expect.poll(() => page.evaluate(() =>
     document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
 });
+
+/** A held owner-A response must not resurrect inventory or journal data after account B signs in. */
+async function holdOwnerAInventory(page: Page) {
+  let notifyA!: () => void;
+  let releaseA!: () => void;
+  const startedA = new Promise<void>(resolve => { notifyA = resolve; });
+  const pendingA = new Promise<void>(resolve => { releaseA = resolve; });
+  const previousOwnerReward = [{
+    grantId: 'abcdefab-abcd-4abc-8abc-abcdefabcdef',
+    itemKey: 'item.rune_shard.v1', quantity: 1,
+    awardedAtUtc: '2026-11-06T12:00:00Z', consumed: false,
+  }];
+  const requested: string[] = [];
+  await page.route('**/api/inventory', async route => {
+    if (route.request().method() === 'OPTIONS') {
+      await route.fulfill({ status: 204, headers: corsHeaders });
+      return;
+    }
+    const auth = route.request().headers()['authorization'] ?? '';
+    requested.push(auth);
+    if (auth === 'Bearer integration-owner-a') {
+      notifyA();
+      await pendingA;
+      // The browser may have already aborted A's fetch. That is expected.
+      await route.fulfill(json(previousOwnerReward)).catch(() => {});
+    } else {
+      await route.fulfill(json([]));
+    }
+  });
+  return { startedA, releaseA, requested };
+}
+
+async function switchToOwnerB(page: Page) {
+  await page.evaluate(() => {
+    localStorage.setItem('vuxo.accessToken', 'integration-owner-b');
+    localStorage.setItem('vuxo.auth.expiresAtUtc', '2099-01-01T00:00:00Z');
+    localStorage.setItem('vuxo.auth.user', JSON.stringify({
+      id: 'integration-owner-b', displayName: 'Vuxian Second', email: null,
+    }));
+    window.dispatchEvent(new Event('vuxo:session-changed'));
+  });
+}
+
+test('Journal ignores a previous owner reward returned after an account switch', async ({ page }) => {
+  await signIn(page);
+  await ownerReads(page);
+  const held = await holdOwnerAInventory(page);
+  await page.goto('./#/refuge/journal');
+  await held.startedA;
+  await switchToOwnerB(page);
+  await expect(page.getByTestId('refuge-journal-rewards-empty')).toBeVisible();
+  expect(held.requested).toContain('Bearer integration-owner-b');
+  held.releaseA();
+  await expect(page.getByTestId('refuge-journal-rewards-empty')).toBeVisible();
+  await expect(page.getByTestId('refuge-journal-reward')).toHaveCount(0);
+});
+
+test('Inventory keeps owner-B empty loadout when owner-A fetch completes late', async ({ page }) => {
+  await signIn(page);
+  await ownerReads(page);
+  const held = await holdOwnerAInventory(page);
+  await page.goto('./#/inventory');
+  await held.startedA;
+  await switchToOwnerB(page);
+  await expect(page.getByTestId('inventory-empty')).toBeVisible();
+  expect(held.requested).toContain('Bearer integration-owner-b');
+  held.releaseA();
+  await expect(page.getByTestId('inventory-empty')).toBeVisible();
+  await expect(page.getByTestId('inventory-browse-controls')).toHaveCount(0);
+});
