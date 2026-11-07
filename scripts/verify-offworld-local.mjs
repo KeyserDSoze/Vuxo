@@ -20,6 +20,8 @@ const api = 'tests/backend/Vuxo.Api.Tests/Vuxo.Api.Tests.csproj';
 const focused = [
   'src/frontend/scripts/portal-history-cursor.contract.test.mjs',
   'src/frontend/scripts/portal-history-pagination.contract.test.mjs',
+  'src/frontend/scripts/portal-history-navigation.contract.test.mjs',
+  'src/frontend/scripts/portal-history-view.contract.test.mjs',
   'src/frontend/scripts/guardian-contracts.contract.test.mjs',
 ];
 const browserTests = [

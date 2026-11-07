@@ -67,6 +67,8 @@ test('Node-only contracts run without .NET, Postgres, npm installation or Playwr
     for (const name of [
       'portal-history-cursor.contract.test.mjs',
       'portal-history-pagination.contract.test.mjs',
+      'portal-history-navigation.contract.test.mjs',
+      'portal-history-view.contract.test.mjs',
       'guardian-contracts.contract.test.mjs',
     ]) {
       writeFileSync(join(dir, name),
@@ -76,6 +78,7 @@ test('Node-only contracts run without .NET, Postgres, npm installation or Playwr
     const result = execute(cli, ['--contracts'], { cwd: '/' });
     assert.equal(result.status, 0, result.stderr);
     assert.match(result.stdout, /--experimental-strip-types --test/);
+    assert.match(result.stdout, /# tests 5/);
     assert.doesNotMatch(result.stdout + result.stderr, /\.NET 10 SDK/);
   }));
 
