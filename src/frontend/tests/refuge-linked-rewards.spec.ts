@@ -432,3 +432,164 @@ test('a no-match local filter does not hide Load More or imply missing server hi
   await expect(page.getByTestId('refuge-journal-history-count')).toContainText('1 su 2 caricati');
   expect(reads).toBe(2);
 });
+
+test('adventure overview counts only confirmed owner records and reveals Guardian events in outcome mode', async ({ page }) => {
+  await signIn(page, 'en');
+  await otherSections(page);
+  await page.route('**/api/inventory', route => route.fulfill({ headers: cors,
+    contentType: 'application/json', body: JSON.stringify([
+      { grantId: a, itemKey: 'item.grove_seed.v1', quantity: 50, awardedAtUtc: '2026-11-05T10:00:00Z', consumed: false },
+      { grantId: b, itemKey: 'item.rune_shard.v1', quantity: 1, awardedAtUtc: '2026-11-04T10:00:00Z', consumed: false },
+    ]) }));
+  await page.route('**/api/personal-content', route => route.fulfill({ headers: cors,
+    contentType: 'application/json', body: JSON.stringify([
+      { id: b, portalKey: 'challenge.sequence.v1', contentKey: 'portal.memory.grove', expiresAtUtc: null },
+    ]) }));
+  await page.route('**/api/personal-content/history/completed*', route =>
+    route.fulfill({ headers: cors, contentType: 'application/json',
+      body: JSON.stringify({ items: [solved,
+        { ...solved, grantId: b, completedAtUtc: '2026-11-04T10:00:00Z', rewardItemKey: null }],
+        page: 1, pageSize: 20, hasMore: false }) }));
+  await page.route('**/api/personal-content/history/outcomes*', route =>
+    route.fulfill({ headers: cors, contentType: 'application/json',
+      body: JSON.stringify({ items: [outcome,
+        { ...outcome, eventId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+          occurredAtUtc: '2026-11-04T10:00:00Z',
+          kind: 'sequence_first_mistake', rewardItemKey: null },
+        { ...outcome, eventId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+          occurredAtUtc: '2026-11-03T10:00:00Z',
+          kind: 'guardian_victory', rewardItemKey: null },
+        { ...outcome, eventId: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+          occurredAtUtc: '2026-11-02T10:00:00Z',
+          kind: 'guardian_retreat', rewardItemKey: null }],
+        page: 1, pageSize: 20, hasMore: false }) }));
+
+  await page.goto('./#/refuge/journal');
+  const metric = (name: string) => page.getByTestId('refuge-journal-overview-' + name);
+  await expect(metric('inventoryRecords')).toHaveAttribute('data-status', 'verified');
+  await expect(metric('inventoryRecords')).toContainText('2');
+  await expect(metric('availablePortals')).toContainText('1');
+  await expect(metric('runeCompletions')).toContainText('2');
+  await expect(metric('linkedRewards')).toContainText('1');
+  await expect(metric('guardianVictories')).toHaveAttribute('data-status', 'unavailable');
+  await expect(metric('guardianVictories')).toContainText('Not verified');
+  await expect(page.getByTestId('refuge-journal-overview-scope')).toContainText('2 verified completions loaded');
+
+  await page.getByTestId('refuge-journal-mode-outcomes').click();
+  await expect(metric('runeCompletions')).toHaveAttribute('data-status', 'verified');
+  await expect(metric('runeCompletions')).toContainText('1');
+  await expect(metric('firstMistakes')).toContainText('1');
+  await expect(metric('guardianVictories')).toHaveAttribute('data-status', 'verified');
+  await expect(metric('guardianVictories')).toContainText('1');
+  await expect(metric('guardianRetreats')).toContainText('1');
+  await expect(metric('linkedRewards')).toContainText('1');
+  await expect(page.getByTestId('refuge-journal-overview-scope')).toContainText('4 verified outcomes loaded');
+});
+
+test('adventure overview never turns failed owner reads into a false zero', async ({ page }) => {
+  await signIn(page);
+  let fail = true;
+  await page.route('**/api/inventory', route => fail
+    ? route.fulfill({ status: 503, headers: cors })
+    : route.fulfill({ headers: cors, contentType: 'application/json', body: '[]' }));
+  await page.route('**/api/personal-content', route =>
+    route.fulfill({ headers: cors, contentType: 'application/json', body: '[]' }));
+  await page.route('**/api/personal-content/history/completed*', route => fail
+    ? route.fulfill({ status: 503, headers: cors })
+    : route.fulfill({ headers: cors, contentType: 'application/json',
+      body: JSON.stringify({ items: [], page: 1, pageSize: 20, hasMore: false }) }));
+
+  await page.goto('./#/refuge/journal');
+  const inventory = page.getByTestId('refuge-journal-overview-inventoryRecords');
+  const portals = page.getByTestId('refuge-journal-overview-availablePortals');
+  const runes = page.getByTestId('refuge-journal-overview-runeCompletions');
+  await expect(page.getByTestId('refuge-journal-rewards-error')).toBeVisible();
+  await expect(page.getByTestId('refuge-journal-completed-error')).toBeVisible();
+  await expect(inventory).toHaveAttribute('data-status', 'unavailable');
+  await expect(inventory).toContainText('Da verificare');
+  await expect(portals).toHaveAttribute('data-status', 'verified');
+  await expect(portals).toContainText('0');
+  await expect(runes).toHaveAttribute('data-status', 'unavailable');
+
+  fail = false;
+  await page.getByTestId('refuge-journal-rewards-refresh').click();
+  await page.getByTestId('refuge-journal-completed-retry').click();
+  await expect(inventory).toHaveAttribute('data-status', 'verified');
+  await expect(inventory).toContainText('0');
+  await expect(runes).toHaveAttribute('data-status', 'verified');
+  await expect(runes).toContainText('0');
+});
+
+test('adventure overview clears account A counts while account B private reads are pending', async ({ page }) => {
+  await signIn(page, 'en');
+  let releaseB!: () => void;
+  const held = new Promise<void>(resolve => { releaseB = resolve; });
+  const isB = (authorization: string | undefined) => authorization === 'Bearer reward-owner-b';
+  await page.route('**/api/inventory', async route => {
+    const other = isB(route.request().headers()['authorization']);
+    if (other) await held;
+    await route.fulfill({ headers: cors, contentType: 'application/json',
+      body: JSON.stringify(other ? [] : [
+        { grantId: a, itemKey: 'item.grove_seed.v1', quantity: 1,
+          awardedAtUtc: '2026-11-05T10:00:00Z', consumed: false }]) }).catch(() => {});
+  });
+  await page.route('**/api/personal-content', async route => {
+    const other = isB(route.request().headers()['authorization']);
+    if (other) await held;
+    await route.fulfill({ headers: cors, contentType: 'application/json',
+      body: JSON.stringify(other ? [] : [
+        { id: a, portalKey: 'challenge.sequence.v1', contentKey: 'portal.memory.grove',
+          expiresAtUtc: null }]) }).catch(() => {});
+  });
+  await page.route('**/api/personal-content/history/completed*', async route => {
+    const other = isB(route.request().headers()['authorization']);
+    if (other) await held;
+    await route.fulfill({ headers: cors, contentType: 'application/json',
+      body: JSON.stringify({ items: other ? [] : [solved], page: 1,
+        pageSize: 20, hasMore: false }) }).catch(() => {});
+  });
+
+  await page.goto('./#/refuge/journal');
+  const metric = (name: string) => page.getByTestId('refuge-journal-overview-' + name);
+  await expect(metric('inventoryRecords')).toHaveAttribute('data-status', 'verified');
+  await expect(metric('runeCompletions')).toContainText('1');
+
+  await page.evaluate(() => {
+    localStorage.setItem('vuxo.accessToken', 'reward-owner-b');
+    localStorage.setItem('vuxo.auth.user', JSON.stringify({
+      id: 'reward-owner-b', displayName: 'Owner B', email: null,
+    }));
+    window.dispatchEvent(new Event('vuxo:session-changed'));
+  });
+  await expect(metric('inventoryRecords')).toHaveAttribute('data-status', 'unavailable');
+  await expect(metric('runeCompletions')).toHaveAttribute('data-status', 'unavailable');
+  await expect(metric('availablePortals')).toHaveAttribute('data-status', 'unavailable');
+
+  releaseB();
+  await expect(metric('inventoryRecords')).toHaveAttribute('data-status', 'verified');
+  await expect(metric('inventoryRecords')).toContainText('0');
+  await expect(metric('runeCompletions')).toHaveAttribute('data-status', 'verified');
+  await expect(metric('runeCompletions')).toContainText('0');
+  await expect(metric('availablePortals')).toContainText('0');
+});
+
+test('adventure overview updates loaded-only counts when another verified history page arrives', async ({ page }) => {
+  await signIn(page, 'it');
+  await otherSections(page);
+  await page.route('**/api/personal-content/history/completed*', route => {
+    const requested = Number(new URL(route.request().url()).searchParams.get('page'));
+    return route.fulfill({ headers: cors, contentType: 'application/json',
+      body: JSON.stringify({ items: requested === 1 ? [solved] : [
+        { ...solved, grantId: b, completedAtUtc: '2026-11-04T10:00:00Z', rewardItemKey: null }],
+        page: requested, pageSize: 20, hasMore: requested === 1 }) });
+  });
+  await page.goto('./#/refuge/journal');
+  const runeCount = page.getByTestId('refuge-journal-overview-runeCompletions');
+  await expect(runeCount).toContainText('1');
+  await expect(page.getByTestId('refuge-journal-overview-scope'))
+    .toContainText('Puoi caricare altri eventi');
+  await page.getByTestId('refuge-journal-completed-more').click();
+  await expect(runeCount).toContainText('2');
+  await expect(page.getByTestId('refuge-journal-overview-scope'))
+    .not.toContainText('Puoi caricare altri eventi');
+});
