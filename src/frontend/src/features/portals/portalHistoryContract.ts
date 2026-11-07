@@ -1,4 +1,4 @@
-import { isValidServerTimestamp } from '../contracts/serverTimestamp.ts';
+import { compareServerTimestamps, isValidServerTimestamp } from '../contracts/serverTimestamp.ts';
 
 /**
  * Runtime contract for the owner-only history endpoints. Types alone cannot
@@ -85,7 +85,7 @@ function completed(value: unknown): CompletedPortal {
   const grantedAtUtc = date(row.grantedAtUtc);
   const completedAtUtc = date(row.completedAtUtc);
   // A receipt cannot precede the server's original grant, even with differing offsets.
-  if (Date.parse(completedAtUtc) < Date.parse(grantedAtUtc)) return invalid();
+  if (compareServerTimestamps(completedAtUtc, grantedAtUtc) < 0) return invalid();
   return {
     grantId: guid(row.grantId),
     contentKey: text(row.contentKey),

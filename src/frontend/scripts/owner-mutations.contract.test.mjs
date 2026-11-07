@@ -112,3 +112,12 @@ test('heal refuses invalid dates but accepts .NET 100ns timestamps', () => {
     nextRestAtUtc: '2024-02-29T12:30:00.1234567Z',
   }, key).replayed, false);
 });
+
+test('rest receipt chronology preserves 100ns comparison precision', () => {
+  badRest({ ...rest, restedAtUtc: '2026-11-05T12:00:00.1234567Z',
+    nextRestAtUtc: '2026-11-05T12:00:00.1234566Z' });
+  assert.equal(parseCharacterRestResult({
+    ...rest, restedAtUtc: '2026-11-05T12:00:00.1234567Z',
+    nextRestAtUtc: '2026-11-05T12:00:00.1234568Z',
+  }, key).replayed, false);
+});

@@ -15,7 +15,7 @@ export function isValidServerTimestamp(value: unknown): value is string {
   const second = Number(match[6]);
   const leapYear = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
   const daysInMonth = [31, leapYear ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-  if (month < 1 || month > 12 || day < 1 || day > daysInMonth[month - 1] ||
+  if (year < 1 || month < 1 || month > 12 || day < 1 || day > daysInMonth[month - 1] ||
       hour > 23 || minute > 59 || second > 59) return false;
   const offset = match[7];
   if (offset !== 'Z') {
@@ -24,4 +24,26 @@ export function isValidServerTimestamp(value: unknown): value is string {
     if (hours > 14 || minutes > 59 || (hours === 14 && minutes !== 0)) return false;
   }
   return Number.isFinite(Date.parse(value));
+}
+\n/**
+ * Compare instants at .NET DateTimeOffset's 100 ns precision, not the
+ * millisecond precision of Date.parse. Both arguments must be valid.
+ */
+export function compareServerTimestamps(left: string, right: string): -1 | 0 | 1 {
+  if (!isValidServerTimestamp(left) || !isValidServerTimestamp(right)) {
+    throw new Error('invalid_server_timestamp');
+  }
+  const leftMs = Date.parse(left);
+  const rightMs = Date.parse(right);
+  if (leftMs !== rightMs) return leftMs < rightMs ? -1 : 1;
+
+  // Date.parse truncates fractions beyond three digits. Compare the last
+  // four 100-ns digits separately to avoid losing order within a millisecond.
+  const remainder = (value: string): number => {
+    const fraction = /\.(\d{1,7})(?:Z|[+-]\d{2}:\d{2})$/.exec(value)?.[1] ?? '';
+    return Number(fraction.padEnd(7, '0').slice(3));
+  };
+  const leftRemainder = remainder(left);
+  const rightRemainder = remainder(right);
+  return leftRemainder === rightRemainder ? 0 : leftRemainder < rightRemainder ? -1 : 1;
 }

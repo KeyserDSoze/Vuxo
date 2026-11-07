@@ -1,4 +1,4 @@
-import { isValidServerTimestamp } from './serverTimestamp.ts';
+import { compareServerTimestamps, isValidServerTimestamp } from './serverTimestamp.ts';
 
 /**
  * Client-side validation of server-authoritative HP mutations. Never compute
@@ -73,7 +73,7 @@ export function parseCharacterRestResult(raw: unknown, requestedKey: string): Ch
   const change = healthChange(value, kind);
   const restedAtUtc = date(value.restedAtUtc, kind);
   const nextRestAtUtc = date(value.nextRestAtUtc, kind);
-  if (Date.parse(nextRestAtUtc) <= Date.parse(restedAtUtc)) return invalid(kind);
+  if (compareServerTimestamps(nextRestAtUtc, restedAtUtc) <= 0) return invalid(kind);
   return {
     idempotencyKey, ...change, restedAtUtc, nextRestAtUtc,
     replayed: flag(value.replayed, kind),

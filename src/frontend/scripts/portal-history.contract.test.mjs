@@ -157,3 +157,14 @@ test('century leap-year rule rejects 1900 but accepts 2000', () => {
     ...completed, grantedAtUtc: '2000-02-29T10:00:00Z', completedAtUtc: '2000-03-01T10:00:00Z',
   }]), 1).items.length, 1);
 });
+
+test('100ns chronology rejects a completion that predates its grant inside one millisecond', () => {
+  invalid(() => parsePortalCompletionPage(response([{
+    ...completed, grantedAtUtc: '2026-11-07T10:00:00.1234567Z',
+    completedAtUtc: '2026-11-07T10:00:00.1234566Z',
+  }]), 1));
+  assert.equal(parsePortalCompletionPage(response([{
+    ...completed, grantedAtUtc: '2026-11-07T10:00:00.1234567Z',
+    completedAtUtc: '2026-11-07T10:00:00.1234568Z',
+  }]), 1).items.length, 1);
+});
