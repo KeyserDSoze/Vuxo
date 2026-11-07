@@ -3,6 +3,10 @@
  * silently roll over impossible dates. Explicit timezone and up to seven
  * fractional digits (100ns .NET precision) are supported.
  */
+function withoutFraction(value: string): string {
+  return value.replace(/\.\d{1,7}(?=Z|[+-]\d{2}:\d{2}$)/, '');
+}
+
 export function isValidServerTimestamp(value: unknown): value is string {
   if (typeof value !== 'string') return false;
   const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d{1,7})?(Z|[+-]\d{2}:\d{2})$/.exec(value);
@@ -23,7 +27,7 @@ export function isValidServerTimestamp(value: unknown): value is string {
     const minutes = Number(offset.slice(4, 6));
     if (hours > 14 || minutes > 59 || (hours === 14 && minutes !== 0)) return false;
   }
-  return Number.isFinite(Date.parse(value));
+  return Number.isFinite(Date.parse(withoutFraction(value)));
 }
 
 /**
@@ -34,15 +38,15 @@ export function compareServerTimestamps(left: string, right: string): -1 | 0 | 1
   if (!isValidServerTimestamp(left) || !isValidServerTimestamp(right)) {
     throw new Error('invalid_server_timestamp');
   }
-  const leftMs = Date.parse(left);
-  const rightMs = Date.parse(right);
+  const leftMs = Date.parse(withoutFraction(left));
+  const rightMs = Date.parse(withoutFraction(right));
   if (leftMs !== rightMs) return leftMs < rightMs ? -1 : 1;
 
-  // Date.parse truncates fractions beyond three digits. Compare the last
-  // four 100-ns digits separately to avoid losing order within a millisecond.
+  // Parse only whole seconds, then compare all seven 100-ns digits.
+  // This also avoids browser-dependent rounding of fractional seconds.
   const remainder = (value: string): number => {
     const fraction = /\.(\d{1,7})(?:Z|[+-]\d{2}:\d{2})$/.exec(value)?.[1] ?? '';
-    return Number(fraction.padEnd(7, '0').slice(3));
+    return Number(fraction.padEnd(7, '0'));
   };
   const leftRemainder = remainder(left);
   const rightRemainder = remainder(right);
