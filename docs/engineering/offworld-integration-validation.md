@@ -198,3 +198,18 @@ tsc --noEmit --strict --target ES2022 --module esnext src/features/contracts/own
 ```
 
 **Evidence:** Node 22.16.0 **16/16 PASS** (12 existing + 4 new regression tests) and isolated strict TypeScript **PASS**. Both committed Git blob SHAs match the exact locally executed files. The comprehensive React build, Chromium/Playwright, backend/.NET and real PostgreSQL integration suites have **NOT** been run for this revision. Keep issue #120 open and do not open a PR, merge or deploy while #112 remains blocked.
+
+## Gate C0h: Journal history identity and chronological receipts (#120)
+
+The pure history parser now rejects duplicate completion grant IDs and duplicate outcome event IDs under case-insensitive UUID identity, plus completed-at timestamps that precede granted-at timestamps after normalizing timezone offsets. This is an advisory UI contract only: backend audit/provenance still governs actual grants, rewards and player state. Distinct events for one grant remain allowed; an old completion without a reward must not gain a speculative reward.
+
+Run on Node.js 22+ from `src/frontend`:
+
+```bash
+node --experimental-strip-types --test scripts/portal-history.contract.test.mjs
+tsc --noEmit --strict --target ES2022 --module esnext src/features/portals/portalHistoryContract.ts
+```
+
+**Executed locally:** Node.js 22.16.0: **12/12 PASS** (8 existing + 4 new); `tsc` 5.8.3 standalone strict check **PASS**. Against the previous parser, the expanded test suite was **9 PASS / 3 FAIL**; all 12 pass after the fix. The committed blob SHAs exactly match the executed source (`1f0a69c89e5c3d671a6649ae6e3069ff4d70bf4c`) and tests (`b63ae8a87c6303e5ee326de618906ea84f18f8be`).
+
+**Pending release gate:** full frontend build, Chromium Playwright Journal flows, backend xUnit + real PostgreSQL provenance joins, and QA of the complete integration branch. These were **not executed** in this slice. Issue #120 stays In progress, #112 blocks CI and no PR/merge/deploy is allowed.
