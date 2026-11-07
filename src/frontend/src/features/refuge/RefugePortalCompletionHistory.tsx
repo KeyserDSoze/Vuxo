@@ -3,6 +3,7 @@ import { Alert, Box, Button, Chip, CircularProgress, Paper, Stack, Typography } 
 import { inventoryItemLabelKeys } from '../inventory/inventoryApi';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { readForCurrentOwner } from '../auth/ownerReadFence';
 import { fetchCompletedPortals, fetchPortalOutcomes, type CompletedPortal, type PortalOutcome } from '../portals/portalHistoryApi';
 
 /**
@@ -13,7 +14,7 @@ import { fetchCompletedPortals, fetchPortalOutcomes, type CompletedPortal, type 
 type HistoryMode = 'completed' | 'outcomes';
 type HistoryEntry = CompletedPortal | PortalOutcome;
 
-export function RefugePortalCompletionHistory() {
+export function RefugePortalCompletionHistory({ accessToken }: { accessToken: string }) {
   const { t, i18n } = useTranslation();
   const [mode, setMode] = useState<HistoryMode>('completed');
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
@@ -28,9 +29,9 @@ export function RefugePortalCompletionHistory() {
     setLoading(true);
     setError(false);
     if (page === 1) setEntries([]);
-    void (mode === 'completed'
+    void readForCurrentOwner(accessToken, () => mode === 'completed'
       ? fetchCompletedPortals(page, 20, controller.signal)
-      : fetchPortalOutcomes(page, 20, controller.signal))
+      : fetchPortalOutcomes(page, 20, controller.signal), controller.signal)
       .then(result => {
         if (controller.signal.aborted) return;
         setEntries(previous => page === 1 ? result.items : [...previous, ...result.items]);
@@ -43,7 +44,7 @@ export function RefugePortalCompletionHistory() {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [page, attempt, mode]);
+  }, [page, attempt, mode, accessToken]);
 
   const locale = i18n.resolvedLanguage?.startsWith('en') ? 'en-US' : 'it-IT';
   const formatDate = (value: string) => {

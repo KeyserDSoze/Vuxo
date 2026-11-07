@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Link as RouterLink } from 'react-router-dom';
 import { useStoredSession } from '../features/auth/useStoredSession';
 import { useOwnerFocusRefresh } from '../features/auth/useOwnerFocusRefresh';
+import { readForCurrentOwner } from '../features/auth/ownerReadFence';
 import { readStoredSession, type VuxoSession } from '../features/auth/authSession';
 import { createOwnerActionGate, type OwnerActionGate } from '../features/inventory/ownerActionGate';
 import { browseInventory, equipmentSlotFor, type InventoryBrowseFilter, type InventoryBrowseSlot, type InventoryBrowseSort } from '../features/inventory/inventoryBrowse';
@@ -82,7 +83,7 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
   useEffect(() => {
     if (!session) return;
     const controller = new AbortController();
-    void fetchPlayerInventory(controller.signal)
+    void readForCurrentOwner(session.accessToken, () => fetchPlayerInventory(controller.signal), controller.signal)
       .then(awards => { if (!controller.signal.aborted) setItems(awards); })
       .catch(reason => {
         if (!controller.signal.aborted) setError(
@@ -101,13 +102,13 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
     // Hide the previous snapshot until both owner-scoped reads succeed.
     setLoadout(null);
     setStacks([]);
-    void readConsistentEquipmentSnapshot(
+    void readForCurrentOwner(session.accessToken, () => readConsistentEquipmentSnapshot(
       () => Promise.all([
         fetchInventoryStacks(controller.signal),
         fetchEquipment(controller.signal),
       ]),
       controller.signal,
-    ).then(snapshot => {
+    ), controller.signal).then(snapshot => {
       if (controller.signal.aborted) return;
       setStacks(snapshot.stacks);
       setLoadout(snapshot.equipment);
@@ -180,7 +181,7 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
 
   const refreshAfterHealing = async (result: CharacterItemHealResult) => {
     const lease = healingLease.current;
-    if (!lease || !isCurrentAction(lease)) return;
+    if (!lease || !isCurrentAction(lease) || !session) return;
     // The server committed the heal. Until all three reads complete, hide
     // available grants *and* equipment to prevent duplicate spending.
     setHealingResult(result);
@@ -196,7 +197,7 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
     const controller = new AbortController();
     mutationControllers.current.add(controller);
     try {
-      const [awards, snapshot] = await Promise.all([
+      const [awards, snapshot] = await readForCurrentOwner(session.accessToken, () => Promise.all([
         fetchPlayerInventory(controller.signal),
         readConsistentEquipmentSnapshot(
           () => Promise.all([
@@ -205,7 +206,7 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
           ]),
           controller.signal,
         ),
-      ]);
+      ]), controller.signal);
       if (!isCurrentAction(lease) || controller.signal.aborted) return;
       setItems(awards);
       setStacks(snapshot.stacks);
@@ -265,7 +266,7 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
     action: (signal: AbortSignal) => Promise<EquipmentView>,
   ) => {
     const lease = beginOwnerAction();
-    if (!lease) return; // synchronous lease prevents double POST/DELETE
+    if (!lease || !session) return; // synchronous lease prevents double POST/DELETE
     const controller = new AbortController();
     mutationControllers.current.add(controller);
     try {
@@ -273,13 +274,13 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
       if (!isCurrentAction(lease) || controller.signal.aborted) return;
       // Another device may have changed equipment since the POST. Re-read
       // BOTH owner models; never pair the old POST result with new stacks.
-      const snapshot = await readConsistentEquipmentSnapshot(
+      const snapshot = await readForCurrentOwner(session.accessToken, () => readConsistentEquipmentSnapshot(
         () => Promise.all([
           fetchInventoryStacks(controller.signal),
           fetchEquipment(controller.signal),
         ]),
         controller.signal,
-      );
+      ), controller.signal);
       if (!isCurrentAction(lease) || controller.signal.aborted) return;
       setLoadout(snapshot.equipment);
       setStacks(snapshot.stacks);

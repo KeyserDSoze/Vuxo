@@ -8,6 +8,7 @@ import { useTranslation } from 'react-i18next';
 import { Link as RouterLink } from 'react-router-dom';
 import type { VuxoSession } from '../features/auth/authSession';
 import { useStoredSession } from '../features/auth/useStoredSession';
+import { readForCurrentOwner } from '../features/auth/ownerReadFence';
 import { RefugePortalCompletionHistory } from '../features/refuge/RefugePortalCompletionHistory';
 import {
   fetchPlayerInventory, inventoryItemLabelKeys, type InventoryAward,
@@ -44,7 +45,7 @@ function RefugeJournalSession({ session }: { session: VuxoSession | null }) {
     const controller = new AbortController();
     setRewards(null);
     setRewardError(false);
-    void fetchPlayerInventory(controller.signal)
+    void readForCurrentOwner(session.accessToken, () => fetchPlayerInventory(controller.signal), controller.signal)
       .then(value => {
         if (!controller.signal.aborted) setRewards(value);
       })
@@ -59,7 +60,7 @@ function RefugeJournalSession({ session }: { session: VuxoSession | null }) {
     const controller = new AbortController();
     setPortals(null);
     setPortalError(false);
-    void fetchPortalGrants(controller.signal)
+    void readForCurrentOwner(session.accessToken, () => fetchPortalGrants(controller.signal), controller.signal)
       .then(value => {
         if (!controller.signal.aborted) setPortals(value);
       })
@@ -302,7 +303,7 @@ function RefugeJournalSession({ session }: { session: VuxoSession | null }) {
               )}
             </Stack>
           </Paper>
-          <RefugePortalCompletionHistory key={session.accessToken + ':' + historyRevision} />
+          <RefugePortalCompletionHistory key={session.accessToken + ':' + historyRevision} accessToken={session.accessToken} />
           <Alert severity="info" data-testid="refuge-journal-limits">
             {t('refuge.journal.disclaimer')}
           </Alert>
