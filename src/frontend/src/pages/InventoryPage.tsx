@@ -103,10 +103,10 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
     setLoadout(null);
     setStacks([]);
     void readForCurrentOwner(session.accessToken, () => readConsistentEquipmentSnapshot(
-      () => Promise.all([
+      () => readForCurrentOwner(session.accessToken, () => Promise.all([
         fetchInventoryStacks(controller.signal),
         fetchEquipment(controller.signal),
-      ]),
+      ]), controller.signal),
       controller.signal,
     ), controller.signal).then(snapshot => {
       if (controller.signal.aborted) return;
@@ -200,10 +200,10 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
       const [awards, snapshot] = await readForCurrentOwner(session.accessToken, () => Promise.all([
         fetchPlayerInventory(controller.signal),
         readConsistentEquipmentSnapshot(
-          () => Promise.all([
+          () => readForCurrentOwner(session.accessToken, () => Promise.all([
             fetchInventoryStacks(controller.signal),
             fetchEquipment(controller.signal),
-          ]),
+          ]), controller.signal),
           controller.signal,
         ),
       ]), controller.signal);
@@ -275,10 +275,10 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
       // Another device may have changed equipment since the POST. Re-read
       // BOTH owner models; never pair the old POST result with new stacks.
       const snapshot = await readForCurrentOwner(session.accessToken, () => readConsistentEquipmentSnapshot(
-        () => Promise.all([
+        () => readForCurrentOwner(session.accessToken, () => Promise.all([
           fetchInventoryStacks(controller.signal),
           fetchEquipment(controller.signal),
-        ]),
+        ]), controller.signal),
         controller.signal,
       ), controller.signal);
       if (!isCurrentAction(lease) || controller.signal.aborted) return;

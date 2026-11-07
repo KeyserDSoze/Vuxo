@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { isCurrentOwnerRead, readForCurrentOwner } from '../src/features/auth/ownerReadFence.ts';
+import { readConsistentEquipmentSnapshot } from '../src/features/inventory/inventorySnapshotConsistency.ts';
 
 const data = new Map();
 globalThis.window = { dispatchEvent() {} };
@@ -80,4 +81,17 @@ test('a rejected request retains its original transport failure for the active o
   await assert.rejects(readForCurrentOwner('owner-a', async () => {
     throw new Error('inventory_unavailable');
   }), { message: 'inventory_unavailable' });
+});
+test('inconsistent owner-A equipment snapshot cannot retry as owner B', async () => {
+  session('owner-a');
+  let reads = 0;
+  const attempt = () => readForCurrentOwner('owner-a', async () => {
+    reads++;
+    session('owner-b'); // A different device/login changes the session between attempts.
+    return [[{ itemKey: 'item.rune_shard.v1', quantity: 1,
+      equippedQuantity: 1, availableGrantIds: [] }], { items: [] }];
+  });
+  await assert.rejects(readForCurrentOwner('owner-a', () =>
+    readConsistentEquipmentSnapshot(attempt)), { message: 'owner_read_session_changed' });
+  assert.equal(reads, 1); // The second GET pair must never use owner B's token.
 });
