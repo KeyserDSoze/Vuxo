@@ -227,3 +227,20 @@ npm run test:contracts
 ```
 
 **Actually run in isolated local environment:** the repaired specific suite on Node 22.16.0: **13/13 PASS** (11 original + 2 added), and TypeScript 5.8.3 standalone strict compile: **PASS**. Original file with its broken import was executed first and yielded `ERR_MODULE_NOT_FOUND` with 0 tests. GitHub source/test blobs (`924e6a8276ca15b3921ac7b46fd7e3a8f29fc212`, `ad7299e6079697256084766a76eccd0f910f21c6`) match the files actually executed after correction. The **aggregate** `npm run test:contracts` command, full React build, browser Playwright and real backend/PostgreSQL checks are **not yet executed** and remain release gates. No PR/merge/deploy while #112 is blocked.
+
+## Gate C0j: strict calendar timestamps in portal history (#120)
+
+Node's built-in `Date.parse` can normalize malformed ISO calendar values (e.g. `2026-02-31T10:00:00Z` into a date in March). The Journal parser now validates day/month/leap-year, clock ranges, explicit Z/offset (`±14:00` maximum), and up to seven fractional digits used by .NET `DateTimeOffset`. Confirm valid leap days and offset-equivalent timestamps still parse, while malformed receipts fail closed. This remains an **advisory client contract**, not proof of reward provenance or backend audit integrity.
+
+From `src/frontend`:
+
+```bash
+node --experimental-strip-types --test scripts/portal-history.contract.test.mjs
+tsc --noEmit --strict --target ES2022 --module esnext src/features/portals/portalHistoryContract.ts
+# Required later, with the complete repository checkout:
+npm run test:contracts
+npm run build
+npm run test:e2e
+```
+
+**Executed locally:** exact Git blobs for history source `2c0922c0ad02228da94b8adee4e88692a3cd4f76` and tests `e194514b08b921f45a06f7d50d2390c841e9be01` passed **16/16** Node 22.16.0; the historical owner-mutation suite also passed **13/13** in the same Node invocation (**29/29 total**), with strict TypeScript 5.8.3 for both modules passing. Only **two** of the repository's contract suites were available together in the isolated local verification directory. The actual aggregate `npm run test:contracts` on all repository scripts, full React build, Chromium Playwright and backend/PostgreSQL checks **have not run**; do not claim release readiness. No GitHub Actions/PR/merge/deploy while #112 remains blocked.
