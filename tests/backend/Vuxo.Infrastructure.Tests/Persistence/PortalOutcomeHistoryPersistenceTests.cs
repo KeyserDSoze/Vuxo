@@ -152,7 +152,8 @@ public sealed class PortalOutcomeHistoryPersistenceTests
     {
         await using var database = await PostgresDatabaseScope.CreateAsync();
         var grant = await SeedAsync(database);
-        var now = DateTimeOffset.UtcNow.AddTicks(-(DateTimeOffset.UtcNow.Ticks % 10));
+        var now = DateTimeOffset.UtcNow;
+        now = now.AddTicks(-(now.Ticks % 10));
 
         await using (var db = database.CreateDbContext())
         {

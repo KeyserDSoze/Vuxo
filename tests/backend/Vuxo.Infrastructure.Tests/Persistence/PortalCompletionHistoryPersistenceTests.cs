@@ -112,7 +112,8 @@ public sealed class PortalCompletionHistoryPersistenceTests
     public async Task CursorHistory_NewerDeviceCompletionDoesNotDuplicateFirstPage()
     {
         await using var database = await PostgresDatabaseScope.CreateAsync();
-        var now = DateTimeOffset.UtcNow.AddTicks(-(DateTimeOffset.UtcNow.Ticks % 10));
+        var now = DateTimeOffset.UtcNow;
+        now = now.AddTicks(-(now.Ticks % 10));
         var older = NewGrant("player-a", now, PortalSequenceRules.PortalKey);
         var previousHead = NewGrant("player-a", now, PortalSequenceRules.PortalKey);
         var newHead = NewGrant("player-a", now, PortalSequenceRules.PortalKey);
