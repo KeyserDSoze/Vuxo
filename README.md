@@ -38,7 +38,7 @@ node scripts/verify-offworld-local.mjs --contracts
 node scripts/verify-offworld-local.mjs --run
 ```
 
-Il comando verifica i report .NET e **fallisce se i test sono saltati**, non stampa connection string e non effettua deploy. Il database PostgreSQL deve essere dedicato ai test e configurato con `VUXO_TEST_POSTGRES_CONNECTION_STRING`; **non usare l'istanza di produzione**. Guida: [Collaudo off-world offline](docs/engineering/offworld-local-qa.md). Il collaudo completo è ancora in sospeso finché mancano runtime e PostgreSQL; lo sviluppo resta sul branch di integrazione #120.
+Il comando verifica i report **.NET TRX e Playwright JSON** e fallisce se i test non sono stati eseguiti, sono saltati, instabili o falliti. Per il percorso completo servono `VUXO_TEST_POSTGRES_CONNECTION_STRING` e una conferma separata `VUXO_TEST_POSTGRES_ACK=disposable`, impostata **solo dopo aver verificato personalmente che il server sia di test** (non garantisce automaticamente che il cluster sia isolato). Il runner non stampa la connection string; anche i log di errori dei tool esterni vanno trattati come sensibili. Nessun deploy. Guida: [Collaudo off-world offline](docs/engineering/offworld-local-qa.md). Il collaudo completo è ancora in sospeso finché mancano runtime e PostgreSQL; lo sviluppo resta sul branch di integrazione #120.
 
 ## Versione e patch note
 
