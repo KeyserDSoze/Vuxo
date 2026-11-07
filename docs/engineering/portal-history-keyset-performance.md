@@ -56,3 +56,17 @@ npx playwright test tests/refuge-linked-rewards.spec.ts tests/refuge-completion-
 Keyset continuation gives stable traversal past **newly inserted head events** and avoids scanning a growing numeric offset. It does **not** freeze the complete query in a PostgreSQL MVCC snapshot across HTTP requests: a late backdated insert under the bookmark, or deletion/correction of older audit evidence, can still affect later pages. The frontend keeps its fail-closed 100ns chronology and UUID-tie checks. Do not claim transactional snapshot consistency or continuous live synchronization.
 
 **Release decision:** block merge/deploy until SQL translation, exact-timestamp PostgreSQL tests, query-plan review, full React build and Playwright browser tests have actual passing evidence. #120 stays open and GitHub Actions #112 remains a blocker.
+
+
+## Executed-SQL gate added (QA C0t; tests not yet run)
+
+Two PostgreSQL integration tests now intercept **real executed SQL** using a scoped `DbCommandInterceptor`, without saving parameter values. They compare the keyset call (`page=2&cursor=...`) against the legacy numeric call (`page=2`): both must be bounded with `LIMIT` and ordered, the seek query must have `<` and **no OFFSET**, and the legacy query must still have `OFFSET`. The completion test checks the audited grant JOIN, and the outcome test checks the three-family UNION sources. This is stronger than inspecting source or `ToQueryString()` alone, but it **has not run** without .NET 10 and PostgreSQL. Concurrent new-head tests now capture UTC once before microsecond rounding.
+
+Set `VUXO_TEST_POSTGRES_CONNECTION_STRING` to a **dedicated test PostgreSQL admin connection** that can create/drop temporary `vuxo_it_...` databases; do not pass production credentials. To run just the SQL contract tests:
+
+```bash
+dotnet test tests/backend/Vuxo.Infrastructure.Tests/Vuxo.Infrastructure.Tests.csproj -c Release \
+  --filter 'FullyQualifiedName~CompletionKeyset_ExecutedSqlSeeksWithoutOffset|FullyQualifiedName~OutcomeKeyset_ExecutedUnionSqlSeeksWithoutOffset'
+```
+
+The branch's existing `PostgresDatabaseScope` creates an isolated database and drops it on completion. Capture PostgreSQL version, provider version, generated SQL operator/ordering (without sensitive parameters), test pass/fail, and `EXPLAIN (ANALYZE, BUFFERS)` evidence in issue #120. Avoid benchmark claims or new indexes until this gate passes.
