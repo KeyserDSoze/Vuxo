@@ -42,3 +42,11 @@ test('comparison rejects invalid timestamps and the .NET-invalid year zero', () 
   assert.throws(() => compareServerTimestamps('2026-02-31T10:00:00Z',
     '2026-11-07T10:00:00Z'), { message: 'invalid_server_timestamp' });
 });
+test('comparison preserves fractional ticks across seconds and fraction widths', () => {
+  assert.equal(compareServerTimestamps('2026-11-07T10:00:00.9999999Z',
+    '2026-11-07T10:00:01.0000001Z'), -1);
+  assert.equal(compareServerTimestamps('2026-11-07T10:00:00.123Z',
+    '2026-11-07T10:00:00.1230000Z'), 0);
+  assert.equal(compareServerTimestamps('2026-11-07T10:00:00.1230001Z',
+    '2026-11-07T10:00:00.123Z'), 1);
+});
