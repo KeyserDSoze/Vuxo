@@ -1,3 +1,5 @@
+import { isValidServerTimestamp } from '../contracts/serverTimestamp.ts';
+
 /**
  * Runtime contract for the owner-only history endpoints. Types alone cannot
  * protect a browser from malformed JSON returned by an outdated API or proxy.
@@ -70,27 +72,7 @@ function guid(value: unknown): string {
 
 function date(value: unknown): string {
   const stringValue = text(value);
-  // Date.parse normalizes impossible dates (e.g. February 31 -> March 3).
-  // Check the civil calendar first; accept .NET DateTimeOffset precision (up to 7 decimals).
-  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d{1,7})?(Z|[+-]\d{2}:\d{2})$/.exec(stringValue);
-  if (!match) return invalid();
-  const [, yearText, monthText, dayText, hourText, minuteText, secondText, offset] = match;
-  const year = Number(yearText);
-  const month = Number(monthText);
-  const day = Number(dayText);
-  const hour = Number(hourText);
-  const minute = Number(minuteText);
-  const second = Number(secondText);
-  const leapYear = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
-  const daysInMonth = [31, leapYear ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-  if (month < 1 || month > 12 || day < 1 || day > daysInMonth[month - 1] ||
-      hour > 23 || minute > 59 || second > 59) return invalid();
-  if (offset !== 'Z') {
-    const offsetHours = Number(offset.slice(1, 3));
-    const offsetMinutes = Number(offset.slice(4, 6));
-    if (offsetHours > 14 || offsetMinutes > 59 || (offsetHours === 14 && offsetMinutes !== 0)) return invalid();
-  }
-  if (!Number.isFinite(Date.parse(stringValue))) return invalid();
+  if (!isValidServerTimestamp(stringValue)) return invalid();
   return stringValue;
 }
 

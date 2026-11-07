@@ -1,3 +1,5 @@
+import { isValidServerTimestamp } from './serverTimestamp.ts';
+
 /**
  * Client-side validation of server-authoritative HP mutations. Never compute
  * healing amounts or grant outcomes in the browser. A malformed successful
@@ -38,8 +40,7 @@ function guid(value: unknown, kind: 'rest' | 'heal'): string {
   return value;
 }
 function date(value: unknown, kind: 'rest' | 'heal'): string {
-  if (typeof value !== 'string' || !/^\d{4}-\d\d-\d\dT/.test(value) ||
-      !Number.isFinite(Date.parse(value))) return invalid(kind);
+  if (!isValidServerTimestamp(value)) return invalid(kind);
   return value;
 }
 function whole(value: unknown, kind: 'rest' | 'heal', minimum = 0): number {

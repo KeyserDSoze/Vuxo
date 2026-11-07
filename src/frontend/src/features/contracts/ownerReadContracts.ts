@@ -1,3 +1,5 @@
+import { isValidServerTimestamp } from './serverTimestamp.ts';
+
 /**
  * Runtime checks for owner-scoped read models. These guards are advisory UI
  * safety nets: the server alone grants items, changes HP or resolves combat.
@@ -51,7 +53,7 @@ function guid(value: unknown, code: string): string {
 }
 function date(value: unknown, code: string): string {
   const result = text(value, code);
-  if (!Number.isFinite(Date.parse(result))) return bad(code);
+  if (!isValidServerTimestamp(result)) return bad(code);
   return result;
 }
 function integer(value: unknown, code: string, minimum = 0): number {
