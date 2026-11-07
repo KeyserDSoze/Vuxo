@@ -13,6 +13,9 @@ function fixture(callback) {
   try {
     mkdirSync(join(temp, 'scripts'), { recursive: true });
     cpSync(source, join(temp, 'scripts', 'verify-offworld-local.mjs'));
+    for (const helper of ['offworld-trx.mjs', 'offworld-playwright.mjs'])
+      cpSync(fileURLToPath(new URL('./' + helper, import.meta.url)),
+        join(temp, 'scripts', helper));
     const cli = join(temp, 'scripts', 'verify-offworld-local.mjs');
     return callback({ temp, cli });
   } finally {
@@ -89,6 +92,30 @@ test('full local gate refuses to run when prerequisite checks fail', () =>
     assert.equal(result.status, 1);
     assert.match(result.stderr, /Preflight failed; no tests were started/);
     assert.doesNotMatch(result.stdout + result.stderr, /LOCAL OFF-WORLD GATE PASS/);
+  }));
+
+test('a configured database still requires an explicit disposable-cluster acknowledgement', () =>
+  fixture(({ cli }) => {
+    const result = execute(cli, ['--check'], { env: {
+      VUXO_TEST_POSTGRES_CONNECTION_STRING: 'Host=localhost;Password=DO_NOT_LEAK',
+      VUXO_TEST_POSTGRES_ACK: '',
+    }});
+    assert.equal(result.status, 2);
+    assert.match(result.stdout, /READY\s+Test PostgreSQL connection configured/);
+    assert.match(result.stdout, /MISSING\s+Disposable PostgreSQL cluster explicitly acknowledged/);
+    assert.doesNotMatch(result.stdout + result.stderr, /DO_NOT_LEAK/);
+  }));
+
+test('preflight accepts disposable confirmation but still rejects missing .NET and frontend tools', () =>
+  fixture(({ cli }) => {
+    const result = execute(cli, ['--check'], { env: {
+      VUXO_TEST_POSTGRES_CONNECTION_STRING: 'Host=localhost;Password=DO_NOT_LEAK',
+      VUXO_TEST_POSTGRES_ACK: 'disposable',
+    }});
+    assert.equal(result.status, 2);
+    assert.match(result.stdout, /READY\s+Disposable PostgreSQL cluster explicitly acknowledged/);
+    assert.doesNotMatch(result.stdout + result.stderr, /DO_NOT_LEAK/);
+    assert.doesNotMatch(result.stdout, /Preflight passed/);
   }));
 
 test('invalid options fail explicitly without dispatching a task', () =>

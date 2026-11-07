@@ -9,6 +9,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { verifyPassedTrx } from './offworld-trx.mjs';
+import { verifyPassedPlaywrightReport } from './offworld-playwright.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const frontend = join(root, 'src', 'frontend');
@@ -31,11 +33,13 @@ const browserTests = [
 const isWindows = process.platform === 'win32';
 const npm = isWindows ? 'npm.cmd' : 'npm';
 const npx = isWindows ? 'npx.cmd' : 'npx';
+const postgresAck = 'VUXO_TEST_POSTGRES_ACK';
+const requiredAck = 'disposable';
 
 function probe(cmd, args) {
   const result = spawnSync(cmd, args, {
     cwd: root, encoding: 'utf8', timeout: 10000, windowsHide: true,
-    shell: isWindows,
+    shell: isWindows && (cmd === npm || cmd === npx),
   });
   return result.status === 0 ? (result.stdout ?? '').trim() : null;
 }
@@ -50,6 +54,9 @@ function prerequisites() {
     ['Frontend dependencies installed', existsSync(join(frontend, 'node_modules', 'typescript'))],
     ['Playwright package installed', existsSync(join(frontend, 'node_modules', '@playwright', 'test'))],
     ['Test PostgreSQL connection configured', Boolean(process.env.VUXO_TEST_POSTGRES_CONNECTION_STRING?.trim())],
+    ['Disposable PostgreSQL cluster explicitly acknowledged',
+      process.env[postgresAck] === requiredAck],
+    ['Vuxo solution checked out', existsSync(join(root, 'Vuxo.sln'))],
     ['Vuxo backend projects checked out', [application, api, infrastructure]
       .every(p => existsSync(join(root, p)))],
     ['Focused contract files checked out', focused.every(p => existsSync(join(root, p)))],
@@ -65,16 +72,18 @@ function check() {
   if (missing.length) {
     process.stderr.write(`Off-world gate blocked: ${missing.length} prerequisite(s) missing.\n`);
     process.stderr.write('Use a dedicated NONPRODUCTION PostgreSQL server. ' +
-      'Connection strings and secret values are never printed.\n');
+      'Set ' + postgresAck + '=' + requiredAck + ' only after verifying the cluster.\n');
+    process.stderr.write('The runner does not echo secrets, but tool error logs may still contain them.\n');
   } else {
     process.stdout.write('Preflight passed. Chromium browser presence is verified by Playwright during --run.\n');
   }
   return missing.length === 0;
 }
 
-function run(cmd, args, cwd = root) {
+function run(cmd, args, cwd = root, env = process.env) {
   process.stdout.write(`\n# ${cmd} ${args.join(' ')}\n`);
-  const result = spawnSync(cmd, args, { cwd, stdio: 'inherit', shell: isWindows });
+  const result = spawnSync(cmd, args, { cwd, stdio: 'inherit',
+    shell: isWindows && (cmd === npm || cmd === npx), env });
   if (result.error || result.status !== 0)
     throw new Error(`${cmd} exited with ${result.status ?? String(result.error)}; release gate FAILED`);
 }
@@ -89,18 +98,7 @@ function contracts() {
 
 function assertTrxPassed(resultFile) {
   if (!existsSync(resultFile)) throw new Error(`Missing .NET TRX test report: ${resultFile}`);
-  const report = readFileSync(resultFile, 'utf8');
-  const counters = /<Counters\b([^>]*)\/?>/i.exec(report)?.[1];
-  if (!counters) throw new Error(`No test counters in ${resultFile}`);
-  const attributes = Object.fromEntries([...counters.matchAll(/([A-Za-z]+)="(\d+)"/g)]
-    .map(([, key, value]) => [key.toLowerCase(), Number(value)]));
-  const { total, passed, failed, executed, notexecuted } = attributes;
-  // dotnet test may exit 0 when xUnit silently skips integration cases.
-  // No success is allowed without all selected cases actually passing.
-  if (!Number.isInteger(total) || total < 1 || passed !== total ||
-      executed !== total || failed !== 0 || (notexecuted ?? 0) !== 0)
-    throw new Error(`Incomplete .NET gate ${resultFile}: total=${total}, ` +
-      `passed=${passed}, executed=${executed}, failed=${failed}, notExecuted=${notexecuted}`);
+  const { total, passed } = verifyPassedTrx(readFileSync(resultFile, 'utf8'), resultFile);
   process.stdout.write(`Verified TRX: ${passed}/${total} tests executed and passed.\n`);
 }
 
@@ -117,6 +115,8 @@ function all() {
   // PostgreSQL connection variable was missing: it is mandatory above.
   const resultDir = mkdtempSync(join(tmpdir(), 'vuxo-offworld-'));
   try {
+    run(process.execPath, ['--test', 'scripts/verify-offworld-local.test.mjs',
+      'scripts/offworld-trx.test.mjs', 'scripts/offworld-playwright.test.mjs']);
     contracts();
     run('dotnet', ['restore', 'Vuxo.sln']);
     run('dotnet', ['build', 'Vuxo.sln', '-c', 'Release', '--no-restore']);
@@ -128,7 +128,12 @@ function all() {
     backendTest(infrastructure, 'PortalGuardianPersistenceTests', 'guardian-db.trx', resultDir);
     run(npm, ['run', 'test:contracts'], frontend);
     run(npm, ['run', 'build'], frontend);
-    run(npx, ['--no-install', 'playwright', 'test', ...browserTests], frontend);
+    const browserReport = join(resultDir, 'playwright-report.json');
+    run(npx, ['--no-install', 'playwright', 'test', '--reporter=json', ...browserTests],
+      frontend, { ...process.env, PLAYWRIGHT_JSON_OUTPUT_FILE: browserReport });
+    if (!existsSync(browserReport)) throw new Error('Missing Playwright JSON report');
+    const { passed } = verifyPassedPlaywrightReport(readFileSync(browserReport, 'utf8'), browserReport);
+    process.stdout.write(`Verified Playwright: ${passed} browser tests passed without skips.\n`);
     process.stdout.write('\nLOCAL OFF-WORLD GATE PASS: all selected suites completed.\n');
   } finally {
     // TRX artifacts contain local test metadata; do not leave traces around.
@@ -140,8 +145,10 @@ const usage = `VUXO off-world local QA (no CI, deployment or Docker)\n\n` +
   `  node scripts/verify-offworld-local.mjs --check       Check local prerequisites\n` +
   `  node scripts/verify-offworld-local.mjs --contracts   Run Node contracts only\n` +
   `  node scripts/verify-offworld-local.mjs --run         Run .NET, PostgreSQL, React and browser gates\n` +
-  `\nFor --run, set VUXO_TEST_POSTGRES_CONNECTION_STRING to a disposable TEST PostgreSQL server.\n` +
-  `No connection strings are printed. Real Chromium installation is required for Playwright.\n`;
+  `\nFor --run, configure VUXO_TEST_POSTGRES_CONNECTION_STRING with a dedicated TEST cluster,\n` +
+  `then explicitly set VUXO_TEST_POSTGRES_ACK=disposable after verifying it is NOT production.\n` +
+  `The launcher never echoes credentials; tool errors can still contain sensitive details.\n` +
+  `Real Chromium installation is required for Playwright.\n`;
 
 try {
   const mode = process.argv[2] ?? '--check';
