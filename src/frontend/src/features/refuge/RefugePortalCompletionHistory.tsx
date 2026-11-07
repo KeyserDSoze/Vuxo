@@ -8,6 +8,7 @@ import { readForCurrentOwner } from '../auth/ownerReadFence';
 import { appendPortalHistoryPage, type HistoryEntry, type HistoryMode } from './portalHistoryPageMerge';
 import { createPortalHistoryNavigationGate } from './portalHistoryNavigationGate';
 import { filterPortalHistoryEntries, type PortalHistoryViewFilter } from './portalHistoryView';
+import { summarizeAdventureHistory, type AdventureHistorySnapshot } from './refugeAdventureOverview';
 import { fetchCompletedPortals, fetchPortalOutcomes,
   type PortalCompletionPage, type PortalOutcomePage } from '../portals/portalHistoryApi';
 
@@ -16,7 +17,12 @@ import { fetchCompletedPortals, fetchPortalOutcomes,
  * The parent remounts this component on refresh/account change so no owner
  * data or older pagination pages leak into a new read snapshot.
  */
- export function RefugePortalCompletionHistory({ accessToken }: { accessToken: string }) {
+export function RefugePortalCompletionHistory({
+  accessToken, onSnapshotChange,
+}: {
+  accessToken: string;
+  onSnapshotChange: (snapshot: AdventureHistorySnapshot | null) => void;
+}) {
   const { t, i18n } = useTranslation();
   const [mode, setMode] = useState<HistoryMode>('completed');
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
@@ -49,6 +55,7 @@ import { fetchCompletedPortals, fetchPortalOutcomes,
       acceptedEntries.current = [];
       nextCursor.current = null;
       setEntries([]);
+      onSnapshotChange(null);
     }
     const after = page > 1 ? nextCursor.current ?? undefined : undefined;
     void readForCurrentOwner<PortalCompletionPage | PortalOutcomePage>(accessToken, () => mode === 'completed'
@@ -64,6 +71,9 @@ import { fetchCompletedPortals, fetchPortalOutcomes,
         nextCursor.current = result.nextCursor ?? null;
         setEntries(next);
         setHasMore(result.hasMore);
+        // The snapshot follows only pages that passed the owner/chronology
+        // contract; never count a failed, duplicate or speculative receipt.
+        onSnapshotChange(summarizeAdventureHistory(next, mode, result.hasMore));
       })
       .catch(() => {
         if (controller.signal.aborted) return;
@@ -73,13 +83,14 @@ import { fetchCompletedPortals, fetchPortalOutcomes,
         nextCursor.current = null;
         setEntries([]);
         setHasMore(false);
+        onSnapshotChange(null);
         setError(true);
       })
       .finally(() => {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [page, attempt, mode, accessToken]);
+  }, [page, attempt, mode, accessToken, onSnapshotChange]);
 
   const locale = i18n.resolvedLanguage?.startsWith('en') ? 'en-US' : 'it-IT';
   const formatDate = (value: string) => {
@@ -90,6 +101,7 @@ import { fetchCompletedPortals, fetchPortalOutcomes,
   };
 
   function refresh() {
+    onSnapshotChange(null);
     navigationGate.current.reset();
     acceptedEntries.current = [];
     nextCursor.current = null;
@@ -102,6 +114,7 @@ import { fetchCompletedPortals, fetchPortalOutcomes,
 
   function chooseMode(nextMode: HistoryMode) {
     if (nextMode === mode) return;
+    onSnapshotChange(null);
     navigationGate.current.reset();
     acceptedEntries.current = [];
     nextCursor.current = null;

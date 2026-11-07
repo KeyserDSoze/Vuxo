@@ -167,6 +167,27 @@ const initialization = i18n.use(initReactI18next).init({
             refreshAll: 'Aggiorna tutto',
             retry: 'Aggiorna',
             dateUnavailable: 'Data non disponibile',
+            overview: {
+              title: 'La tua avventura in breve',
+              description: 'Un riepilogo dei dati ricevuti e verificati dal server per il tuo personaggio.',
+              unavailable: 'Da verificare',
+              metrics: {
+                inventoryRecords: 'Oggetti assegnati (registrazioni)',
+                availablePortals: 'Portali disponibili ora',
+                runeCompletions: 'Rune completate (caricate)',
+                firstMistakes: 'Primi errori (caricati)',
+                guardianVictories: 'Vittorie Guardiano (caricate)',
+                guardianRetreats: 'Ritirate Guardiano (caricate)',
+                linkedRewards: 'Premi verificati nei completamenti'
+              },
+              scope: {
+                completed: '{{loaded}} completamenti verificati caricati. Per i Guardiani e gli errori consulta «Tutti gli esiti verificati».',
+                outcomes: '{{loaded}} esiti verificati caricati dallo storico personale.'
+              },
+              historyUnavailable: 'Lo storico non è ancora disponibile: i relativi valori restano da verificare.',
+              moreAvailable: 'Puoi caricare altri eventi.',
+              disclaimer: 'I conteggi della cronologia riguardano solo le pagine caricate, non la tua intera avventura. Un valore da verificare non significa zero. Oggetti disponibili e ricompense verificate sono dati distinti.'
+            },
             browse: {
               title: 'Esplora gli eventi caricati',
               filterLabel: 'Tipo di evento',
@@ -777,6 +798,27 @@ const initialization = i18n.use(initReactI18next).init({
             refreshAll: 'Refresh all',
             retry: 'Refresh',
             dateUnavailable: 'Date unavailable',
+            overview: {
+              title: 'Your adventure at a glance',
+              description: 'A summary of server-confirmed data for your character.',
+              unavailable: 'Not verified',
+              metrics: {
+                inventoryRecords: 'Award records',
+                availablePortals: 'Portals available now',
+                runeCompletions: 'Completed runes (loaded)',
+                firstMistakes: 'First mistakes (loaded)',
+                guardianVictories: 'Guardian victories (loaded)',
+                guardianRetreats: 'Guardian retreats (loaded)',
+                linkedRewards: 'Verified completion rewards'
+              },
+              scope: {
+                completed: '{{loaded}} verified completions loaded. Select All verified outcomes to review Guardians and mistakes.',
+                outcomes: '{{loaded}} verified outcomes loaded from your private history.'
+              },
+              historyUnavailable: 'History is not available yet: its metrics remain unverified.',
+              moreAvailable: 'You can load more events.',
+              disclaimer: 'History counts cover loaded pages only, not your entire adventure. Unverified does not mean zero. Available items and verified completion rewards are separate records.'
+            },
             browse: {
               title: 'Explore loaded events',
               filterLabel: 'Event type',

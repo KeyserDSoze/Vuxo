@@ -11,6 +11,8 @@ import { useStoredSession } from '../features/auth/useStoredSession';
 import { useOwnerFocusRefresh } from '../features/auth/useOwnerFocusRefresh';
 import { readForCurrentOwner } from '../features/auth/ownerReadFence';
 import { RefugePortalCompletionHistory } from '../features/refuge/RefugePortalCompletionHistory';
+import { RefugeAdventureOverview } from '../features/refuge/RefugeAdventureOverview';
+import type { AdventureHistorySnapshot } from '../features/refuge/refugeAdventureOverview';
 import {
   fetchPlayerInventory, inventoryItemLabelKeys, type InventoryAward,
 } from '../features/inventory/inventoryApi';
@@ -40,6 +42,9 @@ function RefugeJournalSession({ session }: { session: VuxoSession | null }) {
   const [portalRevision, setPortalRevision] = useState(0);
   const [filter, setFilter] = useState<JournalRewardFilter>('all');
   const [historyRevision, setHistoryRevision] = useState(0);
+  // The audit child sends only committed owner-read counts. A missing snapshot
+  // must never be rendered as zero or as another owner's past progress.
+  const [historySnapshot, setHistorySnapshot] = useState<AdventureHistorySnapshot | null>(null);
 
   useEffect(() => {
     if (!session) return;
@@ -99,6 +104,7 @@ function RefugeJournalSession({ session }: { session: VuxoSession | null }) {
   const refreshAll = () => {
     refreshRewards();
     refreshPortals();
+    setHistorySnapshot(null);
     setHistoryRevision(value => value + 1);
   };
 
@@ -141,6 +147,11 @@ function RefugeJournalSession({ session }: { session: VuxoSession | null }) {
 
       {session && (
         <>
+          <RefugeAdventureOverview
+            inventory={rewardError ? null : rewards}
+            portals={portalError ? null : portals}
+            history={historySnapshot}
+          />
           <Paper component="section" variant="outlined" aria-labelledby="refuge-journal-rewards-title"
             data-testid="refuge-journal-rewards" sx={{ p: { xs: 2, sm: 3 } }}>
             <Stack spacing={2}>
@@ -313,7 +324,8 @@ function RefugeJournalSession({ session }: { session: VuxoSession | null }) {
               )}
             </Stack>
           </Paper>
-          <RefugePortalCompletionHistory key={session.accessToken + ':' + historyRevision} accessToken={session.accessToken} />
+          <RefugePortalCompletionHistory key={session.accessToken + ':' + historyRevision}
+            accessToken={session.accessToken} onSnapshotChange={setHistorySnapshot} />
           <Alert severity="info" data-testid="refuge-journal-limits">
             {t('refuge.journal.disclaimer')}
           </Alert>
