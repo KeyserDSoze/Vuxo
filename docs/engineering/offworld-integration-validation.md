@@ -544,3 +544,29 @@ For operational setup and expected exit codes see `docs/engineering/offworld-loc
 **Fix:** `scripts/verify-offworld-local.mjs` now requires separate `VUXO_TEST_POSTGRES_ACK=disposable` in its preflight, additionally checks `Vuxo.sln` and only uses a Windows command shell for npm/npx CMD launchers. It runs the runner's own test files in `--run`. Pure `scripts/offworld-trx.mjs` and `scripts/offworld-playwright.mjs` validators parse the actual test reports, enforce at least one executed passing test, and reject skipped/failed/unfinished cases. Playwright is invoked with `--reporter=json` and `PLAYWRIGHT_JSON_OUTPUT_FILE`; the JSON must have nonzero `expected` and zero `unexpected`, `skipped` and `flaky`, with no fatal errors. The launcher itself does not echo credentials; third-party tool error output must be handled as sensitive. The acknowledgement is an operator confirmation, **not** proof of test isolation; do not target the Pi production cluster.
 
 **ACTUALLY EXECUTED Node v22.16.0:** `node --test scripts/verify-offworld-local.test.mjs scripts/offworld-trx.test.mjs scripts/offworld-playwright.test.mjs`: **21/21 PASS**. `node --check scripts/verify-offworld-local.mjs` **PASS**. Local `--check` exits 2 on missing .NET/frontend/DB tools. All six exact source blobs matched GitHub (hashes in `docs/engineering/offworld-local-qa.md`). Prior Guardian/portal history contract checks 32/32 PASS, but these are separate earlier executions. **NOT RUN:** full `--run`, actual PostgreSQL, .NET/xUnit and Playwright browser execution; CI quota #112 continues to block Actions. #120 remains open; no PR/merge/deploy.
+
+
+## Gate C0x: guard the Journal's Load More against same-tick double clicks (#120)
+
+**Root cause:** `RefugePortalCompletionHistory` previously wired the Load More click directly to `setPage(value => value + 1)`. React state updates are batched: two native clicks in the same event loop before the loading state disables the button could queue **both** page 2 and page 3 while the UI had only accepted page 1. The next cursor belongs to page 1; skipping page 2 would either lose audited rows or cause an invalid history response. This is independent of the server-side keyset pagination and is especially important for touch and accessibility interactions.
+
+**Fix:** a small dependency-free `portalHistoryNavigationGate.ts` tracks the **highest enqueued page synchronously**. It returns exactly one next page for the currently rendered page, rejects repeat clicks made before React commits the new page, and enforces page 1..1000 as required by the API. `RefugePortalCompletionHistory.tsx` calls the gate before setting `loading`/`page`, resets it during manual refresh and mode changes, and hides Load More beyond page 1000. No new persistence, server authority, network endpoint, gameplay mutation, UI copy or i18n key is introduced. Owner switch remounts the owner page so the gate and cursors never cross accounts. Existing C0q/C0s guard still detects duplicates and 100ns/tied UUID ordering.
+
+**Actually executed (Node 22.16.0, exact locally tested Git source):**
+```bash
+cd src/frontend
+node --experimental-strip-types --test scripts/portal-history-navigation.contract.test.mjs
+# PASS 8/8; synchronous double click, normal later page, busy/failed/terminal,
+# page 1000 bound, refresh, mode switch, malformed pages and independent sessions
+
+tsc --noEmit --strict --target ES2022 --module esnext \
+  src/features/refuge/portalHistoryNavigationGate.ts
+# PASS: isolated strict TypeScript
+
+# Independently re-run existing local QA launcher tests from its verified source:
+node --test scripts/verify-offworld-local.test.mjs \
+  scripts/offworld-trx.test.mjs scripts/offworld-playwright.test.mjs
+# PASS 21/21 (9 + 7 + 5)
+```
+
+Git blobs of **actually executed** new sources match current branch: `portalHistoryNavigationGate.ts` **`925810515b44d7320c8e98fc8b5064049334c04d`**; `portal-history-navigation.contract.test.mjs` **`4f5691064b43fbed8ce9103735ac0ee15d6f6751`**. One Playwright regression is **AUTHORED BUT NOT RUN** in `tests/refuge-linked-rewards.spec.ts`: double click in the same JavaScript task while page 2 is held; ensure requests are only pages 1 and 2 with the correct cursor, then release page 2 and verify page 3 uses page 2's cursor and all three private entries appear. React frontend build, browser Playwright, .NET and real PostgreSQL remain **NOT RUN** here due missing full checkout/runtime; no CI or deployment. #120 stays open and Actions blocker #112 remains.
