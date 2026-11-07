@@ -48,8 +48,7 @@ export function RefugePreparationBoard({ accessToken, health, onRefresh, onRevie
         equipmentFailed: equipmentResult.status === 'rejected',
         encounterFailed: encounterResult.status === 'rejected',
       });
-    });
-    .catch(() => {
+    }).catch(() => {
       if (!isCurrentOwnerRead(accessToken, controller.signal)) return;
       // An unexpected aggregate failure must not leave the board spinning.
       setSnapshot({ equipment: null, encounter: null, equipmentFailed: true, encounterFailed: true });
