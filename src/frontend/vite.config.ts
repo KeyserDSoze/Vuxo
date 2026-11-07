@@ -1,4 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import { fileURLToPath } from 'node:url';
 import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 
@@ -137,6 +138,13 @@ export default defineConfig({
     ...(process.env.VITE_E2E_REALTIME === 'true' ? [e2eWorldPlugin()] : []),
   ],
   build: {
-    sourcemap: true
+    sourcemap: true,
+    // MSAL Browser v5 requires a standalone redirect bridge for popup login.
+    rollupOptions: {
+      input: {
+        main: fileURLToPath(new URL('./index.html', import.meta.url)),
+        redirect: fileURLToPath(new URL('./redirect.html', import.meta.url)),
+      },
+    },
   }
 });
