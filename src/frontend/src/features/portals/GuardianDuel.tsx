@@ -68,6 +68,9 @@ function GuardianOwnerDuel({ grantId, accessToken }: Props & { accessToken: stri
       () => fetchGuardian(grantId, controller.signal), controller.signal)
       .then(result => {
         if (isCurrentOwnerRead(accessToken, controller.signal)) {
+          // Do not carry a replay key into a newer authoritative turn.
+          if (pending.current && result.turn !== pending.current.expectedTurn)
+            pending.current = null;
           setStatus(result);
           setRequiresRefresh(false);
         }
