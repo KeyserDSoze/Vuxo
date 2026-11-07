@@ -2,7 +2,10 @@ import { Alert, Box, Button, CircularProgress, Paper, Stack, Typography } from '
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link as RouterLink } from 'react-router-dom';
-import { readStoredSession } from '../features/auth/authSession';
+import { readStoredSession, type VuxoSession } from '../features/auth/authSession';
+import { useStoredSession } from '../features/auth/useStoredSession';
+import { readForCurrentOwner } from '../features/auth/ownerReadFence';
+import { createOwnerActionGate, type OwnerActionGate } from '../features/inventory/ownerActionGate';
 import { inventoryItemLabelKeys } from '../features/inventory/inventoryApi';
 import {
   fetchPortalChallenge,
@@ -23,11 +26,21 @@ type PortalChallengesPageProps = {
   onExit?: () => void;
 };
 
-export function PortalChallengesPage({
+export function PortalChallengesPage(props: PortalChallengesPageProps = {}) {
+  const session = useStoredSession();
+  // The old preview/answer and any pending mutation belong to a single owner.
+  return <PortalChallengesOwnerPage key={session?.accessToken ?? 'guest'}
+    session={session} {...props} />;
+}
+
+type PortalActionLease = { gate: OwnerActionGate; ticket: number; controller: AbortController };
+
+function PortalChallengesOwnerPage({
   initialGrantId,
   onCompleted,
   onExit,
-}: PortalChallengesPageProps = {}) {
+  session,
+}: PortalChallengesPageProps & { session: VuxoSession | null }) {
   const { t } = useTranslation('portals');
   const { t: inventoryText } = useTranslation('inventory');
   const autoStarted = useRef(false);
@@ -43,7 +56,42 @@ export function PortalChallengesPage({
   const [rewardedItemKey, setRewardedItemKey] = useState<string | null>(null);
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const [mistakeDamage, setMistakeDamage] = useState<PortalMistakeDamage | null>(null);
-  const session = readStoredSession();
+  const ownerGate = useRef<OwnerActionGate | null>(null);
+  const activeRequests = useRef(new Set<AbortController>());
+
+  useEffect(() => {
+    const gate = createOwnerActionGate(session?.accessToken ?? null);
+    ownerGate.current = gate;
+    return () => {
+      gate.dispose();
+      for (const controller of activeRequests.current) controller.abort();
+      activeRequests.current.clear();
+      if (ownerGate.current === gate) ownerGate.current = null;
+    };
+  }, [session?.accessToken]);
+
+  // Acquire synchronously; setState(busy) alone cannot prevent two clicks
+  // or prevent account B from submitting account A's memorized rune sequence.
+  const beginAction = (): PortalActionLease | null => {
+    const gate = ownerGate.current;
+    const ticket = gate?.acquire(readStoredSession()?.accessToken ?? null);
+    if (!gate || ticket == null) return null;
+    const controller = new AbortController();
+    activeRequests.current.add(controller);
+    setBusy(true);
+    return { gate, ticket, controller };
+  };
+
+  const mayPublish = ({ gate, ticket, controller }: PortalActionLease) =>
+    !controller.signal.aborted && ownerGate.current === gate &&
+    gate.isCurrent(ticket, readStoredSession()?.accessToken ?? null);
+
+  const finishAction = (lease: PortalActionLease) => {
+    const current = mayPublish(lease);
+    activeRequests.current.delete(lease.controller);
+    lease.gate.release(lease.ticket);
+    if (current) setBusy(false);
+  };
 
   useEffect(() => {
     if (!session) {
@@ -51,17 +99,19 @@ export function PortalChallengesPage({
       return;
     }
     const controller = new AbortController();
-    void fetchPortalGrants(controller.signal)
+    void readForCurrentOwner(session.accessToken,
+      () => fetchPortalGrants(controller.signal), controller.signal)
       .then(items => {
         if (!controller.signal.aborted) setGrants(items);
       })
       .catch(error => {
-        if (!controller.signal.aborted) {
+        if (!controller.signal.aborted && readStoredSession()?.accessToken === session.accessToken) {
           setErrorCode(error instanceof PortalApiError ? error.code : 'portal_request_failed');
         }
       })
       .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
+        if (!controller.signal.aborted && readStoredSession()?.accessToken === session.accessToken)
+          setLoading(false);
       });
     return () => controller.abort();
   }, [session?.accessToken]);
@@ -73,7 +123,9 @@ export function PortalChallengesPage({
   }, [challenge, showing, previewRound]);
 
   const start = async (grant: PortalGrant) => {
-    setBusy(true);
+    if (!session) return;
+    const lease = beginAction();
+    if (!lease) return;
     setErrorCode(null);
     setMistakeDamage(null);
     setAnswer([]);
@@ -82,15 +134,21 @@ export function PortalChallengesPage({
     setSelected(null);
     setChallenge(null);
     try {
-      const result = await fetchPortalChallenge(grant.id);
+      const result = await readForCurrentOwner(session.accessToken,
+        () => fetchPortalChallenge(grant.id, lease.controller.signal), lease.controller.signal);
+      if (!mayPublish(lease)) return;
+      // Never display one grant's secret sequence under a different grant.
+      if (result.grantId.toLowerCase() !== grant.id.toLowerCase())
+        throw new PortalApiError('portal_request_failed', 502);
       setChallenge(result);
       setSelected(grant);
       setShowing(true);
       setPreviewRound(value => value + 1);
     } catch (error) {
-      setErrorCode(error instanceof PortalApiError ? error.code : 'portal_request_failed');
+      if (mayPublish(lease))
+        setErrorCode(error instanceof PortalApiError ? error.code : 'portal_request_failed');
     } finally {
-      setBusy(false);
+      finishAction(lease);
     }
   };
 
@@ -103,22 +161,32 @@ export function PortalChallengesPage({
   }, [initialGrantId, loading, grants]);
 
   const submit = async () => {
-    if (!selected || !challenge || answer.length !== challenge.sequence.length) return;
-    setBusy(true);
+    if (!session || !selected || !challenge || completed ||
+        answer.length !== challenge.sequence.length) return;
+    const lease = beginAction();
+    if (!lease) return;
+    const grantId = selected.id;
+    const submittedAnswer = [...answer];
     setErrorCode(null);
     setMistakeDamage(null);
     try {
-      const receipt = await submitPortalChallenge(selected.id, answer);
+      // The lease is acquired against the original owner before the POST
+      // can read auth. A logout/switch aborts the request and revokes the UI.
+      const receipt = await submitPortalChallenge(grantId, submittedAnswer, lease.controller.signal);
+      if (!mayPublish(lease)) return;
+      if (receipt.id.toLowerCase() !== grantId.toLowerCase())
+        throw new PortalApiError('portal_request_failed', 502);
       setRewardedItemKey(receipt.itemKey ?? null);
       setCompleted(true);
-      setGrants(items => items.filter(grant => grant.id !== selected.id));
-      onCompleted?.(selected.id);
+      setGrants(items => items.filter(grant => grant.id !== grantId));
+      onCompleted?.(grantId);
     } catch (error) {
+      if (!mayPublish(lease)) return;
       setAnswer([]);
       setErrorCode(error instanceof PortalApiError ? error.code : 'portal_request_failed');
       setMistakeDamage(error instanceof PortalApiError ? error.mistakeDamage : null);
     } finally {
-      setBusy(false);
+      finishAction(lease);
     }
   };
 
@@ -250,6 +318,7 @@ export function PortalChallengesPage({
             )}
             <Button
               variant="text"
+              disabled={busy}
               onClick={() => {
                 if (onExit) {
                   onExit();

@@ -108,15 +108,18 @@ export async function fetchPortalGrants(signal?: AbortSignal): Promise<PortalGra
   return grants.filter(grant => grant.portalKey === PORTAL_SEQUENCE_KEY);
 }
 
-export function fetchPortalChallenge(grantId: string): Promise<PortalChallenge> {
+export function fetchPortalChallenge(grantId: string, signal?: AbortSignal): Promise<PortalChallenge> {
   return portalRequest<PortalChallenge>(
-    `/api/personal-content/${encodeURIComponent(grantId)}/challenge`
+    `/api/personal-content/${encodeURIComponent(grantId)}/challenge`,
+    'GET', undefined, signal,
   );
 }
 
-export function submitPortalChallenge(grantId: string, sequence: string[]): Promise<{ id: string; itemKey?: string | null }> {
+export function submitPortalChallenge(
+  grantId: string, sequence: string[], signal?: AbortSignal,
+): Promise<{ id: string; itemKey?: string | null }> {
   return portalRequest<{ id: string; itemKey?: string | null }>(
     `/api/personal-content/${encodeURIComponent(grantId)}/challenge/attempt`,
-    'POST', sequence,
+    'POST', sequence, signal,
   );
 }
