@@ -218,6 +218,54 @@ public sealed class PortalOutcomeHistoryPersistenceTests
             cursor: first.NextCursor)).Items);
     }
 
+
+    [PostgresIntegrationFact]
+    public async Task CursorOutcomes_EqualAuditTimestampUsesPublicEventIdAcrossUnionPages()
+    {
+        await using var database = await PostgresDatabaseScope.CreateAsync();
+        var grant = await SeedAsync(database);
+        var instant = DateTimeOffset.UtcNow;
+        instant = instant.AddTicks(-(instant.Ticks % 10));
+
+        await using (var db = database.CreateDbContext())
+        {
+            var result = await new PortalMistakeDamageRepository(db, new GameEventStore(db))
+                .ApplyFirstMistakeAsync("player-a", grant.Id, instant);
+            Assert.NotNull(result);
+        }
+        await using (var db = database.CreateDbContext())
+        {
+            var service = new ExclusiveContentService(
+                new ExclusiveContentGrantRepository(db), new GameEventStore(db),
+                db, TimeProvider.System, new PlayerInventoryRepository(db));
+            var answer = (await service.GetChallengeAsync("player-a", grant.Id)).Sequence;
+            await service.SubmitChallengeAsync("player-a", grant.Id, answer);
+            // Both separate outcome families have the same database timestamp.
+            await db.GameEvents.Where(x => x.PlayerId == "player-a"
+                && x.CausationId == grant.GrantEventId
+                && (x.EventType == "exclusive_content.consumed" ||
+                    x.EventType == "portal.sequence_mistake_damage"))
+                .ExecuteUpdateAsync(update => update.SetProperty(x => x.OccurredAtUtc, instant));
+        }
+
+        await using var verify = database.CreateDbContext();
+        var expected = await verify.GameEvents.AsNoTracking()
+            .Where(x => x.PlayerId == "player-a" && x.CausationId == grant.GrantEventId
+                && (x.EventType == "exclusive_content.consumed" ||
+                    x.EventType == "portal.sequence_mistake_damage"))
+            .OrderByDescending(x => x.EventId).Select(x => x.EventId).ToArrayAsync();
+        Assert.Equal(2, expected.Length);
+
+        var history = new PortalOutcomeHistoryReader(verify);
+        var first = await history.ListForPlayerAsync("player-a", 1, 1);
+        Assert.NotNull(first.NextCursor);
+        var second = await history.ListForPlayerAsync("player-a", 2, 1,
+            cursor: first.NextCursor);
+        Assert.Equal(expected, first.Items.Concat(second.Items).Select(x => x.EventId));
+        Assert.False(second.HasMore);
+        Assert.Null(second.NextCursor);
+    }
+
     private static async Task<ExclusiveContentGrant> SeedAsync(PostgresDatabaseScope database)
     {
         var now = DateTimeOffset.UtcNow;

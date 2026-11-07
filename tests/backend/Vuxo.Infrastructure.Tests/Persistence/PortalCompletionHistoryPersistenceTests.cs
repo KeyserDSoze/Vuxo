@@ -168,6 +168,63 @@ public sealed class PortalCompletionHistoryPersistenceTests
             cursor: first.NextCursor)).Items);
     }
 
+
+    [PostgresIntegrationFact]
+    public async Task CursorHistory_EqualAuditTimestampUsesPublicGrantIdForEveryPage()
+    {
+        await using var database = await PostgresDatabaseScope.CreateAsync();
+        var instant = DateTimeOffset.UtcNow;
+        instant = instant.AddTicks(-(instant.Ticks % 10));
+        var grants = Enumerable.Range(0, 3)
+            .Select(_ => NewGrant("player-a", instant, PortalSequenceRules.PortalKey))
+            .ToArray();
+
+        await using (var setup = database.CreateDbContext())
+        {
+            await setup.Database.MigrateAsync();
+            var grantStore = new ExclusiveContentGrantRepository(setup);
+            foreach (var grant in grants) await grantStore.AddAsync(grant);
+            await setup.SaveChangesAsync();
+        }
+
+        foreach (var grant in grants)
+        {
+            await using var db = database.CreateDbContext();
+            var service = new ExclusiveContentService(
+                new ExclusiveContentGrantRepository(db), new GameEventStore(db),
+                db, TimeProvider.System, new PlayerInventoryRepository(db));
+            var answer = (await service.GetChallengeAsync("player-a", grant.Id)).Sequence;
+            await service.SubmitChallengeAsync("player-a", grant.Id, answer);
+            // Force equal PostgreSQL-microsecond timestamps; only the public
+            // grant GUID can deterministically break the tie.
+            await db.GameEvents.Where(x => x.EventType == "exclusive_content.consumed"
+                && x.CausationId == grant.GrantEventId)
+                .ExecuteUpdateAsync(update => update.SetProperty(x => x.OccurredAtUtc, instant));
+        }
+
+        await using var verify = database.CreateDbContext();
+        // Query the expected GUID order through PostgreSQL itself, not
+        // Guid.CompareTo in .NET, to test the database collation/UUID semantics.
+        var expected = await verify.ExclusiveContentGrants.AsNoTracking()
+            .Where(x => x.PlayerId == "player-a")
+            .OrderByDescending(x => x.Id).Select(x => x.Id).ToArrayAsync();
+        Assert.Equal(3, expected.Length);
+
+        var history = new PortalCompletionHistoryReader(verify);
+        var first = await history.ListCompletedForPlayerAsync("player-a", 1, 1);
+        Assert.NotNull(first.NextCursor);
+        var second = await history.ListCompletedForPlayerAsync("player-a", 2, 1,
+            cursor: first.NextCursor);
+        Assert.NotNull(second.NextCursor);
+        var third = await history.ListCompletedForPlayerAsync("player-a", 3, 1,
+            cursor: second.NextCursor);
+
+        Assert.Equal(expected, first.Items.Concat(second.Items)
+            .Concat(third.Items).Select(x => x.GrantId));
+        Assert.False(third.HasMore);
+        Assert.Null(third.NextCursor);
+    }
+
     private static ExclusiveContentGrant NewGrant(
         string owner, DateTimeOffset now, string portalKey) =>
         ExclusiveContentGrant.Create(
