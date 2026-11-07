@@ -25,7 +25,8 @@ export function isValidServerTimestamp(value: unknown): value is string {
   }
   return Number.isFinite(Date.parse(value));
 }
-\n/**
+
+/**
  * Compare instants at .NET DateTimeOffset's 100 ns precision, not the
  * millisecond precision of Date.parse. Both arguments must be valid.
  */
