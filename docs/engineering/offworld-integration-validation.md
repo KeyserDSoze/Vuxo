@@ -379,3 +379,24 @@ The local `git hash-object` outputs **matched GitHub exactly**: `ownerFocusGate.
 **New Playwright scenarios authored (NOT run):** `refuge-journal.spec.ts`—cross-device item/portal consumption triggers all 3 fresh reads only once for a single focus+visibility burst; `world-portals.spec.ts`—canonical Guardian turn/HP/history updates after return without issuing a POST, and refresh is refused while a card POST is in flight; `portal-owner-session.spec.ts`—a consumed grant vanishes from idle listing on foreground, and an active rune preview survives focus without a second grant GET. **Five browser scenarios total, NOT RUN.** Existing UI tests stay intact.
 
 **Remaining release gates:** `npm run test:contracts`, `npm run build`, `npx playwright test tests/refuge-journal.spec.ts tests/portal-owner-session.spec.ts tests/world-portals.spec.ts`, the full browser suite and .NET/PostgreSQL integration. These were **NOT executed** due to unavailable full checkout/dependencies and GitHub Actions quota blocker #112. Do not merge, create PR or deploy; issue #120 remains open.
+
+
+## Gate C0q: fail-closed paginated Portal Journal history when another device changes the ledger (#120)
+
+**Root cause:** The backend `PortalCompletionHistoryReader` and `PortalOutcomeHistoryReader` use stable order (event timestamp descending, event GUID descending) but **offset** pagination, each page fetched in an independent PostgreSQL query. If another device completes a portal between page 1 and page 2, offset page 2 can overlap the first page or return entries in an inconsistent relative chronological position. The frontend's `RefugePortalCompletionHistory` previously appended each individually validated HTTP 200 page directly, with no *cross-page* duplicate/order check, potentially displaying the same verified receipt twice.
+
+**Implementation:** Pure `src/frontend/src/features/refuge/portalHistoryPageMerge.ts` validates the merged completion/outcome read models *before* rendering: identity is case-insensitive `grantId` for completion history and `eventId` for outcome history; verifies strictly non-increasing event instants across page boundaries using the shared 100ns-correct `compareServerTimestamps`, allows equal times with distinct IDs, checks expected entry family and page index. `RefugePortalCompletionHistory.tsx` keeps a ref of the latest accepted records (avoids a speculative React updater), and on malformed or drifted page fails closed by hiding all previously rendered results, clearing `hasMore`, displaying the existing localized error, and retrying from **page 1**. Manual refresh and history mode changes clear the accepted ref before loading. This is a *client consistency check*, **not** a claim of transactional snapshot pagination: interleavings without a detectable duplicate or order reversal can still occur until a server cursor/snapshot API is implemented.
+
+**Executed in local runtime:** Node v22.16.0 `node --experimental-strip-types --test scripts/portal-history-pagination.contract.test.mjs` **13/13 PASS**. Isolated strict `tsc --noEmit --strict --lib ES2022,DOM --target ES2022 --module esnext --allowImportingTsExtensions` **PASS** on the exact helper and shared timestamp code, using a local **type-only** fixture that mirrors the published completion/outcome DTOs. Verified `git hash-object` of actual local sources exactly matches GitHub: `portalHistoryPageMerge.ts` `4e8ff8627eeee1b749e60c8390f67c57a8eed9f2`, `portal-history-pagination.contract.test.mjs` `68ae1eb85307f75668938854056814dacc9321fd`, `serverTimestamp.ts` `c1d1c42c09fc54685eed7f50fa1107a43d469ac6`. Tests cover valid older page, outcome event identity, duplicate GUID across pages, 100ns reversal and offset equivalence, unsorted first page, page-one reset, incomplete pagination, wrong mode, index limits and timestamp ties.
+
+**Authored, not executed:** `tests/refuge-linked-rewards.spec.ts` receives two Playwright regressions: duplicate completion after another device's insertion clears all visible entries and retry reloads page 1 before page 2; outcome page 2 which has a timestamp just 100ns *newer* than page 1 is rejected. **Do not claim browser PASS**: full React build, full contract suite, Playwright browser runs and .NET/PostgreSQL were NOT RUN. #112 still blocks Actions. No PR/merge/deploy; keep #120 open.
+
+**To execute on a complete local checkout:**
+
+```bash
+cd src/frontend
+npm run test:contracts
+npm run build
+npx playwright test tests/refuge-linked-rewards.spec.ts tests/refuge-journal.spec.ts
+# Then full npm run test:e2e, .NET/xUnit and PostgreSQL gates.
+```
