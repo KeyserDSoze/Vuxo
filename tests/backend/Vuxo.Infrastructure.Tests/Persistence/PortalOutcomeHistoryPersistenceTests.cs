@@ -146,6 +146,78 @@ public sealed class PortalOutcomeHistoryPersistenceTests
         Assert.Empty((await history.ListForPlayerAsync("player-a", 1, 20)).Items);
     }
 
+
+    [PostgresIntegrationFact]
+    public async Task CursorOutcomes_AuditUnionRemainsStableAcrossNewHeadInsert()
+    {
+        await using var database = await PostgresDatabaseScope.CreateAsync();
+        var grant = await SeedAsync(database);
+        var now = DateTimeOffset.UtcNow.AddTicks(-(DateTimeOffset.UtcNow.Ticks % 10));
+
+        await using (var db = database.CreateDbContext())
+        {
+            var damage = await new PortalMistakeDamageRepository(db, new GameEventStore(db))
+                .ApplyFirstMistakeAsync("player-a", grant.Id, now);
+            Assert.NotNull(damage);
+        }
+        await using (var db = database.CreateDbContext())
+        {
+            var service = new ExclusiveContentService(
+                new ExclusiveContentGrantRepository(db), new GameEventStore(db),
+                db, TimeProvider.System, new PlayerInventoryRepository(db));
+            var answer = (await service.GetChallengeAsync("player-a", grant.Id)).Sequence;
+            await service.SubmitChallengeAsync("player-a", grant.Id, answer);
+        }
+        await using (var assign = database.CreateDbContext())
+        {
+            await assign.GameEvents.Where(x => x.EventType == "portal.sequence_mistake_damage"
+                && x.CausationId == grant.GrantEventId)
+                .ExecuteUpdateAsync(update => update.SetProperty(x => x.OccurredAtUtc,
+                    now.AddMinutes(1)));
+            await assign.GameEvents.Where(x => x.EventType == "exclusive_content.consumed"
+                && x.CausationId == grant.GrantEventId)
+                .ExecuteUpdateAsync(update => update.SetProperty(x => x.OccurredAtUtc,
+                    now.AddMinutes(2)));
+        }
+
+        await using var check = database.CreateDbContext();
+        var history = new PortalOutcomeHistoryReader(check);
+        var first = await history.ListForPlayerAsync("player-a", 1, 1);
+        Assert.Equal(PortalOutcomeKinds.SequenceCompleted, Assert.Single(first.Items).Kind);
+        Assert.NotNull(first.NextCursor);
+
+        var nextGrant = ExclusiveContentGrant.Create(
+            Guid.NewGuid(), Guid.NewGuid(), "player-a", "portal.grove",
+            PortalSequenceRules.PortalKey, "dialog", "unsupported-reward",
+            4242, "personal-content-v1", Guid.NewGuid(), null,
+            now.AddMinutes(-1), now.AddHours(1));
+        await using (var db = database.CreateDbContext())
+        {
+            await new ExclusiveContentGrantRepository(db).AddAsync(nextGrant);
+            await db.SaveChangesAsync();
+        }
+        await using (var db = database.CreateDbContext())
+        {
+            var service = new ExclusiveContentService(
+                new ExclusiveContentGrantRepository(db), new GameEventStore(db),
+                db, TimeProvider.System, new PlayerInventoryRepository(db));
+            var answer = (await service.GetChallengeAsync("player-a", nextGrant.Id)).Sequence;
+            await service.SubmitChallengeAsync("player-a", nextGrant.Id, answer);
+            await db.GameEvents.Where(x => x.EventType == "exclusive_content.consumed"
+                && x.CausationId == nextGrant.GrantEventId)
+                .ExecuteUpdateAsync(update => update.SetProperty(x => x.OccurredAtUtc,
+                    now.AddMinutes(3)));
+        }
+
+        var second = await history.ListForPlayerAsync("player-a", 2, 1,
+            cursor: first.NextCursor);
+        Assert.Equal(PortalOutcomeKinds.SequenceFirstMistake, Assert.Single(second.Items).Kind);
+        Assert.Equal(grant.Id, second.Items[0].GrantId);
+        Assert.False(second.HasMore);
+        Assert.Empty((await history.ListForPlayerAsync("player-b", 2, 1,
+            cursor: first.NextCursor)).Items);
+    }
+
     private static async Task<ExclusiveContentGrant> SeedAsync(PostgresDatabaseScope database)
     {
         var now = DateTimeOffset.UtcNow;

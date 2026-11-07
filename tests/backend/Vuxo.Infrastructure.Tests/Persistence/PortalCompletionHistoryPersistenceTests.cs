@@ -107,6 +107,67 @@ public sealed class PortalCompletionHistoryPersistenceTests
             (await reader.ListCompletedForPlayerAsync("player-b", 1, 20)).Items).GrantId);
     }
 
+
+    [PostgresIntegrationFact]
+    public async Task CursorHistory_NewerDeviceCompletionDoesNotDuplicateFirstPage()
+    {
+        await using var database = await PostgresDatabaseScope.CreateAsync();
+        var now = DateTimeOffset.UtcNow.AddTicks(-(DateTimeOffset.UtcNow.Ticks % 10));
+        var older = NewGrant("player-a", now, PortalSequenceRules.PortalKey);
+        var previousHead = NewGrant("player-a", now, PortalSequenceRules.PortalKey);
+        var newHead = NewGrant("player-a", now, PortalSequenceRules.PortalKey);
+
+        await using (var setup = database.CreateDbContext())
+        {
+            await setup.Database.MigrateAsync();
+            var grants = new ExclusiveContentGrantRepository(setup);
+            foreach (var grant in new[] { older, previousHead })
+                await grants.AddAsync(grant);
+            await setup.SaveChangesAsync();
+        }
+
+        async Task CompleteAsync(ExclusiveContentGrant grant, DateTimeOffset at)
+        {
+            await using var db = database.CreateDbContext();
+            var service = new ExclusiveContentService(
+                new ExclusiveContentGrantRepository(db), new GameEventStore(db),
+                db, TimeProvider.System, new PlayerInventoryRepository(db));
+            var answer = (await service.GetChallengeAsync("player-a", grant.Id)).Sequence;
+            await service.SubmitChallengeAsync("player-a", grant.Id, answer);
+            await db.GameEvents.Where(x => x.EventType == "exclusive_content.consumed"
+                && x.CausationId == grant.GrantEventId)
+                .ExecuteUpdateAsync(update => update.SetProperty(x => x.OccurredAtUtc, at));
+        }
+
+        await CompleteAsync(older, now.AddMinutes(1));
+        await CompleteAsync(previousHead, now.AddMinutes(2));
+
+        await using var verify = database.CreateDbContext();
+        var history = new PortalCompletionHistoryReader(verify);
+        var first = await history.ListCompletedForPlayerAsync("player-a", 1, 1);
+        Assert.Equal(previousHead.Id, Assert.Single(first.Items).GrantId);
+        Assert.True(first.HasMore);
+        Assert.NotNull(first.NextCursor);
+
+        // A different device completes a newer grant between page requests.
+        await using (var insertion = database.CreateDbContext())
+        {
+            await new ExclusiveContentGrantRepository(insertion).AddAsync(newHead);
+            await insertion.SaveChangesAsync();
+        }
+        await CompleteAsync(newHead, now.AddMinutes(3));
+
+        // Legacy offset page 2 would repeat the previousHead grant; the cursor
+        // returns the next older event and does not reveal another owner's rows.
+        var second = await history.ListCompletedForPlayerAsync("player-a", 2, 1,
+            cursor: first.NextCursor);
+        Assert.Equal(older.Id, Assert.Single(second.Items).GrantId);
+        Assert.False(second.HasMore);
+        Assert.Null(second.NextCursor);
+        Assert.Empty((await history.ListCompletedForPlayerAsync("player-b", 2, 1,
+            cursor: first.NextCursor)).Items);
+    }
+
     private static ExclusiveContentGrant NewGrant(
         string owner, DateTimeOffset now, string portalKey) =>
         ExclusiveContentGrant.Create(
