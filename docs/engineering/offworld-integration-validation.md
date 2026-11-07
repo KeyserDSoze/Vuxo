@@ -213,3 +213,17 @@ tsc --noEmit --strict --target ES2022 --module esnext src/features/portals/porta
 **Executed locally:** Node.js 22.16.0: **12/12 PASS** (8 existing + 4 new); `tsc` 5.8.3 standalone strict check **PASS**. Against the previous parser, the expanded test suite was **9 PASS / 3 FAIL**; all 12 pass after the fix. The committed blob SHAs exactly match the executed source (`1f0a69c89e5c3d671a6649ae6e3069ff4d70bf4c`) and tests (`b63ae8a87c6303e5ee326de618906ea84f18f8be`).
 
 **Pending release gate:** full frontend build, Chromium Playwright Journal flows, backend xUnit + real PostgreSQL provenance joins, and QA of the complete integration branch. These were **not executed** in this slice. Issue #120 stays In progress, #112 blocks CI and no PR/merge/deploy is allowed.
+
+## Gate C0i: mutation test import and equipment UUID confirmation (#120)
+
+The offline mutation contract test previously imported `../src/ownerMutationContracts.ts`, which is missing on the integrated branch; the canonical path is `../src/features/contracts/ownerMutationContracts.ts`. The original suite raised `ERR_MODULE_NOT_FOUND` before any test ran. This has been corrected and should remain a required contract gate. A confirmation of equip must not accept an invalid requested UUID, even if a malformed response echoes it; uppercase/lowercase variants of valid UUIDs remain equivalent.
+
+From `src/frontend` run:
+
+```bash
+node --experimental-strip-types --test scripts/owner-mutations.contract.test.mjs
+tsc --noEmit --strict --target ES2022 --module esnext src/features/contracts/ownerMutationContracts.ts
+npm run test:contracts
+```
+
+**Actually run in isolated local environment:** the repaired specific suite on Node 22.16.0: **13/13 PASS** (11 original + 2 added), and TypeScript 5.8.3 standalone strict compile: **PASS**. Original file with its broken import was executed first and yielded `ERR_MODULE_NOT_FOUND` with 0 tests. GitHub source/test blobs (`924e6a8276ca15b3921ac7b46fd7e3a8f29fc212`, `ad7299e6079697256084766a76eccd0f910f21c6`) match the files actually executed after correction. The **aggregate** `npm run test:contracts` command, full React build, browser Playwright and real backend/PostgreSQL checks are **not yet executed** and remain release gates. No PR/merge/deploy while #112 is blocked.
