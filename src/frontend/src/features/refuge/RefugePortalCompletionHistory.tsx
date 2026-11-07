@@ -191,7 +191,10 @@ import { fetchCompletedPortals, fetchPortalOutcomes,
                   <MenuItem value="rewards">{t('refuge.journal.browse.filters.rewards')}</MenuItem>
                 </Select>
               </FormControl>
-              <TextField data-testid="refuge-journal-history-search" size="small"
+              <TextField size="small" slotProps={{ htmlInput: {
+                  'data-testid': 'refuge-journal-history-search',
+                  maxLength: 128,
+                } }}
                 fullWidth autoComplete="off" value={search}
                 label={t('refuge.journal.browse.searchLabel')}
                 onChange={event => setSearch(event.target.value.slice(0, 128))}
