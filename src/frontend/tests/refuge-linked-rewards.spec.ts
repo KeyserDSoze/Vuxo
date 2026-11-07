@@ -138,3 +138,63 @@ test('unknown reward remains unnamed in English dark mobile; owner switch clears
   release();
   await expect(page.getByTestId('refuge-journal-completed-empty')).toBeVisible();
 });
+
+test('duplicate completion after an off-device insert fails closed and retries from page one', async ({ page }) => {
+  await signIn(page);
+  await otherSections(page);
+  let stalePageTwo = true;
+  const reads: number[] = [];
+  await page.route('**/api/personal-content/history/completed*', route => {
+    const requested = Number(new URL(route.request().url()).searchParams.get('page'));
+    reads.push(requested);
+    const items = requested === 1
+      ? [solved]
+      : stalePageTwo
+        ? [{ ...solved, grantId: a.toUpperCase() }]
+        : [{ ...solved, grantId: b, completedAtUtc: '2026-11-04T10:00:00Z',
+          rewardItemKey: null }];
+    return route.fulfill({ headers: cors, contentType: 'application/json',
+      body: JSON.stringify({ items, page: requested, pageSize: 20,
+        hasMore: requested === 1 }),
+    });
+  });
+
+  await page.goto('./#/refuge/journal');
+  await expect(page.getByTestId('refuge-journal-completed-entry')).toHaveCount(1);
+  await page.getByTestId('refuge-journal-completed-more').click();
+  await expect(page.getByTestId('refuge-journal-completed-error')).toBeVisible();
+  await expect(page.getByTestId('refuge-journal-completed-entry')).toHaveCount(0);
+  await expect(page.getByTestId('refuge-journal-completed-more')).toHaveCount(0);
+
+  stalePageTwo = false;
+  await page.getByTestId('refuge-journal-completed-retry').click();
+  await expect(page.getByTestId('refuge-journal-completed-entry')).toHaveCount(1);
+  await page.getByTestId('refuge-journal-completed-more').click();
+  await expect(page.getByTestId('refuge-journal-completed-entry')).toHaveCount(2);
+  await expect(page.getByTestId('refuge-journal-completed-error')).toHaveCount(0);
+  expect(reads).toEqual([1, 2, 1, 2]);
+});
+
+test('outcome history detects a newer page-two event at 100ns precision', async ({ page }) => {
+  await signIn(page);
+  await otherSections(page);
+  const earlier = { ...outcome, occurredAtUtc: '2026-11-06T12:00:00.1234567Z' };
+  const newer = { ...outcome, eventId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+    occurredAtUtc: '2026-11-06T12:00:00.1234568Z' };
+  await page.route('**/api/personal-content/history/completed*', route =>
+    route.fulfill({ headers: cors, contentType: 'application/json',
+      body: JSON.stringify({ items: [], page: 1, pageSize: 20, hasMore: false }) }));
+  await page.route('**/api/personal-content/history/outcomes*', route => {
+    const requested = Number(new URL(route.request().url()).searchParams.get('page'));
+    return route.fulfill({ headers: cors, contentType: 'application/json',
+      body: JSON.stringify({ items: requested === 1 ? [earlier] : [newer],
+        page: requested, pageSize: 20, hasMore: requested === 1 }) });
+  });
+
+  await page.goto('./#/refuge/journal');
+  await page.getByTestId('refuge-journal-mode-outcomes').click();
+  await expect(page.getByTestId('refuge-journal-completed-entry')).toHaveCount(1);
+  await page.getByTestId('refuge-journal-completed-more').click();
+  await expect(page.getByTestId('refuge-journal-completed-error')).toBeVisible();
+  await expect(page.getByTestId('refuge-journal-completed-entry')).toHaveCount(0);
+});
