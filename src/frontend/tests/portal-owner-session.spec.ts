@@ -139,3 +139,52 @@ test('rapid double submit sends exactly one mutating intention', async ({ page }
   await expect(page.getByTestId('portal-complete')).toBeVisible();
   expect(mock.attempts).toHaveLength(1);
 });
+
+test('returning to available portals removes grants consumed by another device', async ({ page }) => {
+  await loginA(page);
+  let consumedElsewhere = false;
+  let grantGets = 0;
+  let posts = 0;
+  await page.route('**/api/personal-content**', route => {
+    const req = route.request();
+    if (req.method() === 'OPTIONS')
+      return route.fulfill({ status: 204, headers: cors });
+    if (req.method() === 'POST') posts++;
+    if (req.method() === 'GET' && new URL(req.url()).pathname === '/api/personal-content') {
+      grantGets++;
+      return route.fulfill(json(consumedElsewhere ? [] : [{
+        id: grantId, portalKey: 'challenge.sequence.v1',
+        contentKey: 'portal.memory.grove', expiresAtUtc: null,
+      }]));
+    }
+    return route.fulfill({ status: 404, headers: cors });
+  });
+  await page.goto('./#/portals');
+  await expect(page.getByTestId('portal-start')).toBeVisible();
+  expect(grantGets).toBe(1);
+  consumedElsewhere = true;
+  await page.evaluate(() => {
+    window.dispatchEvent(new Event('focus'));
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  await expect(page.getByTestId('portal-empty')).toBeVisible();
+  await expect(page.getByTestId('portal-start')).toHaveCount(0);
+  expect(grantGets).toBe(2);
+  expect(posts).toBe(0);
+});
+
+test('foreground refresh does not wipe an active rune challenge or issue another GET', async ({ page }) => {
+  await loginA(page);
+  const mock = await mockPortals(page, 'attempt');
+  await page.goto('./#/portals');
+  await page.getByTestId('portal-start').click();
+  await expect(page.getByTestId('portal-challenge')).toBeVisible();
+  const before = mock.calls.filter(call => call.endsWith(':grants')).length;
+  await page.evaluate(() => {
+    window.dispatchEvent(new Event('focus'));
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  await expect(page.getByTestId('portal-challenge')).toBeVisible();
+  expect(mock.calls.filter(call => call.endsWith(':grants')).length).toBe(before);
+  expect(mock.attempts).toHaveLength(0);
+});

@@ -668,3 +668,55 @@ test('backdated cross-device Guardian turn history is hidden rather than rendere
   await expect(page.getByTestId('guardian-history-entry')).toHaveCount(0);
   await expect(page.getByTestId('guardian-turn')).toContainText('2 / 12');
 });
+
+test('returning to the Guardian reconciles another device turn and HP without a POST', async ({ page }) => {
+  await initializePlayer(page);
+  await mockPrivatePortals(page);
+  let serverTurn = 0;
+  let statusGets = 0;
+  let historyGets = 0;
+  let posts = 0;
+  await page.route('**/api/characters/me/portal-guardian/**', route => {
+    const req = route.request();
+    if (req.method() === 'OPTIONS')
+      return route.fulfill({ status: 204, headers: cors });
+    if (req.method() === 'POST') {
+      posts++;
+      return route.fulfill({ status: 503, headers: cors });
+    }
+    if (new URL(req.url()).pathname.endsWith('/history')) {
+      historyGets++;
+      return route.fulfill({ status: 200, headers: cors, contentType: 'application/json',
+        body: JSON.stringify(serverTurn === 0 ? [] : [{
+          turn: 1, action: 'strike', guardianAction: 'guard',
+          damageDealt: 1, damageTaken: 0, guardianHealth: 5,
+          playerHealth: 20, outcome: 'ongoing',
+          occurredAtUtc: '2026-11-07T12:00:00.1234567Z',
+        }]) });
+    }
+    statusGets++;
+    return route.fulfill({ status: 200, headers: cors, contentType: 'application/json',
+      body: JSON.stringify({
+        grantId, turn: serverTurn, guardianHealth: 6 - serverTurn, guardianMaxHealth: 6,
+        playerHealth: 20, playerMaxHealth: 20, outcome: 'ongoing',
+        ruleVersion: 'portal-guardian-showdown-v2',
+      }) });
+  });
+  await page.goto(origin + '/Vuxo/#/game');
+  await expect(page.getByTestId('world-portal-enter')).toBeEnabled();
+  await page.getByTestId('world-portal-enter').click();
+  await expect(page.getByTestId('guardian-turn')).toContainText('0 / 12');
+  await expect(page.getByTestId('guardian-history-empty')).toBeVisible();
+  const before = { statusGets, historyGets };
+  serverTurn = 1; // A second session committed the turn on the real server.
+  await page.evaluate(() => {
+    window.dispatchEvent(new Event('focus'));
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  await expect(page.getByTestId('guardian-turn')).toContainText('1 / 12');
+  await expect(page.getByTestId('guardian-health')).toContainText('5 / 6 HP');
+  await expect(page.getByTestId('guardian-history-entry')).toHaveCount(1);
+  expect(statusGets).toBe(before.statusGets + 1);
+  expect(historyGets).toBe(before.historyGets + 1);
+  expect(posts).toBe(0);
+});
