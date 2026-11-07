@@ -292,3 +292,57 @@ test('equal-timestamp history with reversed UUID order is rejected instead of sh
   await expect(page.getByTestId('refuge-journal-completed-entry')).toHaveCount(0);
   await expect(page.getByTestId('refuge-journal-verified-reward')).toHaveCount(0);
 });
+
+test('rapid double Load More cannot skip a cursor page, and a later click still advances', async ({ page }) => {
+  await signIn(page);
+  await otherSections(page);
+  const firstCursor = 'CN87I43fEAARERERERERQYERERERERER';
+  const secondCursor = 'B'.repeat(32);
+  const requests: Array<{ page: number; cursor: string | null }> = [];
+  let pageTwoStarted!: () => void;
+  let releasePageTwo!: () => void;
+  const started = new Promise<void>(resolve => { pageTwoStarted = resolve; });
+  const held = new Promise<void>(resolve => { releasePageTwo = resolve; });
+  await page.route('**/api/personal-content/history/completed*', async route => {
+    const url = new URL(route.request().url());
+    const requestedPage = Number(url.searchParams.get('page'));
+    requests.push({ page: requestedPage, cursor: url.searchParams.get('cursor') });
+    if (requestedPage === 2) {
+      pageTwoStarted();
+      await held;
+    }
+    const items = requestedPage === 1
+      ? [solved]
+      : requestedPage === 2
+        ? [{ ...solved, grantId: b,
+          completedAtUtc: '2026-11-04T10:00:00Z', rewardItemKey: null }]
+        : [{ ...solved, grantId: '33333333-3333-4333-8333-333333333333',
+          completedAtUtc: '2026-11-03T10:00:00Z', rewardItemKey: null }];
+    return route.fulfill({ headers: cors, contentType: 'application/json',
+      body: JSON.stringify({ items, page: requestedPage, pageSize: 20,
+        hasMore: requestedPage < 3, nextCursor: requestedPage === 1 ? firstCursor :
+          requestedPage === 2 ? secondCursor : null }) });
+  });
+
+  await page.goto('./#/refuge/journal');
+  await expect(page.getByTestId('refuge-journal-completed-entry')).toHaveCount(1);
+  await page.getByTestId('refuge-journal-completed-more').evaluate(button => {
+    (button as HTMLButtonElement).click();
+    (button as HTMLButtonElement).click();
+  });
+  await started;
+  await expect(page.getByTestId('refuge-journal-completed-loading')).toBeVisible();
+  expect(requests).toEqual([
+    { page: 1, cursor: null }, { page: 2, cursor: firstCursor },
+  ]);
+  releasePageTwo();
+  await expect(page.getByTestId('refuge-journal-completed-entry')).toHaveCount(2);
+  await page.getByTestId('refuge-journal-completed-more').click();
+  await expect(page.getByTestId('refuge-journal-completed-entry')).toHaveCount(3);
+  expect(requests).toEqual([
+    { page: 1, cursor: null },
+    { page: 2, cursor: firstCursor },
+    { page: 3, cursor: secondCursor },
+  ]);
+  await expect(page.getByTestId('refuge-journal-completed-error')).toHaveCount(0);
+});

@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { readForCurrentOwner } from '../auth/ownerReadFence';
 import { appendPortalHistoryPage, type HistoryEntry, type HistoryMode } from './portalHistoryPageMerge';
+import { createPortalHistoryNavigationGate } from './portalHistoryNavigationGate';
 import { fetchCompletedPortals, fetchPortalOutcomes,
   type PortalCompletionPage, type PortalOutcomePage } from '../portals/portalHistoryApi';
 
@@ -21,6 +22,9 @@ import { fetchCompletedPortals, fetchPortalOutcomes,
   // validation must inspect the exact latest accepted page before appending.
   const acceptedEntries = useRef<HistoryEntry[]>([]);
   const nextCursor = useRef<string | null>(null);
+  // Page state updates are batched: block two same-tick Load More clicks
+  // from enqueuing page 3 while both still carry the page-1 cursor.
+  const navigationGate = useRef(createPortalHistoryNavigationGate());
   const [page, setPage] = useState(1);
   const [attempt, setAttempt] = useState(0);
   const [hasMore, setHasMore] = useState(false);
@@ -76,6 +80,7 @@ import { fetchCompletedPortals, fetchPortalOutcomes,
   };
 
   function refresh() {
+    navigationGate.current.reset();
     acceptedEntries.current = [];
     nextCursor.current = null;
     setEntries([]);
@@ -87,6 +92,7 @@ import { fetchCompletedPortals, fetchPortalOutcomes,
 
   function chooseMode(nextMode: HistoryMode) {
     if (nextMode === mode) return;
+    navigationGate.current.reset();
     acceptedEntries.current = [];
     nextCursor.current = null;
     setEntries([]);
@@ -95,6 +101,13 @@ import { fetchCompletedPortals, fetchPortalOutcomes,
     setError(false);
     setPage(1);
     setMode(nextMode);
+  }
+
+  function loadMore() {
+    const next = navigationGate.current.next(page, hasMore, loading, error);
+    if (next === null) return;
+    setLoading(true);
+    setPage(next);
   }
 
   return (
@@ -218,9 +231,9 @@ import { fetchCompletedPortals, fetchPortalOutcomes,
             </Paper>
           );})}
         </Stack>
-        {!loading && !error && hasMore && (
+        {!loading && !error && hasMore && page < 1000 && (
           <Button data-testid="refuge-journal-completed-more" variant="outlined"
-            onClick={() => setPage(value => value + 1)} sx={{ alignSelf: 'flex-start' }}>
+            onClick={loadMore} sx={{ alignSelf: 'flex-start' }}>
             {t(mode === 'completed'
               ? 'refuge.journal.completed.more'
               : 'refuge.journal.outcomes.more')}
