@@ -281,3 +281,26 @@ npm run test:e2e
 **Actually executed locally (Node 22.16.0):** **6/6 PASS** for the exact helper and six regression tests; standalone TypeScript strict compile **PASS**. The locally tested helper has Git blob `c1d1c42c09fc54685eed7f50fa1107a43d469ac6` and the tests `1ed26d29db1901d5f4f9f9390a4a10de6207690f`, both matching the committed files. The tests include 100ns negative/positive ordering, offset equality, second rollover, fraction width and invalid year zero.
 
 **Authored but not executed:** one extra portal history regression and one rest-receipt regression in the existing Node suites. **Not executed:** full `npm run test:contracts`, React build, Chromium Playwright, backend .NET or PostgreSQL integration. Keep #120 open; #112 continues to block Actions, PR/merge and deployment.
+
+
+## Gate C0m: isolate read-only owner data across login/logout and stale GETs (#120)
+
+**Reproduction/root cause:** a read-only off-world view can begin a GET with the live JWT, then the user signs in as another account while the response is pending. An AbortController and React keyed remount are necessary but do not by themselves guarantee a stale fetch/proxy callback cannot publish data. Inventory also retries a non-atomic stacks/equipment read pair; an obsolete owner view must not launch the second retry using the **new** account's ambient token.
+
+**Implementation:** `features/auth/ownerReadFence.ts` exports `readForCurrentOwner(expectedToken, read, signal)`. It validates the active stored session and AbortSignal **before invoking** the read callback and **after it settles successfully**. It never retries the operation itself. Applied to inventory awards, all loadout/stack GET pairs (including every consistency retry), post-heal and post-equip resync, Refuge owner HP, preparation equipment+encounter, encounter eligibility hook, Journal awards/active portal grants and completed/outcome pagination. The Journal history child now receives the explicit expected session token from its keyed parent. No changes to write intentions, reward rules or server authority.
+
+```bash
+cd src/frontend
+node --experimental-strip-types --test scripts/owner-read-fence.contract.test.mjs
+tsc --noEmit --strict --lib ES2022,DOM --target ES2022 --module esnext --allowImportingTsExtensions src/features/auth/ownerReadFence.ts src/features/inventory/inventorySnapshotConsistency.ts
+# Required release gates from a complete checkout with dependencies:
+npm run test:contracts
+npm run build
+npx playwright test tests/offworld-integrated-navigation.spec.ts
+npm run test:e2e
+# Backend and real PostgreSQL as described in the primary QA checklist.
+```
+
+**Executed locally:** Node 22.16.0 **7/7 PASS**, isolated strict TS compile **PASS** for two dependency-free modules, using exact text as committed: `authSession.ts` blob `09be2041654bf1e3b6cc5d146d5673af91ad6423`, `ownerReadFence.ts` `9bff468f0883d36d6cdd7a45cc081db00a57f436`, `inventorySnapshotConsistency.ts` `3dabb557751fa54778cd4c65eebcddb939993a78`, and new test `owner-read-fence.contract.test.mjs` `10cdecca28a375041f524bdc92279720af106493`. Matrix: matching token, guest/stale preflight refusal, late successful GET after account switch, logout/expiry, AbortSignal before start/after response, active-owner transport failure and prevented cross-owner retry after torn snapshot.
+
+**Authored but not executed:** three additional Playwright flows in `offworld-integrated-navigation.spec.ts`: delayed owner-A inventory under Journal, delayed owner-A inventory under Inventory, and delayed owner-A HP under Refuge after owner B logs in. These are added to the three pre-existing integration scenarios (six total). **Not run:** full contract aggregate, React production build, Playwright browser, backend .NET/xUnit, PostgreSQL and production deploy. GitHub Actions quota #112 remains blocked. Keep issue #120 open; no PR, merge or deployment.
