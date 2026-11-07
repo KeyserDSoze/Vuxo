@@ -90,3 +90,25 @@ test('idempotency and heal grant UUIDs may differ only in letter casing', () => 
     idempotencyKey: letterKey.toUpperCase() }, letterGrant, letterKey).grantId, letterGrant.toUpperCase());
   assert.equal(requireEquipConfirmed({ items: [{ grantId: letterGrant.toUpperCase() }] }, letterGrant).items.length, 1);
 });
+
+test('rest refuses impossible calendar and offset dates in confirmed receipts', () => {
+  for (const timestamp of [
+    '2026-02-31T12:00:00Z', '2026-11-05T24:00:00Z',
+    '2026-11-05T12:00:00+14:01', '2026-11-05T12:00:00',
+    '2026-11-05T12:00:00.12345678Z',
+  ]) badRest({ ...rest, restedAtUtc: timestamp });
+  badRest({ ...rest, nextRestAtUtc: '2026-11-05T12:30:00+15:00' });
+});
+test('heal refuses invalid dates but accepts .NET 100ns timestamps', () => {
+  for (const timestamp of [
+    '2026-02-30T12:00:00Z', '2026-11-05T12:60:00Z',
+    '2026-11-05T12:00:00-14:01', '2026-11-05T12:00:00',
+  ]) badHeal({ ...heal, consumedAtUtc: timestamp });
+  assert.equal(parseCharacterItemHealResult({
+    ...heal, consumedAtUtc: '2024-02-29T12:00:00.1234567+01:00',
+  }, grantId, key).consumedAtUtc, '2024-02-29T12:00:00.1234567+01:00');
+  assert.equal(parseCharacterRestResult({
+    ...rest, restedAtUtc: '2024-02-29T12:00:00.1234567Z',
+    nextRestAtUtc: '2024-02-29T12:30:00.1234567Z',
+  }, key).replayed, false);
+});

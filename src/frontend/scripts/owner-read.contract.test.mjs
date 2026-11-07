@@ -128,3 +128,20 @@ test('distinct UUIDs remain valid and itemKey identities are not lowercased', ()
     { ...inventoryStack, itemKey: 'item.rune_shard.v1', quantity: 1, equippedQuantity: 0, availableGrantIds: [grant2] },
   ]).length, 2);
 });
+
+test('owner read timestamps reject invalid ISO calendar dates consistently', () => {
+  for (const timestamp of [
+    '2026-02-31T12:00:00Z', '2026-11-07T24:00:00Z',
+    '2026-11-07T12:00:00+14:01', '2026-11-07T12:00:00',
+  ]) {
+    bad(() => parsePlayerInventory([{ ...inventoryAward, awardedAtUtc: timestamp }]), 'inventory_invalid_response');
+    bad(() => parseEquipmentView({ ...equipment, items: [{ ...equipped, equippedAtUtc: timestamp }] }), 'equipment_invalid_response');
+    bad(() => parsePortalEncounterStatus({ ...active, expiresAtUtc: timestamp }), 'encounter_status_invalid_response');
+  }
+});
+test('owner reads preserve valid leap-day .NET seven-digit timestamps', () => {
+  const timestamp = '2024-02-29T12:00:00.1234567+01:00';
+  assert.equal(parsePlayerInventory([{ ...inventoryAward, awardedAtUtc: timestamp }])[0].awardedAtUtc, timestamp);
+  assert.equal(parseEquipmentView({ ...equipment, items: [{ ...equipped, equippedAtUtc: timestamp }] }).items[0].equippedAtUtc, timestamp);
+  assert.equal(parsePortalEncounterStatus({ ...active, expiresAtUtc: timestamp }).expiresAtUtc, timestamp);
+});

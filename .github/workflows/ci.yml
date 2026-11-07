@@ -134,6 +134,8 @@ jobs:
         run: node ../../scripts/verify-governance.mjs
       - name: Install dependencies
         run: npm install
+      - name: Contract tests (owner state, mutations and portal history)
+        run: npm run test:contracts
       - name: Build
         env:
           VITE_BASE_PATH: /Vuxo/

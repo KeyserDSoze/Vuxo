@@ -244,3 +244,21 @@ npm run test:e2e
 ```
 
 **Executed locally:** exact Git blobs for history source `2c0922c0ad02228da94b8adee4e88692a3cd4f76` and tests `e194514b08b921f45a06f7d50d2390c841e9be01` passed **16/16** Node 22.16.0; the historical owner-mutation suite also passed **13/13** in the same Node invocation (**29/29 total**), with strict TypeScript 5.8.3 for both modules passing. Only **two** of the repository's contract suites were available together in the isolated local verification directory. The actual aggregate `npm run test:contracts` on all repository scripts, full React build, Chromium Playwright and backend/PostgreSQL checks **have not run**; do not claim release readiness. No GitHub Actions/PR/merge/deploy while #112 remains blocked.
+
+
+## Gate C0k: shared strict timestamps and enforced CI contract test gate (#120)
+
+Timestamp-bearing owner responses (inventory awards, equipped items, active portal encounter), rest/heal receipts, and Journal history now share `src/frontend/src/features/contracts/serverTimestamp.ts`. Reject impossible calendar dates, clock overflow, missing timezones, offsets beyond ±14:00, and more than seven fractional digits while preserving valid .NET `DateTimeOffset` values. The client never computes or grants server-owned rewards.
+
+The frontend CI job now executes `npm run test:contracts` after dependency installation and before the React build. This is a **future quality gate**, not proof of CI execution while #112 is blocked.
+
+```bash
+cd src/frontend
+npm ci
+npm run test:contracts
+npx tsc --noEmit --strict --target ES2022 --module esnext --moduleResolution bundler --allowImportingTsExtensions src/features/contracts/serverTimestamp.ts src/features/contracts/ownerReadContracts.ts src/features/contracts/ownerMutationContracts.ts src/features/portals/portalHistoryContract.ts
+npm run build
+npm run test:e2e
+```
+
+**Executed locally on Node 22.16.0:** identical shared timestamp helper and two isolated regression tests **2/2 PASS**; standalone strict TypeScript for the helper **PASS**. Four new cross-parser test cases (two owner reads, two mutations) are **authored but not executed** in the complete repository context. Previously completed Journal 16/16 and mutation 13/13 runs apply to the prior snapshot, not this commit. Full aggregate, React build, Playwright, .NET and PostgreSQL remain **pending**. Keep #120 open; never merge/deploy merely because the helper passed.
