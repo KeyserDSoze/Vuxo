@@ -542,3 +542,28 @@ test('Guardian history failure is recoverable without replaying combat actions',
   expect(historyRequests).toBe(2);
   expect(turnRequests).toBe(0);
 });
+
+test('logout inside a world portal closes the old duel and clears private markers', async ({ page }) => {
+  await initializePlayer(page);
+  await mockPrivatePortals(page);
+  await page.route('**/api/characters/me/portal-guardian/**', route => {
+    if (route.request().method() === 'OPTIONS')
+      return route.fulfill({ status: 204, headers: cors });
+    return route.fulfill({ status: 404, headers: cors, contentType: 'application/json',
+      body: JSON.stringify({ code: 'guardian_unavailable' }) });
+  });
+  await page.goto(origin + '/Vuxo/#/game');
+  await expect(page.getByTestId('world-connection-status')).toHaveAttribute('data-status', 'connected');
+  await expect(page.getByTestId('world-portal-enter')).toBeEnabled();
+  await page.getByTestId('world-portal-enter').click();
+  await expect(page.getByTestId('world-portal-dialog')).toBeVisible();
+  await page.evaluate(() => {
+    localStorage.removeItem('vuxo.accessToken');
+    localStorage.removeItem('vuxo.auth.expiresAtUtc');
+    localStorage.removeItem('vuxo.auth.user');
+    window.dispatchEvent(new Event('vuxo:session-changed'));
+  });
+  await expect(page.getByTestId('world-portal-dialog')).toHaveCount(0);
+  await expect(page.getByTestId('world-portals')).toHaveCount(0);
+  await expect(page.getByTestId('world-connection-status')).toHaveAttribute('data-status', 'connected');
+});
