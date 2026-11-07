@@ -127,6 +127,30 @@ public sealed class PortalGuardianRepository(VuxoDbContext db, IGameEventStore e
         if (character.CurrentHealth <= 1)
             throw new PortalGuardianException(PortalGuardianErrorCodes.TooInjured);
 
+        // now was sampled by PortalGuardianService BEFORE we waited for the
+        // character FOR UPDATE lock. Another device may therefore have committed
+        // the preceding turn with a later timestamp in the meantime. A reversed
+        // receipt order would make the canonical history appear corrupt.
+        // The lock serializes all turns for this character: clamp this turn's
+        // receipt AND audit timestamp to at least the last committed turn's
+        // instant (ties are valid), without altering damage or replay receipts.
+        var occurredAtUtc = now;
+        if (state.GuardianTurn > 0)
+        {
+            var priorTime = await db.PortalGuardianTurns.AsNoTracking()
+                .Where(x => x.PlayerId == playerId &&
+                    x.PortalGrantId == grantId &&
+                    x.CharacterId == character.Id &&
+                    x.EncounterEventId == state.StartEventId &&
+                    x.Turn == state.GuardianTurn)
+                .Select(x => (DateTimeOffset?)x.OccurredAtUtc)
+                .SingleOrDefaultAsync(cancellationToken);
+            if (priorTime is null)
+                throw new PortalGuardianException(PortalGuardianErrorCodes.Unavailable);
+            if (priorTime.Value > occurredAtUtc)
+                occurredAtUtc = priorTime.Value;
+        }
+
         var turn = expectedTurn + 1;
         var resolved = PortalGuardianRules.Resolve(grant.Seed, turn, action,
             character.Strength, character.Dexterity,
@@ -155,7 +179,7 @@ public sealed class PortalGuardianRepository(VuxoDbContext db, IGameEventStore e
             DamageDealt = resolved.DamageDealt,
             DamageTaken = resolved.DamageTaken,
             Outcome = resolved.Outcome,
-            OccurredAtUtc = now
+            OccurredAtUtc = occurredAtUtc
         };
         character.CurrentHealth = resolved.PlayerHealth;
         state.GuardianHealth = resolved.GuardianHealth;
@@ -166,7 +190,7 @@ public sealed class PortalGuardianRepository(VuxoDbContext db, IGameEventStore e
             receipt.TurnEventId, "portal.guardian_turn_resolved",
             GameEventVisibilityScope.Player, playerId,
             grant.CorrelationId, state.StartEventId,
-            state.GuardianRuleVersion, now),
+            state.GuardianRuleVersion, occurredAtUtc),
             GameEventPayloadSerializer.Serialize("portal.guardian_turn_resolved", new
             {
                 receipt.Id, receipt.CharacterId, receipt.PortalGrantId,

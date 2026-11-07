@@ -232,6 +232,66 @@ public sealed class PortalGuardianPersistenceTests
         Assert.Single(await verify.PortalGuardianTurns.ToArrayAsync());
     }
 
+
+    [PostgresIntegrationFact]
+    public async Task GuardianHistory_QueuedEarlierTimestampIsClampedAfterLockedTurnAndAuditMatches()
+    {
+        await using var database = await PostgresDatabaseScope.CreateAsync();
+        var grant = await SeedAsync(database);
+        var startedAt = DateTimeOffset.UtcNow;
+        await StartAsync(database, grant.Id, startedAt);
+
+        var firstKey = Guid.NewGuid();
+        var secondKey = Guid.NewGuid();
+        // Simulate device B sampling the clock while waiting for device A's
+        // character lock: B's earlier clock value must not backdate turn 2.
+        var committedFirstAt = startedAt.AddSeconds(4);
+        var queuedSecondAt = startedAt.AddSeconds(1);
+        await using (var firstDb = database.CreateDbContext())
+        {
+            var first = await Guardian(firstDb).PlayAsync("player-a", grant.Id,
+                PortalGuardianRules.Strike, 0, firstKey, committedFirstAt);
+            Assert.Equal(1, first.Turn);
+        }
+        await using (var secondDb = database.CreateDbContext())
+        {
+            var second = await Guardian(secondDb).PlayAsync("player-a", grant.Id,
+                PortalGuardianRules.Strike, 1, secondKey, queuedSecondAt);
+            Assert.Equal(2, second.Turn);
+            Assert.False(second.Replayed);
+        }
+
+        await using var verify = database.CreateDbContext();
+        var history = await Guardian(verify).GetHistoryAsync(
+            "player-a", grant.Id, startedAt.AddSeconds(5));
+        Assert.NotNull(history);
+        Assert.Equal(new[] { 1, 2 }, history.Select(x => x.Turn));
+        Assert.Equal(committedFirstAt, history[0].OccurredAtUtc);
+        Assert.Equal(committedFirstAt, history[1].OccurredAtUtc);
+        var turns = await verify.PortalGuardianTurns.AsNoTracking()
+            .Where(x => x.PlayerId == "player-a" && x.PortalGrantId == grant.Id)
+            .OrderBy(x => x.Turn).ToListAsync();
+        Assert.Equal(2, turns.Count);
+        Assert.True(turns[1].OccurredAtUtc >= turns[0].OccurredAtUtc);
+        foreach (var turn in turns)
+        {
+            var audit = await verify.GameEvents.AsNoTracking()
+                .SingleAsync(x => x.EventId == turn.TurnEventId);
+            Assert.Equal(turn.OccurredAtUtc, audit.OccurredAtUtc);
+        }
+
+        // A repeated key must return the original receipt, not create a
+        // backdated third turn or modify the persisted timestamp.
+        await using (var replayDb = database.CreateDbContext())
+        {
+            var replay = await Guardian(replayDb).PlayAsync("player-a", grant.Id,
+                PortalGuardianRules.Strike, 1, secondKey, startedAt);
+            Assert.True(replay.Replayed);
+            Assert.Equal(2, replay.Turn);
+        }
+        Assert.Equal(2, await verify.PortalGuardianTurns.AsNoTracking().CountAsync());
+    }
+
     [PostgresIntegrationFact]
     public async Task ConcurrentTurns_AreSerializedAndReplaySafeAcrossNodes()
     {
