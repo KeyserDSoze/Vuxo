@@ -40,6 +40,10 @@ node scripts/verify-offworld-local.mjs --run
 
 Il comando verifica i report **.NET TRX e Playwright JSON** e fallisce se i test non sono stati eseguiti, sono saltati, instabili o falliti. Per il percorso completo servono `VUXO_TEST_POSTGRES_CONNECTION_STRING` e una conferma separata `VUXO_TEST_POSTGRES_ACK=disposable`, impostata **solo dopo aver verificato personalmente che il server sia di test** (non garantisce automaticamente che il cluster sia isolato). Il runner non stampa la connection string; anche i log di errori dei tool esterni vanno trattati come sensibili. Nessun deploy. Guida: [Collaudo off-world offline](docs/engineering/offworld-local-qa.md). Il collaudo completo è ancora in sospeso finché mancano runtime e PostgreSQL; lo sviluppo resta sul branch di integrazione #120.
 
+## Panoramica dell'avventura nel Diario (#120)
+
+Il [Diario del Rifugio](docs/engineering/refuge-adventure-overview.md) include una panoramica in italiano e inglese dei progressi **confermati dal server**: ricompense registrate, portali disponibili, rune completate, primi errori e risultati dei Guardiani. I conteggi dello storico si riferiscono esclusivamente alle pagine di audit caricate; «Da verificare» indica informazioni mancanti o non disponibili, **non** assenza di progressi. Non sono introdotte nuove API o ricompense. Il collaudo completo React/Playwright/.NET/PostgreSQL è ancora in sospeso su #120.
+
 ## Versione e patch note
 
 La versione corrente è letta dal file root `VERSION`, che è la fonte canonica della versione applicativa.

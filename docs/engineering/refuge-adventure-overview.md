@@ -1,0 +1,36 @@
+# VUXO 0.0.1 — Verified Refuge Adventure Overview (#120)
+
+## User-facing goal
+
+The Refuge Journal shows a responsive **Your adventure at a glance / La tua avventura in breve** panel above the existing inventory, available portals and verified audit timeline. It helps players understand which off-world actions are *actually recorded* without implying that the client has a full activity ledger. It works with both dark/light theme and IT/EN i18n. Guests see no private overview.
+
+## Exact sources and claims
+
+| UI metric | Source already read by the Journal | Meaning and limitation |
+| --- | --- | --- |
+| Award records | `GET /api/inventory` (owner-fenced), number of returned grant entries | **Not** item quantity or a claim that a portal was completed |
+| Portals available now | `GET /api/personal-content`, filtered to sequence portal grants | These are available challenges, **not** victories |
+| Completed runes | Owner `history/completed` or `history/outcomes` verified rows | Only loaded completion receipts; does not infer from inventory |
+| First mistakes | Owner `history/outcomes` entries with `kind=sequence_first_mistake` | First damaging mistakes only, **not** all wrong attempts |
+| Guardian victories / retreats | Owner `history/outcomes`, audited terminal events | Two separate outcomes; **not** rewards or XP |
+| Linked rewards | `rewardItemKey` attached to audited sequence completions | Reward provenance verified by server; never inferred from Guardian wins |
+
+The history component publishes a summary only **after** its existing authenticated owner guard, runtime contract, and descending 100ns/UUID pagination validation succeed. It does not send new HTTP requests. Counting is over the **full accepted history pages**, not over locally filtered/search-visible entries. A successful empty server response may show `0` for that metric. Unavailable, pending or failed reads, or a history mode not covering a category, show **Not verified / Da verificare**, not zero. Switching from Completed to All outcomes is required to observe Guardian/mistake counts. `hasMore` and the number of loaded rows are displayed; the result is **not** a transaction-consistent lifetime total.
+
+## Privacy, refresh and failure behavior
+
+`RefugeJournalPage` is keyed by the account access token. On an owner switch it remounts all private state, so account A's recorded counts cannot carry into account B. Refresh All invalidates the summary before re-reading. Switching history mode or refreshing the audit section invalidates the old historical counts; a failed or malformed history page clears them rather than leaving stale success values. Independent inventory and portal failures make **only the affected metrics** unavailable; the others may remain valid. All requests remain read-only, abortable and owner-scoped.
+
+## Code and focused tests
+
+- `src/frontend/src/features/refuge/refugeAdventureOverview.ts`: pure summary model (no React, no browser APIs, no storage).
+- `src/frontend/src/features/refuge/RefugeAdventureOverview.tsx`: read-only responsive seven-metric MUI panel.
+- `src/frontend/src/pages/RefugeJournalPage.tsx` and `src/frontend/src/features/refuge/RefugePortalCompletionHistory.tsx`: connect existing private read results to the new panel, preserve parent/child owner safety.
+- `src/frontend/src/i18n.ts`: labels, unknown state, loaded-only scope and disclaimers in both IT and EN.
+- `src/frontend/scripts/refuge-adventure-overview.contract.test.mjs`: **12/12 PASS** on Node 22.16.0; covers unknown vs actual zero, complete vs outcome modes, reward provenance, page growth, owner independence, nonmutation and no invented XP.
+- `src/frontend/tests/refuge-linked-rewards.spec.ts`: **four authored, NOT RUN** Playwright browser cases for modes/metrics, failed reads and retry, late owner switch, and increasing history pages. Guest privacy assertion added to `refuge-journal.spec.ts`.
+- Root `node scripts/verify-offworld-local.mjs --contracts` now includes this sixth focused Node test script. Its actual six-script run must still be verified on a complete checkout.
+
+**Actually executed:** 12/12 new model tests and isolated strict TypeScript check; new TSX transpile and focused TypeScript check using local shims, not installed production React/MUI packages. The three newly authored source Git blobs match local SHA values: `8ef9beb5c386153b04a3ca9f6d3bf3c468bc0878` (pure model), `8fda58a9767ba680a2e032408b0c8cc76f34e1cc` (Node tests), `c9eabcebeb7f77c99a5e21dc4a7531f766c32647` (TSX).
+
+**Not executed:** full React build, actual Chromium Playwright, .NET/xUnit and real PostgreSQL integration/SQL plans. These require a complete checkout, npm/Chromium, .NET 10 and a **NONPRODUCTION** PostgreSQL cluster; follow `docs/engineering/offworld-local-qa.md` and require explicit `VUXO_TEST_POSTGRES_ACK=disposable`. Do not run Actions, merge or deploy while #112 is unresolved and issue #120 remains open.
