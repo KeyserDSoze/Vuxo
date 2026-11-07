@@ -27,6 +27,19 @@ Il frontend è pubblicato tramite GitHub Pages sul dominio custom `vuxo.app`. Il
 - Backend hosting: server self-hosted esposto tramite Cloudflare Tunnel
 - CI/CD: GitHub Actions + GHCR + GitHub self-hosted runner
 
+## Collaudo locale senza GitHub Actions (#120)
+
+È disponibile un comando **Windows / macOS / Linux** per controllare i prerequisiti e testare Diario, Portali e Guardiani senza avviare workflow CI:
+
+```bash
+node scripts/verify-offworld-local.mjs --check
+node scripts/verify-offworld-local.mjs --contracts
+# Solo con .NET 10, dipendenze frontend/Chromium e PostgreSQL ISOLATO di test:
+node scripts/verify-offworld-local.mjs --run
+```
+
+Il comando verifica i report .NET e **fallisce se i test sono saltati**, non stampa connection string e non effettua deploy. Il database PostgreSQL deve essere dedicato ai test e configurato con `VUXO_TEST_POSTGRES_CONNECTION_STRING`; **non usare l'istanza di produzione**. Guida: [Collaudo off-world offline](docs/engineering/offworld-local-qa.md). Il collaudo completo è ancora in sospeso finché mancano runtime e PostgreSQL; lo sviluppo resta sul branch di integrazione #120.
+
 ## Versione e patch note
 
 La versione corrente è letta dal file root `VERSION`, che è la fonte canonica della versione applicativa.

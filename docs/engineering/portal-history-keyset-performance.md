@@ -70,3 +70,8 @@ dotnet test tests/backend/Vuxo.Infrastructure.Tests/Vuxo.Infrastructure.Tests.cs
 ```
 
 The branch's existing `PostgresDatabaseScope` creates an isolated database and drops it on completion. Capture PostgreSQL version, provider version, generated SQL operator/ordering (without sensitive parameters), test pass/fail, and `EXPLAIN (ANALYZE, BUFFERS)` evidence in issue #120. Avoid benchmark claims or new indexes until this gate passes.
+
+
+## No-Actions local test runner available (QA C0v)
+
+Use `node scripts/verify-offworld-local.mjs --check` before trying any PostgreSQL plans. `--check` exits 2 with explicit missing prerequisites (no database connection string value is printed). Use `--contracts` to run only the Node history/Guardian contracts when no database is configured. Use `--run` **only** after configuring the `VUXO_TEST_POSTGRES_CONNECTION_STRING` variable for a dedicated disposable test PostgreSQL cluster, installing .NET SDK 10 and frontend packages, and installing Chromium. It invokes .NET tests with TRX output and treats **zero/skipped/unexecuted test cases as failures**, then runs React/Playwright. It does not start GitHub Actions or deploy. Launcher unit tests were actually executed **7/7 PASS**, but the end-to-end `--run` gate is still **NOT RUN**. See `docs/engineering/offworld-local-qa.md`.

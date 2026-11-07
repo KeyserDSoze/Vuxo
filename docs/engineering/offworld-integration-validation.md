@@ -513,3 +513,25 @@ tsc --noEmit --strict --target ES2022 --module esnext --allowImportingTsExtensio
 Guardian test Git blob `dc3d97e1e1895b3063417fcc406e0f5c6f88864c` matches the **locally executed** 10-case script; existing unchanged Guardian parser blob `ac2ec254710f864afb57f5e1abb5e1b5260a2d27`. Existing keyset cursor/pagination scripts and parser were independently hash-verified in C0t. These Node tests verify client parsing (including permissible timestamp ties), **not** the changed C# backend transaction.
 
 **Mandatory gates NOT RUN:** no .NET SDK or PostgreSQL test runtime in this container. `dotnet test tests/backend/Vuxo.Infrastructure.Tests/Vuxo.Infrastructure.Tests.csproj -c Release --filter FullyQualifiedName~GuardianHistory_QueuedEarlierTimestampIsClampedAfterLockedTurnAndAuditMatches` and existing Guardian concurrency/replay, SQL-shape, history keyset tests need a real isolated PostgreSQL database. Full React build and Playwright remain pending. `main` unchanged; keep #120 open and #112 CI quota blocker. No Actions/PR/merge/deploy.
+
+## Gate C0v: zero-Actions local QA launcher, Windows / Linux / macOS (#120)
+
+**New root script:** `scripts/verify-offworld-local.mjs`; regression test `scripts/verify-offworld-local.test.mjs`. Uses only Node core APIs (Node >= 22), resolves the repository relative to its own path, and does not invoke GitHub Actions, a GitHub API, Docker or deployment.
+
+```bash
+# Run at repository root, in a fully checked out branch:
+node scripts/verify-offworld-local.mjs --help
+node scripts/verify-offworld-local.mjs --check
+node scripts/verify-offworld-local.mjs --contracts
+node --test scripts/verify-offworld-local.test.mjs
+# Only when ready on a nonproduction test machine:
+node scripts/verify-offworld-local.mjs --run
+```
+
+**Behavior:** `--check` reports READY/MISSING for Node 22+, .NET 10, npm, installed frontend TypeScript and Playwright packages, selected source/test files, and presence of `VUXO_TEST_POSTGRES_CONNECTION_STRING`, with exit 2 when any is missing. It does not print the connection string; the Playwright Chromium executable is checked when the browser actually runs. `--contracts` executes **only** the three real dependency-free Node contract scripts for private portal keyset, pagination coherence and Guardian response validation, without a backend/DB/Actions. `--run` is **fail-closed**: first requires all prerequisites (including a dedicated NONPRODUCTION test PostgreSQL URL), then executes Node contracts, .NET restore/build, the application cursor tests, both authenticated API suites, both PostgreSQL history persistence suites, Guardian persistence, the full frontend contract/build gate, then six focused Playwright suites. It uses `npx --no-install` to avoid silently downloading a browser test runner. For every selected xUnit suite it reads a **real TRX report** and rejects total=0, skipped, failed or unexecuted tests **even if `dotnet test` exited 0**. TRX artifacts are discarded after the run; do not mistake their absence for a past PASS.
+
+**Actual execution evidence (local Node 22.16.0):** `node --check scripts/verify-offworld-local.mjs` PASS; `node --test scripts/verify-offworld-local.test.mjs` **7/7 PASS** (help, missing prerequisite exit, secret non-disclosure, Node-only contracts on a temporary fake checkout, missing source behavior, full-run no-start when blocked, unknown options). The real `--check` here reported **MISSING** (.NET 10 SDK, frontend deps, Playwright, PostgreSQL connection and full checkout), exited 2 and did not start test/CI/deploy. Exact local file Git blobs match current branch: launcher `16bcf29ec71a3a0aec0240ce5cf295a62950e19b`, Node launcher test `e00989e9e0a4615ce518e88bce479d447af8c9d2`. Previous dedicated Guardian+history Node suites **32/32 PASS** as recorded in C0u; **no new .NET/PostgreSQL/Playwright success is claimed**.
+
+**Safety and limitations:** An env var alone does not authenticate to PostgreSQL or validate browser installation. Do not point `VUXO_TEST_POSTGRES_CONNECTION_STRING` at the production server: PostgreSQL integration tests need create/drop-database permissions and create disposable test databases. The runner intentionally does not manage infrastructure, install missing packages, alter developer secrets, or start any remotely scheduled workflow. `--run` remains **NOT RUN** here until a complete local checkout with .NET 10, dependencies, Chromium and an isolated PostgreSQL server is supplied. No version bump, merge or deploy; keep #120 OPEN and #112 blocked.
+
+For operational setup and expected exit codes see `docs/engineering/offworld-local-qa.md`.
