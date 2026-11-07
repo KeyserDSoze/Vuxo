@@ -4,7 +4,8 @@ import { inventoryItemLabelKeys } from '../inventory/inventoryApi';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { readForCurrentOwner } from '../auth/ownerReadFence';
-import { fetchCompletedPortals, fetchPortalOutcomes, type CompletedPortal, type PortalOutcome } from '../portals/portalHistoryApi';
+import { fetchCompletedPortals, fetchPortalOutcomes, type CompletedPortal, type PortalOutcome,
+  type PortalCompletionPage, type PortalOutcomePage } from '../portals/portalHistoryApi';
 
 /**
  * Paginated, read-only verified sequence completions.
@@ -29,7 +30,7 @@ export function RefugePortalCompletionHistory({ accessToken }: { accessToken: st
     setLoading(true);
     setError(false);
     if (page === 1) setEntries([]);
-    void readForCurrentOwner(accessToken, () => mode === 'completed'
+    void readForCurrentOwner<PortalCompletionPage | PortalOutcomePage>(accessToken, () => mode === 'completed'
       ? fetchCompletedPortals(page, 20, controller.signal)
       : fetchPortalOutcomes(page, 20, controller.signal), controller.signal)
       .then(result => {
