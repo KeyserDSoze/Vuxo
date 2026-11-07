@@ -18,6 +18,7 @@ Quando una issue cambia stato in modo significativo, aggiornare la riga corrispo
 
 | Issue | Tipo | Versione | Area | Stato | Test/Stato verifica | Risoluzione / prossimo passo |
 |---|---|---:|---|---|---|---|
+| #121 | Bug/Auth/Deploy | 0.0.1 | MSAL5 redirect bridge + Pages live provider configuration | In progress | Bridge source + Playwright regression on PR; CI and live Entra authentication pending | Register Entra SPA at `/redirect.html`, production GitHub Client ID/tenant config, refresh GitHub Pages, verify real login and CORS before closure |
 | #109 | Feature/UX | 0.0.1 | Immersive landing + interactive portal | In progress | Playwright (portal, realm selectors, pointer, keyboard, reduced motion, i18n and responsive); CI PR pending | Original SVG/CSS hero, no Phaser load, theme tokens, guest/auth and Refuge routing; review CI before closure |
 | #70 | Epic | 0.0.1+ | Off-world gameplay and Refuge | In progress | Architettura/design in docs/game-design/off-world-refuge.md; slice #71 in CI | Cura autorevole #72 e minigiochi a reward #73 pianificati; no client-authoritative economy |
 | #71 | Feature | 0.0.1 | Refuge hub and free rune training | Done | PR #74 CI #41942702087: 68/68 Playwright, build/backend/Docker verdi; live E2E #41942702124 verde | Rifugio e allenamento rune 3/4/6, nav/mobile/i18n, nessun reward locale; mergiata in main a5adb254; issue chiusa #71 |
