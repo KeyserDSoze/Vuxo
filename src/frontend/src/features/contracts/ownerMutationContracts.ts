@@ -97,7 +97,8 @@ export function parseCharacterItemHealResult(
 export function requireEquipConfirmed<T extends {
   items: ReadonlyArray<{ grantId: string }>;
 }>(equipment: T, requestedGrantId: string): T {
-  if (!equipment.items.some(item => item.grantId.toLowerCase() === requestedGrantId.toLowerCase())) {
+  if (!guidPattern.test(requestedGrantId) ||
+      !equipment.items.some(item => item.grantId.toLowerCase() === requestedGrantId.toLowerCase())) {
     throw new Error('equipment_invalid_response');
   }
   return equipment;
