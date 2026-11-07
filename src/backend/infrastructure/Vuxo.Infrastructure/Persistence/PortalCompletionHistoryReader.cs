@@ -56,12 +56,13 @@ public sealed class PortalCompletionHistoryReader(VuxoDbContext dbContext)
                 ValueTuple.Create(row.OccurredAtUtc, row.Id),
                 ValueTuple.Create(position.OccurredAtUtc, position.PublicId)));
 
-        var rows = await records
-            .OrderByDescending(row => row.OccurredAtUtc)
-            .ThenByDescending(row => row.Id)
-            .Skip(after is null ? (page - 1) * pageSize : 0)
-            .Take(pageSize + 1)
-            .ToListAsync(cancellationToken);
+        var ordered = records.OrderByDescending(row => row.OccurredAtUtc)
+            .ThenByDescending(row => row.Id);
+        // A cursor request must not emit OFFSET, including OFFSET 0. Only
+        // the legacy numbered-page path uses Skip.
+        var pageQuery = after is null && page > 1
+            ? ordered.Skip((page - 1) * pageSize) : ordered;
+        var rows = await pageQuery.Take(pageSize + 1).ToListAsync(cancellationToken);
 
         var visibleRows = rows.Take(pageSize).ToArray();
         var provenRewards = await PortalRewardProvenanceReader.ForCompletionsAsync(

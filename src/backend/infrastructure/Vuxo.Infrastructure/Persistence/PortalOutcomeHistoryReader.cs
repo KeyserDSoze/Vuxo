@@ -126,12 +126,13 @@ public sealed class PortalOutcomeHistoryReader(VuxoDbContext db)
                 ValueTuple.Create(row.OccurredAtUtc, row.EventId),
                 ValueTuple.Create(position.OccurredAtUtc, position.PublicId)));
 
-        var rows = await records
-            .OrderByDescending(row => row.OccurredAtUtc)
-            .ThenByDescending(row => row.EventId)
-            .Skip(after is null ? (page - 1) * pageSize : 0)
-            .Take(pageSize + 1)
-            .ToListAsync(cancellationToken);
+        var ordered = records.OrderByDescending(row => row.OccurredAtUtc)
+            .ThenByDescending(row => row.EventId);
+        // Seek pages never emit OFFSET; keep Skip strictly on the bounded
+        // legacy numbered-page path for backwards compatibility.
+        var pageQuery = after is null && page > 1
+            ? ordered.Skip((page - 1) * pageSize) : ordered;
+        var rows = await pageQuery.Take(pageSize + 1).ToListAsync(cancellationToken);
 
         var visibleRows = rows.Take(pageSize).ToArray();
         // Only successful sequence consumption events can be causally related
