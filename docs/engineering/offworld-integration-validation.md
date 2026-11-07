@@ -328,3 +328,26 @@ npm run test:e2e
 **Actually executed locally:** Node v22.16.0 **4/4 PASS** for `portal-owner-lane.contract.test.mjs`, isolated `tsc --noEmit --strict` **PASS** for the two imported dependency-free TypeScript modules. Local Git hashes **exactly match** the branch: `authSession.ts` `09be2041654bf1e3b6cc5d146d5673af91ad6423`, `ownerReadFence.ts` `9bff468f0883d36d6cdd7a45cc081db00a57f436`, `ownerActionGate.ts` `b5d45d99b0931ad2acbd2cbd6f01ec16af0eb43c`, test `portal-owner-lane.contract.test.mjs` `4d1aa8a4ff999e10915b6e09cd2a039f37509383`. Covered delayed preview GET after switching owner, synchronous submit lease, stale success receipt, logout and expired sessions.
 
 **Authored but not executed:** four `portal-owner-session.spec.ts` cases (delayed grants, delayed secret preview, late successful POST after A→B, rapid duplicate POST), plus one `world-portals.spec.ts` logout case for Phaser dialog/markers. Existing `portals.spec.ts` and Guardian/world E2E flows remain intact. **Not run:** any Playwright browser scenario, full TypeScript React build, full `npm run test:contracts`, .NET/xUnit or PostgreSQL. Do not claim integration verified. GitHub Actions quota blocker #112 remains; #120 stays open. No PR, merge or deployment.
+
+
+## Gate C0o: validate Guardian read/turn/history responses under cross-device concurrency (#120)
+
+**Finding:** the PostgreSQL Guardian repository already holds the character `FOR UPDATE` lock, checks `expectedTurn`, and persists idempotent turn receipts and private event history; backend concurrency remains authoritative. The frontend `guardianApi.ts`, however, previously returned `response.json() as Promise<T>` without validating the resulting `GuardianStatus` / `GuardianTurn` or the history entries. Thus an HTTP 200 with wrong grant, wrong turn, forged victory/HP/reward fields or backdated log entries could misleadingly update an encounter's UI.
+
+**Change:** `src/frontend/src/features/portals/guardianContracts.ts` now strictly parses and projects the three owner-scoped wire responses with explicit allowed fields, canonical GUID comparisons (case-insensitive identity), valid turn bounds (0–12 status, 1–12 result/history), action and persisted ruleset validation (v1/v2), finite integer HP and damage, terminal outcome/guardian HP consistency, idempotency echo and strict .NET DateTimeOffset history timestamps up to seven fractional digits. History requires contiguous turns and nondecreasing exact 100ns chronology, and refuses further turns after victory/retreat. `guardianApi.ts` invokes these parsers for GET/status, POST/turn and GET/history. The frontend does not infer wounds, rewards or combat rules; the server/database still decides all outcomes.
+
+```bash
+cd src/frontend
+node --experimental-strip-types --test scripts/guardian-contracts.contract.test.mjs
+tsc --noEmit --strict --target ES2022 --module esnext --allowImportingTsExtensions src/features/portals/guardianContracts.ts
+# Required from complete checkout after fixing Actions #112:
+npm run test:contracts
+npm run build
+npx playwright test tests/world-portals.spec.ts
+npm run test:e2e
+# Backend xUnit and real PostgreSQL gates as above.
+```
+
+**Actually executed locally:** Node v22.16.0 **9/9 PASS** on exact test/helper files and standalone strict TypeScript **PASS**. Local `git hash-object` checks equal GitHub blobs: `guardianContracts.ts` `ac2ec254710f864afb57f5e1abb5e1b5260a2d27`, `guardian-contracts.contract.test.mjs` `377310ca314643920d12dece6a75d904c6802d53`, shared `serverTimestamp.ts` `c1d1c42c09fc54685eed7f50fa1107a43d469ac6`. Matrix covers valid v1/v2 status and zero HP, wrong-grant status, impossible HP/turns/outcomes, accepted replay and case-equivalent UUIDs, forged/mismatched turn receipts, terminal victory, 100ns history ordering, duplicate/skipped/backdated entries, malformed dates, and no history rows after terminal outcome.
+
+**Authored but NOT executed:** three `world-portals.spec.ts` browser scenarios: wrong-grant status must not show a playable Guardian, future-turn/fake-victory HTTP 200 must not update health/turn, and out-of-order cross-device history must display an error without showing private rows. Existing real Postgres concurrent-turn tests were inspected, not rerun. Full `npm run test:contracts`, React build, Playwright Chromium, .NET and PostgreSQL suites remain **NOT RUN**; issue #120 remains open and Actions #112 still blocks release/merge/deploy.
