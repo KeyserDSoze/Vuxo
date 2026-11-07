@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { readStoredSession } from '../auth/authSession';
 import { useStoredSession } from '../auth/useStoredSession';
+import { useOwnerFocusRefresh } from '../auth/useOwnerFocusRefresh';
 import { isCurrentOwnerRead, readForCurrentOwner } from '../auth/ownerReadFence';
 import { createOwnerActionGate, type OwnerActionGate } from '../inventory/ownerActionGate';
 import { Link as RouterLink } from 'react-router-dom';
@@ -168,6 +169,27 @@ function GuardianOwnerDuel({ grantId, accessToken }: Props & { accessToken: stri
     }
   };
 
+  const refreshCanonicalStatus = () => {
+    // Invalidate cards, health and previous-turn log BEFORE the new GET.
+    // A later response may confirm another device's move, retreat or victory.
+    setStatus(null);
+    setLastTurn(null);
+    setError(null);
+    setHistory([]);
+    setHistoryError(false);
+    setLoading(true);
+    setRevision(value => value + 1);
+  };
+
+  // No background polling and no refresh in the middle of a card intention.
+  // If a POST reply was lost, the authoritative GET below either confirms
+  // the new turn (dropping its old replay key) or keeps it retryable.
+  useOwnerFocusRefresh(
+    accessToken,
+    refreshCanonicalStatus,
+    () => !loading && !busy && !historyLoading,
+  );
+
   // A 404 means this was a direct off-world portal challenge or an expired
   // world encounter; the minigame remains usable on its own.
   if (!loading && !status && !error) return null;
@@ -311,7 +333,7 @@ function GuardianOwnerDuel({ grantId, accessToken }: Props & { accessToken: stri
         )}
         <Button data-testid="guardian-refresh" variant="text" size="small"
           disabled={loading || busy}
-          onClick={() => setRevision(value => value + 1)}>
+          onClick={refreshCanonicalStatus}>
           {t('game.guardian.refresh')}
         </Button>
       </Stack>

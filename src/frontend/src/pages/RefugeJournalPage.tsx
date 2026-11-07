@@ -8,6 +8,7 @@ import { useTranslation } from 'react-i18next';
 import { Link as RouterLink } from 'react-router-dom';
 import type { VuxoSession } from '../features/auth/authSession';
 import { useStoredSession } from '../features/auth/useStoredSession';
+import { useOwnerFocusRefresh } from '../features/auth/useOwnerFocusRefresh';
 import { readForCurrentOwner } from '../features/auth/ownerReadFence';
 import { RefugePortalCompletionHistory } from '../features/refuge/RefugePortalCompletionHistory';
 import {
@@ -100,6 +101,15 @@ function RefugeJournalSession({ session }: { session: VuxoSession | null }) {
     refreshPortals();
     setHistoryRevision(value => value + 1);
   };
+
+  // A different device can spend an item or finish a portal while this
+  // journal sits in another tab. On return discard the three old snapshots,
+  // then re-read the server. Do not interrupt active reads or poll hidden tabs.
+  useOwnerFocusRefresh(
+    session?.accessToken ?? null,
+    refreshAll,
+    () => (rewards !== null || rewardError) && (portals !== null || portalError),
+  );
 
   return (
     <Stack spacing={3} data-testid="refuge-journal-page">
