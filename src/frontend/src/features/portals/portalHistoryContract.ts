@@ -19,6 +19,7 @@ export type PortalCompletionPage = {
   page: number;
   pageSize: number;
   hasMore: boolean;
+  nextCursor?: string | null;
 };
 
 export type PortalOutcomeKind =
@@ -42,6 +43,7 @@ export type PortalOutcomePage = {
   page: number;
   pageSize: number;
   hasMore: boolean;
+  nextCursor?: string | null;
 };
 
 const outcomeKinds: ReadonlySet<string> = new Set([
@@ -49,6 +51,7 @@ const outcomeKinds: ReadonlySet<string> = new Set([
   'guardian_victory', 'guardian_retreat',
 ]);
 const guidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const cursorPattern = /^[A-Za-z0-9_-]{32}$/;
 
 function invalid(): never {
   throw new Error('portal_history_invalid_response');
@@ -117,7 +120,7 @@ function outcome(value: unknown): PortalOutcome {
 function page<T>(
   value: unknown, requestedPage: number,
   parseItem: (raw: unknown) => T, itemId: (item: T) => string,
-): { items: T[]; page: number; pageSize: number; hasMore: boolean } {
+): { items: T[]; page: number; pageSize: number; hasMore: boolean; nextCursor?: string | null } {
   const data = object(value);
   if (!Number.isInteger(requestedPage) || requestedPage < 1 || requestedPage > 1000 ||
       data.page !== requestedPage || !Number.isInteger(data.pageSize) ||
@@ -125,10 +128,18 @@ function page<T>(
       typeof data.hasMore !== 'boolean' || !Array.isArray(data.items) ||
       data.items.length > (data.pageSize as number) ||
       (data.hasMore && data.items.length === 0)) return invalid();
+  // Cursor is a server-provided bookmark, not an auth token. Older endpoints
+  // may omit it and continue using bounded page-number pagination.
+  if (data.nextCursor !== undefined && data.nextCursor !== null &&
+      (typeof data.nextCursor !== 'string' || !cursorPattern.test(data.nextCursor))) return invalid();
+  if (!data.hasMore && data.nextCursor != null) return invalid();
   const items = data.items.map(parseItem);
   // GUID identity is case-insensitive, including for React list keys.
   if (new Set(items.map(item => itemId(item).toLowerCase())).size !== items.length) return invalid();
-  return { items, page: requestedPage, pageSize: data.pageSize as number, hasMore: data.hasMore };
+  return { items, page: requestedPage, pageSize: data.pageSize as number,
+    hasMore: data.hasMore, ...(data.nextCursor === undefined ? {} : {
+      nextCursor: data.nextCursor as string | null,
+    }) };
 }
 
 export function parsePortalCompletionPage(value: unknown, requestedPage: number): PortalCompletionPage {

@@ -20,6 +20,7 @@ import { fetchCompletedPortals, fetchPortalOutcomes,
   // React state alone is not a synchronous pagination cursor: response
   // validation must inspect the exact latest accepted page before appending.
   const acceptedEntries = useRef<HistoryEntry[]>([]);
+  const nextCursor = useRef<string | null>(null);
   const [page, setPage] = useState(1);
   const [attempt, setAttempt] = useState(0);
   const [hasMore, setHasMore] = useState(false);
@@ -32,11 +33,13 @@ import { fetchCompletedPortals, fetchPortalOutcomes,
     setError(false);
     if (page === 1) {
       acceptedEntries.current = [];
+      nextCursor.current = null;
       setEntries([]);
     }
+    const after = page > 1 ? nextCursor.current ?? undefined : undefined;
     void readForCurrentOwner<PortalCompletionPage | PortalOutcomePage>(accessToken, () => mode === 'completed'
-      ? fetchCompletedPortals(page, 20, controller.signal)
-      : fetchPortalOutcomes(page, 20, controller.signal), controller.signal)
+      ? fetchCompletedPortals(page, 20, controller.signal, after)
+      : fetchPortalOutcomes(page, 20, controller.signal, after), controller.signal)
       .then(result => {
         if (controller.signal.aborted) return;
         // Offset pagination can overlap when another device inserts a
@@ -44,6 +47,7 @@ import { fetchCompletedPortals, fetchPortalOutcomes,
         // duplicate grants/events or a newer row after an older one.
         const next = appendPortalHistoryPage(acceptedEntries.current, result.items, mode, page);
         acceptedEntries.current = next;
+        nextCursor.current = result.nextCursor ?? null;
         setEntries(next);
         setHasMore(result.hasMore);
       })
@@ -52,6 +56,7 @@ import { fetchCompletedPortals, fetchPortalOutcomes,
         // On a partial-page error even the earlier pages may be stale.
         // Clear everything and force a fresh page-one retry.
         acceptedEntries.current = [];
+        nextCursor.current = null;
         setEntries([]);
         setHasMore(false);
         setError(true);
@@ -72,6 +77,7 @@ import { fetchCompletedPortals, fetchPortalOutcomes,
 
   function refresh() {
     acceptedEntries.current = [];
+    nextCursor.current = null;
     setEntries([]);
     setHasMore(false);
     setLoading(true);
@@ -82,6 +88,7 @@ import { fetchCompletedPortals, fetchPortalOutcomes,
   function chooseMode(nextMode: HistoryMode) {
     if (nextMode === mode) return;
     acceptedEntries.current = [];
+    nextCursor.current = null;
     setEntries([]);
     setHasMore(false);
     setLoading(true);

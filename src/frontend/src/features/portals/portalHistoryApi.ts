@@ -9,12 +9,12 @@ export type {
 
 /** Read-only owner history; never trust an unvalidated JSON response. */
 export async function fetchCompletedPortals(
-  page = 1, pageSize = 20, signal?: AbortSignal,
+  page = 1, pageSize = 20, signal?: AbortSignal, cursor?: string,
 ) {
   const token = readStoredSession()?.accessToken;
   if (!token) throw new Error('portal_history_authentication_required');
   const response = await fetch(
-    `${getApiBaseUrl()}/api/personal-content/history/completed?page=${page}&pageSize=${pageSize}`,
+    `${getApiBaseUrl()}/api/personal-content/history/completed?page=${page}&pageSize=${pageSize}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`,
     { headers: { Authorization: `Bearer ${token}` }, signal },
   );
   if (!response.ok) throw new Error('portal_history_request_failed');
@@ -27,12 +27,12 @@ export async function fetchCompletedPortals(
  * must not inherit a rune completion reward. Verify the server payload.
  */
 export async function fetchPortalOutcomes(
-  page = 1, pageSize = 20, signal?: AbortSignal,
+  page = 1, pageSize = 20, signal?: AbortSignal, cursor?: string,
 ) {
   const token = readStoredSession()?.accessToken;
   if (!token) throw new Error('portal_history_authentication_required');
   const response = await fetch(
-    `${getApiBaseUrl()}/api/personal-content/history/outcomes?page=${page}&pageSize=${pageSize}`,
+    `${getApiBaseUrl()}/api/personal-content/history/outcomes?page=${page}&pageSize=${pageSize}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`,
     { headers: { Authorization: `Bearer ${token}` }, signal },
   );
   if (!response.ok) throw new Error('portal_outcomes_request_failed');
