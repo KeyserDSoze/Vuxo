@@ -198,3 +198,80 @@ test('outcome history detects a newer page-two event at 100ns precision', async 
   await expect(page.getByTestId('refuge-journal-completed-error')).toBeVisible();
   await expect(page.getByTestId('refuge-journal-completed-entry')).toHaveCount(0);
 });
+
+test('Journal sends the continuation cursor so a concurrent new head cannot duplicate a completion', async ({ page }) => {
+  await signIn(page);
+  await otherSections(page);
+  // An actual 24-byte portal cursor: UTC ticks + public grant GUID, base64url.
+  const cursor = 'CN87I43fEAARERERERERQYERERERERER';
+  const pageRequests: Array<{ page: number; cursor: string | null }> = [];
+  await page.route('**/api/personal-content/history/completed*', route => {
+    const url = new URL(route.request().url());
+    const index = Number(url.searchParams.get('page'));
+    const supplied = url.searchParams.get('cursor');
+    pageRequests.push({ page: index, cursor: supplied });
+    const items = index === 1 ? [solved] : supplied === cursor
+      ? [{ ...solved, grantId: b, completedAtUtc: '2026-11-04T10:00:00Z',
+        rewardItemKey: null }] : [solved]; // offset drift would repeat page 1
+    return route.fulfill({ headers: cors, contentType: 'application/json',
+      body: JSON.stringify({ items, page: index, pageSize: 20,
+        hasMore: index === 1, nextCursor: index === 1 ? cursor : null }) });
+  });
+
+  await page.goto('./#/refuge/journal');
+  await expect(page.getByTestId('refuge-journal-completed-entry')).toHaveCount(1);
+  // A second device adds a *newer* completion before page 2 is requested.
+  await page.getByTestId('refuge-journal-completed-more').click();
+  await expect(page.getByTestId('refuge-journal-completed-entry')).toHaveCount(2);
+  await expect(page.getByTestId('refuge-journal-completed-error')).toHaveCount(0);
+  expect(pageRequests).toEqual([{ page: 1, cursor: null }, { page: 2, cursor }]);
+});
+
+test('keyset pagination continues the owner outcome timeline across two event families', async ({ page }) => {
+  await signIn(page);
+  await otherSections(page);
+  const cursor = 'CN87I43fEACqqqqqqqqqSoqqqqqqqqqq';
+  const requests: string[] = [];
+  await page.route('**/api/personal-content/history/completed*', route => route.fulfill({
+    headers: cors, contentType: 'application/json',
+    body: JSON.stringify({ items: [], page: 1, pageSize: 20, hasMore: false }),
+  }));
+  await page.route('**/api/personal-content/history/outcomes*', route => {
+    const url = new URL(route.request().url());
+    const index = Number(url.searchParams.get('page'));
+    requests.push(url.searchParams.get('cursor') ?? '(none)');
+    const older = { ...outcome, eventId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+      kind: 'guardian_retreat', rewardItemKey: null,
+      occurredAtUtc: '2026-11-04T10:00:00Z' };
+    return route.fulfill({ headers: cors, contentType: 'application/json',
+      body: JSON.stringify({ items: index === 1 ? [outcome] :
+          url.searchParams.get('cursor') === cursor ? [older] : [outcome],
+        page: index, pageSize: 20, hasMore: index === 1,
+        nextCursor: index === 1 ? cursor : null }) });
+  });
+  await page.goto('./#/refuge/journal');
+  await page.getByTestId('refuge-journal-mode-outcomes').click();
+  await expect(page.getByTestId('refuge-journal-completed-entry')).toHaveCount(1);
+  await page.getByTestId('refuge-journal-completed-more').click();
+  await expect(page.getByTestId('refuge-journal-completed-entry')).toHaveCount(2);
+  await expect(page.getByTestId('refuge-journal-completed-error')).toHaveCount(0);
+  expect(requests).toEqual(['(none)', cursor]);
+});
+
+test('the Journal rejects an invalid continuation token before it can request another page', async ({ page }) => {
+  await signIn(page);
+  await otherSections(page);
+  let pageTwoGets = 0;
+  await page.route('**/api/personal-content/history/completed*', route => {
+    const index = Number(new URL(route.request().url()).searchParams.get('page'));
+    if (index > 1) pageTwoGets++;
+    return route.fulfill({ headers: cors, contentType: 'application/json',
+      body: JSON.stringify({ items: [solved], page: index, pageSize: 20,
+        hasMore: true, nextCursor: '!invalid!' }) });
+  });
+  await page.goto('./#/refuge/journal');
+  await expect(page.getByTestId('refuge-journal-completed-error')).toBeVisible();
+  await expect(page.getByTestId('refuge-journal-completed-entry')).toHaveCount(0);
+  await expect(page.getByTestId('refuge-journal-completed-more')).toHaveCount(0);
+  expect(pageTwoGets).toBe(0);
+});
