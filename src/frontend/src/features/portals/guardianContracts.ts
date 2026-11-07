@@ -91,10 +91,11 @@ export function parseGuardianStatus(raw: unknown, requestedGrantId: string): Gua
   const turn = integer(value.turn, 0, MAX_TURNS);
   const health = limits(value);
   const state = outcome(value.outcome);
-  if (value.ruleVersion !== 'portal-guardian-showdown-v1' &&
-      value.ruleVersion !== 'portal-guardian-showdown-v2') invalid();
+  const ruleVersion = value.ruleVersion;
+  if (ruleVersion !== 'portal-guardian-showdown-v1' &&
+      ruleVersion !== 'portal-guardian-showdown-v2') invalid();
   outcomeMatchesHealth(state, health.guardianHealth, turn);
-  return { grantId, turn, ...health, outcome: state, ruleVersion: value.ruleVersion };
+  return { grantId, turn, ...health, outcome: state, ruleVersion: ruleVersion as string };
 }
 
 export function parseGuardianTurn(
@@ -113,12 +114,13 @@ export function parseGuardianTurn(
   const state = outcome(value.outcome);
   const damageDealt = integer(value.damageDealt, 0, health.guardianMaxHealth);
   const damageTaken = integer(value.damageTaken, 0, health.playerMaxHealth);
-  if (typeof value.replayed !== 'boolean') invalid();
+  const replayed = value.replayed;
+  if (typeof replayed !== 'boolean') invalid();
   outcomeMatchesHealth(state, health.guardianHealth, turn);
   return {
     grantId, idempotencyKey, turn, action: expected.action,
     guardianAction: reply, damageDealt, damageTaken,
-    ...health, outcome: state, replayed: value.replayed,
+    ...health, outcome: state, replayed: replayed as boolean,
   };
 }
 
