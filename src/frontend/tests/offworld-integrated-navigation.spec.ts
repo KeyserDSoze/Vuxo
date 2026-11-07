@@ -185,3 +185,35 @@ test('Inventory keeps owner-B empty loadout when owner-A fetch completes late', 
   await expect(page.getByTestId('inventory-empty')).toBeVisible();
   await expect(page.getByTestId('inventory-browse-controls')).toHaveCount(0);
 });
+
+test('Refuge rejects an owner-A health reply after owner-B account switch', async ({ page }) => {
+  await signIn(page);
+  await ownerReads(page);
+  let releaseOld!: () => void;
+  let notifyOld!: () => void;
+  const seenOld = new Promise<void>(resolve => { notifyOld = resolve; });
+  const oldResponse = new Promise<void>(resolve => { releaseOld = resolve; });
+  await page.route('**/api/characters/me/health', async route => {
+    if (route.request().method() === 'OPTIONS') {
+      await route.fulfill({ status: 204, headers: corsHeaders });
+      return;
+    }
+    if (route.request().headers()['authorization'] === 'Bearer integration-owner-a') {
+      notifyOld();
+      await oldResponse;
+      await route.fulfill(json({ name: 'Old character', currentHealth: 1,
+        maxHealth: 20, rulesVersion: 'v1' })).catch(() => {});
+      return;
+    }
+    await route.fulfill(json({ name: 'New character', currentHealth: 20,
+      maxHealth: 20, rulesVersion: 'v1' }));
+  });
+  await page.goto('./#/refuge');
+  await seenOld;
+  await switchToOwnerB(page);
+  await expect(page.getByTestId('refuge-health-count')).toContainText('20 / 20 HP');
+  await expect(page.getByTestId('refuge-preparation')).toBeVisible();
+  releaseOld();
+  await expect(page.getByTestId('refuge-health-count')).toContainText('20 / 20 HP');
+  await expect(page.getByTestId('refuge-preparation-hp-count')).toContainText('20 / 20 HP');
+});
