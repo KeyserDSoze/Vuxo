@@ -567,3 +567,104 @@ test('logout inside a world portal closes the old duel and clears private marker
   await expect(page.getByTestId('world-portals')).toHaveCount(0);
   await expect(page.getByTestId('world-connection-status')).toHaveAttribute('data-status', 'connected');
 });
+
+test('malformed Guardian GET cannot show another portal grant or enable card actions', async ({ page }) => {
+  await initializePlayer(page);
+  await mockPrivatePortals(page);
+  let posts = 0;
+  await page.route('**/api/characters/me/portal-guardian/**', route => {
+    if (route.request().method() === 'OPTIONS')
+      return route.fulfill({ status: 204, headers: cors });
+    if (route.request().method() === 'POST') posts++;
+    return route.fulfill({ status: 200, headers: cors, contentType: 'application/json',
+      body: JSON.stringify({
+        grantId: '99999999-9999-4999-8999-999999999999',
+        turn: 0, guardianHealth: 6, guardianMaxHealth: 6,
+        playerHealth: 20, playerMaxHealth: 20,
+        outcome: 'ongoing', ruleVersion: 'portal-guardian-showdown-v2',
+        rewardKey: 'forged-reward',
+      }) });
+  });
+  await page.goto(origin + '/Vuxo/#/game');
+  await expect(page.getByTestId('world-portal-enter')).toBeEnabled();
+  await page.getByTestId('world-portal-enter').click();
+  await expect(page.getByTestId('guardian-error')).toBeVisible();
+  await expect(page.getByTestId('guardian-turn')).toHaveCount(0);
+  await expect(page.getByTestId('guardian-strike')).toHaveCount(0);
+  expect(posts).toBe(0);
+});
+
+test('HTTP 200 with a fabricated future turn never changes Guardian HP or battle result', async ({ page }) => {
+  await initializePlayer(page);
+  await mockPrivatePortals(page);
+  let posts = 0;
+  await page.route('**/api/characters/me/portal-guardian/**', route => {
+    const req = route.request();
+    if (req.method() === 'OPTIONS')
+      return route.fulfill({ status: 204, headers: cors });
+    if (req.method() === 'GET' && new URL(req.url()).pathname.endsWith('/history'))
+      return route.fulfill({ status: 200, headers: cors, contentType: 'application/json', body: '[]' });
+    if (req.method() === 'GET')
+      return route.fulfill({ status: 200, headers: cors, contentType: 'application/json',
+        body: JSON.stringify({
+          grantId, turn: 0, guardianHealth: 6, guardianMaxHealth: 6,
+          playerHealth: 20, playerMaxHealth: 20, outcome: 'ongoing',
+          ruleVersion: 'portal-guardian-showdown-v2',
+        }) });
+    posts++;
+    return route.fulfill({ status: 200, headers: cors, contentType: 'application/json',
+      body: JSON.stringify({
+        grantId, idempotencyKey: req.headers()['idempotency-key'], turn: 2,
+        action: 'strike', guardianAction: 'guard',
+        damageDealt: 6, damageTaken: 0,
+        guardianHealth: 0, guardianMaxHealth: 6,
+        playerHealth: 20, playerMaxHealth: 20,
+        outcome: 'victory', replayed: false, rewardKey: 'forged',
+      }) });
+  });
+  await page.goto(origin + '/Vuxo/#/game');
+  await expect(page.getByTestId('world-portal-enter')).toBeEnabled();
+  await page.getByTestId('world-portal-enter').click();
+  await expect(page.getByTestId('guardian-turn')).toBeVisible();
+  await page.getByTestId('guardian-strike').click();
+  await expect(page.getByTestId('guardian-error')).toBeVisible();
+  await expect(page.getByTestId('guardian-turn')).toContainText('0 / 12');
+  await expect(page.getByTestId('guardian-health')).toContainText('6 / 6 HP');
+  await expect(page.getByTestId('guardian-turn-result')).toHaveCount(0);
+  expect(posts).toBe(1);
+});
+
+test('backdated cross-device Guardian turn history is hidden rather than rendered', async ({ page }) => {
+  await initializePlayer(page);
+  await mockPrivatePortals(page);
+  await page.route('**/api/characters/me/portal-guardian/**', route => {
+    if (route.request().method() === 'OPTIONS')
+      return route.fulfill({ status: 204, headers: cors });
+    if (new URL(route.request().url()).pathname.endsWith('/history'))
+      return route.fulfill({ status: 200, headers: cors, contentType: 'application/json',
+        body: JSON.stringify([{
+          turn: 1, action: 'strike', guardianAction: 'guard',
+          damageDealt: 1, damageTaken: 0, guardianHealth: 5,
+          playerHealth: 20, outcome: 'ongoing',
+          occurredAtUtc: '2026-11-07T12:00:00.1234567Z',
+        }, {
+          turn: 2, action: 'strike', guardianAction: 'guard',
+          damageDealt: 1, damageTaken: 0, guardianHealth: 4,
+          playerHealth: 20, outcome: 'ongoing',
+          occurredAtUtc: '2026-11-07T12:00:00.1234566Z',
+        }]),
+      });
+    return route.fulfill({ status: 200, headers: cors, contentType: 'application/json',
+      body: JSON.stringify({
+        grantId, turn: 2, guardianHealth: 4, guardianMaxHealth: 6,
+        playerHealth: 20, playerMaxHealth: 20,
+        outcome: 'ongoing', ruleVersion: 'portal-guardian-showdown-v2',
+      }) });
+  });
+  await page.goto(origin + '/Vuxo/#/game');
+  await expect(page.getByTestId('world-portal-enter')).toBeEnabled();
+  await page.getByTestId('world-portal-enter').click();
+  await expect(page.getByTestId('guardian-history-error')).toBeVisible();
+  await expect(page.getByTestId('guardian-history-entry')).toHaveCount(0);
+  await expect(page.getByTestId('guardian-turn')).toContainText('2 / 12');
+});
