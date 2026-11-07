@@ -351,3 +351,31 @@ npm run test:e2e
 **Actually executed locally:** Node v22.16.0 **9/9 PASS** on exact test/helper files and standalone strict TypeScript **PASS**. Local `git hash-object` checks equal GitHub blobs: `guardianContracts.ts` `ac2ec254710f864afb57f5e1abb5e1b5260a2d27`, `guardian-contracts.contract.test.mjs` `377310ca314643920d12dece6a75d904c6802d53`, shared `serverTimestamp.ts` `c1d1c42c09fc54685eed7f50fa1107a43d469ac6`. Matrix covers valid v1/v2 status and zero HP, wrong-grant status, impossible HP/turns/outcomes, accepted replay and case-equivalent UUIDs, forged/mismatched turn receipts, terminal victory, 100ns history ordering, duplicate/skipped/backdated entries, malformed dates, and no history rows after terminal outcome.
 
 **Authored but NOT executed:** three `world-portals.spec.ts` browser scenarios: wrong-grant status must not show a playable Guardian, future-turn/fake-victory HTTP 200 must not update health/turn, and out-of-order cross-device history must display an error without showing private rows. Existing real Postgres concurrent-turn tests were inspected, not rerun. Full `npm run test:contracts`, React build, Playwright Chromium, .NET and PostgreSQL suites remain **NOT RUN**; issue #120 remains open and Actions #112 still blocks release/merge/deploy.
+
+
+## Gate C0p: foreground reconciliation across devices for Journal, Guardian and available portals (#120)
+
+**Finding/root cause.** Inventory and Refuge already called the shared `useOwnerFocusRefresh` hook, but the Journal, live Guardian duel and direct portal listing did not. If another device consumed an item, completed a personal portal or advanced a Guardian turn, the mounted page continued showing the older owner snapshot until the player manually refreshed it or navigated away. Backend state and concurrency locks remained correct.
+
+**Implementation.** Reuse the existing owner-bound, burst-limited `createOwnerFocusGate` and `useOwnerFocusRefresh`—no timers, background polling, SignalR claims or local gameplay predictions:
+
+- Journal: on foreground, discard rewards, active grants and the paged completed/outcome history by invoking the existing `refreshAll`; reload private server GETs only after prior owner reads settle. Preserve reward filters. An aborted stale GET remains unable to publish.
+- Guardian: on foreground, immediately hide old HP/cards/last-turn/history and re-read canonical server status, followed by the canonical turn history. Do not refresh during a pending card POST or while the initial status/history is loading. On canonical turn advance, the existing code discards the superseded retry key; when a failed/ambiguous request did not advance, the same replay key remains eligible for retry.
+- Portal list: on foreground, discard available-grant listing and re-query the owner API **only when no challenge preview/answer is active**, avoiding loss of the player's in-progress rune sequence or a racing POST.
+- Existing Inventory/Refuge focus behavior remains untouched. The shared gate refuses guests/old account, hidden tab, busy views and focus/visibility bursts within 1.5 seconds. Cross-device correctness is *eventual on foreground*, not continuous live SignalR sync.
+
+**Commands and evidence actually executed locally (Node 22.16.0):**
+
+```bash
+cd src/frontend
+node --experimental-strip-types --test scripts/owner-focus.contract.test.mjs
+# 10/10 PASS on the exact existing focus gate and its Node test
+tsc --noEmit --strict --target ES2022 --module esnext src/features/auth/ownerFocusGate.ts
+# PASS (isolated TypeScript source)
+```
+
+The local `git hash-object` outputs **matched GitHub exactly**: `ownerFocusGate.ts` `3ab25383b0b162080ddfd6b423a3b9a875d49a60`, `owner-focus.contract.test.mjs` `1c6d68f3f7ad4a01aeabca3752008e5a8fc3331b`. These are pre-existing tested files, unchanged by this slice; they verify the debounce/authorization core, **not** the React integration.
+
+**New Playwright scenarios authored (NOT run):** `refuge-journal.spec.ts`—cross-device item/portal consumption triggers all 3 fresh reads only once for a single focus+visibility burst; `world-portals.spec.ts`—canonical Guardian turn/HP/history updates after return without issuing a POST, and refresh is refused while a card POST is in flight; `portal-owner-session.spec.ts`—a consumed grant vanishes from idle listing on foreground, and an active rune preview survives focus without a second grant GET. **Five browser scenarios total, NOT RUN.** Existing UI tests stay intact.
+
+**Remaining release gates:** `npm run test:contracts`, `npm run build`, `npx playwright test tests/refuge-journal.spec.ts tests/portal-owner-session.spec.ts tests/world-portals.spec.ts`, the full browser suite and .NET/PostgreSQL integration. These were **NOT executed** due to unavailable full checkout/dependencies and GitHub Actions quota blocker #112. Do not merge, create PR or deploy; issue #120 remains open.
