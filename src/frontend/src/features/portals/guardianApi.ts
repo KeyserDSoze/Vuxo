@@ -1,27 +1,12 @@
 import { getApiBaseUrl } from '../character/appearance';
 import { readStoredSession } from '../auth/authSession';
-
-export type GuardianAction = 'strike' | 'guard' | 'feint';
-export type GuardianOutcome = 'ongoing' | 'victory' | 'retreat';
-
-export type GuardianStatus = {
-  grantId: string;
-  turn: number;
-  guardianHealth: number;
-  guardianMaxHealth: number;
-  playerHealth: number;
-  playerMaxHealth: number;
-  outcome: GuardianOutcome;
-  ruleVersion: string;
-};
-export type GuardianTurn = Omit<GuardianStatus, 'ruleVersion'> & {
-  idempotencyKey: string;
-  action: GuardianAction;
-  guardianAction: GuardianAction;
-  damageDealt: number;
-  damageTaken: number;
-  replayed: boolean;
-};
+import {
+  parseGuardianStatus, parseGuardianTurn, parseGuardianHistory,
+  type GuardianAction, type GuardianStatus, type GuardianTurn, type GuardianHistoryEntry,
+} from './guardianContracts.ts';
+export type {
+  GuardianAction, GuardianOutcome, GuardianStatus, GuardianTurn, GuardianHistoryEntry,
+} from './guardianContracts.ts';
 
 export class GuardianApiError extends Error {
   constructor(public readonly code: string, public readonly status: number) {
@@ -68,31 +53,23 @@ async function request<T>(
 
 export const fetchGuardian = async (
   grantId: string, signal?: AbortSignal,
-): Promise<GuardianStatus> => request(grantId, 'GET', undefined, signal);
+): Promise<GuardianStatus> => parseGuardianStatus(
+  await request<unknown>(grantId, 'GET', undefined, signal), grantId,
+);
 
 export const playGuardianTurn = async (
   grantId: string, action: GuardianAction, expectedTurn: number,
   key: string, signal?: AbortSignal,
-): Promise<GuardianTurn> => request(grantId, 'POST',
-  { action, expectedTurn, key }, signal);
+): Promise<GuardianTurn> => parseGuardianTurn(
+  await request<unknown>(grantId, 'POST', { action, expectedTurn, key }, signal),
+  { grantId, action, expectedTurn, idempotencyKey: key },
+);
 
-// Public read model deliberately excludes player IDs, seeds and receipt/audit IDs.
-export type GuardianHistoryEntry = {
-  turn: number;
-  action: GuardianAction;
-  guardianAction: GuardianAction;
-  damageDealt: number;
-  damageTaken: number;
-  guardianHealth: number;
-  playerHealth: number;
-  outcome: GuardianOutcome;
-  occurredAtUtc: string;
-};
-
+// Only validated, privacy-minimal server projections are exposed to the UI.
 export async function fetchGuardianHistory(
   grantId: string, signal?: AbortSignal,
 ): Promise<GuardianHistoryEntry[]> {
-  const entries = await request<unknown>(grantId, 'GET', undefined, signal, '/history');
-  if (!Array.isArray(entries)) throw new GuardianApiError('guardian_history_unavailable', 502);
-  return entries as GuardianHistoryEntry[];
+  return parseGuardianHistory(await request<unknown>(
+    grantId, 'GET', undefined, signal, '/history',
+  ));
 }
