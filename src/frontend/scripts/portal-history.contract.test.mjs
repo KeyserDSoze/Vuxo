@@ -78,3 +78,38 @@ test('valid second-page response stays usable', () => {
   assert.equal(secondPage.items.length, 1);
   assert.equal(secondPage.hasMore, true);
 });
+
+test('duplicate completed grants are rejected even when UUID casing differs', () => {
+  const letteredGrant = 'abcdefab-abcd-4abc-8abc-abcdefabcdef';
+  invalid(() => parsePortalCompletionPage(response([
+    { ...completed, grantId: letteredGrant },
+    { ...completed, grantId: letteredGrant.toUpperCase() },
+  ]), 1));
+});
+
+test('duplicate outcome events are rejected despite uppercase/lowercase UUID aliases', () => {
+  invalid(() => parsePortalOutcomePage(response([
+    outcome, { ...outcome, eventId: eventId.toUpperCase() },
+  ]), 1));
+});
+
+test('completion cannot be recorded before its original grant', () => {
+  invalid(() => parsePortalCompletionPage(response([{
+    ...completed, grantedAtUtc: '2026-11-05T11:00:00Z', completedAtUtc: '2026-11-05T10:00:00Z',
+  }]), 1));
+  invalid(() => parsePortalCompletionPage(response([{
+    ...completed, grantedAtUtc: '2026-11-05T11:00:00+02:00', completedAtUtc: '2026-11-05T08:59:59Z',
+  }]), 1));
+});
+
+test('equivalent timestamp offsets and multiple events of one grant remain valid', () => {
+  const page = parsePortalCompletionPage(response([{
+    ...completed, grantedAtUtc: '2026-11-05T10:00:00+01:00', completedAtUtc: '2026-11-05T09:00:00Z',
+  }]), 1);
+  assert.equal(page.items.length, 1);
+  const results = parsePortalOutcomePage(response([
+    { ...outcome, kind: 'sequence_first_mistake' },
+    { ...outcome, eventId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb' },
+  ]), 1);
+  assert.equal(results.items.length, 2);
+});
