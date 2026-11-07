@@ -113,3 +113,47 @@ test('equivalent timestamp offsets and multiple events of one grant remain valid
   ]), 1);
   assert.equal(results.items.length, 2);
 });
+
+
+test('invalid calendar dates cannot be silently normalized by JavaScript', () => {
+  for (const timestamp of [
+    '2026-02-29T10:00:00Z', '2026-02-31T10:00:00Z',
+    '2026-04-31T10:00:00Z', '2026-11-00T10:00:00Z',
+    '2026-11-07T24:00:00Z', '2026-11-07T10:60:00Z',
+  ]) invalid(() => parsePortalCompletionPage(response([{ ...completed, completedAtUtc: timestamp }]), 1));
+});
+
+test('leap day, timezone offsets and seven-digit .NET fractions remain valid', () => {
+  const result = parsePortalCompletionPage(response([{
+    ...completed, grantedAtUtc: '2024-02-29T09:00:00.1234567+01:00',
+    completedAtUtc: '2024-02-29T08:00:00.1234567Z',
+  }]), 1);
+  assert.equal(result.items.length, 1);
+  const outcome = parsePortalOutcomePage(response([{
+    eventId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    grantId, contentKey: completed.contentKey, ruleVersion: completed.ruleVersion,
+    kind: 'sequence_completed', occurredAtUtc: '2024-02-29T08:00:00.1234567Z',
+  }]), 1);
+  assert.equal(outcome.items.length, 1);
+});
+
+test('timestamps must have explicit UTC or offset and valid offset bounds', () => {
+  for (const timestamp of [
+    '2026-11-07T10:00:00', '2026-11-07T10:00:00+14:01',
+    '2026-11-07T10:00:00+15:00', '2026-11-07T10:00:00+01:60',
+    '2026-11-07T10:00:00.12345678Z',
+  ]) invalid(() => parsePortalOutcomePage(response([{
+    eventId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', grantId,
+    contentKey: completed.contentKey, ruleVersion: completed.ruleVersion,
+    kind: 'sequence_completed', occurredAtUtc: timestamp,
+  }]), 1));
+});
+
+test('century leap-year rule rejects 1900 but accepts 2000', () => {
+  invalid(() => parsePortalCompletionPage(response([{
+    ...completed, grantedAtUtc: '1900-02-29T10:00:00Z', completedAtUtc: '1900-03-01T10:00:00Z',
+  }]), 1));
+  assert.equal(parsePortalCompletionPage(response([{
+    ...completed, grantedAtUtc: '2000-02-29T10:00:00Z', completedAtUtc: '2000-03-01T10:00:00Z',
+  }]), 1).items.length, 1);
+});
