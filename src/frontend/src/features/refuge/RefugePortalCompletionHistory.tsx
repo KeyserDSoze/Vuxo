@@ -1,11 +1,13 @@
 import { AutoAwesome, Refresh } from '@mui/icons-material';
-import { Alert, Box, Button, Chip, CircularProgress, Paper, Stack, Typography } from '@mui/material';
+import { Alert, Box, Button, Chip, CircularProgress, FormControl, InputLabel,
+  MenuItem, Paper, Select, Stack, TextField, Typography } from '@mui/material';
 import { inventoryItemLabelKeys } from '../inventory/inventoryApi';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { readForCurrentOwner } from '../auth/ownerReadFence';
 import { appendPortalHistoryPage, type HistoryEntry, type HistoryMode } from './portalHistoryPageMerge';
 import { createPortalHistoryNavigationGate } from './portalHistoryNavigationGate';
+import { filterPortalHistoryEntries, type PortalHistoryViewFilter } from './portalHistoryView';
 import { fetchCompletedPortals, fetchPortalOutcomes,
   type PortalCompletionPage, type PortalOutcomePage } from '../portals/portalHistoryApi';
 
@@ -30,6 +32,14 @@ import { fetchCompletedPortals, fetchPortalOutcomes,
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [viewFilter, setViewFilter] = useState<PortalHistoryViewFilter>('all');
+  const [search, setSearch] = useState('');
+  // Filtering is presentation-only over the current owner's verified pages.
+  // Keep the backend cursor and full accepted audit timeline untouched.
+  const visibleEntries = useMemo(
+    () => filterPortalHistoryEntries(entries, viewFilter, search),
+    [entries, viewFilter, search],
+  );
 
   useEffect(() => {
     const controller = new AbortController();
@@ -99,6 +109,8 @@ import { fetchCompletedPortals, fetchPortalOutcomes,
     setHasMore(false);
     setLoading(true);
     setError(false);
+    setViewFilter('all');
+    setSearch('');
     setPage(1);
     setMode(nextMode);
   }
@@ -152,6 +164,59 @@ import { fetchCompletedPortals, fetchPortalOutcomes,
           </Button>
         </Stack>
 
+        {!error && entries.length > 0 && (
+          <Stack spacing={1.25} data-testid="refuge-journal-history-tools">
+            <Typography variant="subtitle2" sx={{ fontWeight: 750 }}>
+              {t('refuge.journal.browse.title')}
+            </Typography>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+              <FormControl size="small" sx={{ minWidth: { sm: 230 }, flex: 1 }}>
+                <InputLabel id="refuge-journal-history-filter-label">
+                  {t('refuge.journal.browse.filterLabel')}
+                </InputLabel>
+                <Select data-testid="refuge-journal-history-filter"
+                  labelId="refuge-journal-history-filter-label"
+                  label={t('refuge.journal.browse.filterLabel')} value={viewFilter}
+                  onChange={event => setViewFilter(event.target.value as PortalHistoryViewFilter)}>
+                  <MenuItem value="all">{t('refuge.journal.browse.filters.all')}</MenuItem>
+                  {mode === 'outcomes' && (
+                    <MenuItem value="runes">{t('refuge.journal.browse.filters.runes')}</MenuItem>
+                  )}
+                  {mode === 'outcomes' && (
+                    <MenuItem value="mistakes">{t('refuge.journal.browse.filters.mistakes')}</MenuItem>
+                  )}
+                  {mode === 'outcomes' && (
+                    <MenuItem value="guardians">{t('refuge.journal.browse.filters.guardians')}</MenuItem>
+                  )}
+                  <MenuItem value="rewards">{t('refuge.journal.browse.filters.rewards')}</MenuItem>
+                </Select>
+              </FormControl>
+              <TextField data-testid="refuge-journal-history-search" size="small"
+                fullWidth autoComplete="off" value={search}
+                label={t('refuge.journal.browse.searchLabel')}
+                onChange={event => setSearch(event.target.value.slice(0, 128))}
+                sx={{ flex: 2 }} />
+            </Stack>
+            <Typography variant="body2" color="text.secondary" aria-live="polite"
+              data-testid="refuge-journal-history-count">
+              {t('refuge.journal.browse.count', {
+                shown: visibleEntries.length, loaded: entries.length,
+              })}
+            </Typography>
+            <Typography variant="caption" color="text.secondary"
+              data-testid="refuge-journal-history-scope">
+              {t('refuge.journal.browse.scope')}
+            </Typography>
+            {(viewFilter !== 'all' || search.trim() !== '') && (
+              <Button size="small" data-testid="refuge-journal-history-clear"
+                onClick={() => { setViewFilter('all'); setSearch(''); }}
+                sx={{ alignSelf: 'flex-start' }}>
+                {t('refuge.journal.browse.clear')}
+              </Button>
+            )}
+          </Stack>
+        )}
+
         {loading && (
           <Stack role="status" direction="row" spacing={1.5} sx={{ alignItems: 'center' }}
             data-testid="refuge-journal-completed-loading">
@@ -180,8 +245,13 @@ import { fetchCompletedPortals, fetchPortalOutcomes,
               : 'refuge.journal.outcomes.empty')}
           </Alert>
         )}
+        {!loading && !error && entries.length > 0 && visibleEntries.length === 0 && (
+          <Alert severity="info" data-testid="refuge-journal-history-no-match">
+            {t('refuge.journal.browse.noMatch')}
+          </Alert>
+        )}
         <Stack spacing={1.25} data-testid="refuge-journal-completed-list">
-          {entries.map(item => {
+          {visibleEntries.map(item => {
             const isOutcome = 'kind' in item;
             const outcomeKind = isOutcome ? item.kind : 'sequence_completed';
             const date = isOutcome ? item.occurredAtUtc : item.completedAtUtc;

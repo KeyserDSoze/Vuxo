@@ -346,3 +346,89 @@ test('rapid double Load More cannot skip a cursor page, and a later click still 
   ]);
   await expect(page.getByTestId('refuge-journal-completed-error')).toHaveCount(0);
 });
+
+test('Journal outcomes can be filtered and searched locally without changing server history', async ({ page }) => {
+  await signIn(page, 'en');
+  await otherSections(page);
+  let reads = 0;
+  await page.route('**/api/personal-content/history/completed*', route => {
+    reads++;
+    return route.fulfill({ headers: cors, contentType: 'application/json',
+      body: JSON.stringify({ items: [solved], page: 1, pageSize: 20, hasMore: false }) });
+  });
+  await page.route('**/api/personal-content/history/outcomes*', route => {
+    reads++;
+    return route.fulfill({ headers: cors, contentType: 'application/json',
+      body: JSON.stringify({ items: [
+        outcome,
+        { ...outcome, eventId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+          kind: 'sequence_first_mistake', occurredAtUtc: '2026-11-04T10:00:00Z',
+          rewardItemKey: null },
+        { ...outcome, eventId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+          kind: 'guardian_victory', occurredAtUtc: '2026-11-03T10:00:00Z',
+          contentKey: 'portal.guardian.grove', rewardItemKey: null },
+        { ...outcome, eventId: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+          kind: 'guardian_retreat', occurredAtUtc: '2026-11-02T10:00:00Z',
+          contentKey: 'portal.guardian.grove', rewardItemKey: null },
+      ], page: 1, pageSize: 20, hasMore: false }) });
+  });
+  await page.goto('./#/refuge/journal');
+  await expect(page.getByTestId('refuge-journal-completed-entry')).toHaveCount(1);
+  await page.getByTestId('refuge-journal-mode-outcomes').click();
+  await expect(page.getByTestId('refuge-journal-completed-entry')).toHaveCount(4);
+  expect(reads).toBe(2);
+
+  const filter = page.getByTestId('refuge-journal-history-filter');
+  await filter.click();
+  await page.getByRole('option', { name: 'Guardians' }).click();
+  await expect(page.getByTestId('refuge-journal-completed-entry')).toHaveCount(2);
+  await expect(page.getByTestId('refuge-journal-history-count')).toContainText('2 of 4 loaded');
+  await page.getByTestId('refuge-journal-history-search').fill('cccccccc');
+  await expect(page.getByTestId('refuge-journal-completed-entry')).toHaveCount(1);
+  await expect(page.getByTestId('refuge-journal-history-count')).toContainText('1 of 4 loaded');
+
+  await page.getByTestId('refuge-journal-history-clear').click();
+  await expect(page.getByTestId('refuge-journal-completed-entry')).toHaveCount(4);
+  await filter.click();
+  await page.getByRole('option', { name: 'Rune mistakes' }).click();
+  await expect(page.getByTestId('refuge-journal-completed-entry')).toHaveCount(1);
+  await filter.click();
+  await page.getByRole('option', { name: 'With verified reward' }).click();
+  await expect(page.getByTestId('refuge-journal-completed-entry')).toHaveCount(1);
+  await expect(page.getByTestId('refuge-journal-verified-reward')).toHaveCount(1);
+  expect(reads).toBe(2); // No GET per local search or filter change
+
+  await page.getByTestId('refuge-journal-mode-completed').click();
+  await expect(page.getByTestId('refuge-journal-completed-entry')).toHaveCount(1);
+  await expect(page.getByTestId('refuge-journal-history-search')).toHaveValue('');
+  await expect(page.getByTestId('refuge-journal-history-count')).toContainText('1 of 1 loaded');
+  expect(reads).toBe(3);
+});
+
+test('a no-match local filter does not hide Load More or imply missing server history', async ({ page }) => {
+  await signIn(page);
+  await otherSections(page);
+  let reads = 0;
+  await page.route('**/api/personal-content/history/completed*', route => {
+    reads++;
+    const current = Number(new URL(route.request().url()).searchParams.get('page'));
+    return route.fulfill({ headers: cors, contentType: 'application/json',
+      body: JSON.stringify({ items: current === 1
+        ? [{ ...solved, rewardItemKey: null }]
+        : [{ ...solved, grantId: b, completedAtUtc: '2026-11-04T10:00:00Z' }],
+        page: current, pageSize: 20, hasMore: current === 1 }) });
+  });
+  await page.goto('./#/refuge/journal');
+  await expect(page.getByTestId('refuge-journal-completed-entry')).toHaveCount(1);
+  await page.getByTestId('refuge-journal-history-filter').click();
+  await page.getByRole('option', { name: 'Con ricompensa verificata' }).click();
+  await expect(page.getByTestId('refuge-journal-history-no-match')).toBeVisible();
+  await expect(page.getByTestId('refuge-journal-history-count')).toContainText('0 su 1 caricati');
+  await expect(page.getByTestId('refuge-journal-completed-more')).toBeVisible();
+  expect(reads).toBe(1);
+  await page.getByTestId('refuge-journal-completed-more').click();
+  await expect(page.getByTestId('refuge-journal-completed-entry')).toHaveCount(1);
+  await expect(page.getByTestId('refuge-journal-history-no-match')).toHaveCount(0);
+  await expect(page.getByTestId('refuge-journal-history-count')).toContainText('1 su 2 caricati');
+  expect(reads).toBe(2);
+});

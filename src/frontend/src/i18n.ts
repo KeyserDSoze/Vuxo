@@ -167,6 +167,22 @@ const initialization = i18n.use(initReactI18next).init({
             refreshAll: 'Aggiorna tutto',
             retry: 'Aggiorna',
             dateUnavailable: 'Data non disponibile',
+            browse: {
+              title: 'Esplora gli eventi caricati',
+              filterLabel: 'Tipo di evento',
+              searchLabel: 'Cerca contenuto o riferimento',
+              filters: {
+                all: 'Tutti gli eventi',
+                runes: 'Rune completate',
+                mistakes: 'Errori delle rune',
+                guardians: 'Guardiani',
+                rewards: 'Con ricompensa verificata'
+              },
+              count: 'Eventi visualizzati: {{shown}} su {{loaded}} caricati',
+              scope: 'Filtri e ricerca riguardano soltanto le pagine già caricate. Usa «Carica altri» per consultare altri eventi.',
+              noMatch: 'Nessun evento caricato corrisponde ai filtri. Cambia ricerca oppure carica altri eventi.',
+              clear: 'Azzera filtri e ricerca'
+            },
             outcomes: {
               title: 'Esiti verificati dei portali',
               description: 'Una cronologia di eventi confermati: rune risolte, primi errori con danno e conclusioni dei duelli PvE.',
@@ -761,6 +777,22 @@ const initialization = i18n.use(initReactI18next).init({
             refreshAll: 'Refresh all',
             retry: 'Refresh',
             dateUnavailable: 'Date unavailable',
+            browse: {
+              title: 'Explore loaded events',
+              filterLabel: 'Event type',
+              searchLabel: 'Search content or reference',
+              filters: {
+                all: 'All loaded events',
+                runes: 'Completed runes',
+                mistakes: 'Rune mistakes',
+                guardians: 'Guardians',
+                rewards: 'With verified reward'
+              },
+              count: 'Events shown: {{shown}} of {{loaded}} loaded',
+              scope: 'Filters and search only cover pages already loaded. Use Load More to explore additional events.',
+              noMatch: 'No loaded events match these filters. Change the search or load more events.',
+              clear: 'Clear filters and search'
+            },
             outcomes: {
               title: 'Verified portal outcomes',
               description: 'A timeline of confirmed events: solved runes, first damaging mistakes and finished PvE showdowns.',
