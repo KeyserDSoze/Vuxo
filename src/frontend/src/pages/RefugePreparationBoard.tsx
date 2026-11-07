@@ -2,6 +2,7 @@ import { AutoAwesome, BackpackOutlined, ExploreOutlined, FavoriteBorder, Refresh
 import { Alert, Box, Button, CircularProgress, Grid, Paper, Stack, Typography } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { isCurrentOwnerRead, readForCurrentOwner } from '../features/auth/ownerReadFence';
 import { Link as RouterLink } from 'react-router-dom';
 import type { CharacterHealth } from '../features/health/characterHealthApi';
 import { fetchPortalEncounterStatus, type PortalEncounterStatus } from '../features/health/portalEncounterApi';
@@ -36,10 +37,10 @@ export function RefugePreparationBoard({ accessToken, health, onRefresh, onRevie
   useEffect(() => {
     const controller = new AbortController();
     setSnapshot(null);
-    void Promise.allSettled([
+    void readForCurrentOwner(accessToken, () => Promise.allSettled([
       fetchEquipment(controller.signal),
       fetchPortalEncounterStatus(accessToken, controller.signal),
-    ]).then(([equipmentResult, encounterResult]) => {
+    ]), controller.signal).then(([equipmentResult, encounterResult]) => {
       if (controller.signal.aborted) return;
       setSnapshot({
         equipment: equipmentResult.status === 'fulfilled' ? equipmentResult.value : null,
@@ -47,6 +48,11 @@ export function RefugePreparationBoard({ accessToken, health, onRefresh, onRevie
         equipmentFailed: equipmentResult.status === 'rejected',
         encounterFailed: encounterResult.status === 'rejected',
       });
+    });
+    .catch(() => {
+      if (!isCurrentOwnerRead(accessToken, controller.signal)) return;
+      // An unexpected aggregate failure must not leave the board spinning.
+      setSnapshot({ equipment: null, encounter: null, equipmentFailed: true, encounterFailed: true });
     });
     return () => controller.abort();
   }, [accessToken]);

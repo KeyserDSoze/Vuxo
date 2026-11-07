@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { fetchPortalEncounterStatus, type PortalEncounterStatus } from './portalEncounterApi';
+import { readForCurrentOwner } from '../auth/ownerReadFence';
 
 /**
  * One shared read-only status hook for world/off-world actions.
@@ -15,7 +16,7 @@ export function usePortalEncounterStatus(accessToken: string) {
     const controller = new AbortController();
     setStatus(null);
     setLoading(true);
-    void fetchPortalEncounterStatus(accessToken, controller.signal)
+    void readForCurrentOwner(accessToken, () => fetchPortalEncounterStatus(accessToken, controller.signal), controller.signal)
       .then(value => { if (!controller.signal.aborted) setStatus(value); })
       .catch(() => { if (!controller.signal.aborted) setStatus(null); })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });

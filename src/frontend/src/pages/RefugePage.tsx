@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Link as RouterLink } from 'react-router-dom';
 import { useStoredSession } from '../features/auth/useStoredSession';
 import { useOwnerFocusRefresh } from '../features/auth/useOwnerFocusRefresh';
+import { readForCurrentOwner } from '../features/auth/ownerReadFence';
 import { readStoredSession } from '../features/auth/authSession';
 import { fetchCharacterHealth, type CharacterHealth, type CharacterHealthApiError } from '../features/health/characterHealthApi';
 import { CharacterRestAction } from '../features/health/CharacterRestAction';
@@ -45,7 +46,7 @@ export function RefugePage() {
     const token = session.accessToken;
     const controller = new AbortController();
     setHealthRecord({ token, status: 'loading', health: null });
-    void fetchCharacterHealth(token, controller.signal)
+    void readForCurrentOwner(token, () => fetchCharacterHealth(token, controller.signal), controller.signal)
       .then(value => {
         if (!controller.signal.aborted) {
           setHealthRecord({ token, status: 'ready', health: value });
