@@ -720,3 +720,62 @@ test('returning to the Guardian reconciles another device turn and HP without a 
   expect(historyGets).toBe(before.historyGets + 1);
   expect(posts).toBe(0);
 });
+
+test('Guardian foreground does not race an in-flight card or replace its replay key', async ({ page }) => {
+  await initializePlayer(page);
+  await mockPrivatePortals(page);
+  let statusGets = 0;
+  let posts = 0;
+  const replayKeys: string[] = [];
+  let notifyPost!: () => void;
+  let releasePost!: () => void;
+  const started = new Promise<void>(resolve => { notifyPost = resolve; });
+  const held = new Promise<void>(resolve => { releasePost = resolve; });
+  await page.route('**/api/characters/me/portal-guardian/**', async route => {
+    const req = route.request();
+    if (req.method() === 'OPTIONS')
+      return route.fulfill({ status: 204, headers: cors });
+    if (new URL(req.url()).pathname.endsWith('/history'))
+      return route.fulfill({ status: 200, headers: cors, contentType: 'application/json', body: '[]' });
+    if (req.method() === 'GET') {
+      statusGets++;
+      return route.fulfill({ status: 200, headers: cors, contentType: 'application/json',
+        body: JSON.stringify({
+          grantId, turn: 0, guardianHealth: 6, guardianMaxHealth: 6,
+          playerHealth: 20, playerMaxHealth: 20,
+          outcome: 'ongoing', ruleVersion: 'portal-guardian-showdown-v2',
+        }) });
+    }
+    posts++;
+    const key = req.headers()['idempotency-key'];
+    replayKeys.push(key);
+    notifyPost();
+    await held;
+    return route.fulfill({ status: 200, headers: cors, contentType: 'application/json',
+      body: JSON.stringify({
+        grantId, idempotencyKey: key, turn: 1, action: 'strike',
+        guardianAction: 'guard', damageDealt: 1, damageTaken: 0,
+        guardianHealth: 5, guardianMaxHealth: 6, playerHealth: 20,
+        playerMaxHealth: 20, outcome: 'ongoing', replayed: false,
+      }) });
+  });
+  await page.goto(origin + '/Vuxo/#/game');
+  await expect(page.getByTestId('world-portal-enter')).toBeEnabled();
+  await page.getByTestId('world-portal-enter').click();
+  await expect(page.getByTestId('guardian-strike')).toBeEnabled();
+  await page.getByTestId('guardian-strike').click();
+  await started;
+  expect(statusGets).toBe(1);
+  await page.evaluate(() => {
+    window.dispatchEvent(new Event('focus'));
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  expect(statusGets).toBe(1);
+  expect(posts).toBe(1);
+  expect(replayKeys).toHaveLength(1);
+  releasePost();
+  await expect(page.getByTestId('guardian-turn')).toContainText('1 / 12');
+  await expect(page.getByTestId('guardian-health')).toContainText('5 / 6 HP');
+  expect(posts).toBe(1);
+  expect(statusGets).toBe(1);
+});
