@@ -75,8 +75,29 @@ test('invalid page indexes and duplicate entries in one response are rejected', 
   bad(() => appendPortalHistoryPage([], [completed(a, '1234568'),
     completed(a, '1234567')], 'completed', 1));
 });
-test('different rows with the same timestamp are valid when their identities differ', () => {
-  const rows = [completed(a, '1234567'), completed(b, '1234567'),
-    completed(c, '1234567')];
+test('same-timestamp completions must follow descending public grant IDs', () => {
+  const rows = [completed(c, '1234567'), completed(b, '1234567'),
+    completed(a, '1234567')];
   assert.equal(appendPortalHistoryPage([], rows, 'completed', 1).length, 3);
+  bad(() => appendPortalHistoryPage([], [completed(a, '1234567'),
+    completed(b, '1234567')], 'completed', 1));
+});
+test('equal-timestamp completion boundary rejects an ID newer than the cursor', () => {
+  bad(() => appendPortalHistoryPage([completed(a, '1234567')],
+    [completed(b, '1234567')], 'completed', 2));
+  assert.equal(appendPortalHistoryPage([completed(c, '1234567')],
+    [completed(b, '1234567')], 'completed', 2).length, 2);
+});
+test('equal-timestamp outcome boundary uses public event ID, not repeated grant ID', () => {
+  bad(() => appendPortalHistoryPage([outcome(a, '1234567')],
+    [outcome(b, '1234567')], 'outcomes', 2));
+  assert.equal(appendPortalHistoryPage([outcome(c, '1234567')],
+    [outcome(b, '1234567')], 'outcomes', 2).length, 2);
+});
+test('equivalent time zones still enforce UUID tie ordering at 100ns precision', () => {
+  const newest = completed(c, '1234567');
+  const older = { ...completed(b, '1234567'),
+    completedAtUtc: '2026-11-07T12:00:00.1234567+01:00' };
+  assert.equal(appendPortalHistoryPage([newest], [older], 'completed', 2).length, 2);
+  bad(() => appendPortalHistoryPage([older], [newest], 'completed', 2));
 });

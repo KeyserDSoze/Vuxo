@@ -5,14 +5,12 @@ export type HistoryMode = 'completed' | 'outcomes';
 export type HistoryEntry = CompletedPortal | PortalOutcome;
 
 /**
- * Offset pages can change while another device completes a portal. A second
- * page is not part of the original snapshot just because its HTTP status is
- * 200. Reject duplicate identities and reversed chronology across boundaries
- * instead of publishing a false/mixed verified history in the Journal.
- *
- * The API orders by occurred-at descending, then internal event id. Ties are
- * valid (completed history intentionally does not expose private audit ids).
- * This is a fail-closed UI check, not transactional snapshot pagination.
+ * Another device can add audit events between two history requests.
+ * Reject duplicate identities and entries outside the server's descending
+ * (timestamp, public ID) order, including equal-timestamp page boundaries.
+ * Completions are sorted by grant ID, outcomes by event ID; neither exposes
+ * the internal completion-audit ID. This guard complements the backend keyset
+ * cursor; it is not a transactional snapshot.
  */
 export function appendPortalHistoryPage(
   previous: readonly HistoryEntry[], incoming: readonly HistoryEntry[],
@@ -25,6 +23,7 @@ export function appendPortalHistoryPage(
   const current = page === 1 ? [] : previous;
   const seen = new Set<string>();
   let previousInstant: string | null = null;
+  let previousIdentity: string | null = null;
 
   for (const entry of [...current, ...incoming]) {
     const completed = mode === 'completed';
@@ -35,9 +34,12 @@ export function appendPortalHistoryPage(
     const instant = completed
       ? (entry as CompletedPortal).completedAtUtc
       : (entry as PortalOutcome).occurredAtUtc;
-    if (previousInstant && compareServerTimestamps(instant, previousInstant) > 0)
-      return invalid();
+    const chronology = previousInstant === null ? -1
+      : compareServerTimestamps(instant, previousInstant);
+    if (chronology > 0 || (chronology === 0 && previousIdentity !== null &&
+        identity > previousIdentity)) return invalid();
     previousInstant = instant;
+    previousIdentity = identity;
   }
   return [...current, ...incoming];
 }
