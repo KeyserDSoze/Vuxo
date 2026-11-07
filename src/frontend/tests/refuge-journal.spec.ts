@@ -303,3 +303,47 @@ test('unknown rewards and filtered-empty states never imply that inventory was d
   await page.getByRole('option', { name: 'Tutti' }).click();
   await expect(page.getByTestId('refuge-journal-reward')).toHaveCount(1);
 });
+
+test('returning to the Journal reconciles cross-device spending and portal consumption once', async ({ page }) => {
+  await signIn(page);
+  let spentElsewhere = false;
+  let rewardGets = 0;
+  let portalGets = 0;
+  let historyGets = 0;
+  const methods: string[] = [];
+  await page.route('**/api/inventory', route => {
+    methods.push(route.request().method());
+    rewardGets++;
+    return route.fulfill({ headers: corsHeaders, contentType: 'application/json',
+      body: JSON.stringify(spentElsewhere ? [] : rewards) });
+  });
+  await page.route('**/api/personal-content', route => {
+    methods.push(route.request().method());
+    portalGets++;
+    return route.fulfill({ headers: corsHeaders, contentType: 'application/json',
+      body: JSON.stringify(spentElsewhere ? [] : portals) });
+  });
+  await page.route('**/api/personal-content/history/completed*', route => {
+    methods.push(route.request().method());
+    historyGets++;
+    return route.fulfill({ headers: corsHeaders, contentType: 'application/json',
+      body: JSON.stringify({ items: [], page: 1, pageSize: 20, hasMore: false }) });
+  });
+  await page.goto('./#/refuge/journal');
+  await expect(page.getByTestId('refuge-journal-reward')).toHaveCount(3);
+  await expect(page.getByTestId('refuge-journal-portal')).toHaveCount(2);
+  await expect(page.getByTestId('refuge-journal-completed-empty')).toBeVisible();
+  expect([rewardGets, portalGets, historyGets]).toEqual([1, 1, 1]);
+
+  // Another device spent the grants and completed the available portals.
+  spentElsewhere = true;
+  await page.evaluate(() => {
+    window.dispatchEvent(new Event('focus'));
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  await expect(page.getByTestId('refuge-journal-rewards-empty')).toBeVisible();
+  await expect(page.getByTestId('refuge-journal-portals-empty')).toBeVisible();
+  await expect(page.getByTestId('refuge-journal-completed-empty')).toBeVisible();
+  expect([rewardGets, portalGets, historyGets]).toEqual([2, 2, 2]);
+  expect(methods.every(method => method === 'GET')).toBe(true);
+});
