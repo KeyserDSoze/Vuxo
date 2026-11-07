@@ -479,3 +479,37 @@ dotnet test tests/backend/Vuxo.Infrastructure.Tests/Vuxo.Infrastructure.Tests.cs
 # Then run the entire two Portal*HistoryPersistenceTests classes, API and C# cursor suites.
 ```
 The SQL translator, real indexes/EXPLAIN, .NET compiler, Chromium Playwright and full integration tests remain **NOT RUN**; block #120 closure and any merge/deploy while Actions quota #112 is unresolved.
+
+
+## Gate C0u: Guardian receipt/audit clock ordering under multi-device row locks (#120)
+
+**Root cause:** `PortalGuardianService.PlayAsync` samples `TimeProvider.GetUtcNow()` **before** calling `PortalGuardianRepository.PlayAsync`. The repository blocks on the player's `FOR UPDATE` lock, then creates the next canonical Guardian turn. Across devices an earlier request's sampled clock can be **later** than a request queued afterward, even though the database serializes their turns 1 → 2. The old repository wrote the original `now` to both turn receipt and audit, so a legitimate second turn could be recorded with a timestamp earlier than turn 1. The strict `parseGuardianHistory` browser contract rejects such an otherwise valid history as backdated and the Journal may appear broken.
+
+**Implementation:** Inside the existing character lock and single PostgreSQL transaction in `PortalGuardianRepository.PlayAsync`, after validating live encounter, owned grant, expected turn, valid action and health, read the **previous turn's** immutable `OccurredAtUtc` **only for the active encounter** (owner + character + portal grant + encounter-start event + exact prior turn). For turn > 1, reject a missing canonical prior receipt rather than assuming a timestamp. Set the new receipt/audit instant to `max(sampledUtcNow, previousOccurredAtUtc)`. Both `PortalGuardianTurnEntity.OccurredAtUtc` and the causal `GameEventEnvelope` use that same persisted time. The check is inside the pre-existing `FOR UPDATE` transaction, so it cannot race against another turn for that character. It allows timestamp **ties**, which match frontend validation; does not change damage resolution, winner/retreat rules, rate limiting, equipment, inventory, rewards or DB schema. The existing idempotency-key replay lookup stays **before** new turn validation and never rewrites a receipt.
+
+**New real PostgreSQL regression (AUTHORED, NOT RUN):** `PortalGuardianPersistenceTests.GuardianHistory_QueuedEarlierTimestampIsClampedAfterLockedTurnAndAuditMatches` starts an audited encounter, commits turn 1 at `t+4s`, then sends valid turn 2 with a previously sampled `t+1s` to simulate a request queued before the character lock. Assert canonical turn sequence, equal persisted UTC instants (microsecond-aligned for PostgreSQL), matching private GameEvent audit timestamps, no additional turn on same idempotency-key replay, and no owner history leakage. Existing serial-turn/replay/rollback tests remain.
+
+**Locally executed exact-source tests:**
+```bash
+# Node v22.16.0, exact files verified via git hash-object
+cd src/frontend
+node --experimental-strip-types --test scripts/guardian-contracts.contract.test.mjs
+# 10/10 PASS, including new equal-time/offset-equivalent history regression;
+# 100ns backwards time still fails closed
+node --experimental-strip-types --test \
+  scripts/portal-history-cursor.contract.test.mjs \
+  scripts/portal-history-pagination.contract.test.mjs
+# 22/22 PASS (unchanged history/keyset suites)
+tsc --noEmit --strict --target ES2022 --module esnext --allowImportingTsExtensions \
+  src/features/contracts/serverTimestamp.ts src/features/portals/guardianContracts.ts
+# PASS (isolated)
+tsc --noEmit --strict --target ES2022 --module esnext --allowImportingTsExtensions \
+  src/features/contracts/serverTimestamp.ts \
+  src/features/portals/portalHistoryContract.ts \
+  src/features/refuge/portalHistoryPageMerge.ts
+# PASS (isolated)
+```
+
+Guardian test Git blob `dc3d97e1e1895b3063417fcc406e0f5c6f88864c` matches the **locally executed** 10-case script; existing unchanged Guardian parser blob `ac2ec254710f864afb57f5e1abb5e1b5260a2d27`. Existing keyset cursor/pagination scripts and parser were independently hash-verified in C0t. These Node tests verify client parsing (including permissible timestamp ties), **not** the changed C# backend transaction.
+
+**Mandatory gates NOT RUN:** no .NET SDK or PostgreSQL test runtime in this container. `dotnet test tests/backend/Vuxo.Infrastructure.Tests/Vuxo.Infrastructure.Tests.csproj -c Release --filter FullyQualifiedName~GuardianHistory_QueuedEarlierTimestampIsClampedAfterLockedTurnAndAuditMatches` and existing Guardian concurrency/replay, SQL-shape, history keyset tests need a real isolated PostgreSQL database. Full React build and Playwright remain pending. `main` unchanged; keep #120 open and #112 CI quota blocker. No Actions/PR/merge/deploy.
