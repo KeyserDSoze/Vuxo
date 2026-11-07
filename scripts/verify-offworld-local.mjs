@@ -22,6 +22,7 @@ const focused = [
   'src/frontend/scripts/portal-history-pagination.contract.test.mjs',
   'src/frontend/scripts/portal-history-navigation.contract.test.mjs',
   'src/frontend/scripts/portal-history-view.contract.test.mjs',
+  'src/frontend/scripts/refuge-adventure-overview.contract.test.mjs',
   'src/frontend/scripts/guardian-contracts.contract.test.mjs',
 ];
 const browserTests = [
