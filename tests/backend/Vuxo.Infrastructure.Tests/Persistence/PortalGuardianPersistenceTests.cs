@@ -239,6 +239,9 @@ public sealed class PortalGuardianPersistenceTests
         await using var database = await PostgresDatabaseScope.CreateAsync();
         var grant = await SeedAsync(database);
         var startedAt = DateTimeOffset.UtcNow;
+        // PostgreSQL stores timestamp with 1-microsecond precision; keep the
+        // assertion deterministic rather than comparing discarded 100ns ticks.
+        startedAt = startedAt.AddTicks(-(startedAt.Ticks % 10));
         await StartAsync(database, grant.Id, startedAt);
 
         var firstKey = Guid.NewGuid();
