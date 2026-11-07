@@ -108,3 +108,17 @@ test('history cannot append a new turn after a terminal victory or retreat', () 
       'guardian_history_unavailable');
   }
 });
+
+test('server-serialized Guardian turns may share the same canonical timestamp after lock contention', () => {
+  const second = { ...historyRow, turn: 2, guardianHealth: 3, playerHealth: 18,
+    damageDealt: 2, damageTaken: 2,
+    occurredAtUtc: historyRow.occurredAtUtc };
+  assert.deepEqual(parseGuardianHistory([historyRow, second]), [historyRow, second]);
+  const offsetEquivalent = { ...second,
+    occurredAtUtc: '2026-11-07T13:00:00.1234567+01:00' };
+  assert.deepEqual(parseGuardianHistory([historyRow, offsetEquivalent]),
+    [historyRow, offsetEquivalent]);
+  // The backend must never publish an earlier receipt, even by one .NET tick.
+  const rolledBack = { ...second, occurredAtUtc: '2026-11-07T12:00:00.1234566Z' };
+  bad(() => parseGuardianHistory([historyRow, rolledBack]), 'guardian_history_unavailable');
+});
