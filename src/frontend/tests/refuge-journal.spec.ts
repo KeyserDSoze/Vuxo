@@ -73,6 +73,7 @@ test('guest can open Refuge journal but makes no owner API calls', async ({ page
   await page.getByTestId('refuge-activity-journal').click();
   await expect(page).toHaveURL(/#\/refuge\/journal$/);
   await expect(page.getByTestId('refuge-journal-auth-required')).toContainText('Accedi');
+  await expect(page.getByTestId('refuge-journal-overview')).toHaveCount(0);
   await expect(page.getByTestId('refuge-journal-rewards')).toHaveCount(0);
   await expect(page.getByTestId('refuge-journal-portals')).toHaveCount(0);
   expect(privateRequests).toEqual([]);
