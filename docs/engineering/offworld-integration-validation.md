@@ -262,3 +262,22 @@ npm run test:e2e
 ```
 
 **Executed locally on Node 22.16.0:** identical shared timestamp helper and two isolated regression tests **2/2 PASS**; standalone strict TypeScript for the helper **PASS**. Four new cross-parser test cases (two owner reads, two mutations) are **authored but not executed** in the complete repository context. Previously completed Journal 16/16 and mutation 13/13 runs apply to the prior snapshot, not this commit. Full aggregate, React build, Playwright, .NET and PostgreSQL remain **pending**. Keep #120 open; never merge/deploy merely because the helper passed.
+
+
+## Gate C0l: 100ns receipt chronology on the integration branch (#120)
+
+**Behavior:** previously `Date.parse` silently collapsed timestamps that differed by less than 1 millisecond. A portal completion at `10:00:00.1234566Z` could look simultaneous with its grant at `10:00:00.1234567Z` and bypass the client's chronology guard. The shared helper now compares instants at all seven .NET fractional digits, normalizing offsets, while refusing year `0000`. The comparison strips fractional seconds before `Date.parse` and compares the full 100ns fraction independently, avoiding browser-specific rounding. `portalHistoryContract.ts` uses this check for grant/completion ordering; `ownerMutationContracts.ts` uses it for rest versus next allowed time. These guards are advisory: the server remains the only source of gameplay truth.
+
+```bash
+cd src/frontend
+node --experimental-strip-types --test scripts/server-timestamp.contract.test.mjs
+npx tsc --noEmit --strict --target ES2022 --module esnext src/features/contracts/serverTimestamp.ts
+# Still required from a complete checkout with npm dependencies:
+npm run test:contracts
+npm run build
+npm run test:e2e
+```
+
+**Actually executed locally (Node 22.16.0):** **6/6 PASS** for the exact helper and six regression tests; standalone TypeScript strict compile **PASS**. The locally tested helper has Git blob `c1d1c42c09fc54685eed7f50fa1107a43d469ac6` and the tests `1ed26d29db1901d5f4f9f9390a4a10de6207690f`, both matching the committed files. The tests include 100ns negative/positive ordering, offset equality, second rollover, fraction width and invalid year zero.
+
+**Authored but not executed:** one extra portal history regression and one rest-receipt regression in the existing Node suites. **Not executed:** full `npm run test:contracts`, React build, Chromium Playwright, backend .NET or PostgreSQL integration. Keep #120 open; #112 continues to block Actions, PR/merge and deployment.
