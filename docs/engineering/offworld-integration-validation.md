@@ -400,3 +400,49 @@ npm run build
 npx playwright test tests/refuge-linked-rewards.spec.ts tests/refuge-journal.spec.ts
 # Then full npm run test:e2e, .NET/xUnit and PostgreSQL gates.
 ```
+
+
+## Gate C0r: backend keyset continuation for audit-backed portal history (#120)
+
+**Root cause.** The private completion and outcome history readers previously used `Skip((page-1)*pageSize)` with a stable per-query sort. PostgreSQL offset pagination is **not** a stable multi-request cursor: when another device creates an audit event above the previous page boundary, the old second-page offset points to an already-delivered row. The C0q frontend check was necessary but could only detect and reject the mixed read, not serve the correct next older event.
+
+**Backend design and compatibility.** Existing `/api/personal-content/history/completed` and `/api/personal-content/history/outcomes` remain authenticated and accept the old `page` (1..1000) / `pageSize` (1..50) parameters. New optional `cursor` (only allowed for page >= 2) is a fixed 32-character base64url token of 8 bytes of UTC DateTimeOffset ticks plus 16 bytes of an already-public row identifier. For completed history this is **grantId** (not the hidden completion audit ID), and for outcome history **eventId** (already a public response field). `PortalHistoryCursor` validates exact length, alphabet, canonical encoding, nonempty ID and valid ticks. It is a bookmark, **not an authentication token**; a forged or foreign cursor cannot override the JWT player's filter.
+
+The readers now use PostgreSQL/Npgsql translated tuple keyset predicates over `(occurredAtUtc, publicId)` with a matching descending sort, and include nullable `nextCursor` on the page response when `hasMore` is true. No database migration, new secret, extra history permission, audit payload or gameplay mutation was added. With a valid continuation, there is no `Skip`; older clients without cursors keep the previous bounded offset path (still subject to concurrent insertion drift).
+
+```text
+GET /api/personal-content/history/completed?page=1&pageSize=20
+  => { items, page:1, pageSize:20, hasMore:true, nextCursor:"<opaque>" }
+GET /api/personal-content/history/completed?page=2&pageSize=20&cursor=<opaque>
+  => { items, page:2, pageSize:20, hasMore:false, nextCursor:null }
+
+GET /api/personal-content/history/outcomes?page=1&pageSize=20
+  => { items, page:1, pageSize:20, hasMore:true, nextCursor:"<opaque>" }
+GET /api/personal-content/history/outcomes?page=2&pageSize=20&cursor=<opaque>
+  => { items, page:2, pageSize:20, hasMore:false, nextCursor:null }
+```
+
+**Frontend integration.** `portalHistoryContract.ts` validates the optional `nextCursor` and refuses bogus tokens or a continuation on a terminal page, while still accepting legacy responses that omit it. `portalHistoryApi.ts` URL-encodes the bookmark and adds it to the next request. `RefugePortalCompletionHistory.tsx` tracks the cursor alongside the accepted entries, resets it on mode change, refresh and failed snapshot, and continues to run the C0q cross-page duplicate/100ns ordering guard. Existing IT/EN UI messages are reused; no new localized string is necessary.
+
+**Actually executed now in the local runtime (Node 22.16.0):**
+```bash
+# local files matched the exact current GitHub blob SHA (hashes below)
+node --experimental-strip-types --test \
+  scripts/portal-history-cursor.contract.test.mjs \
+  scripts/portal-history-pagination.contract.test.mjs
+# PASS: 19/19 (six cursor and thirteen C0q cross-page tests)
+
+tsc --noEmit --strict --target ES2022 --module esnext --allowImportingTsExtensions \
+  src/features/contracts/serverTimestamp.ts \
+  src/features/portals/portalHistoryContract.ts \
+  src/features/refuge/portalHistoryPageMerge.ts
+# PASS: isolated strict TypeScript
+```
+
+Verified Git blob identities: `portalHistoryContract.ts` `74ad1787b6ac982799a9d94e23e0f37321d28b55`, `portalHistoryPageMerge.ts` `4e8ff8627eeee1b749e60c8390f67c57a8eed9f2`, `serverTimestamp.ts` `c1d1c42c09fc54685eed7f50fa1107a43d469ac6`, `portal-history-cursor.contract.test.mjs` `0a32135aac3e94bcca2e5df56c0f37b5c8ed1805`, `portal-history-pagination.contract.test.mjs` `68ae1eb85307f75668938854056814dacc9321fd`.
+
+**Authored but NOT executed (no .NET SDK, full npm checkout or Playwright runtime):** `PortalHistoryCursorTests.cs` checks canonical 100ns/UTC round-trips and malformed cursors; completion/outcome API suites now cover owner scoping, malformed/page-one cursor rejection before the repository, and a new event arriving between pages; two new `[PostgresIntegrationFact]` cases exercise real audited inserts between cursor reads and the EF/Npgsql tuple-comparison SQL; three new Playwright scenarios ensure the Journal transmits nextCursor, handles both outcome families and fails closed for invalid cursor metadata.
+
+**Limitations:** a stateless keyset protects against **newer rows inserted above the last consumed key**; it is not a PostgreSQL exported MVCC snapshot. A late-committed *backdated* event below the cursor can still enter later pages, and deletions/corrections to old audit data can still change membership. The private audit is intended to be append-only; the C0q duplicate and chronological client guard remains in place. Verify SQL translation, ordering (including equal timestamps), performance and full API/DB tests on real PostgreSQL before considering release.
+
+**Release gates still pending:** `dotnet restore/build/test Vuxo.sln`, real PostgreSQL integration, full `npm run test:contracts`, `npm run build`, focused Playwright `tests/refuge-linked-rewards.spec.ts` and the full Playwright suite. **NOT RUN**, #112 Actions quota still blocked, #120 remains open. No PR/merge/deploy.
