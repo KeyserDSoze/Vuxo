@@ -80,12 +80,16 @@ function optionalReward(value: unknown): string | null {
 
 function completed(value: unknown): CompletedPortal {
   const row = object(value);
+  const grantedAtUtc = date(row.grantedAtUtc);
+  const completedAtUtc = date(row.completedAtUtc);
+  // A receipt cannot precede the server's original grant, even with differing offsets.
+  if (Date.parse(completedAtUtc) < Date.parse(grantedAtUtc)) return invalid();
   return {
     grantId: guid(row.grantId),
     contentKey: text(row.contentKey),
     ruleVersion: text(row.ruleVersion),
-    grantedAtUtc: date(row.grantedAtUtc),
-    completedAtUtc: date(row.completedAtUtc),
+    grantedAtUtc,
+    completedAtUtc,
     rewardItemKey: optionalReward(row.rewardItemKey),
   };
 }
@@ -120,7 +124,8 @@ function page<T>(
       data.items.length > (data.pageSize as number) ||
       (data.hasMore && data.items.length === 0)) return invalid();
   const items = data.items.map(parseItem);
-  if (new Set(items.map(itemId)).size !== items.length) return invalid();
+  // GUID identity is case-insensitive, including for React list keys.
+  if (new Set(items.map(item => itemId(item).toLowerCase())).size !== items.length) return invalid();
   return { items, page: requestedPage, pageSize: data.pageSize as number, hasMore: data.hasMore };
 }
 
