@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Link as RouterLink } from 'react-router-dom';
 import { readStoredSession, type VuxoSession } from '../features/auth/authSession';
 import { useStoredSession } from '../features/auth/useStoredSession';
+import { useOwnerFocusRefresh } from '../features/auth/useOwnerFocusRefresh';
 import { readForCurrentOwner } from '../features/auth/ownerReadFence';
 import { createOwnerActionGate, type OwnerActionGate } from '../features/inventory/ownerActionGate';
 import { inventoryItemLabelKeys } from '../features/inventory/inventoryApi';
@@ -45,6 +46,7 @@ function PortalChallengesOwnerPage({
   const { t: inventoryText } = useTranslation('inventory');
   const autoStarted = useRef(false);
   const [grants, setGrants] = useState<PortalGrant[]>([]);
+  const [grantRevision, setGrantRevision] = useState(0);
   const [selected, setSelected] = useState<PortalGrant | null>(null);
   const [challenge, setChallenge] = useState<PortalChallenge | null>(null);
   const [answer, setAnswer] = useState<string[]>([]);
@@ -114,7 +116,21 @@ function PortalChallengesOwnerPage({
           setLoading(false);
       });
     return () => controller.abort();
-  }, [session?.accessToken]);
+  }, [session?.accessToken, grantRevision]);
+
+  // Another device may have consumed an available personal portal. Re-read
+  // when returning to the tab, but never interrupt an active rune preview,
+  // the answer, or a pending POST. No background polling.
+  useOwnerFocusRefresh(
+    session?.accessToken ?? null,
+    () => {
+      setLoading(true);
+      setGrants([]);
+      setErrorCode(null);
+      setGrantRevision(value => value + 1);
+    },
+    () => !loading && !busy && challenge === null,
+  );
 
   useEffect(() => {
     if (!challenge || !showing) return;
