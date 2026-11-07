@@ -1,6 +1,10 @@
 import { Alert, Box, Button, CircularProgress, LinearProgress, Paper, Stack, Typography } from '@mui/material';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { readStoredSession } from '../auth/authSession';
+import { useStoredSession } from '../auth/useStoredSession';
+import { isCurrentOwnerRead, readForCurrentOwner } from '../auth/ownerReadFence';
+import { createOwnerActionGate, type OwnerActionGate } from '../inventory/ownerActionGate';
 import { Link as RouterLink } from 'react-router-dom';
 import {
   fetchGuardian, fetchGuardianHistory, playGuardianTurn, GuardianApiError,
@@ -15,6 +19,13 @@ type Pending = { action: GuardianAction; expectedTurn: number; key: string };
  * intentions. It cannot set health, opponent state or unlock healing.
  */
 export function GuardianDuel({ grantId }: Props) {
+  const session = useStoredSession();
+  // Separate every encounter's pending idempotency key, cards and HP by owner.
+  return session ? <GuardianOwnerDuel key={session.accessToken + ':' + grantId}
+    grantId={grantId} accessToken={session.accessToken} /> : null;
+}
+
+function GuardianOwnerDuel({ grantId, accessToken }: Props & { accessToken: string }) {
   const { t } = useTranslation();
   const [status, setStatus] = useState<GuardianStatus | null>(null);
   const [loading, setLoading] = useState(true);
@@ -31,6 +42,18 @@ export function GuardianDuel({ grantId }: Props) {
   const [revision, setRevision] = useState(0);
   const pending = useRef<Pending | null>(null);
   const inFlight = useRef<AbortController | null>(null);
+  const ownerGate = useRef<OwnerActionGate | null>(null);
+
+  useEffect(() => {
+    const gate = createOwnerActionGate(accessToken);
+    ownerGate.current = gate;
+    return () => {
+      gate.dispose();
+      inFlight.current?.abort();
+      if (ownerGate.current === gate) ownerGate.current = null;
+    };
+  }, [accessToken, grantId]);
+
   // Card availability comes from the persisted server encounter ruleset,
   // not from local feature flags or client-predicted combat state.
   const canFeint = status?.ruleVersion === 'portal-guardian-showdown-v2';
@@ -41,22 +64,25 @@ export function GuardianDuel({ grantId }: Props) {
     setLastTurn(null);
     setError(null);
     setLoading(true);
-    void fetchGuardian(grantId, controller.signal)
+    void readForCurrentOwner(accessToken,
+      () => fetchGuardian(grantId, controller.signal), controller.signal)
       .then(result => {
-        if (!controller.signal.aborted) {
+        if (isCurrentOwnerRead(accessToken, controller.signal)) {
           setStatus(result);
           setRequiresRefresh(false);
         }
       })
       .catch(reason => {
-        if (controller.signal.aborted) return;
+        if (!isCurrentOwnerRead(accessToken, controller.signal)) return;
         if (!(reason instanceof GuardianApiError && reason.status === 404)) {
           setError(reason instanceof GuardianApiError ? reason.code : 'guardian_request_failed');
         }
       })
-      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+      .finally(() => {
+        if (isCurrentOwnerRead(accessToken, controller.signal)) setLoading(false);
+      });
     return () => controller.abort();
-  }, [grantId, revision]);
+  }, [accessToken, grantId, revision]);
 
   useEffect(() => {
     setHistory([]);
@@ -68,31 +94,48 @@ export function GuardianDuel({ grantId }: Props) {
     const controller = new AbortController();
     setHistoryLoading(true);
     setHistoryError(false);
-    void fetchGuardianHistory(grantId, controller.signal)
-      .then(entries => { if (!controller.signal.aborted) setHistory(entries); })
-      .catch(() => { if (!controller.signal.aborted) setHistoryError(true); })
-      .finally(() => { if (!controller.signal.aborted) setHistoryLoading(false); });
+    void readForCurrentOwner(accessToken,
+      () => fetchGuardianHistory(grantId, controller.signal), controller.signal)
+      .then(entries => {
+        if (isCurrentOwnerRead(accessToken, controller.signal)) setHistory(entries);
+      })
+      .catch(() => {
+        if (isCurrentOwnerRead(accessToken, controller.signal)) setHistoryError(true);
+      })
+      .finally(() => {
+        if (isCurrentOwnerRead(accessToken, controller.signal)) setHistoryLoading(false);
+      });
     return () => controller.abort();
     // Refetch whenever the confirmed server turn or manual refresh changes.
-  }, [grantId, status?.turn, revision, historyRevision]);
-
-  useEffect(() => () => inFlight.current?.abort(), [grantId]);
+  }, [accessToken, grantId, status?.turn, revision, historyRevision]);
 
   const useCard = async (action: GuardianAction) => {
-    if (busy || requiresRefresh || !status || status.outcome !== 'ongoing') return;
+    if (busy || requiresRefresh || !status || status.outcome !== 'ongoing' ||
+        (pending.current && pending.current.action !== action)) return;
+    const gate = ownerGate.current;
+    const ticket = gate?.acquire(readStoredSession()?.accessToken ?? null);
+    if (!gate || ticket == null) return;
     const request = pending.current ?? {
       action, expectedTurn: status.turn, key: crypto.randomUUID(),
     };
-    if (pending.current && pending.current.action !== action) return;
     pending.current = request;
     const controller = new AbortController();
     inFlight.current = controller;
+    const stillCurrent = () => !controller.signal.aborted && ownerGate.current === gate &&
+      gate.isCurrent(ticket, readStoredSession()?.accessToken ?? null);
     setBusy(true);
     setError(null);
     try {
       const result = await playGuardianTurn(grantId, request.action,
         request.expectedTurn, request.key, controller.signal);
-      if (controller.signal.aborted) return;
+      if (!stillCurrent()) return;
+      // A corrupted receipt cannot advance the wrong Guardian encounter.
+      if (result.grantId.toLowerCase() !== grantId.toLowerCase() ||
+          result.idempotencyKey.toLowerCase() !== request.key.toLowerCase()) {
+        setError('guardian_request_failed');
+        setRequiresRefresh(true);
+        return;
+      }
       pending.current = null;
       setLastTurn(result);
       setStatus({
@@ -106,7 +149,7 @@ export function GuardianDuel({ grantId }: Props) {
         ruleVersion: status.ruleVersion,
       });
     } catch (reason) {
-      if (controller.signal.aborted) return;
+      if (!stillCurrent()) return;
       const code = reason instanceof GuardianApiError ? reason.code : 'guardian_request_failed';
       if (reason instanceof GuardianApiError &&
           reason.status >= 400 && reason.status < 500 && reason.status !== 429) {
@@ -115,7 +158,9 @@ export function GuardianDuel({ grantId }: Props) {
       }
       setError(code);
     } finally {
-      if (!controller.signal.aborted) setBusy(false);
+      const current = stillCurrent();
+      gate.release(ticket);
+      if (current) setBusy(false);
       if (inFlight.current === controller) inFlight.current = null;
     }
   };
