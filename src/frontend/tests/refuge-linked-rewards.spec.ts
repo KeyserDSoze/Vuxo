@@ -40,7 +40,8 @@ test('only causally verified completion receives an item label', async ({ page }
   await otherSections(page);
   await page.route('**/api/personal-content/history/completed*', route => route.fulfill({
     headers: cors, contentType: 'application/json',
-    body: JSON.stringify({ items: [solved, { ...solved, grantId: b, rewardItemKey: null }],
+    body: JSON.stringify({ items: [solved, { ...solved, grantId: b,
+      completedAtUtc: '2026-11-04T10:00:00Z', rewardItemKey: null }],
       page: 1, pageSize: 20, hasMore: false }),
   }));
   await page.goto('./#/refuge/journal');
@@ -68,8 +69,10 @@ test('a same-grant mistake or Guardian victory does not inherit the rune reward'
     body: JSON.stringify({ items: [
       outcome,
       { ...outcome, eventId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+        occurredAtUtc: '2026-11-04T10:00:00Z',
         kind: 'sequence_first_mistake', rewardItemKey: null },
       { ...outcome, eventId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+        occurredAtUtc: '2026-11-03T10:00:00Z',
         kind: 'guardian_victory', rewardItemKey: null },
     ], page: 1, pageSize: 20, hasMore: false }),
   }));
@@ -274,4 +277,18 @@ test('the Journal rejects an invalid continuation token before it can request an
   await expect(page.getByTestId('refuge-journal-completed-entry')).toHaveCount(0);
   await expect(page.getByTestId('refuge-journal-completed-more')).toHaveCount(0);
   expect(pageTwoGets).toBe(0);
+});
+
+test('equal-timestamp history with reversed UUID order is rejected instead of showing false verified rewards', async ({ page }) => {
+  await signIn(page);
+  await otherSections(page);
+  await page.route('**/api/personal-content/history/completed*', route =>
+    route.fulfill({ headers: cors, contentType: 'application/json',
+      body: JSON.stringify({ items: [
+        solved, { ...solved, grantId: b, rewardItemKey: null },
+      ], page: 1, pageSize: 20, hasMore: false }) }));
+  await page.goto('./#/refuge/journal');
+  await expect(page.getByTestId('refuge-journal-completed-error')).toBeVisible();
+  await expect(page.getByTestId('refuge-journal-completed-entry')).toHaveCount(0);
+  await expect(page.getByTestId('refuge-journal-verified-reward')).toHaveCount(0);
 });

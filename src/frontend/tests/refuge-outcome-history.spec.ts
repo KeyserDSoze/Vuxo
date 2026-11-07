@@ -15,10 +15,13 @@ const events = [
   { ...base, eventId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
     kind: 'sequence_completed' },
   { ...base, eventId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+    occurredAtUtc: '2026-11-04T14:00:00Z',
     kind: 'sequence_first_mistake', ruleVersion: 'portal-mistake-damage-v1' },
   { ...base, eventId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+    occurredAtUtc: '2026-11-03T14:00:00Z',
     kind: 'guardian_victory', ruleVersion: 'portal-guardian-showdown-v2' },
   { ...base, eventId: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+    occurredAtUtc: '2026-11-02T14:00:00Z',
     kind: 'guardian_retreat', ruleVersion: 'portal-guardian-showdown-v2' },
 ];
 
