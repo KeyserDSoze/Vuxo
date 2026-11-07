@@ -8,7 +8,7 @@ public interface IPortalCompletionHistoryReader
 {
     Task<PortalCompletionHistoryPage> ListCompletedForPlayerAsync(
         string playerId, int page, int pageSize,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default, string? cursor = null);
 }
 
 public sealed record PortalCompletionHistoryItem(
@@ -23,4 +23,5 @@ public sealed record PortalCompletionHistoryPage(
     IReadOnlyList<PortalCompletionHistoryItem> Items,
     int Page,
     int PageSize,
-    bool HasMore);
+    bool HasMore,
+    string? NextCursor = null);

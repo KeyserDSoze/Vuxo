@@ -137,7 +137,7 @@ public static class PersonalContentEndpoints
         endpoints.MapGet(
             "/api/personal-content/history/outcomes",
             async (ClaimsPrincipal user, IPortalOutcomeHistoryReader history,
-                int? page, int? pageSize, CancellationToken cancellationToken) =>
+                int? page, int? pageSize, string? cursor, CancellationToken cancellationToken) =>
             {
                 var playerId = user.FindFirstValue(ClaimTypes.NameIdentifier);
                 if (string.IsNullOrWhiteSpace(playerId)) return Results.Unauthorized();
@@ -146,9 +146,12 @@ public static class PersonalContentEndpoints
                 var requestedSize = pageSize ?? 20;
                 if (requestedPage is < 1 or > 1000 || requestedSize is < 1 or > 50)
                     return Results.BadRequest(new { code = "portal_history_invalid_pagination" });
+                if (cursor is not null &&
+                    (requestedPage == 1 || !PortalHistoryCursor.TryDecode(cursor, out _)))
+                    return Results.BadRequest(new { code = "portal_history_invalid_cursor" });
 
                 return Results.Ok(await history.ListForPlayerAsync(
-                    playerId, requestedPage, requestedSize, cancellationToken));
+                    playerId, requestedPage, requestedSize, cancellationToken, cursor));
             })
             .RequireAuthorization();
 
@@ -157,7 +160,7 @@ public static class PersonalContentEndpoints
         endpoints.MapGet(
             "/api/personal-content/history/completed",
             async (ClaimsPrincipal user, IPortalCompletionHistoryReader history,
-                int? page, int? pageSize, CancellationToken cancellationToken) =>
+                int? page, int? pageSize, string? cursor, CancellationToken cancellationToken) =>
             {
                 var playerId = user.FindFirstValue(ClaimTypes.NameIdentifier);
                 if (string.IsNullOrWhiteSpace(playerId)) return Results.Unauthorized();
@@ -168,9 +171,12 @@ public static class PersonalContentEndpoints
                 {
                     return Results.BadRequest(new { code = "portal_history_invalid_pagination" });
                 }
+                if (cursor is not null &&
+                    (requestedPage == 1 || !PortalHistoryCursor.TryDecode(cursor, out _)))
+                    return Results.BadRequest(new { code = "portal_history_invalid_cursor" });
 
                 return Results.Ok(await history.ListCompletedForPlayerAsync(
-                    playerId, requestedPage, requestedSize, cancellationToken));
+                    playerId, requestedPage, requestedSize, cancellationToken, cursor));
             })
             .RequireAuthorization();
 

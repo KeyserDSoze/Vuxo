@@ -17,11 +17,15 @@ public sealed class PortalOutcomeHistoryReader(VuxoDbContext db)
 
     public async Task<PortalOutcomeHistoryPage> ListForPlayerAsync(
         string playerId, int page, int pageSize,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default, string? cursor = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(playerId);
         if (page is < 1 or > 1000 || pageSize is < 1 or > 50)
             throw new ArgumentOutOfRangeException(nameof(page), "Pagination is restricted to page 1..1000 and pageSize 1..50.");
+
+        if (cursor is not null && (page == 1 || !PortalHistoryCursor.TryDecode(cursor, out _)))
+            throw new ArgumentException("Invalid history cursor.", nameof(cursor));
+        PortalHistoryPosition? after = cursor is null ? null : PortalHistoryCursor.Decode(cursor);
 
         var owner = playerId.Trim();
 
@@ -113,14 +117,19 @@ public sealed class PortalOutcomeHistoryReader(VuxoDbContext db)
                 audit.OccurredAtUtc
             };
 
-        // UNION ALL is executed in PostgreSQL, with a single bounded page,
-        // stable tie-break on audit event ID and no unbounded client fetch.
-        var rows = await completions
-            .Concat(mistakes)
-            .Concat(guardianTerminals)
+        // UNION ALL stays in PostgreSQL; cursor keeps the last public event
+        // identity and 100ns UTC instant, so concurrent head inserts do not
+        // change which older rows the next page returns.
+        var records = completions.Concat(mistakes).Concat(guardianTerminals);
+        if (after is { } position)
+            records = records.Where(row => EF.Functions.LessThan(
+                ValueTuple.Create(row.OccurredAtUtc, row.EventId),
+                ValueTuple.Create(position.OccurredAtUtc, position.PublicId)));
+
+        var rows = await records
             .OrderByDescending(row => row.OccurredAtUtc)
             .ThenByDescending(row => row.EventId)
-            .Skip((page - 1) * pageSize)
+            .Skip(after is null ? (page - 1) * pageSize : 0)
             .Take(pageSize + 1)
             .ToListAsync(cancellationToken);
 
@@ -142,6 +151,9 @@ public sealed class PortalOutcomeHistoryReader(VuxoDbContext db)
                 row.Kind == PortalOutcomeKinds.SequenceCompleted
                     ? provenRewards.GetValueOrDefault((row.EventId, row.GrantId))
                     : null)).ToArray(),
-            page, pageSize, rows.Count > pageSize);
+            page, pageSize, rows.Count > pageSize,
+            rows.Count > pageSize && visibleRows.Length > 0
+                ? PortalHistoryCursor.Encode(visibleRows[^1].OccurredAtUtc, visibleRows[^1].EventId)
+                : null);
     }
 }

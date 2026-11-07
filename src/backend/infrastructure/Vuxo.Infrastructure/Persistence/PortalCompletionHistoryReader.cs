@@ -16,11 +16,15 @@ public sealed class PortalCompletionHistoryReader(VuxoDbContext dbContext)
 
     public async Task<PortalCompletionHistoryPage> ListCompletedForPlayerAsync(
         string playerId, int page, int pageSize,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default, string? cursor = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(playerId);
         if (page is < 1 or > 1000 || pageSize is < 1 or > 50)
             throw new ArgumentOutOfRangeException(nameof(page), "Page must be 1..1000 and pageSize 1..50.");
+
+        if (cursor is not null && (page == 1 || !PortalHistoryCursor.TryDecode(cursor, out _)))
+            throw new ArgumentException("Invalid history cursor.", nameof(cursor));
+        PortalHistoryPosition? after = cursor is null ? null : PortalHistoryCursor.Decode(cursor);
 
         var owner = playerId.Trim();
         var records =
@@ -35,7 +39,6 @@ public sealed class PortalCompletionHistoryReader(VuxoDbContext dbContext)
                 && grant.ConsumedAtUtc != null
                 && eventRecord.CorrelationId == grant.CorrelationId
                 && eventRecord.RuleVersion == grant.RuleVersion
-            orderby eventRecord.OccurredAtUtc descending, eventRecord.EventId descending
             select new
             {
                 eventRecord.EventId,
@@ -46,10 +49,17 @@ public sealed class PortalCompletionHistoryReader(VuxoDbContext dbContext)
                 eventRecord.OccurredAtUtc
             };
 
-        // Bounded offset pagination: deterministic ordering under a fixed
-        // snapshot, limit 50/page and at most 1000 pages. Read-only.
+        // Keyset pagination prevents new head inserts shifting the next page.
+        // Older callers without cursor retain bounded offset pagination.
+        if (after is { } position)
+            records = records.Where(row => EF.Functions.LessThan(
+                ValueTuple.Create(row.OccurredAtUtc, row.Id),
+                ValueTuple.Create(position.OccurredAtUtc, position.PublicId)));
+
         var rows = await records
-            .Skip((page - 1) * pageSize)
+            .OrderByDescending(row => row.OccurredAtUtc)
+            .ThenByDescending(row => row.Id)
+            .Skip(after is null ? (page - 1) * pageSize : 0)
             .Take(pageSize + 1)
             .ToListAsync(cancellationToken);
 
@@ -64,6 +74,9 @@ public sealed class PortalCompletionHistoryReader(VuxoDbContext dbContext)
                 row.Id, row.ContentKey, row.RuleVersion,
                 row.CreatedAtUtc, row.OccurredAtUtc,
                 provenRewards.GetValueOrDefault((row.EventId, row.Id)))).ToArray(),
-            page, pageSize, rows.Count > pageSize);
+            page, pageSize, rows.Count > pageSize,
+            rows.Count > pageSize && visibleRows.Length > 0
+                ? PortalHistoryCursor.Encode(visibleRows[^1].OccurredAtUtc, visibleRows[^1].Id)
+                : null);
     }
 }
