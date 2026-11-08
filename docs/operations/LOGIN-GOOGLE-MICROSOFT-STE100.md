@@ -244,6 +244,22 @@ The probe uses five attempts with short delays. It does not send provider tokens
 
 **NOTE:** This external check applies only after its pull request is merged. Successful checks do not replace the browser sign-in tests in section 8.
 
+### 6.3 Diagnose a public health failure
+
+Deployment #42492923851 passed the Raspberry preflight, backup and local Google/Microsoft checks. Its external smoke failed because all public API routes returned **Cloudflare HTTP 502**, while the frontend MSAL5 bridge had a separate network failure.
+
+1. Open the `verify-public-auth` job in GitHub Actions. Record the Cloudflare HTTP 502 failure, without copying response bodies.
+2. Record the numeric status and the fixed `cloudflare` or `other` server class.
+3. In the Cloudflare dashboard, open **Networks → Tunnels**. Select the VUXO tunnel and its published application. Confirm the hostname is `api.vuxoapi.xyz` and the HTTP service is exactly `http://api:8080`. Do not use `http://localhost:8080` from the `cloudflared` container.
+4. On the Raspberry, check `curl -i http://127.0.0.1:8080/health` and the `api` / `cloudflared` Docker container statuses. Inspect the tunnel container logs locally. Review Cloudflare DNS, Access and WAF policies if required.
+5. Compare the public status with the successful private Pi check.
+6. Do not copy raw error response pages, credentials, provider Client IDs or tunnel tokens into logs or issues.
+7. Recheck the public route before attempting the real browser login.
+
+For later rechecks, use **GitHub → Actions → Diagnose public VUXO authentication (read only) → Run workflow** on the `main` branch after the diagnostic workflow has merged. Read the five route statuses. The workflow can be green even if a route is red: it is informational, not a release gate. For actual release acceptance, inspect `verify-public-auth` in the deployment workflow.
+
+The diagnostic probe is read-only. It cannot repair DNS, Cloudflare routing or the tunnel by itself.
+
 ## 7. Verify public configuration
 
 Use a computer outside the Raspberry network.
