@@ -149,7 +149,7 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
           {t('errors.' + error, { defaultValue: t('errors.inventory_request_failed') })}
         </Alert>
       )}
-      {session && !loading && !error && !equipmentError && loadout && items.length === 0 && stacks.length === 0 && (
+      {session && !loading && !error && items.length === 0 && stacks.length === 0 && (
         <Alert severity="info" data-testid="inventory-empty">{t('empty')}</Alert>
       )}
 
