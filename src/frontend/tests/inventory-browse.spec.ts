@@ -174,7 +174,9 @@ test('English dark 320px mobile layout re-sorts translated names without horizon
     console.log('Inventory 320px overflow diagnostics:', JSON.stringify(overflowingElements));
   }
   await expect.poll(() => page.evaluate(() =>
-    document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
+    document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1), {
+    message: 'Inventory 320px overflow candidates: ' + JSON.stringify(overflowingElements),
+  }).toBe(true);
 });
 
 test('owner switch remounts inventory so previous items and filters are not flashed', async ({ page }) => {
