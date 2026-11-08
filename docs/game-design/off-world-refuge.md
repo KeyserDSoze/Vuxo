@@ -11,6 +11,18 @@ Due cicli complementari:
 
 Il giocatore può aprire il Rifugio e agire per pochi minuti senza avviare Phaser, ma quando torna nel mondo trova gli stessi oggetti e attributi verificati dal server.
 
+## Diario del Rifugio — issue #118 (letture esistenti)
+
+Un Diario navigabile da `/#/refuge` tramite `/#/refuge/journal` riunisce le informazioni di progressione **già disponibili** senza aggiungere un secondo stato di gioco e senza attivare Phaser. L'accesso richiede una sessione VUXO; le richieste sono sempre owner-only e il componente React si rimonta quando cambia il token.
+
+1. **Assegnazioni di oggetti**: `fetchPlayerInventory` legge `GET /api/inventory` e restituisce i grant con itemKey, quantità, `awardedAtUtc` e eventuale `consumed`. Il diario ordina per data (recente prima), traduce i codici noti e consente il filtro visivo tutti/non consumati/consumati. La quantità è quella registrata nell'assegnazione; `not consumed` non significa necessariamente utilizzabile/equipaggiabile (potrebbe essere già equipaggiato, bloccato da un incontro, o soggetto a cooldown). Un grant sconosciuto si mostra come oggetto non catalogato e non viene inventato un nome.
+2. **Portali disponibili adesso**: `fetchPortalGrants` legge `GET /api/personal-content` e limita ai portali con `portalKey=challenge.sequence.v1` restituiti dal backend. L'ordine segue l'eventuale scadenza (prima le più vicine, poi le non segnalate). La scheda non tenta la sfida da sola: porta a `/#/portals`. Una risposta senza grants **non** significa che non siano mai state completate sfide.
+3. **Gestione rigorosa degli stati**: caricamento/errore/empty distinti per entrambi gli endpoint, retry indipendente, refresh completo che invalida immediatamente gli snapshot precedenti. AbortController e remount su cambio token evitano fughe tra account. Guest: nessuna chiamata privata e invito al login. Nessuna POST, nuova migration, XP o ricompensa da UI.
+
+**Limite del contratto esistente:** questo NON è un registro completo delle avventure o dei portali superati. Non è possibile dedurre la provenienza di una ricompensa, né una vittoria, da una riga d'inventario. Per uno storico completo servirà il modello owner-only dell'issue **#119** per risultati di portali, con timestamp, esito, grant/correlation ID, regola e paginazione, controllato dal backend e verificato con test accesso, audit e persistenza. Solo dopo sarà possibile un timeline misto affidabile.
+
+La suite Playwright introdotta da #118 copre guest, ordinamento cronologico, portali disponibili (non altri contenuti), filtri, errori/retry parziali, refresh globale, cambio account/logout e mobile inglese/dark senza Phaser o mutazioni. **Test non eseguiti** mentre quota Actions #112 resta bloccata. La feature deve rimanere su branch isolato fino a build/CI e review.
+
 ## Gestione del loadout nell'Inventario — issue #116
 
 La UI mostra i due slot correnti **solo quando** la lettura congiunta `GET /api/equipment` e `GET /api/inventory/stacks` è riuscita. Un caricamento incompleto o un errore non sono equivalenti a slot vuoto e non possono abilitare azioni sull'equipaggiamento.
