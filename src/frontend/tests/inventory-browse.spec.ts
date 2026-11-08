@@ -157,26 +157,30 @@ test('English dark 320px mobile layout re-sorts translated names without horizon
   await page.getByTestId('inventory-browse-search').fill('tidal');
   await expect(page.getByTestId('inventory-stack')).toHaveCount(1);
   await expect(page.getByTestId('inventory-item')).toHaveCount(1);
-  const overflowingElements = await page.evaluate(() => {
-    const limit = document.documentElement.clientWidth + 1;
-    return [...document.querySelectorAll<HTMLElement>('body *')]
-      .filter(element => element.getBoundingClientRect().right > limit)
-      .slice(0, 15)
-      .map(element => ({
-        element: element.tagName.toLowerCase(),
+  await expect.poll(() => page.evaluate(() => {
+    const root = document.documentElement;
+    const pageWidth = root.clientWidth;
+    const overflow = root.scrollWidth - pageWidth;
+    if (overflow <= 1) return 'PASS';
+    const suspects = [...document.querySelectorAll<HTMLElement>('body *')].map(element => {
+      const rect = element.getBoundingClientRect();
+      return {
         testId: element.getAttribute('data-testid'),
-        className: typeof element.className === 'string' ? element.className.slice(0, 100) : '',
-        width: Math.round(element.getBoundingClientRect().width),
-        right: Math.round(element.getBoundingClientRect().right),
-      }));
-  });
-  if (overflowingElements.length > 0) {
-    console.log('Inventory 320px overflow diagnostics:', JSON.stringify(overflowingElements));
-  }
-  await expect.poll(() => page.evaluate(() =>
-    document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1), {
-    message: 'Inventory 320px overflow candidates: ' + JSON.stringify(overflowingElements),
-  }).toBe(true);
+        tag: element.tagName.toLowerCase(),
+        css: typeof element.className === 'string' ? element.className.slice(0, 100) : '',
+        left: Math.round(rect.left), right: Math.round(rect.right),
+        scrollWidth: element.scrollWidth, clientWidth: element.clientWidth,
+      };
+    }).filter(item => item.right > pageWidth + 1 || item.left < -1 ||
+      item.scrollWidth > item.clientWidth + 1)
+      .sort((a, b) => b.right - a.right)
+      .slice(0, 14);
+    return JSON.stringify({
+      overflow, pageWidth, rootScrollWidth: root.scrollWidth,
+      bodyScrollWidth: document.body.scrollWidth,
+      innerWidth: window.innerWidth, suspects,
+    });
+  })).toBe('PASS');
 });
 
 test('owner switch remounts inventory so previous items and filters are not flashed', async ({ page }) => {
