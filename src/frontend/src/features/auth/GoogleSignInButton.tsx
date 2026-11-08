@@ -31,6 +31,10 @@ declare global {
 }
 
 let googleScriptPromise: Promise<void> | null = null;
+let initializedGoogleClientId: string | null = null;
+// GIS is global to the browser tab. Keep only the current mounted consumer
+// callback while the singleton SDK configuration stays stable.
+let activeGoogleCredentialHandler: ((response: GoogleCredentialResponse) => void) | null = null;
 
 function loadGoogleIdentityServices(): Promise<void> {
   if (window.google?.accounts?.id) return Promise.resolve();
@@ -73,12 +77,17 @@ export function GoogleSignInButton({
 }) {
   const { t, i18n } = useTranslation('auth');
   const containerRef = useRef<HTMLDivElement>(null);
+  const onCredentialRef = useRef(onCredential);
+  const onErrorRef = useRef(onError);
+  onCredentialRef.current = onCredential;
+  onErrorRef.current = onError;
   const [loadingSdk, setLoadingSdk] = useState(import.meta.env.VITE_E2E_AUTH !== 'true');
 
   useEffect(() => {
     if (import.meta.env.VITE_E2E_AUTH === 'true' || !containerRef.current) return;
 
     let active = true;
+    let onGoogleResponse: ((response: GoogleCredentialResponse) => void) | null = null;
     const container = containerRef.current;
     container.replaceChildren();
 
@@ -88,14 +97,22 @@ export function GoogleSignInButton({
         const identity = window.google?.accounts?.id;
         if (!identity) throw new Error('google_identity_unavailable');
 
-        identity.initialize({
-          client_id: clientId,
-          auto_select: false,
-          callback: response => {
-            if (response.credential) onCredential(response.credential);
-            else onError();
-          },
-        });
+        onGoogleResponse = response => {
+          if (response.credential) onCredentialRef.current(response.credential);
+          else onErrorRef.current();
+        };
+        activeGoogleCredentialHandler = onGoogleResponse;
+
+        // Google documents initialize() as a one-time operation. Re-rendering
+        // or switching the page language must not reset global GIS state.
+        if (initializedGoogleClientId !== clientId) {
+          identity.initialize({
+            client_id: clientId,
+            auto_select: false,
+            callback: response => activeGoogleCredentialHandler?.(response),
+          });
+          initializedGoogleClientId = clientId;
+        }
         identity.renderButton(container, {
           type: 'standard',
           theme: 'outline',
@@ -110,14 +127,17 @@ export function GoogleSignInButton({
       .catch(() => {
         if (!active) return;
         setLoadingSdk(false);
-        onError();
+        onErrorRef.current();
       });
 
     return () => {
       active = false;
+      if (activeGoogleCredentialHandler === onGoogleResponse) {
+        activeGoogleCredentialHandler = null;
+      }
       container.replaceChildren();
     };
-  }, [clientId, i18n.resolvedLanguage, onCredential, onError]);
+  }, [clientId, i18n.resolvedLanguage]);
 
   if (import.meta.env.VITE_E2E_AUTH === 'true') {
     return (

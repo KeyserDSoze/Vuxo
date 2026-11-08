@@ -21,6 +21,8 @@ Create/register a Single-page application and configure the SPA redirect URIs:
 - production: `https://vuxo.quest/redirect.html`
 - local development with `VITE_BASE_PATH=/`: `http://localhost:5173/redirect.html` (only when used locally; when using the repository default `/Vuxo/` base, use `http://localhost:5173/Vuxo/redirect.html` instead)
 
+**VUXO production policy: Microsoft personal accounts only.** Keep the Entra app audience set to `PersonalMicrosoftAccount` and the GitHub `production` environment variable `VUXO_MICROSOFT_TENANT_ID=consumers`. Organizational or school Microsoft accounts are not accepted. The other tenant modes below are documented for reference only; do not use them for VUXO production without a policy decision.
+
 Choose the account audience that matches the server tenant configuration:
 - `common`: organizational directories + personal Microsoft accounts;
 - `organizations`: organizational directories only;
@@ -33,7 +35,7 @@ Set on the server:
 
 ```env
 VUXO_MICROSOFT_CLIENT_ID=<public application/client id>
-VUXO_MICROSOFT_TENANT_ID=common
+VUXO_MICROSOFT_TENANT_ID=consumers
 ```
 
 ## Google registration
@@ -77,8 +79,10 @@ The existing production origin remains `https://vuxo.quest`. The API continues t
 For the self-hosted production workflow, configure these **Environment Variables** on GitHub Environment `production`:
 
 - `VUXO_MICROSOFT_CLIENT_ID`;
-- `VUXO_MICROSOFT_TENANT_ID` (default `common`);
+- `VUXO_MICROSOFT_TENANT_ID` (production value `consumers`; fallback without variable is `common`, so always set it explicitly);
 - `VUXO_GOOGLE_CLIENT_ID`;
 - optionally `VUXO_JWT_LIFETIME_MINUTES` (default `480`).
 
 These values are public application configuration, not provider client secrets. The ARM64 workflow reads them when the production deploy job runs; updating GitHub variables alone does **not** change a currently running API. Trigger a new verified green-main deployment after the Entra registration and confirm `GET https://api.vuxoapi.xyz/api/auth/providers` exposes the new client ID. The Pages workflow must publish a bundle built with `VITE_API_BASE_URL=https://api.vuxoapi.xyz`; older Pages builds may still point at `127.0.0.1:8080` and display a provider configuration network error. If the provider endpoint returns HTTP 200 with both providers disabled, that is a different state from a transport/CORS error. Existing sensitive values such as `VUXO_JWT_SIGNING_KEY`, PostgreSQL password and Cloudflare tunnel token remain GitHub Environment **Secrets**.
+
+**Google origin troubleshooting:** when Chrome reports `GSI_LOGGER: The given origin is not allowed for the given client ID`, open the Google Auth Platform OAuth **Web application** client matching the public `VUXO_GOOGLE_CLIENT_ID` and add exactly `https://vuxo.quest` under **Authorized JavaScript origins**. This requires Google Cloud project access and cannot be solved by CORS headers or a backend deploy. After saving, retest in a private window. `google.accounts.id.initialize()` should be invoked only once per client ID per page lifecycle.
