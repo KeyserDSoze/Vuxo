@@ -29,3 +29,9 @@ Il runtime 2D ha ancora una griglia/marker geometrici originali. Si prevedono ti
 - xUnit API: autenticazione, grant privati, posizione ricavata dal server, negazione accessi da lontano / non connessi, spoofing e replay.
 - Playwright: ingresso in gioco e dialog che completa realmente la sfida usando API mock per il test UI, mobile, assenza di sessione e messaggi IT/EN.
 - CI: restore/build/test backend, frontend/Playwright, smoke Docker; il test end-to-end browser/API/PostgreSQL della feature #50 continua a essere eseguito.
+
+## Hit-area Phaser e camera: correzione del test intermittente (#80)
+
+Quando la camera segue il giocatore, la proiezione di un marker sul canvas può cambiare anche dopo che la sua hit area è stata disegnata. Leggere una sola volta le coordinate in Playwright e cliccare più tardi può colpire un punto diverso. In modalità E2E, la scena espone `data-portal-screen-stable=true` dopo almeno sette frame con variazione massima di 0,25 pixel per frame (azzerando il contatore al cambio marker o alla chiusura della scena). Il test attende la stabilità, usa la proiezione più recente e rispetta il rapporto tra risoluzione Phaser e rettangolo CSS del canvas FIT.
+
+La regressione include click diretto, resize del viewport e tre rimontaggi consecutivi della scena, **senza retry applicativi o allungare arbitrariamente il timeout**. Questa diagnostica non modifica hit area, permessi, distanze, portali privati o reward in produzione. L'issue #80 rimane aperta fino a verifiche ripetute di CI senza test flaky; il browser pubblico è un controllo distinto.

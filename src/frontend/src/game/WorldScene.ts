@@ -29,12 +29,14 @@ export class WorldScene extends Phaser.Scene {
   private cameraTargetId: string | null = null
   private lastHorizontal = 0
   private lastVertical = 0
+  private lastPortalProjection: { id: string; x: number; y: number } | null = null
+  private settledPortalFrames = 0
 
   constructor(
     private readonly realtime: WorldRealtimeClient,
     private readonly onPortalClick?: (grantId: string) => void,
     private readonly onPortalsRendered?: (count: number) => void,
-    private readonly onPortalScreenPosition?: (position: { x: number; y: number } | null) => void,
+    private readonly onPortalScreenPosition?: (position: { x: number; y: number; stable: boolean } | null) => void,
   ) {
     super('world')
   }
@@ -49,6 +51,8 @@ export class WorldScene extends Phaser.Scene {
     this.unsubscribe = this.realtime.subscribe(state => this.applyState(state))
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.ready = false
+      this.lastPortalProjection = null
+      this.settledPortalFrames = 0
       this.realtime.setMovementIntent(0, 0)
       this.unsubscribe?.()
       this.unsubscribe = null
@@ -99,12 +103,27 @@ export class WorldScene extends Phaser.Scene {
     if (this.onPortalScreenPosition) {
       const portal = this.portals[0]
       if (!portal || !this.portalVisuals.has(portal.id)) {
+        this.lastPortalProjection = null
+        this.settledPortalFrames = 0
         this.onPortalScreenPosition(null)
       } else {
         const camera = this.cameras.main
+        const x = camera.x + (portal.x * TILE_SIZE - camera.scrollX) * camera.zoom
+        const y = camera.y + (portal.y * TILE_SIZE - camera.scrollY) * camera.zoom
+        const previous = this.lastPortalProjection
+        // Phaser's follow camera eases after a marker becomes interactive.
+        // A single projected coordinate can be stale by the time Playwright
+        // generates a browser click. Wait for consecutive settled frames,
+        // then scale the live canvas coordinate into CSS pixels in the test.
+        this.settledPortalFrames = previous?.id === portal.id
+          && Math.hypot(previous.x - x, previous.y - y) <= 0.25
+          ? this.settledPortalFrames + 1
+          : 0
+        this.lastPortalProjection = { id: portal.id, x, y }
         this.onPortalScreenPosition({
-          x: camera.x + (portal.x * TILE_SIZE - camera.scrollX) * camera.zoom,
-          y: camera.y + (portal.y * TILE_SIZE - camera.scrollY) * camera.zoom,
+          x,
+          y,
+          stable: this.settledPortalFrames >= 7,
         })
       }
     }
