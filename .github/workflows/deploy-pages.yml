@@ -30,7 +30,7 @@ jobs:
       - run: npm install
       - name: Build frontend
         env:
-          # vuxo.app is a custom-domain GitHub Pages site, so assets live at the domain root.
+          # vuxo.quest is a custom-domain GitHub Pages site, so assets live at the domain root.
           VITE_BASE_PATH: /
           VITE_API_BASE_URL: ${{ vars.VUXO_API_BASE_URL || 'https://api.vuxoapi.xyz' }}
         run: npm run build
@@ -46,7 +46,7 @@ jobs:
   deploy:
     environment:
       name: github-pages
-      url: https://vuxo.app
+      url: https://vuxo.quest
     runs-on: ubuntu-latest
     needs: build
     steps:
