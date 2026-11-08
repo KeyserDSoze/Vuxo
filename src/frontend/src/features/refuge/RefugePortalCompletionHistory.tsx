@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { readForCurrentOwner } from '../auth/ownerReadFence';
 import { appendPortalHistoryPage, type HistoryEntry, type HistoryMode } from './portalHistoryPageMerge';
 import { createPortalHistoryNavigationGate } from './portalHistoryNavigationGate';
+import { createPortalHistoryRequestFence } from './portalHistoryRequestFence';
 import { filterPortalHistoryEntries, type PortalHistoryViewFilter } from './portalHistoryView';
 import { summarizeAdventureHistory, type AdventureHistorySnapshot } from './refugeAdventureOverview';
 import type { JournalHistoryJump } from './journalAdventureNavigation';
@@ -35,6 +36,7 @@ export function RefugePortalCompletionHistory({
   // Page state updates are batched: block two same-tick Load More clicks
   // from enqueuing page 3 while both still carry the page-1 cursor.
   const navigationGate = useRef(createPortalHistoryNavigationGate());
+  const requestFence = useRef(createPortalHistoryRequestFence());
   const lastNavigationId = useRef(0);
   const [page, setPage] = useState(1);
   const [attempt, setAttempt] = useState(0);
@@ -52,6 +54,7 @@ export function RefugePortalCompletionHistory({
 
   useEffect(() => {
     const controller = new AbortController();
+    const ticket = requestFence.current.begin();
     setLoading(true);
     setError(false);
     if (page === 1) {
@@ -65,7 +68,7 @@ export function RefugePortalCompletionHistory({
       ? fetchCompletedPortals(page, 20, controller.signal, after)
       : fetchPortalOutcomes(page, 20, controller.signal, after), controller.signal)
       .then(result => {
-        if (controller.signal.aborted) return;
+        if (!requestFence.current.accepts(ticket, controller.signal)) return;
         // Offset pagination can overlap when another device inserts a
         // completion between GET page 1 and GET page 2. Do not display
         // duplicate grants/events or a newer row after an older one.
@@ -79,7 +82,7 @@ export function RefugePortalCompletionHistory({
         onSnapshotChange(summarizeAdventureHistory(next, mode, result.hasMore));
       })
       .catch(() => {
-        if (controller.signal.aborted) return;
+        if (!requestFence.current.accepts(ticket, controller.signal)) return;
         // On a partial-page error even the earlier pages may be stale.
         // Clear everything and force a fresh page-one retry.
         acceptedEntries.current = [];
@@ -90,7 +93,7 @@ export function RefugePortalCompletionHistory({
         setError(true);
       })
       .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
+        if (requestFence.current.accepts(ticket, controller.signal)) setLoading(false);
       });
     return () => controller.abort();
   }, [page, attempt, mode, accessToken, onSnapshotChange]);
@@ -102,6 +105,8 @@ export function RefugePortalCompletionHistory({
     // owner's accepted page sequence before requesting a new filtered stream.
     // This retains the existing account fence, keyset cursor and retry logic.
     if (navigation.mode !== mode) {
+      // Revoke the current response before the next React render can abort it.
+      requestFence.current.invalidate();
       onSnapshotChange(null);
       navigationGate.current.reset();
       acceptedEntries.current = [];
@@ -126,6 +131,7 @@ export function RefugePortalCompletionHistory({
   };
 
   function refresh() {
+    requestFence.current.invalidate();
     onSnapshotChange(null);
     navigationGate.current.reset();
     acceptedEntries.current = [];
@@ -139,6 +145,7 @@ export function RefugePortalCompletionHistory({
 
   function chooseMode(nextMode: HistoryMode) {
     if (nextMode === mode) return;
+    requestFence.current.invalidate();
     onSnapshotChange(null);
     navigationGate.current.reset();
     acceptedEntries.current = [];
