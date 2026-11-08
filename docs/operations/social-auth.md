@@ -16,14 +16,16 @@ Vuxo 0.0.1 supports Microsoft and Google login while keeping an internal Vuxo id
 
 Create/register a Single-page application and configure the SPA redirect URIs:
 
-- production: `https://vuxo.app/`
-- local development: `http://localhost:5173/` (only when used locally)
+- production: `https://vuxo.app/redirect.html`
+- local development with `VITE_BASE_PATH=/`: `http://localhost:5173/redirect.html` (only when used locally; when using the repository default `/Vuxo/` base, use `http://localhost:5173/Vuxo/redirect.html` instead)
 
 Choose the account audience that matches the server tenant configuration:
 - `common`: organizational directories + personal Microsoft accounts;
 - `organizations`: organizational directories only;
 - `consumers`: personal Microsoft accounts only;
 - a tenant GUID: that exact tenant only.
+
+MSAL Browser v5 uses a dedicated Vite-built redirect bridge at `src/frontend/redirect.html`, emitted as `/redirect.html` on the production custom domain. Register the **exact** redirect URI under the **Single-page application** platform in Microsoft Entra, not Web, and use Authorization Code + PKCE without a client secret. The popup returns the ID token to Vuxo's browser app through this bridge, then `/api/auth/social` validates it server-side. Do not enable legacy implicit flows. The bridge page must not include other app scripts or COOP response headers.
 
 Set on the server:
 
@@ -77,4 +79,4 @@ For the self-hosted production workflow, configure these **Environment Variables
 - `VUXO_GOOGLE_CLIENT_ID`;
 - optionally `VUXO_JWT_LIFETIME_MINUTES` (default `480`).
 
-These values are public application configuration, not provider client secrets. Existing sensitive values such as `VUXO_JWT_SIGNING_KEY`, PostgreSQL password and Cloudflare tunnel token remain GitHub Environment **Secrets**.
+These values are public application configuration, not provider client secrets. The ARM64 workflow reads them when the production deploy job runs; updating GitHub variables alone does **not** change a currently running API. Trigger a new verified green-main deployment after the Entra registration and confirm `GET https://api.vuxoapi.xyz/api/auth/providers` exposes the new client ID. The Pages workflow must publish a bundle built with `VITE_API_BASE_URL=https://api.vuxoapi.xyz`; older Pages builds may still point at `127.0.0.1:8080` and display a provider configuration network error. If the provider endpoint returns HTTP 200 with both providers disabled, that is a different state from a transport/CORS error. Existing sensitive values such as `VUXO_JWT_SIGNING_KEY`, PostgreSQL password and Cloudflare tunnel token remain GitHub Environment **Secrets**.

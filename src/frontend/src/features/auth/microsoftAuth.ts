@@ -19,7 +19,7 @@ export async function acquireMicrosoftIdToken(
     auth: {
       clientId: configuration.clientId,
       authority: `https://login.microsoftonline.com/${encodeURIComponent(configuration.tenantId)}`,
-      redirectUri: `${window.location.origin}${import.meta.env.BASE_URL}`,
+      redirectUri: new URL(`${import.meta.env.BASE_URL}redirect.html`, window.location.origin).toString(),
     },
     cache: {
       cacheLocation: BrowserCacheLocation.MemoryStorage,
