@@ -11,6 +11,18 @@ Due cicli complementari:
 
 Il giocatore può aprire il Rifugio e agire per pochi minuti senza avviare Phaser, ma quando torna nel mondo trova gli stessi oggetti e attributi verificati dal server.
 
+## Gestione del loadout nell'Inventario — issue #116
+
+La UI mostra i due slot correnti **solo quando** la lettura congiunta `GET /api/equipment` e `GET /api/inventory/stacks` è riuscita. Un caricamento incompleto o un errore non sono equivalenti a slot vuoto e non possono abilitare azioni sull'equipaggiamento.
+
+- L'utente può vedere **Reliquia** e **Amuleto**, trovare in inventario i tipi di oggetto compatibili usando il filtro locale `slot=relic|charm` insieme a `Disponibili`, ed equipaggiare con la POST già presente dalla pila. La tabella canonica `itemKey -> slot` rimane un'allowlist; il server verifica proprietà, grant e slot.
+- L'azione **Rimuovi dallo slot** è la DELETE owner-only esistente. Non sono consentite operazioni di swap automatico, mutazioni basate sullo score di UI né consumi/HP calcolati dal client.
+- L'evento di mutation riesce solo quando il server lo conferma. Per mostrare il nuovo stato, UI usa la risposta `EquipmentView` canonica **e** una nuova lettura delle pile. Una GET fallita o una risposta di mutation incerta nasconde il vecchio snapshot, blocca altre azioni e propone esclusivamente il refresh delle GET senza ripetere la mutation. Il refresh manuale azzera prima i dati potenzialmente stale e rilegge anche la cronologia dei grant inventario. Dopo una cura confermata ma non sincronizzata, la UI nasconde pile, premi e slot precedenti e non ripete il consumo: recupera lo stato via sole GET.
+- Un Seme del Bosco equipaggiato come amuleto va rimosso prima di richiedere la cura; i vincoli del server su lock, salute e idempotenza del consumabile non cambiano. Il pulsante esistente `HealingItemAction` usa correttamente le traduzioni `translation.inventory.*`.
+- Accessibilità: pulsanti focusabili, etichette IT/EN, nessuna animazione obbligatoria, card mobile 320px e temi MUI. Cambio account mantenuto isolato tramite remount del componente implementato in #115.
+
+Sette scenari Playwright predisposti, **non eseguiti** mentre GitHub Actions è bloccata dalla quota #112. Workstream stacked su `feature/115-inventory-browse`; merge e release solo dopo convalida.
+
 ## Inventario consultabile — issue #115
 
 Le ricompense e le pile sono ancora e soltanto quelle lette dalle API owner-only `GET /api/inventory`, `GET /api/inventory/stacks` e `GET /api/equipment`. L'interfaccia React/MUI può filtrare e ordinare **in memoria** il materiale già caricato, senza introdurre query di ricerca al backend o alterare gli ID di grant.
