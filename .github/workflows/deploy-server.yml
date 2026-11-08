@@ -80,7 +80,9 @@ jobs:
           LLM_CIRCUIT_BREAK_SECONDS: ${{ vars.VUXO_LLM_CIRCUIT_BREAK_SECONDS || '30' }}
           JWT_LIFETIME_MINUTES: ${{ vars.VUXO_JWT_LIFETIME_MINUTES || '480' }}
           MICROSOFT_CLIENT_ID: ${{ vars.VUXO_MICROSOFT_CLIENT_ID }}
-          MICROSOFT_TENANT_ID: ${{ vars.VUXO_MICROSOFT_TENANT_ID || 'common' }}
+          # VUXO supports personal Microsoft accounts only; do not use
+          # a stale tenant GUID or 'common' from GitHub variables.
+          MICROSOFT_TENANT_ID: consumers
           GOOGLE_CLIENT_ID: ${{ vars.VUXO_GOOGLE_CLIENT_ID }}
         run: |
           umask 077
