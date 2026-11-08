@@ -38,6 +38,10 @@ jobs:
           node-version: 24
       - name: Test fail-closed pruning rules
         run: node --test scripts/maintenance/prune-merged-pr-branches.test.mjs
+      - name: Dry-run against live GitHub PR and branch metadata
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/maintenance/prune-merged-pr-branches.mjs --dry-run
 
   prune:
     if: github.repository == 'KeyserDSoze/Vuxo' && github.event_name != 'pull_request'
