@@ -29,6 +29,8 @@ Choose the account audience that matches the server tenant configuration:
 - `consumers`: personal Microsoft accounts only;
 - a tenant GUID: that exact tenant only.
 
+The Microsoft popup client is initialized when the provider configuration loads, before the user clicks Sign in; this keeps `loginPopup` inside the direct browser user gesture. If Chrome still blocks it, allow popups for `https://vuxo.quest` and verify the returned MSAL error code; the UI distinguishes blocked popup, interaction already in progress and cancellation. Do not retry silently or send raw provider tokens to logs.
+
 MSAL Browser v5 uses a dedicated Vite-built redirect bridge at `src/frontend/redirect.html`, emitted as `/redirect.html` on the production custom domain. Register the **exact** redirect URI under the **Single-page application** platform in Microsoft Entra, not Web, and use Authorization Code + PKCE without a client secret. The popup returns the ID token to Vuxo's browser app through this bridge, then `/api/auth/social` validates it server-side. Do not enable legacy implicit flows. The bridge page must not include other app scripts or COOP response headers.
 
 Set on the server:
