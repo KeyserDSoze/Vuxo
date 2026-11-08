@@ -18,7 +18,7 @@ services:
       Auth__EnableMockLogin: "false"
       Auth__Jwt__LifetimeMinutes: ${VUXO_JWT_LIFETIME_MINUTES:-480}
       Auth__Microsoft__ClientId: ${VUXO_MICROSOFT_CLIENT_ID:-}
-      Auth__Microsoft__TenantId: ${VUXO_MICROSOFT_TENANT_ID:-common}
+      Auth__Microsoft__TenantId: ${VUXO_MICROSOFT_TENANT_ID:-consumers}
       Auth__Google__ClientId: ${VUXO_GOOGLE_CLIENT_ID:-}
       Cors__AllowedOrigins__0: ${VUXO_ALLOWED_ORIGIN:-https://vuxo.quest}
       Database__ApplyMigrationsOnStartup: "true"
