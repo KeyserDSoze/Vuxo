@@ -218,6 +218,8 @@ GitHub saves the variables. GitHub does not automatically restart a running API 
 **CAUTION:** Do not bypass the Pi preflight, backup, or health check.
 **CAUTION:** If the current `main` commit differs from the rerun commit, do not deploy an old revision.
 **NOTE:** This workflow does not have a `workflow_dispatch` trigger.
+**NOTE:** VUXO production enforces the Microsoft `consumers` tenant in the Pi and legacy server workflows. Update the GitHub `production` variable to `consumers` for consistency, but a stale tenant GUID is never passed into the running API. The Pi preflight and public smoke reject a tenant other than `consumers`.
+
 **NOTE:** The Pi job reads the production variables when the deployment job starts.
 **NOTE:** A successful CI on a pull request does not deploy production.
 **NOTE:** The pipeline writes a temporary private environment file. It does not commit the values.
