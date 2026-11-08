@@ -36,3 +36,6 @@ test('URL base parameters cannot introduce fragment or query credentials', () =>
 test('a non-http origin cannot be used for a browser OAuth popup', () => {
   assert.throws(() => redirect('/', 'file:///tmp/'), /invalid_origin/);
 });
+test('configured Pages custom domain uses exactly the Entra SPA callback URL', () => {
+  assert.equal(redirect('/', 'https://vuxo.app'), 'https://vuxo.app/redirect.html');
+});
