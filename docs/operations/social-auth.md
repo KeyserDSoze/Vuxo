@@ -73,6 +73,8 @@ The SPA stores only the Vuxo access token plus non-sensitive Vuxo user/session m
 
 ## Production CORS
 
+VUXO's production deployment workflows enforce `MICROSOFT_TENANT_ID=consumers` regardless of stale GitHub variables. The production Compose fallback is also `consumers`. Keep `VUXO_MICROSOFT_TENANT_ID=consumers` saved in the GitHub production environment for consistency. Pi preflight and public smoke reject any non-consumer tenant.
+
 The existing production origin remains `https://vuxo.quest`. The API continues to be reached through `https://api.vuxoapi.xyz`/Cloudflare Tunnel; no provider callback is sent to the API domain because Microsoft/GIS authenticate in the SPA and the backend only verifies the resulting ID token.
 
 
