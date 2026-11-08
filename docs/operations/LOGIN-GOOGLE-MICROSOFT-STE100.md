@@ -230,6 +230,20 @@ After the API starts, the gate compares the public `/api/auth/providers` respons
 
 **NOTE:** The gate requires both providers on the production Pi. It applies only after its pull request is reviewed and merged. It does not prove that a Microsoft or Google user can finish sign-in in a browser.
 
+### 6.2 Verify the public network path after deployment (proposed PR)
+
+After the Raspberry deploy passes, a separate GitHub-hosted runner checks the external API and frontend. It checks the following items without a user login:
+
+1. `https://api.vuxoapi.xyz/health` returns `Healthy`.
+2. `/api/meta/version` reports the same immutable commit that the deployment built.
+3. `/api/auth/providers` enables both Google and Microsoft and permits the `https://vuxo.app` origin.
+4. An `OPTIONS` preflight to `/api/auth/social` permits the JSON `POST` from that origin.
+5. `https://vuxo.app/redirect.html` serves the separate Microsoft MSAL v5 script.
+
+The probe uses five attempts with short delays. It does not send provider tokens, change data or perform real sign-in. If the probe fails, the workflow is not successful. The API containers and data volumes remain unchanged by this probe.
+
+**NOTE:** This external check applies only after its pull request is merged. Successful checks do not replace the browser sign-in tests in section 8.
+
 ## 7. Verify public configuration
 
 Use a computer outside the Raspberry network.
