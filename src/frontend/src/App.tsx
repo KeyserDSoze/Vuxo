@@ -20,6 +20,7 @@ import { vuxoDesignTokens } from './theme/tokens';
 const GamePage = lazy(() => import('./pages/GamePage').then(module => ({ default: module.GamePage })));
 const AdminRoute = lazy(() => import('./pages/AdminRoute').then(module => ({ default: module.AdminRoute })));
 const RefugePage = lazy(() => import('./pages/RefugePage').then(module => ({ default: module.RefugePage })));
+const RefugeJournalPage = lazy(() => import('./pages/RefugeJournalPage').then(module => ({ default: module.RefugeJournalPage })));
 const RuneTrainingPage = lazy(() => import('./pages/RuneTrainingPage').then(module => ({ default: module.RuneTrainingPage })));
 const ReflexTrainingPage = lazy(() => import('./pages/ReflexTrainingPage').then(module => ({ default: module.ReflexTrainingPage })));
 const RunePathPage = lazy(() => import('./pages/RunePathPage').then(module => ({ default: module.RunePathPage })));
@@ -110,6 +111,7 @@ export function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/auth" element={<AuthPage />} />
           <Route path="/refuge" element={<RefugePage />} />
+          <Route path="/refuge/journal" element={<RefugeJournalPage />} />
           <Route path="/refuge/training" element={<RuneTrainingPage />} />
           <Route path="/refuge/reflex" element={<ReflexTrainingPage />} />
           <Route path="/refuge/path" element={<RunePathPage />} />
