@@ -28,7 +28,7 @@ Il contratto completo di rete, healthcheck, named volume, Cloudflare Tunnel e te
 
 ## Variable production
 
-- `VUXO_ALLOWED_ORIGIN` — origin frontend autorizzato dal CORS, normalmente `https://vuxo.app`;
+- `VUXO_ALLOWED_ORIGIN` — origin frontend autorizzato dal CORS, normalmente `https://vuxo.quest`;
 - `VUXO_LLM_MODEL` — modello Ollama production, se abilitato.
 
 ## Cloudflare
