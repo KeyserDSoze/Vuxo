@@ -140,6 +140,8 @@ jobs:
         run: node --test ../../scripts/verify-pages-artifact.test.mjs
       - name: Test definitive production domain contracts (offline)
         run: node --test ../../scripts/test-production-domain.test.mjs
+      - name: Test Google GIS initialization lifecycle contract (offline)
+        run: node --test ../../scripts/test-google-gis-lifecycle.test.mjs
       - name: Build
         env:
           VITE_BASE_PATH: /Vuxo/
