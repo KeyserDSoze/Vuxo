@@ -58,15 +58,15 @@ export function RefugeAdventureOverview({
                   '&:hover': { borderColor: 'primary.main', bgcolor: 'action.hover' },
                   '&:focus-visible': { outline: '3px solid', outlineOffset: 2,
                     outlineColor: 'primary.main' } }}>
-                <Stack spacing={0.5}>
-                  <Typography variant={count === null ? 'subtitle2' : 'h4'}
+                <Stack component="span" spacing={0.5}>
+                  <Typography component="span" variant={count === null ? 'subtitle2' : 'h4'}
                     sx={{ fontWeight: 800, overflowWrap: 'anywhere' }}>
                     {count === null ? t('refuge.journal.overview.unavailable') : count}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography component="span" variant="body2" color="text.secondary">
                     {t('refuge.journal.overview.metrics.' + key)}
                   </Typography>
-                  <Typography variant="caption" color="primary.main">
+                  <Typography component="span" variant="caption" color="primary.main">
                     {t('refuge.journal.overview.openDetails')}
                   </Typography>
                 </Stack>
