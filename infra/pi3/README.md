@@ -46,7 +46,7 @@ Under **Settings → Environments → production** add protected deployment secr
 - VUXO_CLOUDFLARE_TUNNEL_TOKEN (Cloudflare remotely-managed tunnel)
 
 Environment variables:
-- VUXO_ALLOWED_ORIGIN = https://vuxo.app
+- VUXO_ALLOWED_ORIGIN = https://vuxo.quest
 - VUXO_GOOGLE_CLIENT_ID, VUXO_MICROSOFT_CLIENT_ID, VUXO_MICROSOFT_TENANT_ID as required for social auth.
 
 At repository **Settings → Secrets and variables → Actions → Variables** create
@@ -60,7 +60,7 @@ GitHub's production environment protection rules and branch restrictions should 
 
 ## 3. Public endpoints
 
-Frontend domain stated for this migration: **https://vuxo.app** on GitHub Pages. This branch updates the repository's canonical frontend URL, GitHub Pages workflow URL and API CORS defaults from https://vuxo.quest to https://vuxo.app. GitHub Pages custom-domain DNS/TLS configuration and allowed Microsoft/Google OAuth redirect URLs/origins must still be verified in their external dashboards before login can be relied upon.
+Final production frontend domain: **https://vuxo.quest** on GitHub Pages (see issue #130). This supersedes the earlier experimental `vuxo.app` setting. Production deploy workflows and CORS smoke checks use only the canonical `https://vuxo.quest` origin. Confirm GitHub Pages Settings → Pages → Custom domain, HTTPS, Google Authorized JavaScript origin and Microsoft SPA `https://vuxo.quest/redirect.html` in the provider consoles before declaring login complete.
 
 The existing API host is **https://api.vuxoapi.xyz** until a new API domain is explicitly configured. The Cloudflare published service URL must be **http://api:8080** when cloudflared and the API share the Compose network. Do not point Cloudflare to localhost inside its container. Never open 5432, 6379, 11434, the Docker socket or admin dashboard to the public internet.
 
