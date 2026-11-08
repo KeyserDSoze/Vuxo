@@ -5,7 +5,7 @@ import type { HistoryEntry } from './portalHistoryPageMerge.ts';
  * This never queries the server or infers a reward from a Guardian outcome.
  * The client must still paginate to discover events not yet loaded.
  */
-export type PortalHistoryViewFilter = 'all' | 'runes' | 'mistakes' | 'guardians' | 'rewards';
+export type PortalHistoryViewFilter = 'all' | 'runes' | 'mistakes' | 'guardians' | 'victories' | 'retreats' | 'rewards';
 
 export function filterPortalHistoryEntries(
   entries: readonly HistoryEntry[], filter: PortalHistoryViewFilter, query: string,
@@ -16,6 +16,8 @@ export function filterPortalHistoryEntries(
     if (filter === 'runes' && kind !== 'sequence_completed' ||
         filter === 'mistakes' && kind !== 'sequence_first_mistake' ||
         filter === 'guardians' && kind !== 'guardian_victory' && kind !== 'guardian_retreat' ||
+        filter === 'victories' && kind !== 'guardian_victory' ||
+        filter === 'retreats' && kind !== 'guardian_retreat' ||
         filter === 'rewards' && !entry.rewardItemKey) return false;
     if (!needle) return true;
     const fields = [entry.grantId, entry.contentKey, entry.ruleVersion,

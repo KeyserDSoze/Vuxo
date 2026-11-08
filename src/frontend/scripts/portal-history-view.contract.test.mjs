@@ -75,3 +75,10 @@ test('reward search never invents an item for Guardian victories', () => {
   assert.deepEqual(by(timeline, 'rewards', 'item.grove_seed'), [confirmedRune]);
   assert.deepEqual(by([victory, retreat], 'rewards', ''), []);
 });
+
+test('victory and retreat filters do not conflate Guardian outcomes', () => {
+  assert.deepEqual(by(timeline, 'victories'), [victory]);
+  assert.deepEqual(by(timeline, 'retreats'), [retreat]);
+  assert.deepEqual(by(timeline, 'victories', 'grove'), [victory]);
+  assert.deepEqual(by([rune, firstMistake], 'retreats'), []);
+});
