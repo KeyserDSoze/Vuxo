@@ -593,3 +593,76 @@ test('adventure overview updates loaded-only counts when another verified histor
   await expect(page.getByTestId('refuge-journal-overview-scope'))
     .not.toContainText('Puoi caricare altri eventi');
 });
+
+test('overview cards are keyboard focusable links to private reward and portal sections', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 720 });
+  await signIn(page, 'en');
+  await otherSections(page);
+  await page.route('**/api/personal-content/history/completed*', route =>
+    route.fulfill({ headers: cors, contentType: 'application/json',
+      body: JSON.stringify({ items: [], page: 1, pageSize: 20, hasMore: false }) }));
+  let auditReads = 0;
+  page.on('request', request => {
+    if (new URL(request.url()).pathname.includes('/history/') && request.method() === 'GET')
+      auditReads++;
+  });
+  await page.goto('./#/refuge/journal');
+  await expect(page.getByTestId('refuge-journal-overview')).toBeVisible();
+  const inventory = page.getByTestId('refuge-journal-overview-inventoryRecords');
+  await expect(inventory).toHaveAttribute('aria-label', 'Open details: Award records');
+  await inventory.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('#refuge-journal-rewards-title')).toBeFocused();
+
+  const portals = page.getByTestId('refuge-journal-overview-availablePortals');
+  await portals.focus();
+  await page.keyboard.press('Space');
+  await expect(page.locator('#refuge-journal-portals-title')).toBeFocused();
+  expect(auditReads).toBe(1); // Section navigation is in-page, not a second GET.
+  await expect.poll(() => page.evaluate(() =>
+    document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
+});
+
+test('overview Guardian metrics navigate to exact audited outcome families, then return to linked rewards', async ({ page }) => {
+  await signIn(page, 'it');
+  await otherSections(page);
+  const reads: string[] = [];
+  await page.route('**/api/personal-content/history/completed*', route => {
+    reads.push('completed');
+    return route.fulfill({ headers: cors, contentType: 'application/json',
+      body: JSON.stringify({ items: [solved, { ...solved, grantId: b,
+        completedAtUtc: '2026-11-04T10:00:00Z', rewardItemKey: null }],
+        page: 1, pageSize: 20, hasMore: false }) });
+  });
+  await page.route('**/api/personal-content/history/outcomes*', route => {
+    reads.push('outcomes');
+    return route.fulfill({ headers: cors, contentType: 'application/json',
+      body: JSON.stringify({ items: [
+        outcome,
+        { ...outcome, eventId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+          kind: 'guardian_victory', rewardItemKey: null, occurredAtUtc: '2026-11-04T10:00:00Z' },
+        { ...outcome, eventId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+          kind: 'guardian_retreat', rewardItemKey: null, occurredAtUtc: '2026-11-03T10:00:00Z' },
+        { ...outcome, eventId: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+          kind: 'sequence_first_mistake', rewardItemKey: null, occurredAtUtc: '2026-11-02T10:00:00Z' },
+      ], page: 1, pageSize: 20, hasMore: false }) });
+  });
+  await page.goto('./#/refuge/journal');
+  await expect(page.getByTestId('refuge-journal-completed-entry')).toHaveCount(2);
+  await page.getByTestId('refuge-journal-overview-guardianVictories').click();
+  await expect(page.locator('#refuge-journal-completed-title')).toBeFocused();
+  await expect(page.getByTestId('refuge-journal-mode-outcomes')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByTestId('refuge-journal-completed-entry')).toHaveCount(1);
+  await expect(page.getByTestId('refuge-journal-completed-entry')).toHaveAttribute('data-kind', 'guardian_victory');
+
+  await page.getByTestId('refuge-journal-overview-guardianRetreats').click();
+  await expect(page.getByTestId('refuge-journal-completed-entry')).toHaveAttribute('data-kind', 'guardian_retreat');
+  expect(reads).toEqual(['completed', 'outcomes']); // Filtering stays local to accepted owner rows.
+
+  await page.getByTestId('refuge-journal-overview-linkedRewards').click();
+  await expect(page.getByTestId('refuge-journal-mode-completed')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByTestId('refuge-journal-completed-entry')).toHaveCount(1);
+  await expect(page.getByTestId('refuge-journal-verified-reward')).toHaveCount(1);
+  await expect(page.getByTestId('refuge-journal-completed-entry')).toHaveAttribute('data-kind', 'sequence_completed');
+  expect(reads).toEqual(['completed', 'outcomes', 'completed']);
+});
