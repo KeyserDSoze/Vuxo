@@ -2,6 +2,7 @@ import {
   BrowserCacheLocation,
   PublicClientApplication,
 } from '@azure/msal-browser';
+import { microsoftPopupRedirectUri } from './microsoftRedirectUri';
 
 export type MicrosoftLoginConfiguration = {
   clientId: string;
@@ -19,7 +20,7 @@ export async function acquireMicrosoftIdToken(
     auth: {
       clientId: configuration.clientId,
       authority: `https://login.microsoftonline.com/${encodeURIComponent(configuration.tenantId)}`,
-      redirectUri: new URL(`${import.meta.env.BASE_URL}redirect.html`, window.location.origin).toString(),
+      redirectUri: microsoftPopupRedirectUri(import.meta.env.BASE_URL, window.location.origin),
     },
     cache: {
       cacheLocation: BrowserCacheLocation.MemoryStorage,

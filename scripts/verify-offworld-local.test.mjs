@@ -72,6 +72,7 @@ test('Node-only contracts run without .NET, Postgres, npm installation or Playwr
       'journal-adventure-navigation.contract.test.mjs',
       'refuge-adventure-overview.contract.test.mjs',
       'guardian-contracts.contract.test.mjs',
+      'microsoft-redirect.contract.test.mjs',
     ]) {
       writeFileSync(join(dir, name),
         `import test from 'node:test'; import assert from 'node:assert/strict';` +
@@ -80,7 +81,7 @@ test('Node-only contracts run without .NET, Postgres, npm installation or Playwr
     const result = execute(cli, ['--contracts'], { cwd: '/' });
     assert.equal(result.status, 0, result.stderr);
     assert.match(result.stdout, /--experimental-strip-types --test/);
-    assert.match(result.stdout, /# tests 7/);
+    assert.match(result.stdout, /# tests 8/);
     assert.doesNotMatch(result.stdout + result.stderr, /\.NET 10 SDK/);
   }));
 

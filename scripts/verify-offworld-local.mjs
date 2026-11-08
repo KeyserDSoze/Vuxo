@@ -25,6 +25,7 @@ const focused = [
   'src/frontend/scripts/journal-adventure-navigation.contract.test.mjs',
   'src/frontend/scripts/refuge-adventure-overview.contract.test.mjs',
   'src/frontend/scripts/guardian-contracts.contract.test.mjs',
+  'src/frontend/scripts/microsoft-redirect.contract.test.mjs',
 ];
 const browserTests = [
   'tests/refuge-linked-rewards.spec.ts',
@@ -33,6 +34,8 @@ const browserTests = [
   'tests/refuge-journal.spec.ts',
   'tests/portal-owner-session.spec.ts',
   'tests/world-portals.spec.ts',
+  'tests/auth.spec.ts',
+  'tests/msal-bridge.spec.ts',
 ];
 const isWindows = process.platform === 'win32';
 const npm = isWindows ? 'npm.cmd' : 'npm';
