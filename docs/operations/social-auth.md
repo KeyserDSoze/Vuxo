@@ -1,5 +1,7 @@
 # Social authentication
 
+**Step-by-step production setup (STE-style):** [LOGIN-GOOGLE-MICROSOFT-STE100.md](LOGIN-GOOGLE-MICROSOFT-STE100.md). This guide lists the exact Google and Microsoft console steps, GitHub variable scopes, production deployment and sign-in tests.
+
 Vuxo 0.0.1 supports Microsoft and Google login while keeping an internal Vuxo identity independent from either provider.
 
 ## Security model
