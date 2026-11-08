@@ -653,3 +653,24 @@ tsc --noEmit --strict --target ES2022 --module esnext \
 Cases cover valid current publication, immediate mode/refresh invalidation before React effect cleanup, a transport ignoring abort, newer-ticket wins, actual AbortSignal, forged/malformed tickets, per-account isolation, rapid Completed → Outcomes → Completed switching and stale `.catch/.finally` suppression. The exact locally executed `git hash-object` values match GitHub blobs: helper `9fe311fe54e6782f188411e1a8a62dcb2930c37f` and 9-case test `0355b2a57e2493a8422797e4edbfac8a04372295`. A real browser regression was **AUTHORED BUT NOT RUN** in `src/frontend/tests/refuge-linked-rewards.spec.ts`: hold page-one completions, select Guardian-victory from the overview, allow outcomes to load, release the late original response and confirm no stale completions, reward badges or counters overwrite outcomes.
 
 The local root launcher `node scripts/verify-offworld-local.mjs --contracts` now lists **nine** source suites, with the launcher test's temporary-checkout fixtures and documentation updated accordingly. Its new complete nine-suite run is **NOT EXECUTED** here. The new React TSX wiring and Playwright regression have **not** been validated by a full Vite/Chromium build; .NET/xUnit, real PostgreSQL, SQL plans and real MSAL sign-in also remain **NOT RUN**. `main` and #121 baseline bridge are unchanged. Keep #120 OPEN; do not PR/merge/deploy while GitHub Actions quota issue #112 blocks release gates.
+
+
+## Gate C0ad: grouped local-day history for verified Journal events (#120, 2026-11-08)
+
+**Player feature:** `RefugePortalCompletionHistory.tsx` now defaults to a chronological, **day-grouped** view of the currently loaded, authenticated/validated portal audit receipts. A visible MUI `Switch` labeled **Raggruppa per giorno (fuso orario locale) / Group by day (your local time zone)** lets the player disable/re-enable grouping without refreshing. Localized h3 headings and small event-count chips divide consecutive days while the individual event rows, public references, Guardian result kinds and verified-reward badges remain unchanged. Switching category filters, searching or loading subsequent pages recomputes only the *visible* day groups; the underlying accepted audited rows, owner-only fetch, NextCursor, 100ns/UUID order checks and summary counters are untouched.
+
+**Time semantics:** `portalHistoryDayGroups.ts` uses `Intl.DateTimeFormat` to derive stable local `YYYY-MM-DD` keys from `formatToParts` and separately render the heading in IT/EN, without parsing locale-formatted strings. Outcome rows use `occurredAtUtc`; completion rows use `completedAtUtc`. This is the viewer's **device timezone**, not the server's UTC-day boundary. Multiple receipts in the same day keep the exact server order; the function does not globally re-sort, create missing events or guess a lifetime count. The count chip means entries **already loaded that also pass the current filters**. Grouping is a purely local display choice and does not send additional GET requests or write client storage.
+
+**Actually EXECUTED (local Node v22.16.0):**
+```bash
+cd src/frontend
+node --experimental-strip-types --test scripts/portal-history-day-groups.contract.test.mjs
+# 12/12 PASS
+tsc --noEmit --strict --target ES2022 --module esnext \
+  --moduleResolution bundler --allowImportingTsExtensions \
+  src/features/refuge/portalHistoryDayGroups.ts
+# PASS (isolated type-only HistoryEntry fixture, not full frontend build)
+```
+The locally tested `git hash-object` values match the exact GitHub source blobs: model `89857f86a63f27453cdd3b60f784a378ccfff39c`, Node tests `85205b1bf83f2b881af11aa702724181908309a0`. Tests cover empty state, immutable input, completed vs outcome timestamps, mixed kinds, two time zones across local midnight, DST repeated hour, timezone offset/100ns precision, IT/EN headings, partial filtered pages and stable numeric keys even with non-Latin locale digits.
+
+**Browser tests AUTHORED, NOT RUN:** two new cases in `src/frontend/tests/refuge-linked-rewards.spec.ts`: successive completed-history pages across day boundaries with search, grouping toggle and **zero additional GETs**; narrow 320px English Guardian outcomes with day groups, exact row order and horizontal overflow check. These tests need a real React/MUI build and Chromium. The full `node scripts/verify-offworld-local.mjs --contracts` list now contains **ten** focused Node scripts (and its mock checkout unit-test fixture is updated) but has **NOT** been executed in this partial workspace. Full frontend, Playwright, .NET/xUnit, PostgreSQL/Npgsql SQL plans and real Entra remain **NOT RUN**. No PR/merge/Actions/deploy. #120 stays open and #112 quota blocker persists; #121 MSAL redirect bridge untouched.
