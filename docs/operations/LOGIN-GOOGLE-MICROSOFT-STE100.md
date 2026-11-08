@@ -222,6 +222,14 @@ GitHub saves the variables. GitHub does not automatically restart a running API 
 **NOTE:** The pipeline writes a temporary private environment file. It does not commit the values.
 **NOTE:** The deploy creates a PostgreSQL backup before it replaces the API container.
 
+### 6.1 Automated provider check (deployment update pending review)
+
+The proposed Pi deployment gate checks the Google and Microsoft configuration before it changes any container. If either client ID or the production origin is missing or malformed, the job stops before updating the API.
+
+After the API starts, the gate compares the public `/api/auth/providers` response with the expected client IDs and checks CORS for `https://vuxo.app`. It does not print client IDs or read provider tokens. A failed check reports a failed job, but it does not delete Docker volumes or roll back an EF migration.
+
+**NOTE:** The gate requires both providers on the production Pi. It applies only after its pull request is reviewed and merged. It does not prove that a Microsoft or Google user can finish sign-in in a browser.
+
 ## 7. Verify public configuration
 
 Use a computer outside the Raspberry network.
