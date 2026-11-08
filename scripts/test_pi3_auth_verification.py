@@ -76,6 +76,11 @@ class AuthVerificationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "canonical production origin"):
             verifier.read_expected(self.write_env())
 
+    def test_legacy_app_origin_is_not_returned_by_api(self):
+        self.cors = "https://vuxo.app"
+        with self.assertRaisesRegex(ValueError, "CORS origin mismatch"):
+            verifier.verify_discovery(verifier.read_expected(self.write_env()), self.serve())
+
     def test_disabled_provider_fails(self):
         self.providers["google"]["enabled"] = False
         with self.assertRaisesRegex(ValueError, "google provider is not enabled"):
