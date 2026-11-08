@@ -44,3 +44,13 @@ test('Production Microsoft uses consumer accounts and a same-origin redirect bri
   assert.match(guide, /VUXO_MICROSOFT_TENANT_ID\x60\s*\|\s*\x60consumers\x60/);
   assert.match(guide, /https:\/\/vuxo\.quest\/redirect\.html/);
 });
+
+test('production deploys always select Microsoft consumer accounts', () => {
+  for (const workflow of ['.github/workflows/deploy-pi3.yml', '.github/workflows/deploy-server.yml']) {
+    const text = source('../' + workflow);
+    assert.match(text, /^\s*MICROSOFT_TENANT_ID: consumers\s*$/m, workflow);
+    assert.doesNotMatch(text, /MICROSOFT_TENANT_ID:\s*\$\{\{\s*vars\.VUXO_MICROSOFT_TENANT_ID/);
+  }
+  const compose = source('../docker/compose.prod.yml');
+  assert.match(compose, /Auth__Microsoft__TenantId:\s*\$\{VUXO_MICROSOFT_TENANT_ID:-consumers\}/);
+});
