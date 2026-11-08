@@ -346,3 +346,9 @@ Keep [issue #121](https://github.com/KeyserDSoze/Vuxo/issues/121) open until bot
 - [Google Identity Services setup](https://developers.google.com/identity/gsi/web/guides/get-google-api-clientid).
 - [Google branding and verification](https://developers.google.com/identity/verification/authentication-policy-compliance).
 - [Google ID token verification](https://developers.google.com/identity/gsi/web/guides/verify-google-id-token).
+
+## 11. Public HTTP diagnostics (read-only)
+
+When the GitHub-hosted post-deploy check fails, launch **Actions → Diagnose public VUXO authentication (read only) → Run workflow** on `main`. This manual job sends independent requests to `https://api.vuxoapi.xyz/health`, API version, provider discovery and CORS preflight, plus `https://vuxo.quest/redirect.html`. It prints only sanitized HTTP status, `cloudflare/other` server class and allowlisted DNS/TLS/timeout categories. No response bodies, client IDs, tokens or redirect targets are logged. One failed route does not hide results from other routes.
+
+A green diagnostic workflow means only that the probes were executed; **it does not mean HTTP 200, successful login or healthy tunnel**. Examine each status, then fix Cloudflare published application/origin/DNS as indicated. Keep the stricter `verify-public-auth` deployment gate, and complete real Google + Microsoft browser login before closing #121. The production frontend origin is `https://vuxo.quest`; `vuxo.app` is obsolete.

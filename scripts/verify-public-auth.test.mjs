@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { verifyPublicAuth } from './verify-public-auth.mjs';
+import { diagnosePublicRoutes, verifyPublicAuth } from './verify-public-auth.mjs';
 
 const commit = '0123456789abcdef0123456789abcdef01234567';
 const origin = 'https://vuxo.quest';
@@ -83,7 +83,7 @@ test('legacy vuxo.app response is rejected by the canonical quest browser origin
   }) }, /providers: production CORS origin/);
 });
 test('preflight blocked at edge fails', async () => {
-  await rejects({ '/api/auth/social': res(null, 403) }, /preflight: wrong HTTP status/);
+  await rejects({ '/api/auth/social': res(null, 403) }, /preflight: expected HTTP 200 or 204, got HTTP 403/);
 });
 test('preflight requires Content-Type', async () => {
   await rejects({ '/api/auth/social': res(null, 204, {
@@ -113,4 +113,58 @@ test('unknown network failure is redacted after retries', async () => {
   await assert.rejects(() => verifyPublicAuth({
     expectedCommit: commit, fetcher, attempts: 2, sleep: async () => {},
   }), error => /network, response or timeout error/.test(error.message) && !error.message.includes('PRIVATE-TOKEN'));
+});
+
+test('public HTTP 530 is actionable without exposing upstream body', async () => {
+  const { fetcher } = fixture({ '/health': res('SECRET-CLOUDFLARE-HTML', 530) });
+  await assert.rejects(
+    () => verifyPublicAuth({ expectedCommit: commit, fetcher, attempts: 1 }),
+    error => /health: expected HTTP 200, got HTTP 530/.test(error.message)
+      && !error.message.includes('SECRET-CLOUDFLARE-HTML'));
+});
+test('diagnostics report only numeric status and restricted server class', async () => {
+  const secret = 'PRIVATE-CLIENT-ID-AND-TOKEN';
+  const { fetcher } = fixture({
+    '/health': res(secret, 530, { 'Server': 'cloudflare', 'Location': 'https://untrusted.test/' + secret }),
+    '/api/auth/providers': res(secret, 403, { 'Server': secret }),
+  });
+  const output = [];
+  await diagnosePublicRoutes({ fetcher, log: message => output.push(message) });
+  assert.equal(output.length, 5);
+  assert.match(output[0], /^health: HTTP 530 \(server: cloudflare\)$/);
+  assert.match(output[2], /^providers: HTTP 403 \(server: other\)$/);
+  assert.ok(!output.join(' ').includes(secret));
+});
+test('diagnostics redact transport errors but continue with other routes', async () => {
+  const { fetcher: base } = fixture();
+  const output = [];
+  await diagnosePublicRoutes({
+    fetcher: (url, options) => url.endsWith('/health')
+      ? Promise.reject(new Error('PRIVATE-TOKEN')) : base(url, options),
+    log: message => output.push(message),
+  });
+  assert.equal(output.length, 5);
+  assert.equal(output[0], 'health: network or timeout failure');
+  assert.equal(output[4], 'msal-bridge: HTTP 200 (server: other)');
+});
+
+test('DNS and TLS failures get fixed categories without leaking host or error data', async () => {
+  const secret = 'SECRET-LOCATION-AND-TOKEN';
+  for (const [code, message] of [
+    ['ENOTFOUND', 'DNS lookup failed'],
+    ['ERR_TLS_CERT_ALTNAME_INVALID', 'TLS certificate error'],
+    ['UND_ERR_CONNECT_TIMEOUT', 'connection timeout'],
+  ]) {
+    const { fetcher: base } = fixture();
+    const output = [];
+    const failure = new Error(secret);
+    failure.cause = { code, detail: secret };
+    await diagnosePublicRoutes({
+      fetcher: (url, options) => url.endsWith('/redirect.html')
+        ? Promise.reject(failure) : base(url, options),
+      log: line => output.push(line),
+    });
+    assert.equal(output[4], 'msal-bridge: ' + message);
+    assert.ok(!output.join(' ').includes(secret));
+  }
 });
