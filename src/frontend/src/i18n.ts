@@ -194,6 +194,8 @@ const initialization = i18n.use(initReactI18next).init({
               title: 'Esplora gli eventi caricati',
               filterLabel: 'Tipo di evento',
               searchLabel: 'Cerca contenuto o riferimento',
+              groupByDay: 'Raggruppa per giorno (fuso orario locale)',
+              dayCount: 'Eventi caricati: {{count}}',
               filters: {
                 all: 'Tutti gli eventi',
                 runes: 'Rune completate',
@@ -829,6 +831,8 @@ const initialization = i18n.use(initReactI18next).init({
               title: 'Explore loaded events',
               filterLabel: 'Event type',
               searchLabel: 'Search content or reference',
+              groupByDay: 'Group by day (your local time zone)',
+              dayCount: 'Loaded events: {{count}}',
               filters: {
                 all: 'All loaded events',
                 runes: 'Completed runes',

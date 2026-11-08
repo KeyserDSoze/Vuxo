@@ -1,6 +1,6 @@
 import { AutoAwesome, Refresh } from '@mui/icons-material';
 import { Alert, Box, Button, Chip, CircularProgress, FormControl, InputLabel,
-  MenuItem, Paper, Select, Stack, TextField, Typography } from '@mui/material';
+  MenuItem, Paper, Select, Stack, Switch, FormControlLabel, TextField, Typography } from '@mui/material';
 import { inventoryItemLabelKeys } from '../inventory/inventoryApi';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -8,6 +8,7 @@ import { readForCurrentOwner } from '../auth/ownerReadFence';
 import { appendPortalHistoryPage, type HistoryEntry, type HistoryMode } from './portalHistoryPageMerge';
 import { createPortalHistoryNavigationGate } from './portalHistoryNavigationGate';
 import { createPortalHistoryRequestFence } from './portalHistoryRequestFence';
+import { groupPortalHistoryByLocalDay } from './portalHistoryDayGroups';
 import { filterPortalHistoryEntries, type PortalHistoryViewFilter } from './portalHistoryView';
 import { summarizeAdventureHistory, type AdventureHistorySnapshot } from './refugeAdventureOverview';
 import type { JournalHistoryJump } from './journalAdventureNavigation';
@@ -45,11 +46,20 @@ export function RefugePortalCompletionHistory({
   const [error, setError] = useState(false);
   const [viewFilter, setViewFilter] = useState<PortalHistoryViewFilter>('all');
   const [search, setSearch] = useState('');
+  const [groupByDay, setGroupByDay] = useState(true);
   // Filtering is presentation-only over the current owner's verified pages.
   // Keep the backend cursor and full accepted audit timeline untouched.
   const visibleEntries = useMemo(
     () => filterPortalHistoryEntries(entries, viewFilter, search),
     [entries, viewFilter, search],
+  );
+  const displayedDays = useMemo(
+    () => groupByDay
+      ? groupPortalHistoryByLocalDay(
+        visibleEntries, i18n.resolvedLanguage?.startsWith('en') ? 'en-US' : 'it-IT',
+      )
+      : [{ key: 'all', label: '', items: visibleEntries }],
+    [visibleEntries, groupByDay, i18n.resolvedLanguage],
   );
 
   useEffect(() => {
@@ -251,6 +261,13 @@ export function RefugePortalCompletionHistory({
                 onChange={event => setSearch(event.target.value.slice(0, 128))}
                 sx={{ flex: 2 }} />
             </Stack>
+            <FormControlLabel
+              sx={{ alignSelf: 'flex-start', maxWidth: '100%' }}
+              label={t('refuge.journal.browse.groupByDay')}
+              control={<Switch checked={groupByDay}
+                onChange={(_, checked) => setGroupByDay(checked)}
+                slotProps={{ input: { 'data-testid': 'refuge-journal-history-day-toggle' } }} />}
+            />
             <Typography variant="body2" color="text.secondary" aria-live="polite"
               data-testid="refuge-journal-history-count">
               {t('refuge.journal.browse.count', {
@@ -305,7 +322,25 @@ export function RefugePortalCompletionHistory({
           </Alert>
         )}
         <Stack spacing={1.25} data-testid="refuge-journal-completed-list">
-          {visibleEntries.map(item => {
+          {displayedDays.map(day => (
+            <Stack key={day.key} spacing={1.25}
+              component={groupByDay ? 'section' : 'div'}
+              aria-label={groupByDay ? day.label : undefined}
+              data-testid={groupByDay ? 'refuge-journal-day-group' : undefined}>
+              {groupByDay && (
+                <Stack direction="row" sx={{
+                  alignItems: 'center', gap: 1, flexWrap: 'wrap',
+                }}>
+                  <Typography component="h3" variant="subtitle1"
+                    data-testid="refuge-journal-day-heading"
+                    sx={{ fontWeight: 800, textTransform: 'capitalize' }}>
+                    {day.label}
+                  </Typography>
+                  <Chip size="small" variant="outlined"
+                    label={t('refuge.journal.browse.dayCount', { count: day.items.length })} />
+                </Stack>
+              )}
+              {day.items.map(item => {
             const isOutcome = 'kind' in item;
             const outcomeKind = isOutcome ? item.kind : 'sequence_completed';
             const date = isOutcome ? item.occurredAtUtc : item.completedAtUtc;
@@ -354,6 +389,8 @@ export function RefugePortalCompletionHistory({
               </Stack>
             </Paper>
           );})}
+            </Stack>
+          ))}
         </Stack>
         {!loading && !error && hasMore && page < 1000 && (
           <Button data-testid="refuge-journal-completed-more" variant="outlined"
