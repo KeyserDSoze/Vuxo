@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { journalDestinationForMetric } from './journalAdventureNavigation.ts';
+import { journalDestinationForMetric } from '../src/features/refuge/journalAdventureNavigation.ts';
 
 const destination = journalDestinationForMetric;
 test('inventory metric links to personal award records, not completed rune history', () => {
