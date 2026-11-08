@@ -9,7 +9,7 @@ if [[ "$(uname -m)" != "aarch64" ]]; then
   echo "Only Linux ARM64 (aarch64) is supported." >&2
   exit 2
 fi
-for exe in docker curl date mktemp realpath; do
+for exe in docker curl date mktemp realpath python3; do
   command -v "$exe" >/dev/null || { echo "Missing: $exe" >&2; exit 2; }
 done
 docker compose version >/dev/null
@@ -17,6 +17,8 @@ docker info >/dev/null
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 ENV_FILE="$(realpath "$1")"
+# Fail before any container or database operation when production sign-in is misconfigured.
+python3 "$ROOT/infra/pi3/verify-auth.py" "$ENV_FILE" --config-only
 COMPOSE=(docker compose -p vuxo --env-file "$ENV_FILE" -f "$ROOT/docker/compose.prod.yml" -f "$ROOT/docker/compose.pi3.yml" --profile edge)
 API_IMAGE="$(sed -n 's/^VUXO_API_IMAGE=//p' "$ENV_FILE" | tail -1)"
 if [[ ! "$API_IMAGE" =~ ^ghcr\.io/keyserdsoze/vuxo-api:pi3-[a-f0-9]{40}$ ]]; then
@@ -89,5 +91,8 @@ if ! health_check; then
 fi
 
 "${COMPOSE[@]}" up -d cloudflared
+# Local API discovery must match the intended provider IDs and production CORS.
+# Failure leaves containers intact for diagnosis; it does not roll back database migrations.
+python3 "$ROOT/infra/pi3/verify-auth.py" "$ENV_FILE"
 "${COMPOSE[@]}" ps
 echo "Deploy healthy. Pre-deploy backup: $backup"

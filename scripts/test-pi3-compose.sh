@@ -6,6 +6,7 @@ cd "$(dirname "$0")/.."
 bash -n infra/pi3/deploy.sh
 bash -n infra/pi3/bootstrap.sh
 bash -n infra/pi3/preflight.sh
+python3 -m unittest discover -s scripts -p 'test_pi3_auth_verification.py' -v
 
 # Build the ARM64 image on trusted green main CI without triggering the Pi.
 # Production deployment still requires a separate explicit repository flag.
