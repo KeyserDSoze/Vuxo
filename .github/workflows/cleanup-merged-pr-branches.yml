@@ -5,6 +5,11 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/cleanup-merged-pr-branches.yml'
+  pull_request:
+    paths:
+      - '.github/workflows/cleanup-merged-pr-branches.yml'
+      - 'scripts/maintenance/prune-merged-pr-branches.mjs'
+      - 'scripts/maintenance/prune-merged-pr-branches.test.mjs'
   workflow_dispatch:
     inputs:
       delete_eligible:
@@ -14,7 +19,7 @@ on:
         default: false
 
 permissions:
-  contents: write
+  contents: read
   pull-requests: read
 
 concurrency:
@@ -22,9 +27,10 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  prune:
-    if: github.repository == 'KeyserDSoze/Vuxo'
+  validate:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -32,6 +38,19 @@ jobs:
           node-version: 24
       - name: Test fail-closed pruning rules
         run: node --test scripts/maintenance/prune-merged-pr-branches.test.mjs
+
+  prune:
+    if: github.repository == 'KeyserDSoze/Vuxo' && github.event_name != 'pull_request'
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
       - name: Prune exact merged PR heads if authorized
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
