@@ -123,9 +123,16 @@ test('search and filter do not make gameplay API requests or mutate authoritativ
   await mockInventory(page);
   await page.goto('./#/inventory');
   await expect(page.getByTestId('inventory-browse-controls')).toBeVisible();
+  await expect(page.getByTestId('inventory-item')).toHaveCount(4);
+  await expect(page.getByTestId('inventory-stack')).toHaveCount(3);
   const unexpected: string[] = [];
   page.on('request', request => {
-    if (/\/api\//.test(new URL(request.url()).pathname)) unexpected.push(request.method() + ':' + request.url());
+    const pathname = new URL(request.url()).pathname;
+    const method = request.method();
+    if ((/\/api\/(inventory|equipment)(\/|$)/.test(pathname) && method !== 'OPTIONS')
+        || (pathname.startsWith('/api/') && !['GET', 'HEAD', 'OPTIONS'].includes(method))) {
+      unexpected.push(method + ':' + pathname);
+    }
   });
   await page.getByTestId('inventory-browse-search').fill('runa');
   await page.getByTestId('inventory-browse-filter').click();
@@ -150,6 +157,22 @@ test('English dark 320px mobile layout re-sorts translated names without horizon
   await page.getByTestId('inventory-browse-search').fill('tidal');
   await expect(page.getByTestId('inventory-stack')).toHaveCount(1);
   await expect(page.getByTestId('inventory-item')).toHaveCount(1);
+  const overflowingElements = await page.evaluate(() => {
+    const limit = document.documentElement.clientWidth + 1;
+    return [...document.querySelectorAll<HTMLElement>('body *')]
+      .filter(element => element.getBoundingClientRect().right > limit)
+      .slice(0, 15)
+      .map(element => ({
+        element: element.tagName.toLowerCase(),
+        testId: element.getAttribute('data-testid'),
+        className: typeof element.className === 'string' ? element.className.slice(0, 100) : '',
+        width: Math.round(element.getBoundingClientRect().width),
+        right: Math.round(element.getBoundingClientRect().right),
+      }));
+  });
+  if (overflowingElements.length > 0) {
+    console.log('Inventory 320px overflow diagnostics:', JSON.stringify(overflowingElements));
+  }
   await expect.poll(() => page.evaluate(() =>
     document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
 });
