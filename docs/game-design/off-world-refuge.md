@@ -11,6 +11,19 @@ Due cicli complementari:
 
 Il giocatore può aprire il Rifugio e agire per pochi minuti senza avviare Phaser, ma quando torna nel mondo trova gli stessi oggetti e attributi verificati dal server.
 
+## Inventario consultabile — issue #115
+
+Le ricompense e le pile sono ancora e soltanto quelle lette dalle API owner-only `GET /api/inventory`, `GET /api/inventory/stacks` e `GET /api/equipment`. L'interfaccia React/MUI può filtrare e ordinare **in memoria** il materiale già caricato, senza introdurre query di ricerca al backend o alterare gli ID di grant.
+
+- Ricerca per nome localizzato o `itemKey` canonico, case/accent insensitive, con cambio lingua senza perdere le scelte.
+- Filtro Equipaggiati: grant ID effettivamente presenti in `equipment.items` e relativi `itemKey` per le pile; filtro Disponibili: grant ID in `inventory/stacks[].availableGrantIds`. Un item storico consumato non diventa nuovamente disponibile grazie a un filtro.
+- Sort per nome (collator IT/EN) o quantità decrescente, deterministic fallback per ID. Risultato senza corrispondenze non equivale a inventario vuoto e può essere azzerato.
+- L'area di navigazione/ricerca appare solo quando i dati necessari sono stati effettivamente caricati; se equipment/stack sono indisponibili, l'errore server resta visibile e non si mostrano filtri dalla falsa certezza.
+- L'intera vista inventario è `key`ed sul token di sessione, quindi al cambio account i dati e i filtri precedenti si smontano subito e le richieste dell'utente precedente vengono abortite. Non persistiamo preferenze di ricerca, risultati o risorse del personaggio.
+- Qualsiasi equip/unequip/consume continua a inviare solo intenzioni alle API esistenti, con gli stessi controlli server-side: il filtro non autorizza alcun premio o cura.
+
+Nuovi test Playwright per anonimato, ricerca IT/EN/Unicode, filtri di grant e item consumati, ordinamento, filtro senza risultati, nessuna nuova chiamata API, viewport scuro 320px e cambio sessione. Verifica CI e merge sospesi fino al ripristino della quota Actions (#112).
+
 ## MVP 0.0.1 — issue #71
 
 - Route \`/#/refuge\`: accesso tramite home/menu, contenuti chiari e responsive, collegamenti agli editor/personaggio, inventario/equipaggiamento, portali personali e mondo.
