@@ -132,7 +132,7 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
   return (
     <Stack spacing={3} data-testid="inventory-page">
       <Box>
-        <Typography variant="h2" component="h1">{t('title')}</Typography>
+        <Typography variant="h2" component="h1" sx={{ typography: { xs: 'h3', sm: 'h2' }, overflowWrap: 'anywhere' }}>{t('title')}</Typography>
         <Typography color="text.secondary">{t('description')}</Typography>
       </Box>
 
