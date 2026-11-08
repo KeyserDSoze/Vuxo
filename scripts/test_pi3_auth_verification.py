@@ -21,13 +21,13 @@ class AuthVerificationTests(unittest.TestCase):
             "VUXO_MICROSOFT_CLIENT_ID": "microsoft-test-client",
             "VUXO_MICROSOFT_TENANT_ID": "common",
             "VUXO_GOOGLE_CLIENT_ID": "google-test-client.apps.googleusercontent.com",
-            "VUXO_ALLOWED_ORIGIN": "https://vuxo.app",
+            "VUXO_ALLOWED_ORIGIN": "https://vuxo.quest",
         }
         self.providers = {
             "microsoft": {"enabled": True, "clientId": self.config["VUXO_MICROSOFT_CLIENT_ID"], "tenantId": "common"},
             "google": {"enabled": True, "clientId": self.config["VUXO_GOOGLE_CLIENT_ID"]},
         }
-        self.cors = "https://vuxo.app"
+        self.cors = "https://vuxo.quest"
         self.credentials = "true"
         self.payload = None
         self.temp = tempfile.TemporaryDirectory()
@@ -72,7 +72,7 @@ class AuthVerificationTests(unittest.TestCase):
             verifier.read_expected(self.write_env())
 
     def test_wrong_public_origin_fails_before_deploy(self):
-        self.config["VUXO_ALLOWED_ORIGIN"] = "https://vuxo.quest"
+        self.config["VUXO_ALLOWED_ORIGIN"] = "https://vuxo.app"
         with self.assertRaisesRegex(ValueError, "canonical production origin"):
             verifier.read_expected(self.write_env())
 
