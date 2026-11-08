@@ -21,7 +21,7 @@ The normal installation contains these services:
 | Cloudflare Tunnel | Connect the API to the public hostname. |
 | GitHub runner | Get and install a tested API image. |
 
-The frontend runs on GitHub Pages at https://vuxo.app. The API uses https://api.vuxoapi.xyz.
+The frontend runs on GitHub Pages at https://vuxo.quest. The API uses https://api.vuxoapi.xyz.
 
 **Do not install RabbitMQ, Azurite, Grafana, or Ollama as part of the initial production installation.** Use the optional procedures after the normal server passes its tests.
 
@@ -46,7 +46,7 @@ You must have:
 - A PC with an SSH client.
 - A GitHub account with access to KeyserDSoze/Vuxo.
 - Access to Cloudflare for the API tunnel.
-- Access to the GitHub Pages settings for vuxo.app.
+- Access to the GitHub Pages settings for vuxo.quest.
 - Permission to change GitHub Actions secrets and variables.
 
 Do not continue if you cannot access GitHub or Cloudflare.
@@ -267,7 +267,7 @@ Add these environment variables:
 
 | Variable | Value |
 | --- | --- |
-| VUXO_ALLOWED_ORIGIN | https://vuxo.app |
+| VUXO_ALLOWED_ORIGIN | https://vuxo.quest |
 | VUXO_GOOGLE_CLIENT_ID | Your Google client ID, if used. |
 | VUXO_MICROSOFT_CLIENT_ID | Your Microsoft client ID, if used. |
 | VUXO_MICROSOFT_TENANT_ID | Your tenant setting, if used. |
@@ -306,19 +306,19 @@ Do not publish PostgreSQL, Redis, the Docker socket, or the monitoring pages.
 **Work location: GitHub website.**
 
 1. Open **KeyserDSoze/Vuxo > Settings > Pages**.
-2. Check that the custom domain is **vuxo.app**.
+2. Check that the custom domain is **vuxo.quest**.
 3. Check the DNS configuration.
 4. Check that HTTPS is active.
 
 **Work location: PC browser.**
 
-Open https://vuxo.app.
+Open https://vuxo.quest.
 
 **Expected result:** The VUXO frontend loads through HTTPS.
 
 If Google or Microsoft login is in use, open the provider configuration.
 
-Check the approved frontend origin and redirect URL. Use https://vuxo.app where the application requires it.
+Check the approved frontend origin and redirect URL. Use https://vuxo.quest where the application requires it.
 
 **STOP:** Do not approve the production cutover until the domain and login tests pass.
 
@@ -638,7 +638,7 @@ Open http://localhost:8088.
 | GHCR pull fails | Check the Actions job and package read permission. |
 | Local API health fails | Read the API and PostgreSQL container logs. |
 | Public API health fails | Check the Cloudflare Tunnel route. |
-| Login fails | Check vuxo.app, provider settings, and API CORS. |
+| Login fails | Check vuxo.quest, provider settings, and API CORS. |
 | Pi stops a container | Check free RAM and Docker OOM events. |
 | API rollback fails | Keep the backup. Use the recovery procedure on a separate test system first. |
 
@@ -656,7 +656,7 @@ Mark a check only after you get the expected result.
 - [ ] The ARM64 image is available in GHCR.
 - [ ] The API, PostgreSQL, and Redis containers are healthy.
 - [ ] Cloudflare serves the API.
-- [ ] The frontend and social login work on vuxo.app.
+- [ ] The frontend and social login work on vuxo.quest.
 - [ ] The database backup is on a different device.
 - [ ] The API and runner recover after a restart.
 - [ ] The Pi passes a load test without memory errors.
