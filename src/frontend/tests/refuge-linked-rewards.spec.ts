@@ -714,3 +714,83 @@ test('a late completed response never overwrites an outcome jump or its summary'
   expect(completedRequests).toBe(1);
   expect(outcomeRequests).toBe(1);
 });
+
+test('Journal groups loaded completions by local day and toggling never refetches history', async ({ page }) => {
+  await signIn(page);
+  await otherSections(page);
+  const requests: number[] = [];
+  await page.route('**/api/personal-content/history/completed*', route => {
+    const requested = Number(new URL(route.request().url()).searchParams.get('page'));
+    requests.push(requested);
+    const items = requested === 1 ? [
+      { ...solved, completedAtUtc: '2026-11-07T12:00:00Z' },
+      { ...solved, grantId: b, completedAtUtc: '2026-11-07T10:00:00Z', rewardItemKey: null },
+    ] : [{
+      ...solved, grantId: '33333333-3333-4333-8333-333333333333',
+      completedAtUtc: '2026-11-06T10:00:00Z', rewardItemKey: null,
+    }];
+    return route.fulfill({ headers: cors, contentType: 'application/json',
+      body: JSON.stringify({ items, page: requested, pageSize: 20, hasMore: requested === 1 }) });
+  });
+  await page.goto('./#/refuge/journal');
+  await expect(page.getByTestId('refuge-journal-completed-entry')).toHaveCount(2);
+  await expect(page.getByTestId('refuge-journal-day-group')).toHaveCount(1);
+  await expect(page.getByTestId('refuge-journal-day-heading')).toHaveCount(1);
+  await expect(page.getByTestId('refuge-journal-day-group').first()).toContainText('Eventi caricati: 2');
+
+  await page.getByTestId('refuge-journal-completed-more').click();
+  await expect(page.getByTestId('refuge-journal-completed-entry')).toHaveCount(3);
+  await expect(page.getByTestId('refuge-journal-day-group')).toHaveCount(2);
+  expect(requests).toEqual([1, 2]);
+
+  await page.getByTestId('refuge-journal-history-search').fill('22222222');
+  await expect(page.getByTestId('refuge-journal-completed-entry')).toHaveCount(1);
+  await expect(page.getByTestId('refuge-journal-day-group')).toHaveCount(1);
+  await expect(page.getByTestId('refuge-journal-history-count'))
+    .toContainText('1 su 3 caricati');
+  const toggle = page.getByTestId('refuge-journal-history-day-toggle');
+  await toggle.uncheck();
+  await expect(page.getByTestId('refuge-journal-day-group')).toHaveCount(0);
+  await expect(page.getByTestId('refuge-journal-completed-entry')).toHaveCount(1);
+  await toggle.check();
+  await expect(page.getByTestId('refuge-journal-day-group')).toHaveCount(1);
+  await page.getByTestId('refuge-journal-history-clear').click();
+  await expect(page.getByTestId('refuge-journal-day-group')).toHaveCount(2);
+  await expect(page.getByTestId('refuge-journal-completed-entry')).toHaveCount(3);
+  expect(requests).toEqual([1, 2]); // No extra GET on local search or grouping.
+});
+
+test('English mobile Guardian outcomes are grouped separately without reordering or overflow', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 700 });
+  await signIn(page, 'en');
+  await otherSections(page);
+  await page.route('**/api/personal-content/history/completed*', route =>
+    route.fulfill({ headers: cors, contentType: 'application/json',
+      body: JSON.stringify({ items: [], page: 1, pageSize: 20, hasMore: false }) }));
+  await page.route('**/api/personal-content/history/outcomes*', route =>
+    route.fulfill({ headers: cors, contentType: 'application/json',
+      body: JSON.stringify({ items: [
+        { ...outcome, occurredAtUtc: '2026-11-07T12:00:00Z' },
+        { ...outcome, eventId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+          kind: 'guardian_victory', occurredAtUtc: '2026-11-07T11:00:00Z',
+          rewardItemKey: null },
+        { ...outcome, eventId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+          kind: 'guardian_retreat', occurredAtUtc: '2026-11-06T11:00:00Z',
+          rewardItemKey: null },
+      ], page: 1, pageSize: 20, hasMore: false }) }));
+  await page.goto('./#/refuge/journal');
+  await page.getByTestId('refuge-journal-mode-outcomes').click();
+  const entries = page.getByTestId('refuge-journal-completed-entry');
+  await expect(entries).toHaveCount(3);
+  await expect(page.getByTestId('refuge-journal-day-group')).toHaveCount(2);
+  await expect(page.getByTestId('refuge-journal-day-group').first()).toContainText('Loaded events: 2');
+  await expect(page.getByTestId('refuge-journal-day-heading').first()).toContainText('November');
+  await expect(entries.nth(0)).toHaveAttribute('data-kind', 'sequence_completed');
+  await expect(entries.nth(1)).toHaveAttribute('data-kind', 'guardian_victory');
+  await expect(entries.nth(2)).toHaveAttribute('data-kind', 'guardian_retreat');
+  await page.getByTestId('refuge-journal-history-day-toggle').uncheck();
+  await expect(entries).toHaveCount(3);
+  await expect(page.getByTestId('refuge-journal-day-group')).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() =>
+    document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
+});
