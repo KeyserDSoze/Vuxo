@@ -3,7 +3,7 @@ import test from 'node:test';
 import { verifyPublicAuth } from './verify-public-auth.mjs';
 
 const commit = '0123456789abcdef0123456789abcdef01234567';
-const origin = 'https://vuxo.app';
+const origin = 'https://vuxo.quest';
 const cors = { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': origin, 'Access-Control-Allow-Credentials': 'true' };
 const res = (body, status = 200, headers = {}) => new Response(body, { status, headers });
 
