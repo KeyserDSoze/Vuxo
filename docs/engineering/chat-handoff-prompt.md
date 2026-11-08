@@ -22,7 +22,7 @@ Vuxo è un gioco online 2D persistente di esplorazione, mondo procedurale, creat
 La prima milestone è la first playable: login -> creazione personaggio -> ingresso nel mondo -> movimento -> presenza realtime di altri giocatori.
 
 Domini production:
-- frontend: `https://vuxo.app`
+- frontend: `https://vuxo.quest`
 - API: `https://api.vuxoapi.xyz`
 
 ## Stack e principi

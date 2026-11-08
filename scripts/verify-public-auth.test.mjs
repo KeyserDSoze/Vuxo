@@ -3,7 +3,7 @@ import test from 'node:test';
 import { verifyPublicAuth } from './verify-public-auth.mjs';
 
 const commit = '0123456789abcdef0123456789abcdef01234567';
-const origin = 'https://vuxo.app';
+const origin = 'https://vuxo.quest';
 const cors = { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': origin, 'Access-Control-Allow-Credentials': 'true' };
 const res = (body, status = 200, headers = {}) => new Response(body, { status, headers });
 
@@ -68,6 +68,13 @@ test('Microsoft tenant required', async () => {
 });
 test('provider GET rejects incorrect CORS', async () => {
   await rejects({ '/api/auth/providers': res('{}', 200, { 'Content-Type': 'application/json' }) }, /providers: production CORS origin/);
+});
+test('legacy vuxo.app response is rejected by the canonical quest browser origin', async () => {
+  await rejects({ '/api/auth/providers': res('{}', 200, {
+    'Content-Type': 'application/json',
+    'Access-Control-Allow-Origin': 'https://vuxo.app',
+    'Access-Control-Allow-Credentials': 'true',
+  }) }, /providers: production CORS origin/);
 });
 test('preflight blocked at edge fails', async () => {
   await rejects({ '/api/auth/social': res(null, 403) }, /preflight: wrong HTTP status/);

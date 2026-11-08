@@ -18,7 +18,7 @@ Vuxo 0.0.1 supports Microsoft and Google login while keeping an internal Vuxo id
 
 Create/register a Single-page application and configure the SPA redirect URIs:
 
-- production: `https://vuxo.app/redirect.html`
+- production: `https://vuxo.quest/redirect.html`
 - local development with `VITE_BASE_PATH=/`: `http://localhost:5173/redirect.html` (only when used locally; when using the repository default `/Vuxo/` base, use `http://localhost:5173/Vuxo/redirect.html` instead)
 
 Choose the account audience that matches the server tenant configuration:
@@ -40,7 +40,7 @@ VUXO_MICROSOFT_TENANT_ID=common
 
 Create a Web OAuth client for Google Identity Services and add authorized JavaScript origins:
 
-- production: `https://vuxo.app`
+- production: `https://vuxo.quest`
 - local development: `http://localhost:5173`
 
 Set on the server:
@@ -69,7 +69,7 @@ The SPA stores only the Vuxo access token plus non-sensitive Vuxo user/session m
 
 ## Production CORS
 
-The existing production origin remains `https://vuxo.app`. The API continues to be reached through `https://api.vuxoapi.xyz`/Cloudflare Tunnel; no provider callback is sent to the API domain because Microsoft/GIS authenticate in the SPA and the backend only verifies the resulting ID token.
+The existing production origin remains `https://vuxo.quest`. The API continues to be reached through `https://api.vuxoapi.xyz`/Cloudflare Tunnel; no provider callback is sent to the API domain because Microsoft/GIS authenticate in the SPA and the backend only verifies the resulting ID token.
 
 
 ## GitHub deploy configuration

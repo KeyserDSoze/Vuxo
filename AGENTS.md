@@ -8,7 +8,7 @@ Vuxo is a persistent online 2D game built around exploration, procedural worlds,
 
 Canonical production endpoints:
 
-- Frontend: `https://vuxo.app`
+- Frontend: `https://vuxo.quest`
 - API: `https://api.vuxoapi.xyz`
 
 Do not introduce alternative production URLs in code or documentation unless a migration is explicitly requested.
@@ -26,7 +26,7 @@ Do not introduce alternative production URLs in code or documentation unless a m
 - Local LLM runtime: Ollama behind `ILanguageModelGateway`; model/runtime must remain replaceable
 - Packaging/runtime: Docker + Docker Compose
 - CI/CD: GitHub Actions + GHCR + self-hosted production runner
-- Frontend hosting: GitHub Pages custom domain `vuxo.app`
+- Frontend hosting: GitHub Pages custom domain `vuxo.quest`
 - Backend exposure: Cloudflare Tunnel to `api.vuxoapi.xyz`
 
 ## Architecture rules

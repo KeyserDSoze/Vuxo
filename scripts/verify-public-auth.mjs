@@ -6,7 +6,7 @@
 import { pathToFileURL } from 'node:url';
 
 const API = 'https://api.vuxoapi.xyz';
-const WEB = 'https://vuxo.app';
+const WEB = 'https://vuxo.quest';
 
 function requireOk(response, context) {
   if (response.status !== 200) throw new Error(context + ': expected HTTP 200');

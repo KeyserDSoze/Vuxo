@@ -100,7 +100,9 @@ jobs:
           POSTGRES_PASSWORD: ${{ secrets.VUXO_POSTGRES_PASSWORD }}
           JWT_SIGNING_KEY: ${{ secrets.VUXO_JWT_SIGNING_KEY }}
           CLOUDFLARE_TOKEN: ${{ secrets.VUXO_CLOUDFLARE_TUNNEL_TOKEN }}
-          ALLOWED_ORIGIN: ${{ vars.VUXO_ALLOWED_ORIGIN || 'https://vuxo.app' }}
+          # The canonical browser origin is fixed at deploy time, even if a
+          # legacy GitHub environment variable still contains vuxo.app.
+          ALLOWED_ORIGIN: https://vuxo.quest
           MICROSOFT_CLIENT_ID: ${{ vars.VUXO_MICROSOFT_CLIENT_ID }}
           MICROSOFT_TENANT_ID: ${{ vars.VUXO_MICROSOFT_TENANT_ID || 'common' }}
           GOOGLE_CLIENT_ID: ${{ vars.VUXO_GOOGLE_CLIENT_ID }}

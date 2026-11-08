@@ -6,10 +6,10 @@ La nuova guida Raspberry Pi 3, scritta in inglese tecnico controllato secondo i 
 
 ## Endpoint production canonici
 
-- Frontend: `https://vuxo.app`
+- Frontend: `https://vuxo.quest`
 - API: `https://api.vuxoapi.xyz`
 
-Il frontend è pubblicato tramite GitHub Pages sul dominio custom `vuxo.app`. Il backend viene eseguito sul server self-hosted e pubblicato tramite Cloudflare Tunnel su `api.vuxoapi.xyz`.
+Il frontend è pubblicato tramite GitHub Pages sul dominio custom `vuxo.quest`. Il backend viene eseguito sul server self-hosted e pubblicato tramite Cloudflare Tunnel su `api.vuxoapi.xyz`.
 
 ## Stack iniziale
 
@@ -129,7 +129,7 @@ La pipeline pubblica l'immagine API su GitHub Container Registry. Un GitHub Acti
 
 Il provisioning del server è in `infra/self-hosted/` e il runtime in `docker/compose.prod.yml`. `docker/compose.gpu.yml` abilita esplicitamente l'accesso GPU a Ollama solo quando la macchina lo supporta e i benchmark mostrano un beneficio.
 
-Il workflow production usa `https://vuxo.app` come origin CORS predefinita e `https://api.vuxoapi.xyz` come endpoint API del build frontend. Le variabili GitHub possono sovrascrivere questi default quando serve una migrazione controllata.
+Il workflow production usa `https://vuxo.quest` come origin CORS predefinita e `https://api.vuxoapi.xyz` come endpoint API del build frontend. Le variabili GitHub possono sovrascrivere questi default quando serve una migrazione controllata.
 
 ## Backlog
 

@@ -138,6 +138,8 @@ jobs:
         run: node --test ../../scripts/verify-public-auth.test.mjs
       - name: Test GitHub Pages release contracts (offline)
         run: node --test ../../scripts/verify-pages-artifact.test.mjs
+      - name: Test definitive production domain contracts (offline)
+        run: node --test ../../scripts/test-production-domain.test.mjs
       - name: Build
         env:
           VITE_BASE_PATH: /Vuxo/
