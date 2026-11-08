@@ -51,6 +51,9 @@ async function checkOnce(fetcher, expectedCommit) {
   }
   const providers = await discovery.json();
   requireProvider(providers?.microsoft, 'microsoft', ['clientId', 'tenantId']);
+  if (providers.microsoft.tenantId !== 'consumers') {
+    throw new Error('microsoft: production must use personal accounts only');
+  }
   requireProvider(providers?.google, 'google', ['clientId']);
 
   const preflight = await get(API + '/api/auth/social', {

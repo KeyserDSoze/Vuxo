@@ -275,7 +275,7 @@ async function installAuthRoutes(
 
 function providerConfiguration() {
   return {
-    microsoft: { enabled: true, clientId: 'e2e-microsoft-client', tenantId: 'common' },
+    microsoft: { enabled: true, clientId: 'e2e-microsoft-client', tenantId: 'consumers' },
     google: { enabled: true, clientId: 'e2e-google-client' },
   };
 }

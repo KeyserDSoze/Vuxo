@@ -38,6 +38,8 @@ def read_expected(path: Path) -> dict[str, str]:
             raise ValueError(f"Missing or malformed production setting: {key}")
     if entries["VUXO_ALLOWED_ORIGIN"] != "https://vuxo.quest":
         raise ValueError("VUXO_ALLOWED_ORIGIN must be the canonical production origin")
+    if entries["VUXO_MICROSOFT_TENANT_ID"] != "consumers":
+        raise ValueError("VUXO_MICROSOFT_TENANT_ID must be consumers for personal accounts only")
     return entries
 
 

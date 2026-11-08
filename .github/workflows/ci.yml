@@ -142,6 +142,8 @@ jobs:
         run: node --test ../../scripts/test-production-domain.test.mjs
       - name: Test Google GIS initialization lifecycle contract (offline)
         run: node --test ../../scripts/test-google-gis-lifecycle.test.mjs
+      - name: Test Microsoft popup user-gesture lifecycle contract (offline)
+        run: node --test ../../scripts/test-microsoft-popup-contract.test.mjs
       - name: Build
         env:
           VITE_BASE_PATH: /Vuxo/

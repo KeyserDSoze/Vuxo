@@ -29,6 +29,8 @@ Choose the account audience that matches the server tenant configuration:
 - `consumers`: personal Microsoft accounts only;
 - a tenant GUID: that exact tenant only.
 
+The Microsoft popup client is initialized when the provider configuration loads, before the user clicks Sign in; this keeps `loginPopup` inside the direct browser user gesture. If Chrome still blocks it, allow popups for `https://vuxo.quest` and verify the returned MSAL error code; the UI distinguishes blocked popup, interaction already in progress and cancellation. Do not retry silently or send raw provider tokens to logs.
+
 MSAL Browser v5 uses a dedicated Vite-built redirect bridge at `src/frontend/redirect.html`, emitted as `/redirect.html` on the production custom domain. Register the **exact** redirect URI under the **Single-page application** platform in Microsoft Entra, not Web, and use Authorization Code + PKCE without a client secret. The popup returns the ID token to Vuxo's browser app through this bridge, then `/api/auth/social` validates it server-side. Do not enable legacy implicit flows. The bridge page must not include other app scripts or COOP response headers.
 
 Set on the server:
@@ -70,6 +72,8 @@ The SPA stores only the Vuxo access token plus non-sensitive Vuxo user/session m
 `GET /api/auth/providers` exposes only enabled flags plus public Microsoft/Google client IDs and Microsoft tenant selector. Secrets are never returned.
 
 ## Production CORS
+
+VUXO's production deployment workflows enforce `MICROSOFT_TENANT_ID=consumers` regardless of stale GitHub variables. The production Compose fallback is also `consumers`. Keep `VUXO_MICROSOFT_TENANT_ID=consumers` saved in the GitHub production environment for consistency. Pi preflight and public smoke reject any non-consumer tenant.
 
 The existing production origin remains `https://vuxo.quest`. The API continues to be reached through `https://api.vuxoapi.xyz`/Cloudflare Tunnel; no provider callback is sent to the API domain because Microsoft/GIS authenticate in the SPA and the backend only verifies the resulting ID token.
 

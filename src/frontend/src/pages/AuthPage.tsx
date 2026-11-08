@@ -15,7 +15,11 @@ import {
   storeSession,
 } from '../features/auth/authSession';
 import { GoogleSignInButton } from '../features/auth/GoogleSignInButton';
-import { acquireMicrosoftIdToken } from '../features/auth/microsoftAuth';
+import {
+  acquireMicrosoftIdToken,
+  getMicrosoftLoginErrorCode,
+  prepareMicrosoftLogin,
+} from '../features/auth/microsoftAuth';
 import { useStoredSession } from '../features/auth/useStoredSession';
 
 type Provider = 'microsoft' | 'google';
@@ -30,6 +34,7 @@ export function AuthPage() {
   const [providerRequestVersion, setProviderRequestVersion] = useState(0);
   const [busyProvider, setBusyProvider] = useState<Provider | null>(null);
   const [errorCode, setErrorCode] = useState<string | null>(null);
+  const [microsoftReady, setMicrosoftReady] = useState(false);
 
   useEffect(() => {
     // Fetch providers only when the user needs to sign in; re-fetch after a
@@ -55,6 +60,26 @@ export function AuthPage() {
     return () => controller.abort();
   }, [signedIn, providerRequestVersion]);
 
+  // Prepare MSAL while displaying the page, not after the user click.
+  // Chrome can block popups opened after an awaited initialization.
+  useEffect(() => {
+    setMicrosoftReady(false);
+    const microsoft = configuration?.microsoft;
+    if (signedIn || !microsoft?.enabled || !microsoft.clientId || !microsoft.tenantId) return;
+
+    let active = true;
+    void prepareMicrosoftLogin({
+      clientId: microsoft.clientId,
+      tenantId: microsoft.tenantId,
+    }).then(() => {
+      if (active) setMicrosoftReady(true);
+    }).catch(() => {
+      if (active) setErrorCode('social_provider_unavailable');
+    });
+
+    return () => { active = false; };
+  }, [signedIn, configuration?.microsoft.enabled, configuration?.microsoft.clientId, configuration?.microsoft.tenantId]);
+
   const completeLogin = useCallback(async (provider: Provider, credential: string) => {
     setBusyProvider(provider);
     setErrorCode(null);
@@ -70,7 +95,7 @@ export function AuthPage() {
 
   const loginMicrosoft = async () => {
     const microsoft = configuration?.microsoft;
-    if (!microsoft?.enabled || !microsoft.clientId || !microsoft.tenantId) return;
+    if (!microsoftReady || !microsoft?.enabled || !microsoft.clientId || !microsoft.tenantId) return;
 
     setBusyProvider('microsoft');
     setErrorCode(null);
@@ -82,7 +107,7 @@ export function AuthPage() {
       const newSession = await exchangeSocialCredential('microsoft', credential);
       storeSession(newSession);
     } catch (error) {
-      setErrorCode(error instanceof AuthApiError ? error.code : 'social_login_cancelled');
+      setErrorCode(error instanceof AuthApiError ? error.code : getMicrosoftLoginErrorCode(error));
     } finally {
       setBusyProvider(null);
     }
@@ -164,7 +189,7 @@ export function AuthPage() {
                     data-testid="auth-microsoft"
                     size="large"
                     variant="contained"
-                    disabled={providerBusy}
+                    disabled={providerBusy || !microsoftReady}
                     onClick={() => void loginMicrosoft()}
                   >
                     {busyProvider === 'microsoft' ? tAuth('signingIn') : tAuth('microsoft')}
