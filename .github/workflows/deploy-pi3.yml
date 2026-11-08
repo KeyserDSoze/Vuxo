@@ -145,3 +145,23 @@ jobs:
           if [[ -n "$FILE" && -f "$FILE" ]]; then
             shred -u "$FILE" 2>/dev/null || rm -f "$FILE"
           fi
+
+  verify-public-auth:
+    # Runs on GitHub-hosted Linux, outside the Pi LAN, after a real successful deploy.
+    # It is read-only; public HTTP failure makes the workflow red without a DB rollback.
+    needs: [build-arm64, deploy-pi3]
+    if: needs.deploy-pi3.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.build-arm64.outputs.source_sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Verify public Google/Microsoft providers, CORS and MSAL bridge
+        env:
+          VUXO_EXPECTED_COMMIT: ${{ needs.build-arm64.outputs.source_sha }}
+        run: node scripts/verify-public-auth.mjs
