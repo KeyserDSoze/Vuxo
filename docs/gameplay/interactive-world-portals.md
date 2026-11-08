@@ -29,3 +29,11 @@ Il runtime 2D ha ancora una griglia/marker geometrici originali. Si prevedono ti
 - xUnit API: autenticazione, grant privati, posizione ricavata dal server, negazione accessi da lontano / non connessi, spoofing e replay.
 - Playwright: ingresso in gioco e dialog che completa realmente la sfida usando API mock per il test UI, mobile, assenza di sessione e messaggi IT/EN.
 - CI: restore/build/test backend, frontend/Playwright, smoke Docker; il test end-to-end browser/API/PostgreSQL della feature #50 continua a essere eseguito.
+
+## Hit-area Phaser e camera: correzione del test intermittente (#80)
+
+Quando la camera segue il giocatore, la proiezione di un marker sul canvas può cambiare anche dopo che la sua hit area è stata disegnata. Leggere una sola volta le coordinate in Playwright e cliccare più tardi può colpire un punto diverso. In modalità E2E, la scena espone `data-portal-screen-stable=true` dopo almeno sette frame con variazione massima di 0,25 pixel per frame (azzerando il contatore al cambio marker o alla chiusura della scena). Il test attende la stabilità, usa la proiezione più recente e rispetta il rapporto tra risoluzione Phaser e rettangolo CSS del canvas FIT.
+
+La regressione include click diretto, resize del viewport e tre rimontaggi consecutivi della scena, **senza retry applicativi o allungare arbitrariamente il timeout**. Il cerchio interattivo esplicito allinea la hit area alla forma visibile; la diagnostica Playwright non cambia permessi, distanze, portali privati o ricompense gestite dal server. L'issue #80 rimane aperta fino a verifiche ripetute di CI senza test flaky; il browser pubblico è un controllo distinto.
+
+La prima CI della PR #135 ha evidenziato che il solo segnale di camera stabile non basta: il click sul marker restava flaky, mentre la prova di rimontaggio riutilizzava uno stato di mondo non resettato. La revisione specifica una hit area circolare per la Shape Phaser e controlla che il `hitTestPointer` nativo intercetti realmente il marker dopo un movimento del mouse e **prima di un singolo click**. La prova con più scene resetta il mondo E2E tra le iterazioni. La vicinanza e la proprietà del portale rimangono validate dal server; CI e affidabilità vanno nuovamente dimostrate.

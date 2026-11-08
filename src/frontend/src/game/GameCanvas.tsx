@@ -62,9 +62,13 @@ export function GameCanvas() {
       if (position) {
         host.current.dataset.portalScreenX = String(position.x)
         host.current.dataset.portalScreenY = String(position.y)
+        host.current.dataset.portalScreenStable = String(position.stable)
+        host.current.dataset.portalPointerHit = String(position.pointerHit)
       } else {
         delete host.current.dataset.portalScreenX
         delete host.current.dataset.portalScreenY
+        delete host.current.dataset.portalScreenStable
+        delete host.current.dataset.portalPointerHit
       }
     })
     worldScene.current = scene

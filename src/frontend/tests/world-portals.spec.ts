@@ -102,46 +102,88 @@ test('personal marker opens existing challenge in-world, then disappears on succ
   await expect(page.getByTestId('world-connection-status')).toHaveAttribute('data-status', 'connected');
 });
 
-test('clicking a visible Phaser portal marker opens the in-world dialog', async ({ page }) => {
-  await initializePlayer(page);
-  const api = await mockPrivatePortals(page);
-  await page.goto(origin + '/Vuxo/#/game');
-  await expect(page.getByTestId('world-connection-status')).toHaveAttribute('data-status', 'connected');
-  await expect(page.getByTestId('world-portal-enter')).toBeEnabled();
-  const canvas = page.getByTestId('game-canvas').locator('canvas');
-  await expect(canvas).toBeVisible();
-  // Wait for Phaser to install the marker's interactive hit area, rather
-  // than relying on a fixed timeout after the React portal list appears.
+async function clickSettledPhaserPortalMarker(page: Page) {
   const host = page.getByTestId('game-canvas');
+  const canvas = host.locator('canvas');
+  await expect(canvas).toBeVisible();
+  // A rendered hit area is not enough: Phaser may still ease the camera
+  // toward the player. The scene confirms consecutive stable frames.
   await expect(host).toHaveAttribute('data-rendered-portals', '1');
-  await expect(host).toHaveAttribute('data-portal-screen-x', /[0-9]/);
-  await expect(host).toHaveAttribute('data-portal-screen-y', /[0-9]/);
+  await expect(host).toHaveAttribute('data-portal-screen-stable', 'true');
 
-  // Click the marker's actual projected screen position, not the canvas
-  // center. Phaser's follow camera may still be interpolating in headless CI.
   const marker = await host.evaluate(element => ({
     x: Number(element.dataset.portalScreenX),
     y: Number(element.dataset.portalScreenY),
   }));
-  expect(Number.isFinite(marker.x) && Number.isFinite(marker.y)).toBe(true);
   const dimensions = await canvas.evaluate(element => ({
     width: (element as HTMLCanvasElement).width,
     height: (element as HTMLCanvasElement).height,
   }));
   const box = await canvas.boundingBox();
   if (!box) throw new Error('World canvas is not mounted');
+  expect(Number.isFinite(marker.x) && Number.isFinite(marker.y)).toBe(true);
   expect(marker.x).toBeGreaterThan(0);
   expect(marker.y).toBeGreaterThan(0);
   expect(marker.x).toBeLessThan(dimensions.width);
   expect(marker.y).toBeLessThan(dimensions.height);
-  await canvas.click({
-    position: {
-      x: marker.x * box.width / dimensions.width,
-      y: marker.y * box.height / dimensions.height,
-    },
-  });
+
+  // FIT scaling/centering changes the CSS box, not the game's pixel size.
+  const cssX = marker.x * box.width / dimensions.width;
+  const cssY = marker.y * box.height / dimensions.height;
+  // Hover first. Only click once Phaser confirms the real pointer is inside
+  // this marker's hit area, rather than masking failed input with retries.
+  await page.mouse.move(box.x + cssX, box.y + cssY);
+  await expect(host).toHaveAttribute('data-portal-pointer-hit', 'true');
+  await page.mouse.down();
+  await page.mouse.up();
+}
+
+test('clicking a visible Phaser portal marker opens the in-world dialog', async ({ page }) => {
+  await initializePlayer(page);
+  const api = await mockPrivatePortals(page);
+  await page.goto(origin + '/Vuxo/#/game');
+  await expect(page.getByTestId('world-connection-status')).toHaveAttribute('data-status', 'connected');
+  await expect(page.getByTestId('world-portal-enter')).toBeEnabled();
+  await clickSettledPhaserPortalMarker(page);
+  await expect.poll(() => api.getEntryCalls()).toBe(1);
   await expect(page.getByTestId('world-portal-dialog')).toBeVisible();
   expect(api.getEntryCalls()).toBe(1);
+});
+
+test('portal click stays aligned after canvas is resized while the camera follows the player', async ({ page }) => {
+  await initializePlayer(page);
+  const api = await mockPrivatePortals(page);
+  await page.goto(origin + '/Vuxo/#/game');
+  await expect(page.getByTestId('world-connection-status')).toHaveAttribute('data-status', 'connected');
+  await expect(page.getByTestId('world-portal-enter')).toBeEnabled();
+  await expect(page.getByTestId('game-canvas')).toHaveAttribute('data-portal-screen-stable', 'true');
+
+  // Force a new CSS canvas scale and center after the world camera has started.
+  // Re-read both the projected point and actual DOM canvas bounds before click.
+  await page.setViewportSize({ width: 760, height: 700 });
+  await clickSettledPhaserPortalMarker(page);
+  await expect.poll(() => api.getEntryCalls()).toBe(1);
+  await expect(page.getByTestId('world-portal-dialog')).toBeVisible();
+  expect(api.getEntryCalls()).toBe(1);
+});
+
+test('Phaser marker click remains aligned across three fresh scene mounts without retries', async ({ page, request }) => {
+  await initializePlayer(page);
+  const api = await mockPrivatePortals(page);
+  for (let scene = 1; scene <= 3; scene++) {
+    // Unmount the previous Phaser scene and reset the mock world. A stale
+    // server player position from an earlier scene is not a click failure.
+    await page.goto('about:blank');
+    const reset = await request.post(origin + '/__vuxo_e2e/world/reset');
+    expect(reset.ok()).toBeTruthy();
+    await page.goto(origin + '/Vuxo/#/game');
+    await expect(page.getByTestId('world-connection-status')).toHaveAttribute('data-status', 'connected');
+    await expect(page.getByTestId('world-portal-enter')).toBeEnabled();
+    await clickSettledPhaserPortalMarker(page);
+    await expect.poll(() => api.getEntryCalls()).toBe(scene);
+    await expect(page.getByTestId('world-portal-dialog')).toBeVisible();
+    expect(api.getEntryCalls()).toBe(scene);
+  }
 });
 
 test('far markers are not enterable through keyboard or touch control', async ({ page }) => {
