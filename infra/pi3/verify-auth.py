@@ -36,7 +36,7 @@ def read_expected(path: Path) -> dict[str, str]:
         value = entries.get(key, "")
         if not value or value != value.strip() or " " in value or "\t" in value:
             raise ValueError(f"Missing or malformed production setting: {key}")
-    if entries["VUXO_ALLOWED_ORIGIN"] != "https://vuxo.app":
+    if entries["VUXO_ALLOWED_ORIGIN"] != "https://vuxo.quest":
         raise ValueError("VUXO_ALLOWED_ORIGIN must be the canonical production origin")
     return entries
 
