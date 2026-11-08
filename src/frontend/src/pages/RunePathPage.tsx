@@ -39,11 +39,13 @@ export function RunePathPage() {
   const [position, setPosition] = useState<Position>(startPosition);
   const [moves, setMoves] = useState(0);
   const [bumps, setBumps] = useState(0);
+  const [history, setHistory] = useState<Position[]>([]);
 
   const start = () => {
     setPosition(startPosition);
     setMoves(0);
     setBumps(0);
+    setHistory([]);
     setPhase('playing');
   };
 
@@ -56,11 +58,19 @@ export function RunePathPage() {
       setBumps(value => value + 1);
       return;
     }
+    setHistory(value => [...value, position]);
     setPosition(next);
     setMoves(value => value + 1);
     if (next.x === goalPosition.x && next.y === goalPosition.y) {
       setPhase('completed');
     }
+  };
+
+  const undo = () => {
+    if (phase !== 'playing' || history.length === 0) return;
+    setPosition(history[history.length - 1]);
+    setHistory(value => value.slice(0, -1));
+    setMoves(value => value - 1);
   };
 
   const keyboard = (event: KeyboardEvent<HTMLDivElement>) => {
@@ -77,6 +87,7 @@ export function RunePathPage() {
     setPosition(startPosition);
     setMoves(0);
     setBumps(0);
+    setHistory([]);
   };
 
   return (
@@ -156,6 +167,15 @@ export function RunePathPage() {
                         </Button>
                       );
                     })}
+                    <Button
+                      data-testid="path-undo"
+                      variant="outlined"
+                      disabled={history.length === 0}
+                      onClick={undo}
+                      sx={{ minHeight: 44 }}
+                    >
+                      {t('refuge.path.undo')}
+                    </Button>
                   </Box>
                 </Stack>
               )}
@@ -176,6 +196,11 @@ export function RunePathPage() {
                 {t(puzzle === walls.length - 1 ? 'refuge.path.again' : 'refuge.path.next')}
               </Button>
             </Stack>
+          )}
+          {phase !== 'ready' && (
+            <Button data-testid="path-restart" variant="outlined" onClick={start} sx={{ alignSelf: 'flex-start', minHeight: 44 }}>
+              {t('refuge.path.restart')}
+            </Button>
           )}
           <Button data-testid="path-back" component={RouterLink} to="/refuge" sx={{ alignSelf: 'flex-start' }}>
             {t('refuge.path.back')}

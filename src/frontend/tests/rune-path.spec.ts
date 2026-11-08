@@ -135,3 +135,53 @@ test('adjacent tiles are touch-accessible and a completed board stays locked unt
   await expect.poll(() => page.evaluate(() =>
     document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
 });
+
+test('undo reverts only valid moves, and restart clears attempts on the same path without saving results', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 760 });
+  const gameplayRequests: string[] = [];
+  page.on('request', request => {
+    if (/\/api\/(characters|inventory|equipment|portals|world|personal-content)\b/.test(new URL(request.url()).pathname)) {
+      gameplayRequests.push(request.url());
+    }
+  });
+  await page.goto('./#/refuge/path');
+  await page.getByTestId('path-start').click();
+  await expect(page.getByTestId('path-undo')).toBeDisabled();
+
+  await step(page, 'right'); // Wall collision cannot be undone as a valid step.
+  await expect(page.getByTestId('path-bumps')).toContainText('1');
+  await expect(page.getByTestId('path-undo')).toBeDisabled();
+
+  await step(page, 'down', 2);
+  await expect(page.getByTestId('path-position')).toContainText('colonna 1, riga 3');
+  await expect(page.getByTestId('path-moves')).toContainText('2');
+  await page.getByTestId('path-undo').click();
+  await expect(page.getByTestId('path-position')).toContainText('colonna 1, riga 2');
+  await expect(page.getByTestId('path-moves')).toContainText('1');
+  await expect(page.getByTestId('path-bumps')).toContainText('1');
+  await page.getByTestId('path-undo').click();
+  await expect(page.getByTestId('path-undo')).toBeDisabled();
+  await expect(page.getByTestId('path-moves')).toContainText('0');
+
+  await page.getByTestId('path-restart').click();
+  await expect(page.getByTestId('path-bumps')).toContainText('0');
+  await expect(page.getByTestId('path-position')).toContainText('colonna 1, riga 1');
+  await step(page, 'down', 3);
+  await step(page, 'right', 3);
+  await expect(page.getByTestId('path-complete')).toBeVisible();
+  await expect(page.getByTestId('path-undo')).toHaveCount(0);
+
+  await page.getByTestId('path-restart').click();
+  await expect(page.getByTestId('path-puzzle')).toContainText('1 di 3');
+  await expect(page.getByTestId('path-complete')).toHaveCount(0);
+  await expect(page.getByTestId('path-moves')).toContainText('0');
+  await expect(page.getByTestId('path-undo')).toBeDisabled();
+
+  await page.getByTestId('language-toggle').click();
+  await expect(page.getByTestId('path-undo')).toHaveText('Undo last move');
+  await expect(page.getByTestId('path-restart')).toHaveText('Restart this path');
+  await expect.poll(() => page.evaluate(() =>
+    document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
+  expect(gameplayRequests).toEqual([]);
+  expect(await page.evaluate(() => Object.keys(localStorage).filter(key => /path|score|reward/i.test(key)))).toEqual([]);
+});
