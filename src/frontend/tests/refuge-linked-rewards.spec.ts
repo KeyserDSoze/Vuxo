@@ -666,3 +666,51 @@ test('overview Guardian metrics navigate to exact audited outcome families, then
   await expect(page.getByTestId('refuge-journal-completed-entry')).toHaveAttribute('data-kind', 'sequence_completed');
   expect(reads).toEqual(['completed', 'outcomes', 'completed']);
 });
+
+test('a late completed response never overwrites an outcome jump or its summary', async ({ page }) => {
+  await signIn(page, 'en');
+  await otherSections(page);
+  let signalCompleted!: () => void;
+  let releaseCompleted!: () => void;
+  const started = new Promise<void>(resolve => { signalCompleted = resolve; });
+  const held = new Promise<void>(resolve => { releaseCompleted = resolve; });
+  let completedRequests = 0;
+  let outcomeRequests = 0;
+
+  await page.route('**/api/personal-content/history/completed*', async route => {
+    completedRequests++;
+    signalCompleted();
+    // Simulate a transport that finishes after the player switches history
+    // modes; this old response must never replace the newer outcomes audit.
+    await held;
+    await route.fulfill({ headers: cors, contentType: 'application/json',
+      body: JSON.stringify({ items: [solved], page: 1, pageSize: 20, hasMore: false }),
+    }).catch(() => {});
+  });
+  await page.route('**/api/personal-content/history/outcomes*', route => {
+    outcomeRequests++;
+    return route.fulfill({ headers: cors, contentType: 'application/json',
+      body: JSON.stringify({ items: [{ ...outcome, kind: 'guardian_victory',
+        rewardItemKey: null }], page: 1, pageSize: 20, hasMore: false }) });
+  });
+
+  await page.goto('./#/refuge/journal');
+  await started;
+  await page.getByTestId('refuge-journal-overview-guardianVictories').click();
+  await expect(page.getByTestId('refuge-journal-mode-outcomes'))
+    .toHaveAttribute('aria-pressed', 'true');
+  const entries = page.getByTestId('refuge-journal-completed-entry');
+  await expect(entries).toHaveCount(1);
+  await expect(entries).toHaveAttribute('data-kind', 'guardian_victory');
+  await expect(page.getByTestId('refuge-journal-overview-guardianVictories'))
+    .toHaveAttribute('data-status', 'verified');
+
+  releaseCompleted();
+  await expect(entries).toHaveCount(1);
+  await expect(entries).toHaveAttribute('data-kind', 'guardian_victory');
+  await expect(page.getByTestId('refuge-journal-overview-runeCompletions'))
+    .toContainText('0');
+  await expect(page.getByTestId('refuge-journal-verified-reward')).toHaveCount(0);
+  expect(completedRequests).toBe(1);
+  expect(outcomeRequests).toBe(1);
+});
