@@ -69,6 +69,13 @@ test('Microsoft tenant required', async () => {
 test('provider GET rejects incorrect CORS', async () => {
   await rejects({ '/api/auth/providers': res('{}', 200, { 'Content-Type': 'application/json' }) }, /providers: production CORS origin/);
 });
+test('legacy vuxo.app response is rejected by the canonical quest browser origin', async () => {
+  await rejects({ '/api/auth/providers': res('{}', 200, {
+    'Content-Type': 'application/json',
+    'Access-Control-Allow-Origin': 'https://vuxo.app',
+    'Access-Control-Allow-Credentials': 'true',
+  }) }, /providers: production CORS origin/);
+});
 test('preflight blocked at edge fails', async () => {
   await rejects({ '/api/auth/social': res(null, 403) }, /preflight: wrong HTTP status/);
 });
