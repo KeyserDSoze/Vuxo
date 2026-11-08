@@ -1,11 +1,11 @@
 # VUXO 0.0.1 — Set up Google and Microsoft sign-in
 
 **Document ID:** VUXO-OPS-AUTH-001  
-**Revision:** 1  
+**Revision:** 2  
 **Date:** 2026-11-08  
-**Scope:** Production sign-in for `https://vuxo.app`  
+**Scope:** Production sign-in for `https://vuxo.quest`  
 **Writing method:** Controlled technical English based on ASD-STE100 Issue 9. **Not formally STE-certified.**  
-**Related issue:** [#121](https://github.com/KeyserDSoze/Vuxo/issues/121)
+**Related issues:** [#121](https://github.com/KeyserDSoze/Vuxo/issues/121), [#130](https://github.com/KeyserDSoze/Vuxo/issues/130)
 
 ## 1. Purpose
 
@@ -24,13 +24,13 @@ Before you start, make sure that you have the following access:
 - A Google Cloud project that you can configure.
 - GitHub repository settings access for `KeyserDSoze/Vuxo`.
 - Access to GitHub Actions.
-- Access to `https://vuxo.app` and `https://api.vuxoapi.xyz`.
+- Access to `https://vuxo.quest` and `https://api.vuxoapi.xyz`.
 - A test Microsoft account.
 - A test Google account.
 
 **CAUTION:** Do not put provider tokens, client secrets, or passwords in a source file.
 **CAUTION:** Do not put a secret in a GitHub issue or a workflow log.
-**CAUTION:** Use `https://vuxo.app` as the production frontend origin. Do not use the old `vuxo.quest` address.
+**CAUTION:** Use `https://vuxo.quest` as the production frontend origin. Do not use the former `vuxo.app` address.
 **NOTE:** Microsoft and Google client IDs are public identifiers. They are not secret credentials.
 **NOTE:** This VUXO sign-in implementation does not use a Microsoft or Google client secret.
 
@@ -60,7 +60,7 @@ Before you start, make sure that you have the following access:
 3. Select **Single-page application (SPA)**.
 4. Enter the production redirect URI:
 
-   `https://vuxo.app/redirect.html`
+   `https://vuxo.quest/redirect.html`
 
 5. Select **Configure** or **Save**.
 6. Confirm that the new URI appears under the SPA platform.
@@ -104,14 +104,14 @@ Use this step only if you run the frontend on your development computer.
 6. Enter `VUXO` as the application name.
 7. Add a user support email.
 8. Add a developer contact email.
-9. Set the application home page to `https://vuxo.app`.
-10. Set the authorized domain to `vuxo.app`.
+9. Set the application home page to `https://vuxo.quest`.
+10. Set the authorized domain to `vuxo.quest`.
 11. Add your public privacy policy URL when Google requests it.
 12. Save the branding data.
 
 **CAUTION:** Do not enter a privacy policy URL that does not exist.
 **NOTE:** Google can require domain ownership and brand verification for public production sign-in.
-**NOTE:** Verify the `vuxo.app` domain through Google Search Console when required.
+**NOTE:** Verify the `vuxo.quest` domain through Google Search Console when required.
 **NOTE:** A public privacy policy must describe how VUXO uses Google account data.
 
 ### 4.2 Configure the audience
@@ -143,7 +143,7 @@ Use this step only if you run the frontend on your development computer.
 4. Enter `VUXO Web Production` as the client name.
 5. Add this **Authorized JavaScript origin**:
 
-   `https://vuxo.app`
+   `https://vuxo.quest`
 
 6. Add `http://localhost:5173` only if you use local development.
 7. Leave **Authorized redirect URIs** empty for the current JavaScript callback flow.
@@ -170,7 +170,7 @@ Use this step only if you run the frontend on your development computer.
 | `VUXO_MICROSOFT_CLIENT_ID` | Microsoft Application (client) ID | Environment variable |
 | `VUXO_MICROSOFT_TENANT_ID` | `common` | Environment variable |
 | `VUXO_GOOGLE_CLIENT_ID` | Google Web application Client ID | Environment variable |
-| `VUXO_ALLOWED_ORIGIN` | `https://vuxo.app` | Environment variable |
+| `VUXO_ALLOWED_ORIGIN` | `https://vuxo.quest` | Environment variable |
 
 5. Confirm that all four entries appear under the `production` environment.
 6. Do not create these four entries as client secrets.
@@ -226,7 +226,7 @@ GitHub saves the variables. GitHub does not automatically restart a running API 
 
 The proposed Pi deployment gate checks the Google and Microsoft configuration before it changes any container. If either client ID or the production origin is missing or malformed, the job stops before updating the API.
 
-After the API starts, the gate compares the public `/api/auth/providers` response with the expected client IDs and checks CORS for `https://vuxo.app`. It does not print client IDs or read provider tokens. A failed check reports a failed job, but it does not delete Docker volumes or roll back an EF migration.
+After the API starts, the gate compares the public `/api/auth/providers` response with the expected client IDs and checks CORS for `https://vuxo.quest`. It does not print client IDs or read provider tokens. A failed check reports a failed job, but it does not delete Docker volumes or roll back an EF migration.
 
 **NOTE:** The gate requires both providers on the production Pi. It applies only after its pull request is reviewed and merged. It does not prove that a Microsoft or Google user can finish sign-in in a browser.
 
@@ -236,9 +236,9 @@ After the Raspberry deploy passes, a separate GitHub-hosted runner checks the ex
 
 1. `https://api.vuxoapi.xyz/health` returns `Healthy`.
 2. `/api/meta/version` reports the same immutable commit that the deployment built.
-3. `/api/auth/providers` enables both Google and Microsoft and permits the `https://vuxo.app` origin.
+3. `/api/auth/providers` enables both Google and Microsoft and permits the `https://vuxo.quest` origin.
 4. An `OPTIONS` preflight to `/api/auth/social` permits the JSON `POST` from that origin.
-5. `https://vuxo.app/redirect.html` serves the separate Microsoft MSAL v5 script.
+5. `https://vuxo.quest/redirect.html` serves the separate Microsoft MSAL v5 script.
 
 The probe uses five attempts with short delays. It does not send provider tokens, change data or perform real sign-in. If the probe fails, the workflow is not successful. The API containers and data volumes remain unchanged by this probe.
 
@@ -268,14 +268,14 @@ Use a computer outside the Raspberry network.
 8. Check the CORS response:
 
    ```bash
-   curl -i -H "Origin: https://vuxo.app" https://api.vuxoapi.xyz/api/auth/providers
+   curl -i -H "Origin: https://vuxo.quest" https://api.vuxoapi.xyz/api/auth/providers
    ```
 
-9. Confirm that `Access-Control-Allow-Origin` allows `https://vuxo.app`.
+9. Confirm that `Access-Control-Allow-Origin` allows `https://vuxo.quest`.
 10. Verify the Microsoft bridge:
 
    ```bash
-   curl -i https://vuxo.app/redirect.html
+   curl -i https://vuxo.quest/redirect.html
    ```
 
 11. Confirm that the redirect page returns HTTP 200.
@@ -286,7 +286,7 @@ Use a computer outside the Raspberry network.
 
 ## 8. Test the real sign-in
 
-1. Open `https://vuxo.app` in a private browser window.
+1. Open `https://vuxo.quest` in a private browser window.
 2. Open the **Account** page.
 3. Confirm that **Sign in with Microsoft** appears.
 4. Select the Microsoft sign-in button.
@@ -311,9 +311,9 @@ Use a computer outside the Raspberry network.
 |---|---|---|
 | Provider configuration is unavailable | Frontend network or CORS error | Check browser Network and `VUXO_API_BASE_URL`. |
 | Provider endpoint returns HTTP 200, with `enabled: false` | Client ID is absent in the running API | Check production environment variables. Redeploy the API. |
-| Microsoft returns a redirect URI mismatch | Incorrect SPA redirect | Set `https://vuxo.app/redirect.html` under SPA. |
+| Microsoft returns a redirect URI mismatch | Incorrect SPA redirect | Set `https://vuxo.quest/redirect.html` under SPA. |
 | Microsoft popup does not complete | Bridge page missing or blocked | Check `/redirect.html` and COOP headers. |
-| Google returns `origin_mismatch` | Incorrect JavaScript origin | Set `https://vuxo.app` without a path. |
+| Google returns `origin_mismatch` | Incorrect JavaScript origin | Set `https://vuxo.quest` without a path. |
 | Google restricts test users | OAuth app is in Testing | Add the test user or complete production publishing. |
 | VUXO returns HTTP 401 after provider login | Token validation failed | Check audience/client ID, tenant and server logs. |
 | VUXO cannot reach the API | Old frontend origin or tunnel issue | Check `/health` and `/api/auth/providers` from outside. |
@@ -328,7 +328,7 @@ Use a computer outside the Raspberry network.
 - [ ] GitHub `production` variables contain both client IDs.
 - [ ] Production deploy completes successfully.
 - [ ] `/api/auth/providers` returns both providers enabled.
-- [ ] The CORS header permits `https://vuxo.app`.
+- [ ] The CORS header permits `https://vuxo.quest`.
 - [ ] Microsoft sign-in works in the browser.
 - [ ] Google sign-in works in the browser.
 - [ ] VUXO login and logout work for both providers.
