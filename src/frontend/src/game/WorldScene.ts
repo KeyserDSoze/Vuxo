@@ -36,7 +36,7 @@ export class WorldScene extends Phaser.Scene {
     private readonly realtime: WorldRealtimeClient,
     private readonly onPortalClick?: (grantId: string) => void,
     private readonly onPortalsRendered?: (count: number) => void,
-    private readonly onPortalScreenPosition?: (position: { x: number; y: number; stable: boolean } | null) => void,
+    private readonly onPortalScreenPosition?: (position: { x: number; y: number; stable: boolean; pointerHit: boolean } | null) => void,
   ) {
     super('world')
   }
@@ -89,8 +89,10 @@ export class WorldScene extends Phaser.Scene {
       const ring = this.add.circle(x, y, 19, 0x8b5cf6, 0.35)
         .setStrokeStyle(3, 0xe9d5ff, 1)
         .setDepth(6)
-        .setInteractive({ useHandCursor: true })
+        .setInteractive(new Phaser.Geom.Circle(19, 19, 19), Phaser.Geom.Circle.Contains)
       const center = this.add.circle(x, y, 8, 0xc084fc, 0.95).setDepth(7)
+      // An Arc is a Shape, not a texture-backed Sprite: define its circle hit area.
+      if (ring.input) ring.input.cursor = 'pointer'
       ring.on('pointerdown', () => this.onPortalClick?.(portal.id))
       this.portalVisuals.set(portal.id, { ring, center })
     }
@@ -120,10 +122,15 @@ export class WorldScene extends Phaser.Scene {
           ? this.settledPortalFrames + 1
           : 0
         this.lastPortalProjection = { id: portal.id, x, y }
+        const ring = this.portalVisuals.get(portal.id)?.ring
+        // E2E: verify that Phaser's real hit test sees the marker under the
+        // browser pointer, rather than guessing from pixels alone.
+        const pointerHit = Boolean(ring && this.input.hitTestPointer(this.input.activePointer).includes(ring))
         this.onPortalScreenPosition({
           x,
           y,
           stable: this.settledPortalFrames >= 7,
+          pointerHit,
         })
       }
     }
