@@ -22,6 +22,7 @@ const AdminRoute = lazy(() => import('./pages/AdminRoute').then(module => ({ def
 const RefugePage = lazy(() => import('./pages/RefugePage').then(module => ({ default: module.RefugePage })));
 const RuneTrainingPage = lazy(() => import('./pages/RuneTrainingPage').then(module => ({ default: module.RuneTrainingPage })));
 const ReflexTrainingPage = lazy(() => import('./pages/ReflexTrainingPage').then(module => ({ default: module.ReflexTrainingPage })));
+const RunePathPage = lazy(() => import('./pages/RunePathPage').then(module => ({ default: module.RunePathPage })));
 
 const navItems = [
   { to: '/', key: 'nav.home' },
@@ -111,6 +112,7 @@ export function App() {
           <Route path="/refuge" element={<RefugePage />} />
           <Route path="/refuge/training" element={<RuneTrainingPage />} />
           <Route path="/refuge/reflex" element={<ReflexTrainingPage />} />
+          <Route path="/refuge/path" element={<RunePathPage />} />
           <Route path="/character" element={<CharacterEditorPage />} />
           <Route path="/game" element={<GamePage />} />
           <Route path="/portals" element={<PortalChallengesPage />} />
