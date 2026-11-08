@@ -18,7 +18,7 @@ function fixture(overrides = {}) {
     if (path === '/health') return res('Healthy');
     if (path === '/api/meta/version') return res(JSON.stringify({ commit }), 200, { 'Content-Type': 'application/json' });
     if (path === '/api/auth/providers') return res(JSON.stringify({
-      microsoft: { enabled: true, clientId: 'public-ms-id', tenantId: 'common' },
+      microsoft: { enabled: true, clientId: 'public-ms-id', tenantId: 'consumers' },
       google: { enabled: true, clientId: 'public-google-id' },
     }), 200, cors);
     if (path === '/api/auth/social') return res(null, 204, {
@@ -55,11 +55,17 @@ test('stale API commit fails', async () => {
   await rejects({ '/api/meta/version': res(JSON.stringify({ commit: 'old' })) }, /version: wrong deployed commit/);
 });
 test('disabled Google is rejected, no Client ID in logs', async () => {
-  const body = JSON.stringify({ microsoft: { enabled: true, clientId: 'ms', tenantId: 'common' },
+  const body = JSON.stringify({ microsoft: { enabled: true, clientId: 'ms', tenantId: 'consumers' },
     google: { enabled: false, clientId: 'PRIVATE-ID' } });
   const { fetcher } = fixture({ '/api/auth/providers': res(body, 200, cors) });
   await assert.rejects(() => verifyPublicAuth({ expectedCommit: commit, fetcher, attempts: 1 }),
     error => /google: provider is not enabled/.test(error.message) && !error.message.includes('PRIVATE-ID'));
+});
+test('non-consumer Microsoft tenant is rejected in production', async () => {
+  await rejects({ '/api/auth/providers': res(JSON.stringify({
+    microsoft: { enabled: true, clientId: 'public-ms-id', tenantId: 'common' },
+    google: { enabled: true, clientId: 'public-google-id' },
+  }), 200, cors) }, /microsoft: production must use personal accounts only/);
 });
 test('Microsoft tenant required', async () => {
   await rejects({ '/api/auth/providers': res(JSON.stringify({
