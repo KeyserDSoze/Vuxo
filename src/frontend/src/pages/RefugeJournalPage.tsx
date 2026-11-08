@@ -12,6 +12,9 @@ import { useOwnerFocusRefresh } from '../features/auth/useOwnerFocusRefresh';
 import { readForCurrentOwner } from '../features/auth/ownerReadFence';
 import { RefugePortalCompletionHistory } from '../features/refuge/RefugePortalCompletionHistory';
 import { RefugeAdventureOverview } from '../features/refuge/RefugeAdventureOverview';
+import { journalDestinationForMetric,
+  type AdventureMetricKey, type JournalHistoryJump,
+} from '../features/refuge/journalAdventureNavigation';
 import type { AdventureHistorySnapshot } from '../features/refuge/refugeAdventureOverview';
 import {
   fetchPlayerInventory, inventoryItemLabelKeys, type InventoryAward,
@@ -45,6 +48,7 @@ function RefugeJournalSession({ session }: { session: VuxoSession | null }) {
   // The audit child sends only committed owner-read counts. A missing snapshot
   // must never be rendered as zero or as another owner's past progress.
   const [historySnapshot, setHistorySnapshot] = useState<AdventureHistorySnapshot | null>(null);
+  const [historyJump, setHistoryJump] = useState<JournalHistoryJump | null>(null);
 
   useEffect(() => {
     if (!session) return;
@@ -105,8 +109,23 @@ function RefugeJournalSession({ session }: { session: VuxoSession | null }) {
     refreshRewards();
     refreshPortals();
     setHistorySnapshot(null);
+    setHistoryJump(null);
     setHistoryRevision(value => value + 1);
   };
+
+  function navigateToMetric(metric: AdventureMetricKey) {
+    const target = journalDestinationForMetric(metric);
+    if (target.section === 'history') {
+      // Switch the audit mode/filter in the existing owner-scoped child.
+      // Do not fetch anything for inventory/portal cards.
+      setHistoryJump(previous => ({
+        id: (previous?.id ?? 0) + 1, mode: target.mode, filter: target.filter,
+      }));
+    }
+    const heading = document.getElementById(target.headingId);
+    heading?.scrollIntoView({ behavior: 'auto', block: 'start' });
+    heading?.focus({ preventScroll: true });
+  }
 
   // A different device can spend an item or finish a portal while this
   // journal sits in another tab. On return discard the three old snapshots,
@@ -151,6 +170,7 @@ function RefugeJournalSession({ session }: { session: VuxoSession | null }) {
             inventory={rewardError ? null : rewards}
             portals={portalError ? null : portals}
             history={historySnapshot}
+            onNavigate={navigateToMetric}
           />
           <Paper component="section" variant="outlined" aria-labelledby="refuge-journal-rewards-title"
             data-testid="refuge-journal-rewards" sx={{ p: { xs: 2, sm: 3 } }}>
@@ -158,7 +178,8 @@ function RefugeJournalSession({ session }: { session: VuxoSession | null }) {
               <Stack direction={{ xs: 'column', sm: 'row' }}
                 sx={{ gap: 1.5, alignItems: { sm: 'center' }, justifyContent: 'space-between' }}>
                 <Stack spacing={0.5}>
-                  <Typography id="refuge-journal-rewards-title" component="h2" variant="h5" sx={{ fontWeight: 800 }}>
+                  <Typography id="refuge-journal-rewards-title" component="h2" tabIndex={-1}
+                    variant="h5" sx={{ fontWeight: 800 }}>
                     {t('refuge.journal.rewards.title')}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
@@ -256,7 +277,8 @@ function RefugeJournalSession({ session }: { session: VuxoSession | null }) {
               <Stack direction={{ xs: 'column', sm: 'row' }}
                 sx={{ gap: 1.5, alignItems: { sm: 'center' }, justifyContent: 'space-between' }}>
                 <Stack spacing={0.5}>
-                  <Typography id="refuge-journal-portals-title" component="h2" variant="h5" sx={{ fontWeight: 800 }}>
+                  <Typography id="refuge-journal-portals-title" component="h2" tabIndex={-1}
+                    variant="h5" sx={{ fontWeight: 800 }}>
                     {t('refuge.journal.portals.title')}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
@@ -325,7 +347,8 @@ function RefugeJournalSession({ session }: { session: VuxoSession | null }) {
             </Stack>
           </Paper>
           <RefugePortalCompletionHistory key={session.accessToken + ':' + historyRevision}
-            accessToken={session.accessToken} onSnapshotChange={setHistorySnapshot} />
+            accessToken={session.accessToken} onSnapshotChange={setHistorySnapshot}
+            navigation={historyJump} />
           <Alert severity="info" data-testid="refuge-journal-limits">
             {t('refuge.journal.disclaimer')}
           </Alert>

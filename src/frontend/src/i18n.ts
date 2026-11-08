@@ -171,6 +171,8 @@ const initialization = i18n.use(initReactI18next).init({
               title: 'La tua avventura in breve',
               description: 'Un riepilogo dei dati ricevuti e verificati dal server per il tuo personaggio.',
               unavailable: 'Da verificare',
+              openMetric: 'Apri dettagli: {{metric}}',
+              openDetails: 'Apri dettagli',
               metrics: {
                 inventoryRecords: 'Oggetti assegnati (registrazioni)',
                 availablePortals: 'Portali disponibili ora',
@@ -197,6 +199,8 @@ const initialization = i18n.use(initReactI18next).init({
                 runes: 'Rune completate',
                 mistakes: 'Errori delle rune',
                 guardians: 'Guardiani',
+                victories: 'Vittorie dei Guardiani',
+                retreats: 'Ritirate dai Guardiani',
                 rewards: 'Con ricompensa verificata'
               },
               count: 'Eventi visualizzati: {{shown}} su {{loaded}} caricati',
@@ -802,6 +806,8 @@ const initialization = i18n.use(initReactI18next).init({
               title: 'Your adventure at a glance',
               description: 'A summary of server-confirmed data for your character.',
               unavailable: 'Not verified',
+              openMetric: 'Open details: {{metric}}',
+              openDetails: 'Open details',
               metrics: {
                 inventoryRecords: 'Award records',
                 availablePortals: 'Portals available now',
@@ -828,6 +834,8 @@ const initialization = i18n.use(initReactI18next).init({
                 runes: 'Completed runes',
                 mistakes: 'Rune mistakes',
                 guardians: 'Guardians',
+                victories: 'Guardian victories',
+                retreats: 'Guardian retreats',
                 rewards: 'With verified reward'
               },
               count: 'Events shown: {{shown}} of {{loaded}} loaded',

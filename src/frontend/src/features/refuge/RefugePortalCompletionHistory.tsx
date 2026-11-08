@@ -9,6 +9,7 @@ import { appendPortalHistoryPage, type HistoryEntry, type HistoryMode } from './
 import { createPortalHistoryNavigationGate } from './portalHistoryNavigationGate';
 import { filterPortalHistoryEntries, type PortalHistoryViewFilter } from './portalHistoryView';
 import { summarizeAdventureHistory, type AdventureHistorySnapshot } from './refugeAdventureOverview';
+import type { JournalHistoryJump } from './journalAdventureNavigation';
 import { fetchCompletedPortals, fetchPortalOutcomes,
   type PortalCompletionPage, type PortalOutcomePage } from '../portals/portalHistoryApi';
 
@@ -18,10 +19,11 @@ import { fetchCompletedPortals, fetchPortalOutcomes,
  * data or older pagination pages leak into a new read snapshot.
  */
 export function RefugePortalCompletionHistory({
-  accessToken, onSnapshotChange,
+  accessToken, onSnapshotChange, navigation,
 }: {
   accessToken: string;
   onSnapshotChange: (snapshot: AdventureHistorySnapshot | null) => void;
+  navigation?: JournalHistoryJump | null;
 }) {
   const { t, i18n } = useTranslation();
   const [mode, setMode] = useState<HistoryMode>('completed');
@@ -33,6 +35,7 @@ export function RefugePortalCompletionHistory({
   // Page state updates are batched: block two same-tick Load More clicks
   // from enqueuing page 3 while both still carry the page-1 cursor.
   const navigationGate = useRef(createPortalHistoryNavigationGate());
+  const lastNavigationId = useRef(0);
   const [page, setPage] = useState(1);
   const [attempt, setAttempt] = useState(0);
   const [hasMore, setHasMore] = useState(false);
@@ -92,6 +95,28 @@ export function RefugePortalCompletionHistory({
     return () => controller.abort();
   }, [page, attempt, mode, accessToken, onSnapshotChange]);
 
+  useEffect(() => {
+    if (!navigation || navigation.id === lastNavigationId.current) return;
+    lastNavigationId.current = navigation.id;
+    // A direct metric jump can change the history mode. Clear the previous
+    // owner's accepted page sequence before requesting a new filtered stream.
+    // This retains the existing account fence, keyset cursor and retry logic.
+    if (navigation.mode !== mode) {
+      onSnapshotChange(null);
+      navigationGate.current.reset();
+      acceptedEntries.current = [];
+      nextCursor.current = null;
+      setEntries([]);
+      setHasMore(false);
+      setLoading(true);
+      setError(false);
+      setPage(1);
+      setMode(navigation.mode);
+    }
+    setViewFilter(navigation.filter);
+    setSearch('');
+  }, [navigation, mode, onSnapshotChange]);
+
   const locale = i18n.resolvedLanguage?.startsWith('en') ? 'en-US' : 'it-IT';
   const formatDate = (value: string) => {
     const date = new Date(value);
@@ -143,7 +168,7 @@ export function RefugePortalCompletionHistory({
           sx={{ gap: 1.5, justifyContent: 'space-between', alignItems: { sm: 'center' } }}>
           <Box>
             <Typography id="refuge-journal-completed-title" component="h2"
-              variant="h5" sx={{ fontWeight: 800 }}>
+              tabIndex={-1} variant="h5" sx={{ fontWeight: 800 }}>
               {t(mode === 'completed'
                 ? 'refuge.journal.completed.title'
                 : 'refuge.journal.outcomes.title')}
@@ -200,6 +225,12 @@ export function RefugePortalCompletionHistory({
                   )}
                   {mode === 'outcomes' && (
                     <MenuItem value="guardians">{t('refuge.journal.browse.filters.guardians')}</MenuItem>
+                  )}
+                  {mode === 'outcomes' && (
+                    <MenuItem value="victories">{t('refuge.journal.browse.filters.victories')}</MenuItem>
+                  )}
+                  {mode === 'outcomes' && (
+                    <MenuItem value="retreats">{t('refuge.journal.browse.filters.retreats')}</MenuItem>
                   )}
                   <MenuItem value="rewards">{t('refuge.journal.browse.filters.rewards')}</MenuItem>
                 </Select>

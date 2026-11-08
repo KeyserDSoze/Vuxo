@@ -1,12 +1,11 @@
-import { Box, Paper, Stack, Typography } from '@mui/material';
+import { Box, ButtonBase, Paper, Stack, Typography } from '@mui/material';
 import { useTranslation } from 'react-i18next';
+import type { AdventureMetricKey } from './journalAdventureNavigation';
 import {
   summarizeRefugeAdventure, type AdventureHistorySnapshot,
-  type AdventureOverview,
 } from './refugeAdventureOverview';
 
-type MetricKey = Exclude<keyof AdventureOverview,
-  'loadedEvents' | 'hasMoreEvents' | 'historyMode'>;
+type MetricKey = AdventureMetricKey;
 
 const metrics: readonly MetricKey[] = [
   'inventoryRecords', 'availablePortals', 'runeCompletions',
@@ -18,11 +17,12 @@ const metrics: readonly MetricKey[] = [
  * failed read stays unavailable, not zero. No new API fetch or gameplay state.
  */
 export function RefugeAdventureOverview({
-  inventory, portals, history,
+  inventory, portals, history, onNavigate,
 }: {
   inventory: readonly unknown[] | null;
   portals: readonly unknown[] | null;
   history: AdventureHistorySnapshot | null;
+  onNavigate: (metric: AdventureMetricKey) => void;
 }) {
   const { t } = useTranslation();
   const overview = summarizeRefugeAdventure(inventory, portals, history);
@@ -46,10 +46,18 @@ export function RefugeAdventureOverview({
           {metrics.map(key => {
             const count = overview[key];
             return (
-              <Box key={key} data-testid={'refuge-journal-overview-' + key}
+              <ButtonBase key={key} data-testid={'refuge-journal-overview-' + key}
                 data-status={count === null ? 'unavailable' : 'verified'}
+                onClick={() => onNavigate(key)}
+                aria-label={t('refuge.journal.overview.openMetric', {
+                  metric: t('refuge.journal.overview.metrics.' + key),
+                })}
                 sx={{ p: 1.75, border: 1, borderColor: 'divider', borderRadius: 2,
-                  minWidth: 0, bgcolor: 'background.default' }}>
+                  minWidth: 0, bgcolor: 'background.default', width: '100%',
+                  display: 'flex', justifyContent: 'flex-start', textAlign: 'left',
+                  '&:hover': { borderColor: 'primary.main', bgcolor: 'action.hover' },
+                  '&:focus-visible': { outline: '3px solid', outlineOffset: 2,
+                    outlineColor: 'primary.main' } }}>
                 <Stack spacing={0.5}>
                   <Typography variant={count === null ? 'subtitle2' : 'h4'}
                     sx={{ fontWeight: 800, overflowWrap: 'anywhere' }}>
@@ -58,8 +66,11 @@ export function RefugeAdventureOverview({
                   <Typography variant="body2" color="text.secondary">
                     {t('refuge.journal.overview.metrics.' + key)}
                   </Typography>
+                  <Typography variant="caption" color="primary.main">
+                    {t('refuge.journal.overview.openDetails')}
+                  </Typography>
                 </Stack>
-              </Box>
+              </ButtonBase>
             );
           })}
         </Box>
