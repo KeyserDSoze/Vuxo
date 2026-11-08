@@ -21,6 +21,7 @@ const focused = [
   'src/frontend/scripts/portal-history-cursor.contract.test.mjs',
   'src/frontend/scripts/portal-history-pagination.contract.test.mjs',
   'src/frontend/scripts/portal-history-navigation.contract.test.mjs',
+  'src/frontend/scripts/portal-history-request-fence.contract.test.mjs',
   'src/frontend/scripts/portal-history-view.contract.test.mjs',
   'src/frontend/scripts/journal-adventure-navigation.contract.test.mjs',
   'src/frontend/scripts/refuge-adventure-overview.contract.test.mjs',
