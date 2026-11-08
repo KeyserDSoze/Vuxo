@@ -19,12 +19,12 @@ class AuthVerificationTests(unittest.TestCase):
     def setUp(self):
         self.config = {
             "VUXO_MICROSOFT_CLIENT_ID": "microsoft-test-client",
-            "VUXO_MICROSOFT_TENANT_ID": "common",
+            "VUXO_MICROSOFT_TENANT_ID": "consumers",
             "VUXO_GOOGLE_CLIENT_ID": "google-test-client.apps.googleusercontent.com",
             "VUXO_ALLOWED_ORIGIN": "https://vuxo.quest",
         }
         self.providers = {
-            "microsoft": {"enabled": True, "clientId": self.config["VUXO_MICROSOFT_CLIENT_ID"], "tenantId": "common"},
+            "microsoft": {"enabled": True, "clientId": self.config["VUXO_MICROSOFT_CLIENT_ID"], "tenantId": "consumers"},
             "google": {"enabled": True, "clientId": self.config["VUXO_GOOGLE_CLIENT_ID"]},
         }
         self.cors = "https://vuxo.quest"
@@ -69,6 +69,11 @@ class AuthVerificationTests(unittest.TestCase):
     def test_missing_config_fails_before_deploy(self):
         self.config["VUXO_GOOGLE_CLIENT_ID"] = ""
         with self.assertRaisesRegex(ValueError, "VUXO_GOOGLE_CLIENT_ID"):
+            verifier.read_expected(self.write_env())
+
+    def test_non_consumer_microsoft_tenant_fails_before_deploy(self):
+        self.config["VUXO_MICROSOFT_TENANT_ID"] = "common"
+        with self.assertRaisesRegex(ValueError, "must be consumers"):
             verifier.read_expected(self.write_env())
 
     def test_wrong_public_origin_fails_before_deploy(self):
