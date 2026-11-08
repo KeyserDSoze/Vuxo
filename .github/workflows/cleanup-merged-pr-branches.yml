@@ -1,0 +1,44 @@
+name: One-time merged PR branch cleanup (#142)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/cleanup-merged-pr-branches.yml'
+  workflow_dispatch:
+    inputs:
+      delete_eligible:
+        description: "Delete only the 33 explicitly allowlisted merged PR heads"
+        type: boolean
+        required: true
+        default: false
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: merged-pr-branch-cleanup
+  cancel-in-progress: false
+
+jobs:
+  prune:
+    if: github.repository == 'KeyserDSoze/Vuxo'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Test fail-closed pruning rules
+        run: node --test scripts/maintenance/prune-merged-pr-branches.test.mjs
+      - name: Prune exact merged PR heads if authorized
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PRUNE_APPROVED: ${{ github.event_name == 'push' || inputs.delete_eligible }}
+        run: |
+          if [ "$PRUNE_APPROVED" = "true" ]; then
+            node scripts/maintenance/prune-merged-pr-branches.mjs --apply
+          else
+            node scripts/maintenance/prune-merged-pr-branches.mjs --dry-run
+          fi
