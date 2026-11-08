@@ -1,12 +1,10 @@
 name: Deploy GitHub Pages
 
 on:
+  # Publish the application version for every reviewed main commit.
+  # The previous path filter left Pages stale after auth/deploy-only changes.
   push:
     branches: [main]
-    paths:
-      - 'src/frontend/**'
-      - 'VERSION'
-      - '.github/workflows/deploy-pages.yml'
   workflow_dispatch:
 
 permissions:
@@ -36,6 +34,10 @@ jobs:
           VITE_BASE_PATH: /
           VITE_API_BASE_URL: ${{ vars.VUXO_API_BASE_URL || 'https://api.vuxoapi.xyz' }}
         run: npm run build
+      - name: Verify deployed version metadata
+        run: node ../../scripts/verify-built-version.mjs
+      - name: Verify Pages artifact, routes and MSAL redirect bridge
+        run: node ../../scripts/verify-pages-artifact.mjs
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
