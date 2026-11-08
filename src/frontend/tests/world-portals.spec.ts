@@ -132,6 +132,10 @@ async function clickSettledPhaserPortalMarker(page: Page) {
   const cssY = marker.y * box.height / dimensions.height;
   // Hover first. Only click once Phaser confirms the real pointer is inside
   // this marker's hit area, rather than masking failed input with retries.
+  // After remounting a canvas the browser pointer can still be at the
+  // exact same screen coordinate as the previous scene. Move away first so
+  // the newly mounted Phaser canvas receives an actual pointermove event.
+  await page.mouse.move(box.x + 3, box.y + 3);
   await page.mouse.move(box.x + cssX, box.y + cssY);
   await expect(host).toHaveAttribute('data-portal-pointer-hit', 'true');
   await page.mouse.down();
