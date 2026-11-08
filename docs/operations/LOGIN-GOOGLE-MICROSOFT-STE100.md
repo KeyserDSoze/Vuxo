@@ -1,7 +1,7 @@
 # VUXO 0.0.1 — Set up Google and Microsoft sign-in
 
 **Document ID:** VUXO-OPS-AUTH-001  
-**Revision:** 2  
+**Revision:** 3  
 **Date:** 2026-11-08  
 **Scope:** Production sign-in for `https://vuxo.quest`  
 **Writing method:** Controlled technical English based on ASD-STE100 Issue 9. **Not formally STE-certified.**  
@@ -44,14 +44,15 @@ Before you start, make sure that you have the following access:
 4. Open **App registrations**.
 5. Select **New registration**.
 6. Enter `VUXO - Production` in the **Name** field.
-7. Select **Accounts in any organizational directory and personal Microsoft accounts**.
+7. Select **Personal Microsoft accounts only**.
 8. Select **Register**.
 9. Open the new application's **Overview** page.
 10. Copy **Application (client) ID**.
 11. Store this ID in your secure deployment notes.
 
 **NOTE:** Do not use **Directory (tenant) ID** as the application client ID.
-**NOTE:** The selected account audience is compatible with the VUXO tenant value `common`.
+**NOTE:** Keep the existing Microsoft Client ID; change only the tenant selector from an organizational GUID to `consumers` in the GitHub production environment. Run a new verified deployment before testing again.
+**NOTE:** VUXO is configured for consumer-only Microsoft sign-in. Set the audience to `PersonalMicrosoftAccount` and the VUXO tenant selector to `consumers`. Do not select an organizational directory.
 
 ### 3.2 Add the SPA redirect
 
@@ -168,7 +169,7 @@ Use this step only if you run the frontend on your development computer.
 | Variable | Value | Storage |
 |---|---|---|
 | `VUXO_MICROSOFT_CLIENT_ID` | Microsoft Application (client) ID | Environment variable |
-| `VUXO_MICROSOFT_TENANT_ID` | `common` | Environment variable |
+| `VUXO_MICROSOFT_TENANT_ID` | `consumers` | Environment variable |
 | `VUXO_GOOGLE_CLIENT_ID` | Google Web application Client ID | Environment variable |
 | `VUXO_ALLOWED_ORIGIN` | `https://vuxo.quest` | Environment variable |
 
