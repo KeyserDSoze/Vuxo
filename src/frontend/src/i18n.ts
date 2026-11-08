@@ -109,14 +109,31 @@ const initialization = i18n.use(initReactI18next).init({
             character: { title: 'Personaggio', description: 'Aspetto, attributi e preparazione del tuo Vuxian.' },
             inventory: { title: 'Inventario ed equipaggiamento', description: 'Controlla gli oggetti conquistati ed equipaggia reliquie e amuleti.' },
             portals: { title: 'Portali personali', description: 'Affronta sfide assegnate al tuo personaggio, con risultati verificati dal server.' },
-            training: { title: 'Allenamento', description: 'Prova un minigioco di memoria delle rune, anche con il mondo offline.' }
+            training: { title: 'Allenamento', description: 'Prova un minigioco di memoria delle rune, anche con il mondo offline.' },
+            reflex: { title: 'Riflessi delle rune', description: 'Allenati a trovare la runa giusta in otto round veloci, senza bisogno del mondo.' }
           },
           care: {
             title: 'Cura e riposo',
             planned: 'In progettazione',
             description: 'Prevederemo cure, oggetti consumabili e riposo. La salute attuale e le risorse devono essere gestite dal server: qui non viene simulata alcuna cura.'
           },
-          training: {
+          reflex: {
+            eyebrow: 'Allenamento libero',
+            title: 'Riflessi delle rune',
+            description: 'Trova la runa indicata il più velocemente possibile. Otto round, nessun limite di tempo e tutti possono partecipare.',
+            disclaimer: 'Solo pratica locale: nessuna ricompensa, esperienza, oggetto o risultato salvato. Le attività premiate sono verificate dal server.',
+            instructions: 'Premi Inizia e seleziona la runa indicata per {{count}} round. Gli errori si contano ma puoi continuare.',
+            start: 'Inizia',
+            progress: 'Round {{current}} di {{total}}',
+            find: 'Trova questa runa',
+            choices: 'Rune disponibili',
+            mistakes: 'Errori: {{count}}',
+            complete: 'Allenamento completato!',
+            hits: 'Centri: {{count}} / {{total}}',
+            average: 'Reazione media: {{milliseconds}} ms',
+            again: 'Rigioca',
+            back: 'Torna al Rifugio'
+          },          training: {
             eyebrow: 'Allenamento libero',
             title: 'Memoria delle rune',
             description: 'Memorizza la sequenza, poi ripetila nell’ordine corretto. Puoi allenarti quanto vuoi, senza entrare nel mondo.',
@@ -537,14 +554,31 @@ const initialization = i18n.use(initReactI18next).init({
             character: { title: 'Character', description: 'Appearance, attributes and preparation of your Vuxian.' },
             inventory: { title: 'Inventory and equipment', description: 'View earned items and equip relics and charms.' },
             portals: { title: 'Personal portals', description: 'Take on challenges assigned to your character, with results verified by the server.' },
-            training: { title: 'Training', description: 'Try a rune memory minigame, even while the world is offline.' }
+            training: { title: 'Training', description: 'Try a rune memory minigame, even while the world is offline.' },
+            reflex: { title: 'Rune reflexes', description: 'Train to find the right rune in eight quick rounds, even when the world is offline.' }
           },
           care: {
             title: 'Healing and rest',
             planned: 'Planned',
             description: 'Healing, consumable items and rest are planned. Current health and resources must be managed by the server: no healing is simulated here.'
           },
-          training: {
+          reflex: {
+            eyebrow: 'Free practice',
+            title: 'Rune reflexes',
+            description: 'Find the highlighted rune as quickly as you can. Eight rounds, no time limit, and everyone can take part.',
+            disclaimer: 'Local practice only: no rewards, experience, items or saved results. Rewarded activities are verified by the server.',
+            instructions: 'Select Start and find the shown rune for {{count}} rounds. Mistakes count, but you can keep trying.',
+            start: 'Start',
+            progress: 'Round {{current}} of {{total}}',
+            find: 'Find this rune',
+            choices: 'Available runes',
+            mistakes: 'Mistakes: {{count}}',
+            complete: 'Training complete!',
+            hits: 'Hits: {{count}} / {{total}}',
+            average: 'Average reaction: {{milliseconds}} ms',
+            again: 'Play again',
+            back: 'Back to Refuge'
+          },          training: {
             eyebrow: 'Free practice',
             title: 'Rune memory',
             description: 'Remember the sequence, then repeat it in the right order. Practice as often as you like without entering the world.',
