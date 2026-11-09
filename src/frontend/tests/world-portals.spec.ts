@@ -24,9 +24,13 @@ async function initializePlayer(page: Page, language: 'it' | 'en' = 'it') {
   }, { language, expiry });
 }
 
-async function mockPrivatePortals(page: Page, x = 4.5, y = 4.5) {
+async function mockPrivatePortals(
+  page: Page, x = 4.5, y = 4.5,
+  extraMarkers: Array<{ id: string; contentKey: string; x: number; y: number }> = [],
+) {
   let consumed = false;
   let entryCalls = 0;
+  let listCalls = 0;
   let attempts = 0;
   await page.route('**/api/personal-content**', async route => {
     const req = route.request();
@@ -38,7 +42,8 @@ async function mockPrivatePortals(page: Page, x = 4.5, y = 4.5) {
     let status = 200;
     let body: unknown;
     if (pathname === '/api/personal-content/world-portals' && req.method() === 'GET') {
-      body = consumed ? [] : [{ id: grantId, contentKey: 'portal.grove', x, y }];
+      listCalls++;
+      body = consumed ? [] : [{ id: grantId, contentKey: 'portal.grove', x, y }, ...extraMarkers];
     } else if (pathname.endsWith('/world-portals/' + grantId + '/enter')) {
       entryCalls++;
       body = { id: grantId, contentKey: 'portal.grove', x, y };
@@ -66,7 +71,7 @@ async function mockPrivatePortals(page: Page, x = 4.5, y = 4.5) {
     await route.fulfill({ status, contentType: 'application/json', headers: cors,
       body: JSON.stringify(body) });
   });
-  return { getEntryCalls: () => entryCalls, getAttempts: () => attempts };
+  return { getEntryCalls: () => entryCalls, getAttempts: () => attempts, getListCalls: () => listCalls };
 }
 
 test.beforeEach(async ({ request }) => {
@@ -157,6 +162,57 @@ test('far markers are not enterable through keyboard or touch control', async ({
   expect(api.getEntryCalls()).toBe(0);
 });
 
+test('portal compass tracks only private marker bearing while moving, with localized labels', async ({ page }) => {
+  await initializePlayer(page);
+  const api = await mockPrivatePortals(page, 18.5, 4.5);
+  await page.goto(origin + '/Vuxo/#/game');
+  await expect(page.getByTestId('world-connection-status')).toHaveAttribute('data-status', 'connected');
+  const compass = page.getByTestId('world-portal-compass');
+  await expect(compass).toHaveAttribute('data-target-number', '1');
+  await expect(compass).toHaveAttribute('data-direction', 'e');
+  await expect(compass).toContainText('est');
+  await expect(compass).toContainText('14 caselle');
+
+  const start = Number(await compass.getAttribute('data-distance'));
+  await page.getByTestId('game-canvas').locator('canvas').click();
+  await page.keyboard.down('ArrowRight');
+  await expect.poll(async () => Number(await compass.getAttribute('data-distance'))).toBeLessThan(start);
+  await page.keyboard.up('ArrowRight');
+  expect(api.getEntryCalls()).toBe(0);
+  expect(api.getListCalls()).toBe(1);
+
+  await page.getByTestId('language-toggle').click();
+  await expect(compass).toContainText('east');
+  await expect(compass).toHaveAttribute('aria-label', /Portal 1 compass: east/);
+  expect(api.getListCalls()).toBe(1);
+});
+
+test('portal compass selects the closest authorized marker rather than the first', async ({ page }) => {
+  await initializePlayer(page, 'en');
+  const api = await mockPrivatePortals(page, 18.5, 4.5, [{
+    id: '22222222-2222-4222-8222-222222222222', contentKey: 'portal.moon',
+    x: 4.5, y: 8.5,
+  }]);
+  await page.goto(origin + '/Vuxo/#/game');
+  await expect(page.getByTestId('world-connection-status')).toHaveAttribute('data-status', 'connected');
+  const compass = page.getByTestId('world-portal-compass');
+  await expect(compass).toHaveAttribute('data-target-number', '2');
+  await expect(compass).toHaveAttribute('data-direction', 's');
+  await expect(compass).toContainText('south');
+  await expect(compass).toContainText('4 tiles');
+  expect(api.getEntryCalls()).toBe(0);
+});
+
+test('invalid private marker coordinates cannot create a misleading compass', async ({ page }) => {
+  await initializePlayer(page);
+  await mockPrivatePortals(page, Number.NaN, Number.NaN);
+  // JSON.stringify serializes NaN as null; these are not finite world coordinates.
+  await page.goto(origin + '/Vuxo/#/game');
+  await expect(page.getByTestId('world-connection-status')).toHaveAttribute('data-status', 'connected');
+  await expect(page.getByTestId('world-portal-enter')).toHaveCount(1);
+  await expect(page.getByTestId('world-portal-compass')).toHaveCount(0);
+});
+
 test('world markers remain private and are not rendered without a Vuxo session', async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.clear();
@@ -170,6 +226,7 @@ test('world markers remain private and are not rendered without a Vuxo session',
   await page.goto(origin + '/Vuxo/#/game');
   await expect(page.getByTestId('world-connection-status')).toHaveAttribute('data-status', 'connected');
   await expect(page.getByTestId('world-portals')).toHaveCount(0);
+  await expect(page.getByTestId('world-portal-compass')).toHaveCount(0);
   expect(requests).toBe(0);
 });
 

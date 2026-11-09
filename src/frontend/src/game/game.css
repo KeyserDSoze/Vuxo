@@ -112,6 +112,42 @@
   background: color-mix(in srgb, var(--vuxo-game-hud-bg) 84%, transparent);
   backdrop-filter: blur(16px);
 }
+.vuxo-game-portal-compass {
+  width: 100%;
+  min-height: 40px;
+  border-radius: 10px;
+  padding: 5px 7px;
+  border: 1px solid var(--vuxo-game-hud-border);
+  background: color-mix(in srgb, var(--vuxo-game-hud-bg) 67%, transparent);
+}
+.vuxo-game-compass-dial {
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid var(--vuxo-game-hud-accent);
+  background: color-mix(in srgb, var(--vuxo-game-hud-bg) 78%, transparent);
+}
+.vuxo-game-compass-needle {
+  color: var(--vuxo-game-hud-accent);
+  font-size: 20px;
+  line-height: 1;
+  transition: transform .18s ease-out;
+}
+.vuxo-game-compass-title.MuiTypography-root {
+  font-weight: 800;
+  color: var(--vuxo-game-hud-text);
+  font-size: .68rem;
+  line-height: 1.2;
+}
+.vuxo-game-compass-readout.MuiTypography-root {
+  color: var(--vuxo-game-hud-accent);
+  font-size: .67rem;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
 .vuxo-game-portal-actions {
   width: 100%;
   max-height: 130px;
@@ -163,5 +199,6 @@
   .vuxo-game-portals { max-height: 25%; }
 }
 @media (prefers-reduced-motion: reduce) {
+  .vuxo-game-compass-needle { transition: none; }
   .vuxo-game-shell *, .vuxo-game-shell *::before, .vuxo-game-shell *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; }
 }

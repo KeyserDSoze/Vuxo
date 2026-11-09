@@ -470,6 +470,19 @@ const initialization = i18n.use(initReactI18next).init({
             available: 'Portali personali nel mondo: {{count}}',
             enter: 'Entra nel portale {{number}}',
             moveCloser: 'Avvicinati a un portale per entrare. Puoi anche selezionare il suo simbolo sulla mappa.',
+            compass: {
+              target: 'Portale {{number}}',
+              distance_one: '{{count}} casella',
+              distance_other: '{{count}} caselle',
+              readout: '{{direction}} · {{distance}}',
+              inRange: 'A portata · {{distance}}',
+              nearby: 'vicino',
+              accessible: 'Bussola del portale {{number}}: {{direction}}, {{distance}}',
+              directions: {
+                n: 'nord', ne: 'nord-est', e: 'est', se: 'sud-est',
+                s: 'sud', sw: 'sud-ovest', w: 'ovest', nw: 'nord-ovest'
+              },
+            },
             challenge: 'Sfida del portale',
             genericError: 'Non è stato possibile entrare nel portale.'
           },
@@ -1217,6 +1230,19 @@ const initialization = i18n.use(initReactI18next).init({
             available: 'Personal portals in the world: {{count}}',
             enter: 'Enter portal {{number}}',
             moveCloser: 'Move closer to a portal to enter. You can also select its marker on the map.',
+            compass: {
+              target: 'Portal {{number}}',
+              distance_one: '{{count}} tile',
+              distance_other: '{{count}} tiles',
+              readout: '{{direction}} · {{distance}}',
+              inRange: 'In reach · {{distance}}',
+              nearby: 'nearby',
+              accessible: 'Portal {{number}} compass: {{direction}}, {{distance}}',
+              directions: {
+                n: 'north', ne: 'northeast', e: 'east', se: 'southeast',
+                s: 'south', sw: 'southwest', w: 'west', nw: 'northwest'
+              },
+            },
             challenge: 'Portal challenge',
             genericError: 'Could not enter the portal.'
           },

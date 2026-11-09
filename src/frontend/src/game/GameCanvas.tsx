@@ -12,6 +12,7 @@ import type {
   WorldRealtimeClient,
 } from '../features/world/worldRealtime'
 import { WorldScene } from './WorldScene'
+import { PortalCompass } from './PortalCompass'
 import { readStoredSession } from '../features/auth/authSession'
 import { enterWorldPortal, fetchWorldPortals, PortalApiError, type WorldPortalMarker } from '../features/portals/portalApi'
 import { PortalChallengesPage } from '../pages/PortalChallengesPage'
@@ -314,6 +315,7 @@ export function GameCanvas() {
           <Typography variant="caption" sx={{ color: 'var(--vuxo-game-hud-text)', fontWeight: 700 }}>
             {t('game.portal.available', { count: portals.length })}
           </Typography>
+          {status === 'connected' && <PortalCompass self={self} portals={portals} />}
           <Stack direction="row" spacing={0.75} className="vuxo-game-portal-actions">
             {portals.map((portal, index) => (
               <Button
