@@ -1,5 +1,5 @@
 import { AutoAwesome, BackpackOutlined, ExploreOutlined, FavoriteBorder, PersonOutlined, SportsEsportsOutlined, TouchAppOutlined, RouteOutlined, HistoryEduOutlined } from '@mui/icons-material';
-import { Alert, Button, Chip, CircularProgress, Grid, LinearProgress, Paper, Stack, Typography } from '@mui/material';
+import { Alert, Box, Button, Chip, CircularProgress, Grid, LinearProgress, Paper, Stack, Typography } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link as RouterLink } from 'react-router-dom';
@@ -64,10 +64,14 @@ export function RefugePage() {
     return () => controller.abort();
   }, [session?.accessToken, healthRetry]);
 
-  function reviewHealth() {
-    const section = document.getElementById('refuge-health');
+  function openSection(sectionId: string) {
+    const section = document.getElementById(sectionId);
     section?.scrollIntoView({ behavior: 'auto', block: 'start' });
-    section?.focus();
+    section?.focus({ preventScroll: true });
+  }
+
+  function reviewHealth() {
+    openSection('refuge-health');
   }
 
   function refreshPreparation() {
@@ -79,56 +83,94 @@ export function RefugePage() {
   }
 
   return (
-    <Stack spacing={2} data-testid="refuge-page">
-      <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3, md: 3.5 } }}>
-        <Stack spacing={2} sx={{ alignItems: 'flex-start' }}>
-          <Typography variant="overline" color="primary.main">{t('refuge.eyebrow')}</Typography>
-          <Typography component="h1" variant="h2">{t('refuge.title')}</Typography>
-          <Typography color="text.secondary" sx={{ maxWidth: '65ch' }}>{t('refuge.description')}</Typography>
-          {session ? (
-            <Typography data-testid="refuge-welcome" sx={{ fontWeight: 700 }}>
-              {t('refuge.welcome', { name: session.user.displayName })}
-            </Typography>
-          ) : (
-            <Alert severity="info" data-testid="refuge-guest">{t('refuge.guest')}</Alert>
-          )}
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ width: { xs: '100%', sm: 'auto' } }}>
-            <Button data-testid="refuge-start-training" component={RouterLink} to="/refuge/training" variant="contained" startIcon={<SportsEsportsOutlined />}>
-              {t('refuge.startTraining')}
-            </Button>
-            <Button data-testid="refuge-enter-world" component={RouterLink} to="/game" variant="outlined" startIcon={<ExploreOutlined />}>
-              {t('refuge.enterWorld')}
-            </Button>
+    <Stack spacing={2} data-testid="refuge-page" className="vuxo-refuge-dashboard">
+      <Paper component="header" className="vuxo-refuge-hero" data-testid="refuge-command-hero"
+        variant="outlined" sx={{ p: { xs: 1.5, sm: 2.25, md: 3 } }}>
+        <Box className="vuxo-refuge-hero__grid">
+          <Stack spacing={1.2} sx={{ alignItems: 'flex-start', minWidth: 0 }}>
+            <Typography variant="overline" color="primary.main">{t('refuge.eyebrow')}</Typography>
+            <Typography component="h1" variant="h2" className="vuxo-refuge-hero__title">{t('refuge.title')}</Typography>
+            <Typography color="text.secondary" className="vuxo-refuge-hero__description">{t('refuge.description')}</Typography>
+            {session ? (
+              <Typography data-testid="refuge-welcome" sx={{ fontWeight: 700 }}>
+                {t('refuge.welcome', { name: session.user.displayName })}
+              </Typography>
+            ) : (
+              <Alert severity="info" data-testid="refuge-guest">{t('refuge.guest')}</Alert>
+            )}
+            <Stack className="vuxo-refuge-hero__actions" direction="row" sx={{ flexWrap: 'wrap', gap: 1 }}>
+              <Button data-testid="refuge-start-training" component={RouterLink} to="/refuge/training"
+                variant="contained" startIcon={<SportsEsportsOutlined />}>
+                {t('refuge.startTraining')}
+              </Button>
+              <Button data-testid="refuge-enter-world" component={RouterLink} to="/game"
+                variant="outlined" startIcon={<ExploreOutlined />}>
+                {t('refuge.enterWorld')}
+              </Button>
+            </Stack>
           </Stack>
-        </Stack>
+          <Box component="aside" className="vuxo-refuge-hero__status" data-testid="refuge-command-status"
+            sx={{ bgcolor: 'background.paper', borderColor: 'divider' }}>
+            <Typography variant="overline" color="primary.main" sx={{ fontWeight: 850 }}>
+              {t('refuge.dashboard.status')}
+            </Typography>
+            {!session ? (
+              <Typography variant="body2" color="text.secondary" data-testid="refuge-command-guest">
+                {t('refuge.dashboard.statusGuest')}
+              </Typography>
+            ) : healthLoading ? (
+              <Stack direction="row" role="status" sx={{ alignItems: 'center', gap: 1 }}>
+                <CircularProgress size={18} />
+                <Typography variant="body2" data-testid="refuge-command-loading">
+                  {t('refuge.dashboard.statusLoading')}
+                </Typography>
+              </Stack>
+            ) : healthError ? (
+              <Typography variant="body2" color={healthError === 'unavailable' ? 'warning.main' : 'text.secondary'}
+                data-testid="refuge-command-unavailable">
+                {t(healthError === 'notFound' ? 'refuge.dashboard.statusNotFound' : 'refuge.dashboard.statusUnavailable')}
+              </Typography>
+            ) : health ? (
+              <Stack spacing={1} data-testid="refuge-command-health">
+                <Typography variant="h4" sx={{ fontWeight: 900, fontVariantNumeric: 'tabular-nums' }}>
+                  {t('refuge.health.value', { current: health.currentHealth, maximum: health.maxHealth })}
+                </Typography>
+                <LinearProgress variant="determinate"
+                  value={health.maxHealth > 0 ? Math.max(0, Math.min(100, (health.currentHealth / health.maxHealth) * 100)) : 0}
+                  aria-label={t('refuge.health.title')} sx={{ height: 8, borderRadius: 4 }} />
+                <Button size="small" variant="text" data-testid="refuge-command-review-health"
+                  onClick={() => openSection('refuge-health')} sx={{ alignSelf: 'flex-start' }}>
+                  {t('refuge.dashboard.healthReview')}
+                </Button>
+              </Stack>
+            ) : null}
+          </Box>
+        </Box>
       </Paper>
 
-      <Grid container spacing={2} data-testid="refuge-activities">
-        {activities.map(activity => {
-          const Icon = activity.icon;
-          return (
-            <Grid key={activity.key} size={{ xs: 12, sm: 6, lg: 3 }}>
-              <Paper variant="outlined" sx={{ height: '100%', p: { xs: 2, md: 2.5 } }}>
-                <Stack spacing={1.5} sx={{ height: '100%', alignItems: 'flex-start' }}>
-                  <Icon color="primary" fontSize="large" aria-hidden="true" />
-                  <Typography variant="h6" component="h2" sx={{ fontWeight: 800 }}>
-                    {t('refuge.cards.' + activity.key + '.title')}
-                  </Typography>
-                  <Typography color="text.secondary" sx={{ flexGrow: 1 }}>
-                    {t('refuge.cards.' + activity.key + '.description')}
-                  </Typography>
-                  <Chip size="small" variant="outlined" label={t(activity.authenticated ? 'refuge.requiresAccount' : 'refuge.availableWithoutAccount')} />
-                  <Button data-testid={'refuge-activity-' + activity.key} component={RouterLink} to={activity.to}>
-                    {t('refuge.open')}
-                  </Button>
-                </Stack>
-              </Paper>
-            </Grid>
-          );
-        })}
-      </Grid>
-
-      <RefugeActivityCatalog />
+      <Box component="nav" className="vuxo-refuge-sections" data-testid="refuge-section-nav"
+        aria-label={t('refuge.dashboard.navigation')} sx={{ bgcolor: 'background.paper', borderColor: 'divider' }}>
+        <Button data-testid="refuge-jump-activities" size="small"
+          startIcon={<SportsEsportsOutlined />} onClick={() => openSection('refuge-activities-section')}>
+          {t('refuge.dashboard.activities')}
+        </Button>
+        {session && (
+          <Button data-testid="refuge-jump-health" size="small"
+            startIcon={<FavoriteBorder />} onClick={() => openSection('refuge-health')}>
+            {t('refuge.dashboard.health')}
+          </Button>
+        )}
+        {health && (
+          <Button data-testid="refuge-jump-preparation" size="small"
+            startIcon={<BackpackOutlined />} onClick={() => openSection('refuge-preparation')}>
+            {t('refuge.dashboard.preparation')}
+          </Button>
+        )}
+        <Button data-testid="refuge-jump-care" size="small"
+          startIcon={<AutoAwesome />} onClick={() => openSection('refuge-care-section')}>
+          {t('refuge.dashboard.care')}
+        </Button>
+      </Box>
 
       {session && (
         <Paper id="refuge-health" tabIndex={-1} data-testid="refuge-health" variant="outlined" sx={{ p: { xs: 2.5, sm: 3 } }}>
@@ -190,11 +232,49 @@ export function RefugePage() {
         />
       )}
 
-      <Paper data-testid="refuge-care" variant="outlined" sx={{ p: { xs: 2.5, sm: 3 } }}>
+      <Box component="section" id="refuge-activities-section" tabIndex={-1}
+        aria-labelledby="refuge-activities-title" data-testid="refuge-activities-section">
+        <Stack spacing={1.5}>
+          <Box>
+            <Typography id="refuge-activities-title" component="h2" variant="h5" sx={{ fontWeight: 850 }}>
+              {t('refuge.dashboard.activities')}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">{t('refuge.dashboard.activityHint')}</Typography>
+          </Box>
+      <Grid container spacing={1.5} data-testid="refuge-activities">
+        {activities.map(activity => {
+          const Icon = activity.icon;
+          return (
+            <Grid key={activity.key} size={{ xs: 12, sm: 6, md: 4, xl: 3 }}>
+              <Paper variant="outlined" className="vuxo-refuge-activity" sx={{ height: '100%', p: { xs: 1.5, md: 2 } }}>
+                <Stack spacing={1} sx={{ height: '100%', alignItems: 'flex-start' }}>
+                  <Icon className="vuxo-refuge-activity__icon" color="primary" fontSize="large" aria-hidden="true" />
+                  <Typography variant="h6" component="h2" sx={{ fontWeight: 800 }}>
+                    {t('refuge.cards.' + activity.key + '.title')}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ flexGrow: 1 }}>
+                    {t('refuge.cards.' + activity.key + '.description')}
+                  </Typography>
+                  <Chip size="small" variant="outlined" label={t(activity.authenticated ? 'refuge.requiresAccount' : 'refuge.availableWithoutAccount')} />
+                  <Button data-testid={'refuge-activity-' + activity.key} component={RouterLink} to={activity.to} variant="outlined" size="small">
+                    {t('refuge.open')}
+                  </Button>
+                </Stack>
+              </Paper>
+            </Grid>
+          );
+        })}
+      </Grid>
+
+      <RefugeActivityCatalog />
+        </Stack>
+      </Box>
+
+      <Paper id="refuge-care-section" tabIndex={-1} data-testid="refuge-care" variant="outlined" sx={{ p: { xs: 2.5, sm: 3 } }}>
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ alignItems: { sm: 'flex-start' } }}>
           <FavoriteBorder color="primary" fontSize="large" aria-hidden="true" />
           <Stack spacing={1} sx={{ flexGrow: 1 }}>
-            <Typography variant="h6" component="h2">{t('refuge.care.title')}</Typography>
+            <Typography id="refuge-care-title" variant="h6" component="h2">{t('refuge.care.title')}</Typography>
             <Typography color="text.secondary">{t('refuge.care.description')}</Typography>
           </Stack>
           <Chip variant="outlined" label={t('refuge.care.planned')} />
