@@ -80,7 +80,7 @@ public sealed class PortalCompletionHistoryApiTests
         Assert.NotNull(second);
         Assert.Equal(2, first.Items.Count);
         Assert.True(first.HasMore);
-        Assert.Equal(1, second.Items.Count);
+        Assert.Single(second.Items);
         Assert.False(second.HasMore);
         Assert.Equal([NewId(3), NewId(2)], first.Items.Select(x => x.GrantId));
         Assert.Equal(NewId(1), Assert.Single(second.Items).GrantId);
