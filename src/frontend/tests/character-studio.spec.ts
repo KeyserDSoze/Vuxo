@@ -15,10 +15,11 @@ const catalog = {
 };
 
 test.beforeEach(async ({ page }) => {
+  // Each Playwright test gets an isolated browser context. Do not clear
+  // storage on reload: the local character draft must survive navigation.
   await page.addInitScript(() => {
-    localStorage.clear();
-    localStorage.setItem('vuxo.language', 'it');
-    localStorage.setItem('vuxo.theme', 'system');
+    if (!localStorage.getItem('vuxo.language')) localStorage.setItem('vuxo.language', 'it');
+    if (!localStorage.getItem('vuxo.theme')) localStorage.setItem('vuxo.theme', 'system');
   });
   await page.route('**/api/meta/character-appearance', route => route.fulfill({ json: catalog }));
 });
