@@ -87,7 +87,7 @@ test('reward grants display in chronological order and only available portal gra
   await expect(activePortals.nth(0)).toContainText('44444444');
   await expect(activePortals.nth(1)).toContainText('55555555');
   await expect(page.getByTestId('refuge-journal-portals-count')).toContainText('2');
-  await expect(page.getByTestId('refuge-journal-limits')).toContainText('Non è lo storico completo');
+  await expect(page.getByTestId('refuge-journal-limits')).toContainText('Non contiene ancora tutte le avventure');
   await expect(page.getByTestId('refuge-journal-open-inventory')).toHaveAttribute('href', '#/inventory');
   await expect(page.getByTestId('refuge-journal-open-portals')).toHaveAttribute('href', '#/portals');
 });
