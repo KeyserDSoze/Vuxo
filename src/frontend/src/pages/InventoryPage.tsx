@@ -1,4 +1,5 @@
-import { Alert, Box, Button, Chip, CircularProgress, FormControl, Grid, InputLabel, MenuItem, Paper, Select, Stack, TextField, Typography } from '@mui/material';
+import { Alert, Box, Button, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, Grid, InputLabel, MenuItem, Paper, Select, Stack, TextField, Typography } from '@mui/material';
+import { AutoAwesome, EcoOutlined, Inventory2Outlined, VisibilityOutlined, WaterDropOutlined } from '@mui/icons-material';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link as RouterLink } from 'react-router-dom';
@@ -20,6 +21,13 @@ import {
 } from '../features/inventory/inventoryApi';
 
 const statKeys = ['strength', 'dexterity', 'intelligence', 'constitution', 'luck', 'faith'] as const;
+
+function iconForInventoryItem(itemKey: string) {
+  if (itemKey === 'item.rune_shard.v1') return AutoAwesome;
+  if (itemKey === 'item.grove_seed.v1') return EcoOutlined;
+  if (itemKey === 'item.tidal_pearl.v1') return WaterDropOutlined;
+  return Inventory2Outlined;
+}
 
 /** Reset all owner data and browse state immediately when the authenticated account changes. */
 export function InventoryPage() {
@@ -46,6 +54,8 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
   const [browseSlot, setBrowseSlot] = useState<InventoryBrowseSlot>('all');
   const [browseSort, setBrowseSort] = useState<InventoryBrowseSort>('name');
   const searchRef = useRef<HTMLInputElement | null>(null);
+  // Pure UI selection; the authenticated owner read-model remains authoritative.
+  const [inspectedItemKey, setInspectedItemKey] = useState<string | null>(null);
 
   useEffect(() => {
     setItems([]);
@@ -56,6 +66,7 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
     setEquipmentLoading(Boolean(session));
     setHealingResult(null);
     setHealingRefreshError(false);
+    setInspectedItemKey(null);
     setLoading(Boolean(session));
   }, [session?.accessToken]);
 
@@ -123,6 +134,11 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
   const displayedItems = browseReady ? view.awards : items;
   const noMatches = canBrowse && displayedStacks.length === 0 && displayedItems.length === 0;
 
+  const inspectedStack = browseReady ? stacks.find(stack => stack.itemKey === inspectedItemKey) : undefined;
+  const inspectedIcon = inspectedStack ? iconForInventoryItem(inspectedStack.itemKey) : Inventory2Outlined;
+  const InspectedIcon = inspectedIcon;
+  const inspectedSlot = inspectedStack ? equipmentSlotFor(inspectedStack.itemKey) : null;
+
   const resetBrowse = () => {
     setBrowseQuery('');
     setBrowseFilter('all');
@@ -140,6 +156,7 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
 
   const refreshEquipment = () => {
     if (equipmentBusy || equipmentLoading) return;
+    setInspectedItemKey(null);
     // Synchronously hide the old snapshot when the user requests fresh data.
     setEquipmentLoading(true);
     setLoadout(null);
@@ -153,6 +170,7 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
 
   const performEquipmentAction = async (action: () => Promise<EquipmentView>) => {
     if (!browseReady || equipmentBusy || equipmentLoading) return;
+    setInspectedItemKey(null);
     setEquipmentBusy(true);
     try {
       const result = await action();
@@ -306,72 +324,88 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
       {displayedStacks.length > 0 && (
         <Stack spacing={1.5} data-testid="inventory-stacks">
           <Typography variant="h5">{t('stacksTitle')}</Typography>
-          {displayedStacks.map(stack => {
-            const labelKey = inventoryItemLabelKeys[stack.itemKey];
-            const slot = equipmentSlotFor(stack.itemKey);
-            const active = loadout?.items.find(item => item.itemKey === stack.itemKey);
-            const occupied = Boolean(slot && loadout?.items.some(item => item.slot === slot));
-            return (
-              <Paper key={stack.itemKey} variant="outlined"
-                sx={{ p: { xs: 2, md: 3 } }} data-testid="inventory-stack">
-                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}
-                  sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between' }}>
-                  <Stack spacing={0.5}>
-                    <Typography variant="h6">{labelKey ? t('items.' + labelKey) : stack.itemKey}</Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {t('stackQuantity', { count: stack.quantity })}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {t('equippedQuantity', { count: stack.equippedQuantity })}
-                    </Typography>
-                  </Stack>
-                  <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
-                    {active && slot ? (
-                      <Button data-testid="inventory-unequip" variant="outlined"
-                        disabled={equipmentBusy || !browseReady}
-                        onClick={() => void performEquipmentAction(() => unequipInventoryItem(slot))}>
-                        {t('unequip')}
-                      </Button>
-                    ) : slot && stack.availableGrantIds.length > 0 ? (
-                      <Button data-testid="inventory-equip" variant="contained"
-                        disabled={equipmentBusy || !browseReady || occupied}
-                        onClick={() => void performEquipmentAction(
-                          () => equipInventoryItem(stack.availableGrantIds[0])
-                        )}>
-                        {t('equip')}
-                      </Button>
-                    ) : null}
-                    {stack.itemKey === 'item.grove_seed.v1' && stack.availableGrantIds.length > 0 && (
-                      <HealingItemAction key={stack.availableGrantIds[0]}
-                        grantId={stack.availableGrantIds[0]}
-                        accessToken={session!.accessToken}
-                        disabled={equipmentBusy || !browseReady}
-                        onHealed={result => {
-                          setHealingResult(result);
-                          setHealingRefreshError(false);
-                          void Promise.all([
-                            fetchInventoryStacks(),
-                            fetchPlayerInventory(),
-                          ]).then(([freshStacks, freshAwards]) => {
-                            setStacks(freshStacks);
-                            setItems(freshAwards);
-                          }).catch(() => {
-                            // Healing is already committed by the server, but the available
-                            // grant list could be stale: hide it until a fresh GET succeeds.
-                            setStacks([]);
-                            setItems([]);
-                            setLoadout(null);
-                            setEquipmentError('inventory_request_failed');
-                            setHealingRefreshError(true);
-                          });
-                        }} />
-                    )}
-                    {slot && <Chip size="small" label={t('slots.' + slot)} />}
-                  </Stack>
-                </Stack>
-              </Paper>
-            );
-          })}
+          <Grid container spacing={1.5} data-testid="inventory-stack-grid">
+            {displayedStacks.map(stack => {
+              const labelKey = inventoryItemLabelKeys[stack.itemKey];
+              const slot = equipmentSlotFor(stack.itemKey);
+              const active = loadout?.items.find(item => item.itemKey === stack.itemKey);
+              const occupied = Boolean(slot && loadout?.items.some(item => item.slot === slot));
+              const Icon = iconForInventoryItem(stack.itemKey);
+              return (
+                <Grid key={stack.itemKey} size={{ xs: 12, sm: 6, xl: 4 }}>
+                  <Paper variant="outlined" data-testid="inventory-stack"
+                    className="vuxo-inventory-card" sx={{ height: '100%', p: { xs: 1.5, sm: 2 } }}>
+                    <Stack spacing={1.25} sx={{ height: '100%' }}>
+                      <Stack direction="row" sx={{ gap: 1.5, alignItems: 'center' }}>
+                        <Box className="vuxo-inventory-card__emblem" aria-hidden="true"
+                          sx={{ color: 'primary.main', bgcolor: 'action.hover', borderColor: 'divider' }}>
+                          <Icon fontSize="large" />
+                        </Box>
+                        <Box sx={{ minWidth: 0, flexGrow: 1 }}>
+                          <Typography component="h3" variant="h6" sx={{ fontWeight: 850, overflowWrap: 'anywhere', lineHeight: 1.2 }}>
+                            {labelKey ? t('items.' + labelKey) : stack.itemKey}
+                          </Typography>
+                          {slot && <Chip size="small" variant="outlined" label={t('slots.' + slot)} sx={{ mt: .75 }} />}
+                        </Box>
+                      </Stack>
+                      <Stack direction="row" sx={{ flexWrap: 'wrap', gap: 1 }}>
+                        <Chip variant="outlined" size="small" label={t('stackQuantity', { count: stack.quantity })} />
+                        <Chip color={stack.equippedQuantity > 0 ? 'primary' : 'default'} size="small"
+                          label={t('equippedQuantity', { count: stack.equippedQuantity })} />
+                      </Stack>
+                      <Box sx={{ flexGrow: 1 }} />
+                      <Stack direction="row" sx={{ flexWrap: 'wrap', gap: 1 }}>
+                        <Button data-testid="inventory-inspect" size="small" variant="outlined"
+                          startIcon={<VisibilityOutlined />}
+                          onClick={() => setInspectedItemKey(stack.itemKey)}>
+                          {t('inspect.open')}
+                        </Button>
+                        {active && slot ? (
+                          <Button data-testid="inventory-unequip" variant="outlined" size="small"
+                            disabled={equipmentBusy || !browseReady}
+                            onClick={() => void performEquipmentAction(() => unequipInventoryItem(slot))}>
+                            {t('unequip')}
+                          </Button>
+                        ) : slot && stack.availableGrantIds.length > 0 ? (
+                          <Button data-testid="inventory-equip" variant="contained" size="small"
+                            disabled={equipmentBusy || !browseReady || occupied}
+                            onClick={() => void performEquipmentAction(
+                              () => equipInventoryItem(stack.availableGrantIds[0])
+                            )}>
+                            {t('equip')}
+                          </Button>
+                        ) : null}
+                        {stack.itemKey === 'item.grove_seed.v1' && stack.availableGrantIds.length > 0 && (
+                          <HealingItemAction key={stack.availableGrantIds[0]}
+                            grantId={stack.availableGrantIds[0]}
+                            accessToken={session!.accessToken}
+                            disabled={equipmentBusy || !browseReady}
+                            onHealed={result => {
+                              setInspectedItemKey(null);
+                              setHealingResult(result);
+                              setHealingRefreshError(false);
+                              void Promise.all([
+                                fetchInventoryStacks(),
+                                fetchPlayerInventory(),
+                              ]).then(([freshStacks, freshAwards]) => {
+                                setStacks(freshStacks);
+                                setItems(freshAwards);
+                              }).catch(() => {
+                                setStacks([]);
+                                setItems([]);
+                                setLoadout(null);
+                                setEquipmentError('inventory_request_failed');
+                                setHealingRefreshError(true);
+                              });
+                            }} />
+                        )}
+                      </Stack>
+                    </Stack>
+                  </Paper>
+                </Grid>
+              );
+            })}
+          </Grid>
         </Stack>
       )}
 
@@ -425,6 +459,43 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
           })}
         </Stack>
       )}
+      <Dialog open={Boolean(inspectedStack)} onClose={() => setInspectedItemKey(null)}
+        aria-labelledby="inventory-inspection-title" data-testid="inventory-inspection"
+        fullWidth maxWidth="xs">
+        <DialogTitle id="inventory-inspection-title" sx={{ fontWeight: 850 }}>{t('inspect.title')}</DialogTitle>
+        <DialogContent dividers>
+          {inspectedStack && (
+            <Stack spacing={2} data-testid="inventory-inspection-content">
+              <Stack direction="row" sx={{ alignItems: 'center', gap: 2 }}>
+                <Box className="vuxo-inventory-card__emblem" aria-hidden="true"
+                  sx={{ color: 'primary.main', bgcolor: 'action.hover', borderColor: 'divider' }}>
+                  <InspectedIcon fontSize="large" />
+                </Box>
+                <Typography variant="h6" component="h3" sx={{ fontWeight: 850 }}>
+                  {inventoryItemLabelKeys[inspectedStack.itemKey]
+                    ? t('items.' + inventoryItemLabelKeys[inspectedStack.itemKey])
+                    : inspectedStack.itemKey}
+                </Typography>
+              </Stack>
+              <Box>
+                <Typography variant="caption" color="text.secondary">{t('inspect.canonicalKey')}</Typography>
+                <Typography data-testid="inventory-inspection-key" sx={{ overflowWrap: 'anywhere' }}>
+                  {inspectedStack.itemKey}
+                </Typography>
+              </Box>
+              <Stack direction="row" sx={{ gap: 1, flexWrap: 'wrap' }}>
+                <Chip label={t('stackQuantity', { count: inspectedStack.quantity })} />
+                <Chip label={t('equippedQuantity', { count: inspectedStack.equippedQuantity })} />
+                {inspectedSlot && <Chip color="primary" variant="outlined" label={t('slots.' + inspectedSlot)} />}
+              </Stack>
+              <Typography variant="body2" color="text.secondary">{t('inspect.serverNote')}</Typography>
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setInspectedItemKey(null)}>{t('inspect.close')}</Button>
+        </DialogActions>
+      </Dialog>
     </Stack>
   );
 }
