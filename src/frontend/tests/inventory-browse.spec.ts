@@ -227,3 +227,106 @@ test('owner switch remounts inventory so previous items and filters are not flas
   await expect(page.getByTestId('inventory-auth-required')).toBeVisible();
   await expect(page.getByTestId('inventory-item')).toHaveCount(0);
 });
+
+test('game-first inventory views separate gear, backpack and history without changing server data', async ({ page }) => {
+  await signIn(page);
+  await mockInventory(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('./#/inventory');
+  await expect(page.getByTestId('inventory-views')).toBeVisible();
+  await expect(page.getByTestId('inventory-view-all')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByTestId('inventory-loadout')).toBeVisible();
+  await expect(page.getByTestId('inventory-stack')).toHaveCount(3);
+  await expect(page.getByTestId('inventory-item')).toHaveCount(4);
+
+  const unexpected: string[] = [];
+  page.on('request', request => {
+    const url = new URL(request.url());
+    if (url.pathname.startsWith('/api/') && request.method() !== 'OPTIONS')
+      unexpected.push(request.method() + ':' + url.pathname);
+  });
+  await page.getByTestId('inventory-view-gear').click();
+  await expect(page.getByTestId('inventory-view-gear')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByTestId('inventory-loadout')).toBeVisible();
+  await expect(page.getByTestId('inventory-stack')).toHaveCount(0);
+  await expect(page.getByTestId('inventory-item')).toHaveCount(0);
+
+  // "Find" on an equipment slot changes only the local browse view/filter.
+  await page.getByTestId('inventory-loadout-find-charm').click();
+  await expect(page.getByTestId('inventory-view-bag')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByTestId('inventory-loadout')).toHaveCount(0);
+  await expect(page.getByTestId('inventory-browse-controls')).toBeVisible();
+  await expect(page.getByTestId('inventory-stack')).toHaveCount(2); // seed and pearl are available charms
+
+  await page.getByTestId('inventory-browse-clear').click();
+  await expect(page.getByTestId('inventory-stack')).toHaveCount(3);
+  await page.getByTestId('inventory-inspect').first().click();
+  await expect(page.getByTestId('inventory-inspection')).toBeVisible();
+  // A modal blocks the underlying navigation until dismissed.
+  await page.getByTestId('inventory-inspection').press('Escape');
+  await expect(page.getByTestId('inventory-inspection')).toHaveCount(0);
+
+  await page.getByTestId('inventory-view-journal').click();
+  await expect(page.getByTestId('inventory-inspection')).toHaveCount(0);
+  await expect(page.getByTestId('inventory-stack')).toHaveCount(0);
+  await expect(page.getByTestId('inventory-browse-controls')).toHaveCount(0);
+  await expect(page.getByTestId('inventory-item')).toHaveCount(4);
+  await expect(page.getByTestId('inventory-view-journal')).toHaveAttribute('aria-pressed', 'true');
+
+  await page.getByTestId('inventory-view-all').click();
+  await expect(page.getByTestId('inventory-stack')).toHaveCount(3);
+  await expect(page.getByTestId('inventory-item')).toHaveCount(4);
+  await expect(page.getByTestId('inventory-loadout')).toBeVisible();
+  expect(unexpected).toEqual([]);
+  await expect.poll(() => page.evaluate(() => {
+    const root = document.documentElement;
+    return root.scrollWidth <= root.clientWidth + 1
+      && root.scrollHeight <= window.innerHeight + 1
+      && document.scrollingElement!.scrollTop === 0;
+  })).toBe(true);
+});
+
+test('inventory view controls are keyboard-accessible, translated and owner-scoped on 320px', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 568 });
+  await signIn(page, 'owner-a', 'en');
+  await mockInventory(page);
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('./#/inventory');
+  const nav = page.getByTestId('inventory-views');
+  await expect(nav).toHaveAttribute('aria-label', 'Inventory views');
+  const history = page.getByTestId('inventory-view-journal');
+  await history.focus();
+  await expect(history).toBeFocused();
+  await history.press('Enter');
+  await expect(history).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByTestId('inventory-item')).toHaveCount(4);
+  await expect(page.getByTestId('inventory-stack')).toHaveCount(0);
+
+  await expect.poll(() => page.evaluate(() => {
+    const root = document.documentElement;
+    return root.scrollWidth <= root.clientWidth + 1 &&
+      root.scrollHeight <= window.innerHeight + 1 &&
+      getComputedStyle(document.querySelector('[data-testid="game-deck-scroll"]')!).overflowY === 'auto';
+  })).toBe(true);
+
+  // Account changes remount the owner view; do not retain another owner's
+  // history or selected tab while the new read-model is pending.
+  await page.evaluate(() => {
+    localStorage.setItem('vuxo.accessToken', 'test-token-owner-b');
+    localStorage.setItem('vuxo.auth.user', JSON.stringify({
+      id: 'owner-b', displayName: 'Other', email: null,
+    }));
+    window.dispatchEvent(new Event('vuxo:session-changed'));
+  });
+  await expect(page.getByTestId('inventory-view-journal')).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.getByTestId('inventory-view-all')).toHaveAttribute('aria-pressed', 'true');
+  await page.evaluate(() => {
+    localStorage.removeItem('vuxo.accessToken');
+    localStorage.removeItem('vuxo.auth.user');
+    localStorage.removeItem('vuxo.auth.expiresAtUtc');
+    window.dispatchEvent(new Event('vuxo:session-changed'));
+  });
+  await expect(page.getByTestId('inventory-auth-required')).toBeVisible();
+  await expect(page.getByTestId('inventory-views')).toHaveCount(0);
+  await expect(page.getByTestId('inventory-item')).toHaveCount(0);
+});

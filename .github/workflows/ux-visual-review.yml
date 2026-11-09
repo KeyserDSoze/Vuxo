@@ -17,6 +17,8 @@ on:
       - src/frontend/tests/world-camera.spec.ts
       - src/frontend/tests/world-portals.spec.ts
       - src/frontend/tests/world-art.spec.ts
+      - src/frontend/src/pages/InventoryPage.tsx
+      - src/frontend/tests/inventory-browse.spec.ts
       - src/frontend/src/pages/CharacterEditorPage.tsx
       - src/frontend/tests/character-studio.spec.ts
       - src/frontend/src/i18n.ts

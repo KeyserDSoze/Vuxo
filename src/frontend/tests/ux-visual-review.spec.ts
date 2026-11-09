@@ -208,6 +208,22 @@ if (process.env.VUXO_VISUAL_REVIEW === '1') {
                 const file = info.outputPath('inspection.png');
                 await page.screenshot({ path: file, animations: 'disabled' });
                 await info.attach('inventory-inspection', { path: file, contentType: 'image/png' });
+                await page.getByRole('dialog').press('Escape');
+                await expect(page.getByRole('dialog')).toHaveCount(0);
+                // Additional owner-only game views: the authoritative awards
+                // and loadout are already served by synthetic GET fixtures.
+                for (const mode of ['gear', 'bag', 'journal'] as const) {
+                  await page.getByTestId('inventory-view-' + mode).click();
+                  await expect(page.getByTestId('inventory-view-' + mode))
+                    .toHaveAttribute('aria-pressed', 'true');
+                  await expect.poll(() => page.evaluate(() =>
+                    document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1
+                    && document.documentElement.scrollHeight <= innerHeight + 1)).toBe(true);
+                  const stateFile = info.outputPath('inventory-' + mode + '.png');
+                  await page.screenshot({ path: stateFile, animations: 'disabled' });
+                  await info.attach('inventory-' + mode,
+                    { path: stateFile, contentType: 'image/png' });
+                }
               }
               if ((width === 390 || width === 1280) && screen.name === 'portals') {
                 await page.getByTestId('portal-start').first().click();

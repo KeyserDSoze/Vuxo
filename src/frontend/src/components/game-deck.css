@@ -211,6 +211,49 @@
 }
 
 
+/* #175: owner-only inventory modes live inside the same scrolling game deck.
+   Buttons are native keyboard controls; the strip may scroll horizontally on
+   320px phones without giving the document any horizontal overflow. */
+.vuxo-inventory-views {
+  position: sticky;
+  top: -1px;
+  z-index: 4;
+  min-width: 0;
+  padding: 7px;
+  border: 1px solid;
+  border-radius: 14px;
+  background: radial-gradient(circle at 0 50%, color-mix(in srgb, var(--deck-glow) 13%, transparent), transparent 67%);
+}
+.vuxo-inventory-views__options {
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-inline: contain;
+  scrollbar-width: thin;
+  padding: 3px;
+}
+.vuxo-inventory-views__button.MuiButton-root {
+  min-height: 42px;
+  flex-shrink: 0;
+  padding-inline: clamp(10px, 1.25vw, 19px);
+  font-weight: 800;
+  border-radius: 11px;
+  white-space: nowrap;
+  box-shadow: none;
+}
+.vuxo-inventory-views__button.MuiButton-root:focus-visible {
+  outline: 3px solid var(--vuxo-focus-ring);
+  outline-offset: 2px;
+}
+@media (max-width: 480px) {
+  .vuxo-inventory-views { padding: 5px; border-radius: 11px; }
+  .vuxo-inventory-views__button.MuiButton-root {
+    min-height: 38px;
+    font-size: .73rem;
+  }
+}
+
 /* #161: owner inventory piles are visual cards; metadata still comes only from API read-models. */
 .vuxo-inventory-card {
   border-color: color-mix(in srgb, var(--vuxo-focus-ring) 28%, transparent);

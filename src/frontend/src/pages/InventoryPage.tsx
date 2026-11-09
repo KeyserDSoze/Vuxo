@@ -1,5 +1,5 @@
 import { Alert, Box, Button, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, Grid, InputLabel, MenuItem, Paper, Select, Stack, TextField, Typography } from '@mui/material';
-import { AutoAwesome, BackpackOutlined, ExploreOutlined, FavoriteBorder, VisibilityOutlined } from '@mui/icons-material';
+import { AutoAwesome, BackpackOutlined, ExploreOutlined, FavoriteBorder, HistoryOutlined, ViewModuleOutlined, VisibilityOutlined } from '@mui/icons-material';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link as RouterLink } from 'react-router-dom';
@@ -21,6 +21,16 @@ import {
 } from '../features/inventory/inventoryApi';
 
 const statKeys = ['strength', 'dexterity', 'intelligence', 'constitution', 'luck', 'faith'] as const;
+
+type InventoryViewMode = 'all' | 'gear' | 'bag' | 'journal';
+// These are strictly presentation tabs; API queries and owner-bound
+// inventories do not depend on the chosen view.
+const inventoryViews = [
+  { key: 'all', icon: ViewModuleOutlined },
+  { key: 'gear', icon: AutoAwesome },
+  { key: 'bag', icon: BackpackOutlined },
+  { key: 'journal', icon: HistoryOutlined },
+] as const;
 
 function iconForInventoryItem(itemKey: string) {
   if (itemKey === 'item.rune_shard.v1') return AutoAwesome;
@@ -49,6 +59,7 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
   const [inventoryRevision, setInventoryRevision] = useState(0);
   const [healingResult, setHealingResult] = useState<CharacterItemHealResult | null>(null);
   const [healingRefreshError, setHealingRefreshError] = useState(false);
+  const [viewMode, setViewMode] = useState<InventoryViewMode>('all');
   const [browseQuery, setBrowseQuery] = useState('');
   const [browseFilter, setBrowseFilter] = useState<InventoryBrowseFilter>('all');
   const [browseSlot, setBrowseSlot] = useState<InventoryBrowseSlot>('all');
@@ -67,6 +78,7 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
     setHealingResult(null);
     setHealingRefreshError(false);
     setInspectedItemKey(null);
+    setViewMode('all');
     setLoading(Boolean(session));
   }, [session?.accessToken]);
 
@@ -133,6 +145,15 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
   const displayedStacks = browseReady ? view.stacks : [];
   const displayedItems = browseReady ? view.awards : items;
   const noMatches = canBrowse && displayedStacks.length === 0 && displayedItems.length === 0;
+  const showGear = viewMode === 'all' || viewMode === 'gear';
+  const showBag = viewMode === 'all' || viewMode === 'bag';
+  const showJournal = viewMode === 'all' || viewMode === 'journal';
+  const chooseView = (mode: InventoryViewMode) => {
+    // A hidden item's inspection must never remain open over a different
+    // mode. No network request is made by these presentation-only buttons.
+    setInspectedItemKey(null);
+    setViewMode(mode);
+  };
 
   const inspectedStack = browseReady ? stacks.find(stack => stack.itemKey === inspectedItemKey) : undefined;
   const inspectedIcon = inspectedStack ? iconForInventoryItem(inspectedStack.itemKey) : BackpackOutlined;
@@ -148,11 +169,19 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
 
   const showAvailableSlot = (slot: Exclude<InventoryBrowseSlot, 'all'>) => {
     if (!browseReady) return;
+    chooseView('bag');
     setBrowseFilter('available');
     setBrowseSlot(slot);
     setBrowseQuery('');
     searchRef.current?.focus();
   };
+
+  // "Find" switches from equipment to the backpack. Focus the newly
+  // mounted search input after React commits the new view.
+  useEffect(() => {
+    if (viewMode === 'bag' && browseFilter === 'available' && browseSlot !== 'all')
+      searchRef.current?.focus();
+  }, [viewMode, browseFilter, browseSlot]);
 
   const refreshEquipment = () => {
     if (equipmentBusy || equipmentLoading) return;
@@ -234,7 +263,23 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
         </Stack>
       )}
 
-      {browseReady && loadout && (
+      {browseReady && (
+        <Box component="nav" data-testid="inventory-views" aria-label={t('views.navigation')}
+          className="vuxo-inventory-views" sx={{ bgcolor: 'background.paper', borderColor: 'divider' }}>
+          <Stack direction="row" spacing={0.75} className="vuxo-inventory-views__options">
+            {inventoryViews.map(({ key, icon: Icon }) => (
+              <Button key={key} data-testid={'inventory-view-' + key}
+                aria-pressed={viewMode === key} variant={viewMode === key ? 'contained' : 'outlined'}
+                startIcon={<Icon fontSize="small" aria-hidden="true" />}
+                onClick={() => chooseView(key)} className="vuxo-inventory-views__button">
+                {t('views.' + key)}
+              </Button>
+            ))}
+          </Stack>
+        </Box>
+      )}
+
+      {browseReady && loadout && showGear && (
         <InventoryLoadoutPanel loadout={loadout} busy={equipmentBusy}
           onUnequip={slot => void performEquipmentAction(() => unequipInventoryItem(slot))}
           onFind={showAvailableSlot} onRefresh={refreshEquipment} />
@@ -254,7 +299,7 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
           {t('healing.refreshError')}
         </Alert>
       )}
-      {canBrowse && (
+      {canBrowse && showBag && (
         <Paper variant="outlined" data-testid="inventory-browse-controls" sx={{ p: { xs: 2, sm: 3 } }}>
           <Stack spacing={2}>
             <Typography component="h2" variant="h6" sx={{ fontWeight: 800 }}>{t('browse.title')}</Typography>
@@ -321,7 +366,7 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
         </Paper>
       )}
 
-      {displayedStacks.length > 0 && (
+      {showBag && displayedStacks.length > 0 && (
         <Stack spacing={1.5} data-testid="inventory-stacks">
           <Typography variant="h5">{t('stacksTitle')}</Typography>
           <Grid container spacing={1.5} data-testid="inventory-stack-grid">
@@ -409,7 +454,7 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
         </Stack>
       )}
 
-      {loadout?.stats && (
+      {showGear && loadout?.stats && (
         <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 } }} data-testid="equipment-stats">
           <Stack spacing={1}>
             <Typography variant="h5">{t('effectiveStats')}</Typography>
@@ -429,7 +474,7 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
         </Paper>
       )}
 
-      {displayedItems.length > 0 && (
+      {showJournal && displayedItems.length > 0 && (
         <Stack spacing={1.5} data-testid="inventory-items">
           <Typography variant="h5">{t('owned', { count: displayedItems.length })}</Typography>
           {displayedItems.map(award => {
