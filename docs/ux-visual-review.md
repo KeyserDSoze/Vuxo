@@ -18,3 +18,7 @@ La matrice screenshot serve alla review di **#154**, dei pannelli **#158** e del
 - CI, GitHub Pages e browser/API/PostgreSQL live E2E sono gate separati, non sostituiti da questo workflow. Nessun segreto, deploy, migrazione o ricompensa nuova.
 
 Esecuzione locale da src/frontend: installare le dipendenze e Chromium, poi impostare VUXO_VISUAL_REVIEW=1 e avviare "npx playwright test tests/ux-visual-review.spec.ts". In PowerShell: "$env:VUXO_VISUAL_REVIEW='1'". In assenza della variabile la normale suite Playwright non aggiunge nuovi test.
+
+## Aggiornamento world art #167
+
+Dal commit `3a602fa`, `/game` mostra viandanti 2D procedurali e un terreno originale. La visual QA deve confrontare gli screenshot world a 320, 390, 1280, 1920 e 3440 pixel, più gli allegati `world-art-mobile-two-players` e `world-art-desktop-two-players` dei test multiplayer. Controllare contrasto, nomi vicini, portali, orientamento e leggibilità. Colori e silhouette **non** sono l'appearance salvata sul server. Lo screenshot automatico non chiude la verifica hardware/fullscreen #155.

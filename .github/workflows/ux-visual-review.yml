@@ -11,6 +11,9 @@ on:
       - src/frontend/src/components/game-deck.css
       - src/frontend/src/components/GameDeck.tsx
       - src/frontend/tests/game-deck.spec.ts
+      - src/frontend/src/game/WorldArtwork.ts
+      - src/frontend/src/game/WorldScene.ts
+      - src/frontend/tests/world-art.spec.ts
 
 permissions:
   contents: read
