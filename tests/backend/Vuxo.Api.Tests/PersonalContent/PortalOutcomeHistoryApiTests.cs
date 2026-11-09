@@ -30,7 +30,7 @@ public sealed class PortalOutcomeHistoryApiTests
     public async Task ReturnsOnlyJwtOwnerReceipts_WithoutSecretsOrOtherOwnerFields()
     {
         var history = new FakeReader();
-        history.Rows.Add(("player-a", Event(1, PortalOutcomeKinds.SequenceCompleted)));
+        history.Rows.Add(("player-a", Event(1, PortalOutcomeKinds.SequenceCompleted) with { RewardItemKey = "item.rune_shard.v1" }));
         history.Rows.Add(("player-b", Event(2, PortalOutcomeKinds.GuardianRetreat)));
         using var factory = CreateFactory(history);
         using var client = factory.CreateClient();
@@ -44,6 +44,7 @@ public sealed class PortalOutcomeHistoryApiTests
         var item = Assert.Single(json.RootElement.GetProperty("items").EnumerateArray().ToArray());
         Assert.Equal("sequence_completed", item.GetProperty("kind").GetString());
         Assert.Equal(Id(1), item.GetProperty("eventId").GetGuid());
+        Assert.Equal("item.rune_shard.v1", item.GetProperty("rewardItemKey").GetString());
         Assert.False(item.TryGetProperty("seed", out _));
         Assert.False(item.TryGetProperty("rewardKey", out _));
         Assert.False(item.TryGetProperty("playerId", out _));

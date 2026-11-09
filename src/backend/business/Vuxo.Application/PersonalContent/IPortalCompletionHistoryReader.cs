@@ -16,7 +16,8 @@ public sealed record PortalCompletionHistoryItem(
     string ContentKey,
     string RuleVersion,
     DateTimeOffset GrantedAtUtc,
-    DateTimeOffset CompletedAtUtc);
+    DateTimeOffset CompletedAtUtc,
+    string? RewardItemKey = null);
 
 public sealed record PortalCompletionHistoryPage(
     IReadOnlyList<PortalCompletionHistoryItem> Items,

@@ -36,6 +36,7 @@ public sealed class PortalCompletionHistoryReader(VuxoDbContext dbContext)
             orderby eventRecord.OccurredAtUtc descending, eventRecord.EventId descending
             select new
             {
+                eventRecord.EventId,
                 grant.Id,
                 grant.ContentKey,
                 grant.RuleVersion,
@@ -50,10 +51,17 @@ public sealed class PortalCompletionHistoryReader(VuxoDbContext dbContext)
             .Take(pageSize + 1)
             .ToListAsync(cancellationToken);
 
+        var visibleRows = rows.Take(pageSize).ToArray();
+        var provenRewards = await PortalRewardProvenanceReader.ForCompletionsAsync(
+            dbContext, owner,
+            visibleRows.Select(row => (row.EventId, row.Id)).ToArray(),
+            cancellationToken);
+
         return new PortalCompletionHistoryPage(
-            rows.Take(pageSize).Select(row => new PortalCompletionHistoryItem(
+            visibleRows.Select(row => new PortalCompletionHistoryItem(
                 row.Id, row.ContentKey, row.RuleVersion,
-                row.CreatedAtUtc, row.OccurredAtUtc)).ToArray(),
+                row.CreatedAtUtc, row.OccurredAtUtc,
+                provenRewards.GetValueOrDefault((row.EventId, row.Id)))).ToArray(),
             page, pageSize, rows.Count > pageSize);
     }
 }

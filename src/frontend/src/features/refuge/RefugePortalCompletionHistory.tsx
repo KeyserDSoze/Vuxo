@@ -1,5 +1,6 @@
 import { AutoAwesome, Refresh } from '@mui/icons-material';
-import { Alert, Box, Button, CircularProgress, Paper, Stack, Typography } from '@mui/material';
+import { Alert, Box, Button, Chip, CircularProgress, Paper, Stack, Typography } from '@mui/material';
+import { inventoryItemLabelKeys } from '../inventory/inventoryApi';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { fetchCompletedPortals, fetchPortalOutcomes, type CompletedPortal, type PortalOutcome } from '../portals/portalHistoryApi';
@@ -173,6 +174,19 @@ export function RefugePortalCompletionHistory() {
                   <Typography variant="caption" color="text.secondary">
                     {t('refuge.journal.completed.rule', { version: item.ruleVersion })}
                   </Typography>
+                  {item.rewardItemKey && (
+                    <Chip data-testid="refuge-journal-verified-reward" size="small"
+                      color="success" variant="outlined"
+                      label={t('refuge.journal.completed.linkedReward', {
+                        item: inventoryItemLabelKeys[item.rewardItemKey]
+                          ? t('inventory.items.' + inventoryItemLabelKeys[item.rewardItemKey])
+                          : t('refuge.journal.rewards.unknownItem'),
+                      })}
+                      sx={{ maxWidth: '100%', height: 'auto', '& .MuiChip-label': {
+                        overflowWrap: 'anywhere', whiteSpace: 'normal', py: 0.75,
+                      } }}
+                    />
+                  )}
                 </Stack>
               </Stack>
             </Paper>
