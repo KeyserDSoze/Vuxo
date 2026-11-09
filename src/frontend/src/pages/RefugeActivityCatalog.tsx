@@ -103,14 +103,14 @@ export function RefugeActivityCatalog() {
               {t('refuge.catalog.policy')}
             </Alert>
             {(!state || state.phase === 'loading') && (
-              <Stack direction="row" spacing={1.5} role="status" alignItems="center"
+              <Stack direction="row" spacing={1.5} role="status" sx={{ alignItems: 'center' }}
                 data-testid="refuge-catalog-loading">
                 <CircularProgress size={22} />
                 <Typography>{t('refuge.catalog.loading')}</Typography>
               </Stack>
             )}
             {state?.phase === 'error' && (
-              <Stack spacing={1.5} alignItems="flex-start">
+              <Stack spacing={1.5} sx={{ alignItems: 'flex-start' }}>
                 <Alert severity="warning" data-testid="refuge-catalog-error">
                   {t('refuge.catalog.unavailable')}
                 </Alert>
@@ -126,7 +126,7 @@ export function RefugeActivityCatalog() {
                   <Grid key={activity.key} size={{ xs: 12, sm: 6, lg: 3 }}>
                     <Paper variant="outlined" data-testid={'refuge-catalog-' + activity.key}
                       sx={{ p: 2, height: '100%' }}>
-                      <Stack spacing={1.25} alignItems="flex-start">
+                      <Stack spacing={1.25} sx={{ alignItems: 'flex-start' }}>
                         <Chip size="small" variant="outlined"
                           color={activity.availability === 'available' ? 'success' : 'default'}
                           label={t('refuge.catalog.status.' + activity.availability)} />
@@ -137,7 +137,7 @@ export function RefugeActivityCatalog() {
                           {t('refuge.catalog.rules', { version: activity.rulesVersion })}
                         </Typography>
                         {routes[activity.key] && activity.availability === 'available' && (
-                          <Button component={RouterLink} to={routes[activity.key]}
+                          <Button component={RouterLink} to={routes[activity.key] ?? '/refuge'}
                             data-testid={'refuge-catalog-play-' + activity.key} size="small">
                             {t('refuge.catalog.open')}
                           </Button>
