@@ -70,3 +70,8 @@ La matrice base /game resta guest e non crea grant: non deve mostrare una bussol
 ## Radar tattico nel mondo (#181)
 
 La matrice ospite /game mantiene i peer sintetici del mock world: il radar desktop mostra il self centrato e i peer visibili, senza inventare portali privati in assenza di sessione owner. Le due viste owner sintetiche già presenti (`private portal compass` a **390×844** e **1280×720**, IT/scuro) verificano adesso anche il radar. A 390px la mappa parte chiusa, viene aperta dal pulsante touch/tastiera e verificata insieme a bussola/canvas senza scroll del documento. A 1280px la minimappa è immediatamente visibile. I marcatori rappresentano solo le coordinate dei peer nel mock locale e un singolo grant inventato per la prova, **non** nuove API o contenuti dell'account reale. Lo screenshot non sostituisce QA reale fullscreen/device fisico #155/#165 o il controllo Cloudflare #147.
+
+
+## Verifica automatica radar #181 (10 novembre 2026)
+
+[Visual #42722064297](https://github.com/KeyserDSoZe/Vuxo/actions/runs/42722064297) **78/78** conferma che i due screenshot owner sintetici a 390×844 e 1280×720 mostrano radar e bussola assieme, senza overflow del documento; la matrice di base rimane guest e non simula grant personali. [CI #42722064119](https://github.com/KeyserDSoZe/Vuxo/actions/runs/42722064119) **298/298 Playwright** copre multi-client con movimento dei peer, proiezione di un grant lontano sul bordo, distanza live, lingua IT/EN e apertura/chiusura mobile. Non è una revisione soggettiva dei PNG o una prova su dispositivi reali, che restano #165/#155/#167/#174.
