@@ -92,6 +92,14 @@ Nuovi test Playwright per anonimato, ricerca IT/EN/Unicode, filtri di grant e it
 - "Cura e riposo" sono soltanto informativi; *non c'è* un finto pulsante di cura né un contatore HP modificabile dal browser.
 - Route e bundle differiti: il Rifugio non importa Phaser. Uso di MUI e i18next IT/EN.
 
+## Catalogo versionato delle attività off-world — issue #73, prima tranche
+
+La API pubblica **di sola lettura** `GET /api/activities/catalog` espone il manifest `offworld-activities-v1`, con chiavi stabili, versione regole, tipo, disponibilità e numero di unità di pratica. Le attività locali già presenti nel Rifugio sono `rune-memory` (sequenza di 4 standard), `rune-reflex` (8 round) e `rune-path` (3 mappe). `crafting` è soltanto **planned**: non esiste un minigioco disponibile né un premio. Ogni voce ha `verification=local-practice`, `rewardsEnabled=false`, `progressionEnabled=false`. Questo manifest non costituisce un ticket e non concede diritti di inventario, abilità, ricompense o salute.
+
+La seconda GET pubblica `/api/activities/rune-path/puzzles/{puzzleIndex}` (indici 0–2) restituisce un layout canonico deterministico 4×4 (partenza, obiettivo e muri), versione `rune-path-practice-v1`; indice fuori range restituisce 404 con codice stabile. Il dominio `RunePathPracticeRules.Verify(index,moves)` accetta al massimo 32 mosse ortogonali `UDLR`, respinge attraversamenti, teleport, movimenti dopo il traguardo e input/indici invalidi. Questo calcolo **attesta solo geometria**, mai un'abilità umana o un risultato premiabile: i client sono in grado di ricostruire il percorso. Non viene esposta una POST che scambia la soluzione per XP.
+
+Nel Rifugio la sezione **Attività fuori dal mondo / Beyond-world activities** mostra su richiesta il manifest, stato disponibile/pianificato e link alle tre pratiche locali. Non invia JWT/cookie né avvia Phaser. Se il backend è offline, usa una vista di errore con retry e lascia intatte le 7 card preesistenti. Convalida versione e policy `rewardsEnabled=false` / `progressionEnabled=false`: risposte sconosciute o con claim di ricompense vengono rifiutate anziché autorizzare azioni client. Test xUnit dominio/API e Playwright IT/EN, guest, errore/retry, tastiera, mobile 320 e nessun preload Phaser. #73 **resta aperta**: ticket/run owner-only, idempotenza, TTL, cooldown, anti-abuso, prova server-verificata e premi atomici sono scope futuri #100; nessun dato nuovo viene persistito da questa tranche.
+
 ## Evoluzione autorevole — issue #72, #73
 
 ### Cura/riposo (#72)

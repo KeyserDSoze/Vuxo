@@ -7,6 +7,7 @@ using System.Threading.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Vuxo.Api.Admin;
+using Vuxo.Api.Activities;
 using Vuxo.Api.Auth;
 using Vuxo.Api.Contracts.Auth;
 using Vuxo.Api.Contracts.Players;
@@ -209,6 +210,7 @@ app.MapGet("/api/meta/character-appearance", () => Results.Ok(new
 }));
 
 app.MapSocialAuthEndpoints();
+app.MapActivityCatalogEndpoints();
 
 if (MockAuthentication.IsEnabled(app.Environment, app.Configuration))
 {

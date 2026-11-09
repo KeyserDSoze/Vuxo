@@ -7,6 +7,7 @@ import { useStoredSession } from '../features/auth/useStoredSession';
 import { fetchCharacterHealth, type CharacterHealth, type CharacterHealthApiError } from '../features/health/characterHealthApi';
 import { CharacterRestAction } from '../features/health/CharacterRestAction';
 import { RefugePreparationBoard } from './RefugePreparationBoard';
+import { RefugeActivityCatalog } from './RefugeActivityCatalog';
 
 const activities = [
   { key: 'character', to: '/character', icon: PersonOutlined, authenticated: false },
@@ -126,6 +127,8 @@ export function RefugePage() {
           );
         })}
       </Grid>
+
+      <RefugeActivityCatalog />
 
       {session && (
         <Paper id="refuge-health" tabIndex={-1} data-testid="refuge-health" variant="outlined" sx={{ p: { xs: 2.5, sm: 3 } }}>

@@ -71,6 +71,25 @@ const initialization = i18n.use(initReactI18next).init({
           }
         },
         refuge: {
+        catalog: {
+          title: 'Attività fuori dal mondo',
+          description: 'Scopri le modalità versione per versione, anche senza entrare nella mappa.',
+          show: 'Sfoglia attività',
+          hide: 'Nascondi catalogo',
+          loading: 'Lettura del catalogo…',
+          unavailable: 'Catalogo non raggiungibile o non riconosciuto. Gli allenamenti locali restano accessibili dalle schede del Rifugio.',
+          retry: 'Riprova',
+          policy: 'Queste attività sono solo pratica locale. Non concedono XP, oggetti o ricompense e non provano abilità ai fini della progressione.',
+          rules: 'Regole: {{version}}',
+          open: 'Allenati',
+          status: { available: 'Giocabile', planned: 'In progettazione' },
+          activities: {
+            'rune-memory': 'Memoria delle rune',
+            'rune-reflex': 'Riflessi delle rune',
+            'rune-path': 'Percorso delle rune',
+            crafting: 'Creazione di oggetti'
+          }
+        },
           journey: {
             title: 'Il prossimo passo',
             description: 'Una guida pratica basata sulle informazioni disponibili. Scegli tu dove andare.',
@@ -723,6 +742,25 @@ const initialization = i18n.use(initReactI18next).init({
           }
         },
         refuge: {
+        catalog: {
+          title: 'Beyond-world activities',
+          description: 'Explore versioned practice modes without loading the game world.',
+          show: 'Browse activities',
+          hide: 'Hide catalog',
+          loading: 'Loading activity catalog…',
+          unavailable: 'Catalog unavailable or unrecognized. Local practice is still accessible from Refuge activity cards.',
+          retry: 'Try again',
+          policy: 'These are local practice activities only. They grant no XP, items or rewards and do not prove skill for progression.',
+          rules: 'Rules: {{version}}',
+          open: 'Practice',
+          status: { available: 'Playable', planned: 'Planned' },
+          activities: {
+            'rune-memory': 'Rune memory',
+            'rune-reflex': 'Rune reflexes',
+            'rune-path': 'Rune path',
+            crafting: 'Crafting'
+          }
+        },
           journey: {
             title: 'Your next step',
             description: 'A practical guide based on the available information. You choose where to go.',
