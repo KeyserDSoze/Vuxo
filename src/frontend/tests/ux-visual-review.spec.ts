@@ -1,0 +1,156 @@
+import { expect, test, type Page } from '@playwright/test';
+
+// On-demand evidence only; the normal 273+ test CI suite is not expanded.
+// Every owner response is synthetic and no real login or backend is used.
+const sizes = [[320, 568], [390, 844], [768, 1024], [1280, 720], [1920, 1080], [3440, 1440]] as const;
+const variants = [{ language: 'it', theme: 'light' }, { language: 'en', theme: 'dark' }] as const;
+const screens = [
+  { name: 'home', route: '/', ready: 'home-screen', owner: false },
+  { name: 'world', route: '/game', ready: 'game-canvas', owner: false },
+  { name: 'refuge', route: '/refuge', ready: 'refuge-command-health', owner: true },
+  { name: 'inventory', route: '/inventory', ready: 'inventory-stack-grid', owner: true },
+  { name: 'character', route: '/character', ready: 'character-studio-portrait', owner: false },
+  { name: 'portals', route: '/portals', ready: 'portal-console-gateway', owner: true },
+] as const;
+const cors = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'Authorization, Content-Type',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+};
+const grantId = '11111111-1111-4111-8111-111111111111';
+const seedId = '22222222-2222-4222-8222-222222222222';
+const catalog = {
+  catalogVersion: '0.0.1',
+  hairStyles: ['hair-1', 'hair-2', 'hair-3', 'hair-4'],
+  hairColors: ['black', 'brown', 'blonde', 'red', 'blue'],
+  faces: ['face-1', 'face-2', 'face-3'],
+  bodyTypes: ['body-1', 'body-2', 'body-3'],
+  skinTones: ['skin-1', 'skin-2', 'skin-3', 'skin-4', 'skin-5'],
+  topColors: ['blue', 'red', 'green', 'black', 'white'],
+  bottomStyles: ['shorts', 'skirt'],
+  bottomColors: ['black', 'blue', 'red', 'green', 'white'],
+  shoeStyles: ['shoe-1', 'shoe-2', 'shoe-3'],
+  shoeColors: ['white', 'black', 'brown', 'red', 'blue'],
+};
+
+async function mockDemoApi(page: Page) {
+  // Deny all unknown API reads and ALL API writes; do not leak any real user data.
+  await page.route('**/api/**', route => {
+    const req = route.request();
+    const path = new URL(req.url()).pathname;
+    if (req.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: cors });
+    if (req.method() !== 'GET') return route.fulfill({ status: 405, headers: cors });
+    if (path === '/api/meta/character-appearance') return route.fulfill({ json: catalog, headers: cors });
+    if (path === '/api/characters/me/health') return route.fulfill({
+      json: { name: 'Vuxian Demo', currentHealth: 7, maxHealth: 20, rulesVersion: 'character-health-v1' }, headers: cors,
+    });
+    if (path === '/api/characters/me/encounter') return route.fulfill({
+      json: { active: false, portalGrantId: null, expiresAtUtc: null }, headers: cors,
+    });
+    if (path === '/api/inventory') return route.fulfill({ json: [
+      { grantId, itemKey: 'item.rune_shard.v1', quantity: 1, awardedAtUtc: '2026-11-03T10:00:00Z' },
+      { grantId: seedId, itemKey: 'item.grove_seed.v1', quantity: 3, awardedAtUtc: '2026-11-02T10:00:00Z' },
+    ], headers: cors });
+    if (path === '/api/inventory/stacks') return route.fulfill({ json: [
+      { itemKey: 'item.rune_shard.v1', quantity: 1, equippedQuantity: 1, availableGrantIds: [] },
+      { itemKey: 'item.grove_seed.v1', quantity: 3, equippedQuantity: 0, availableGrantIds: [seedId] },
+    ], headers: cors });
+    if (path === '/api/equipment') return route.fulfill({ json: {
+      items: [{ slot: 'relic', grantId, itemKey: 'item.rune_shard.v1', equippedAtUtc: '2026-11-03T11:00:00Z' }],
+      stats: null, ruleVersion: 'equipment-v1',
+    }, headers: cors });
+    if (path === '/api/personal-content') return route.fulfill({ json: [
+      { id: grantId, contentKey: 'portal.memory.grove', portalKey: 'challenge.sequence.v1', expiresAtUtc: null },
+    ], headers: cors });
+    if (path.endsWith('/challenge')) return route.fulfill({ json: {
+      grantId, version: 'portal-sequence-v1', sequence: ['sun', 'moon', 'star', 'wave'],
+    }, headers: cors });
+    return route.fulfill({ status: 503, headers: cors });
+  });
+}
+
+async function prepare(page: Page, language: 'it' | 'en', theme: 'light' | 'dark', owner: boolean) {
+  await page.addInitScript(({ language, theme, owner }) => {
+    localStorage.clear();
+    localStorage.setItem('vuxo.language', language);
+    localStorage.setItem('vuxo.theme', theme);
+    if (owner) {
+      localStorage.setItem('vuxo.accessToken', 'visual-qa-synthetic-owner');
+      localStorage.setItem('vuxo.auth.expiresAtUtc', '2099-01-01T00:00:00Z');
+      localStorage.setItem('vuxo.auth.user', JSON.stringify({
+        id: 'visual-qa-only', displayName: 'Demo Vuxian', email: null,
+      }));
+    }
+  }, { language, theme, owner });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await mockDemoApi(page);
+}
+
+if (process.env.VUXO_VISUAL_REVIEW === '1') {
+  test.describe('viewport evidence for UX #165', () => {
+    test.setTimeout(60_000);
+    for (const variant of variants) {
+      for (const [width, height] of sizes) {
+        for (const screen of screens) {
+          test(screen.name + ' ' + variant.language + '-' + variant.theme + ' ' + width + 'x' + height,
+            async ({ page }, info) => {
+              await page.setViewportSize({ width, height });
+              await prepare(page, variant.language, variant.theme, screen.owner);
+              await page.goto('./#' + screen.route);
+              await expect(page.getByTestId(screen.ready).first()).toBeVisible();
+              await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme))
+                .toBe(variant.theme);
+              if (screen.name === 'world') {
+                await expect(page.getByTestId('game-canvas').locator('canvas')).toBeVisible();
+                await expect.poll(() => page.evaluate(() => {
+                  const host = document.querySelector('[data-testid="game-canvas"]');
+                  const canvas = host?.querySelector('canvas');
+                  if (!host || !canvas) return false;
+                  const a = host.getBoundingClientRect();
+                  const b = canvas.getBoundingClientRect();
+                  return Math.abs(a.width - b.width) <= 2 && Math.abs(a.height - b.height) <= 2;
+                })).toBe(true);
+              }
+              if (screen.owner) await expect(page.getByTestId('game-deck-scroll')).toBeVisible();
+              await expect.poll(() => page.evaluate(() => {
+                const root = document.documentElement;
+                return root.scrollWidth <= root.clientWidth + 1
+                  && root.scrollHeight <= window.innerHeight + 1
+                  && document.scrollingElement?.scrollTop === 0;
+              })).toBe(true);
+              await page.evaluate(() => document.fonts.ready);
+              const screenshot = info.outputPath('viewport.png');
+              await page.screenshot({ path: screenshot, animations: 'disabled' });
+              await info.attach('viewport', { path: screenshot, contentType: 'image/png' });
+              const metrics = await page.evaluate(() => ({
+                viewport: { width: innerWidth, height: innerHeight },
+                document: { width: document.documentElement.scrollWidth, height: document.documentElement.scrollHeight },
+                theme: document.documentElement.dataset.theme,
+                fullscreen: Boolean(document.fullscreenElement),
+              }));
+              await info.attach('metrics', {
+                body: JSON.stringify({ scene: screen.name, variant, metrics }, null, 2),
+                contentType: 'application/json',
+              });
+
+              // Additional visual states: client-only actions, no server mutations.
+              if ((width === 390 || width === 1280) && screen.name === 'inventory') {
+                await page.getByTestId('inventory-inspect').first().click();
+                await expect(page.getByRole('dialog')).toBeVisible();
+                const file = info.outputPath('inspection.png');
+                await page.screenshot({ path: file, animations: 'disabled' });
+                await info.attach('inventory-inspection', { path: file, contentType: 'image/png' });
+              }
+              if ((width === 390 || width === 1280) && screen.name === 'portals') {
+                await page.getByTestId('portal-start').first().click();
+                await expect(page.getByTestId('portal-challenge')).toBeVisible();
+                const file = info.outputPath('portal-preview.png');
+                await page.screenshot({ path: file, animations: 'disabled' });
+                await info.attach('portal-preview', { path: file, contentType: 'image/png' });
+              }
+            });
+        }
+      }
+    }
+  });
+}

@@ -1,0 +1,46 @@
+name: UX visual review
+
+on:
+  workflow_dispatch:
+  # Run automatically when this evidence pipeline changes; otherwise on demand.
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/ux-visual-review.yml
+      - src/frontend/tests/ux-visual-review.spec.ts
+
+permissions:
+  contents: read
+
+jobs:
+  screenshots:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: src/frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install frontend dependencies
+        run: npm install
+      - name: Install Chromium for Playwright
+        run: npx playwright install --with-deps chromium
+      - name: Capture viewport screenshot matrix (fixture data only)
+        env:
+          CI: "true"
+          VITE_BASE_PATH: /Vuxo/
+          VUXO_VISUAL_REVIEW: "1"
+        run: npx playwright test tests/ux-visual-review.spec.ts --workers=2
+      - name: Upload screenshots and HTML report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ux-visual-evidence
+          path: |
+            src/frontend/playwright-report/
+            src/frontend/test-results/
+          retention-days: 14
+          if-no-files-found: warn
