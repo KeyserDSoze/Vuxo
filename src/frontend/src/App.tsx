@@ -151,7 +151,7 @@ export function App() {
                   '&:focus-visible': { outline: 2, outlineColor: 'primary.main' },
                 }}>
                   <ListItemIcon sx={{ minWidth: 28, color: selected ? 'primary.main' : 'text.secondary' }}><NavIcon fontSize="small" /></ListItemIcon>
-                  <ListItemText primary={t(item.key)} primaryTypographyProps={{ fontWeight: selected ? 800 : 600 }} />
+                  <ListItemText primary={t(item.key)} sx={{ '& .MuiTypography-root': { fontWeight: selected ? 800 : 600 } }} />
                 </ListItemButton>
               );
             })}
