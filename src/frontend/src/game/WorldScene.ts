@@ -69,6 +69,7 @@ export class WorldScene extends Phaser.Scene {
         host?.removeAttribute('data-e2e-avatar-appearance')
         host?.removeAttribute('data-e2e-name-label-bounds')
         host?.removeAttribute('data-e2e-camera-zoom')
+        host?.removeAttribute('data-e2e-world-coverage')
       }
       this.realtime.setMovementIntent(0, 0)
       this.unsubscribe?.()
@@ -161,9 +162,12 @@ export class WorldScene extends Phaser.Scene {
         this.onPortalScreenPosition(null)
       } else {
         const camera = this.cameras.main
+        // With zoom > 1 Phaser scrollX/scrollY are NOT the left/top of the
+        // visible area: camera.worldView includes zoom about the center.
+        const visible = camera.worldView
         this.onPortalScreenPosition({
-          x: camera.x + (portal.x * TILE_SIZE - camera.scrollX) * camera.zoom,
-          y: camera.y + (portal.y * TILE_SIZE - camera.scrollY) * camera.zoom,
+          x: camera.x + (portal.x * TILE_SIZE - visible.left) * camera.zoom,
+          y: camera.y + (portal.y * TILE_SIZE - visible.top) * camera.zoom,
         })
       }
     }
@@ -332,14 +336,28 @@ export class WorldScene extends Phaser.Scene {
     // create collision, rewards, server-owned positions or world state.
     // Redraw only when the visible tile bounds change (including on resize).
     const camera = this.cameras.main
-    const zoom = Math.max(0.1, camera.zoom)
-    const left = Math.floor(camera.scrollX / TILE_SIZE) - 2
-    const top = Math.floor(camera.scrollY / TILE_SIZE) - 2
-    const right = Math.ceil((camera.scrollX + camera.width / zoom) / TILE_SIZE) + 2
-    const bottom = Math.ceil((camera.scrollY + camera.height / zoom) / TILE_SIZE) + 2
+    // camera.scrollX/Y are not the visible top-left under centered zoom.
+    // worldView is the true zoom-correct view rectangle, including camera
+    // follow and RESIZE. Otherwise ultrawide gets blank right/bottom strips.
+    const view = camera.worldView
+    const left = Math.floor(view.left / TILE_SIZE) - 2
+    const top = Math.floor(view.top / TILE_SIZE) - 2
+    const right = Math.ceil(view.right / TILE_SIZE) + 2
+    const bottom = Math.ceil(view.bottom / TILE_SIZE) + 2
     const bounds = `${left}:${top}:${right}:${bottom}`
     if (bounds === this.terrainBounds) return
     this.terrainBounds = bounds
+    if (import.meta.env.VITE_E2E_REALTIME === 'true') {
+      document.querySelector('[data-testid="game-canvas"]')
+        ?.setAttribute('data-e2e-world-coverage', JSON.stringify({
+          drawnLeft: left * TILE_SIZE,
+          drawnTop: top * TILE_SIZE,
+          drawnRight: (right + 1) * TILE_SIZE,
+          drawnBottom: (bottom + 1) * TILE_SIZE,
+          visibleLeft: view.left, visibleTop: view.top,
+          visibleRight: view.right, visibleBottom: view.bottom,
+        }))
+    }
     graphics.clear()
 
     for (let tileX = left; tileX <= right; tileX++) {

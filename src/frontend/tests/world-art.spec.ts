@@ -296,6 +296,28 @@ test('adaptive camera keeps two canonical outfits, viewport HUD and movement sta
         && document.documentElement.scrollHeight <= window.innerHeight + 1
         && document.scrollingElement!.scrollTop === 0
     })).toBe(true)
+    // Terrain must cover Phaser's actual centered/zoomed worldView, not the
+    // misleading scrollX/Y origin. This guards blank bars on ultrawide.
+    await expect.poll(() => page.evaluate(() => {
+      const host = document.querySelector('[data-testid="game-canvas"]')
+      const canvas = host?.querySelector('canvas') as HTMLCanvasElement | null
+      const encoded = host?.getAttribute('data-e2e-world-coverage')
+      if (!canvas || !encoded) return false
+      const coverage = JSON.parse(encoded) as {
+        drawnLeft: number; drawnTop: number
+        drawnRight: number; drawnBottom: number
+        visibleLeft: number; visibleTop: number
+        visibleRight: number; visibleBottom: number
+      }
+      const zoom = Number(host?.getAttribute('data-e2e-camera-zoom'))
+      return Number.isFinite(zoom) && zoom >= 1
+        && coverage.drawnLeft <= coverage.visibleLeft
+        && coverage.drawnTop <= coverage.visibleTop
+        && coverage.drawnRight >= coverage.visibleRight
+        && coverage.drawnBottom >= coverage.visibleBottom
+        && Math.abs((coverage.visibleRight - coverage.visibleLeft) * zoom - canvas.width) <= 4
+        && Math.abs((coverage.visibleBottom - coverage.visibleTop) * zoom - canvas.height) <= 4
+    })).toBe(true)
     await expect(page.getByTestId('world-connection-status')).toBeVisible()
     await expect(page.getByTestId('game-fullscreen-toggle')).toBeVisible()
     await expect(self).toHaveAttribute('data-player-x', String(originalX))
