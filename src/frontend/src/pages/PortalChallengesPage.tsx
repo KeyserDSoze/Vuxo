@@ -1,4 +1,5 @@
-import { Alert, Box, Button, CircularProgress, Paper, Stack, Typography } from '@mui/material';
+import { Alert, Box, Button, Chip, CircularProgress, Grid, LinearProgress, Paper, Stack, Typography } from '@mui/material';
+import { AutoAwesome } from '@mui/icons-material';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link as RouterLink } from 'react-router-dom';
@@ -15,6 +16,9 @@ import {
 } from '../features/portals/portalApi';
 
 const runes = ['sun', 'moon', 'star', 'wave'] as const;
+const runeMarks: Record<typeof runes[number], string> = {
+  sun: '☀', moon: '☾', star: '✦', wave: '≈',
+};
 const previewDurationMs = 3500;
 
 type PortalChallengesPageProps = {
@@ -131,11 +135,23 @@ export function PortalChallengesPage({
   };
 
   return (
-    <Stack spacing={2} data-testid="portal-page">
-      <Stack spacing={1}>
-        <Typography variant="h2" component="h1">{t('title')}</Typography>
-        <Typography color="text.secondary">{t('description')}</Typography>
-      </Stack>
+    <Stack spacing={2} data-testid="portal-page" className="vuxo-portal-console">
+      <Paper component="header" className="vuxo-portal-console__hero" variant="outlined"
+        data-testid="portal-console-hero" sx={{ p: { xs: 1.5, sm: 2.5 } }}>
+        <Stack direction={{ xs: 'column', sm: 'row' }} sx={{ gap: 1.5, justifyContent: 'space-between', alignItems: { sm: 'center' } }}>
+          <Box>
+            <Typography component="p" variant="overline" color="primary.main" sx={{ fontWeight: 850 }}>
+              {t('console.eyebrow')}
+            </Typography>
+            <Typography variant="h2" component="h1">{t('title')}</Typography>
+            <Typography color="text.secondary">{t('description')}</Typography>
+          </Box>
+          {session && !loading && (
+            <Chip data-testid="portal-console-count" variant="outlined" color="primary"
+              icon={<AutoAwesome />} label={t('console.availableCount', { count: grants.length })} />
+          )}
+        </Stack>
+      </Paper>
 
       {!session ? (
         <Alert severity="info" data-testid="portal-auth-required">
@@ -175,28 +191,40 @@ export function PortalChallengesPage({
       ) : null}
 
       {session && !challenge && grants.length > 0 ? (
-        <Stack spacing={2}>
+        <Stack spacing={1.5} data-testid="portal-console-gateways">
           <Typography variant="h5">{t('available')}</Typography>
-          {grants.map(grant => (
-            <Paper key={grant.id} variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between' }}>
-                <Typography sx={{ overflowWrap: 'anywhere' }}>{grant.contentKey}</Typography>
-                <Button
-                  data-testid="portal-start"
-                  variant="contained"
-                  disabled={busy}
-                  onClick={() => void start(grant)}
-                >{t('start')}</Button>
-              </Stack>
-            </Paper>
-          ))}
+          <Grid container spacing={1.5}>
+            {grants.map(grant => (
+              <Grid key={grant.id} size={{ xs: 12, md: 6, xl: 4 }}>
+                <Paper variant="outlined" className="vuxo-portal-console__gateway"
+                  data-testid="portal-console-gateway" sx={{ p: { xs: 1.5, sm: 2.5 } }}>
+                  <Stack spacing={1.5} sx={{ alignItems: 'flex-start', height: '100%' }}>
+                    <Box aria-hidden="true" className="vuxo-portal-console__gateway-mark">✦</Box>
+                    <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere', flexGrow: 1 }}>
+                      {t('console.assignment', { key: grant.contentKey })}
+                    </Typography>
+                    <Button data-testid="portal-start" variant="contained" startIcon={<AutoAwesome />}
+                      disabled={busy} onClick={() => void start(grant)}>
+                      {t('start')}
+                    </Button>
+                  </Stack>
+                </Paper>
+              </Grid>
+            ))}
+          </Grid>
         </Stack>
       ) : null}
 
       {challenge && selected ? (
-        <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 } }} data-testid="portal-challenge">
-          <Stack spacing={2.5}>
-            <Typography variant="h5">{t('memoryTitle')}</Typography>
+        <Paper variant="outlined" sx={{ p: { xs: 1.5, sm: 3 } }}
+          className="vuxo-portal-console__arena" data-testid="portal-challenge">
+          <Stack spacing={2}>
+            <Stack direction="row" sx={{ gap: 1.5, flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Typography variant="h5">{t('memoryTitle')}</Typography>
+              <Chip data-testid="portal-console-phase" size="small" variant="outlined" color={completed ? 'success' : 'primary'}
+                label={t(completed ? 'console.completeStage' : showing ? 'console.previewStage' : 'console.answerStage')} />
+            </Stack>
+            <Typography variant="caption" color="text.secondary">{t('console.serverPolicy')}</Typography>
             {completed ? (
               <>
                 <Alert severity="success" data-testid="portal-complete">{t('completed')}</Alert>
@@ -211,10 +239,13 @@ export function PortalChallengesPage({
             ) : showing ? (
               <>
                 <Typography>{t('memorize')}</Typography>
-                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }} data-testid="portal-preview">
+                <Box className="vuxo-portal-console__preview" data-testid="portal-preview">
                   {challenge.sequence.map((rune, index) => (
-                    <Paper key={index} variant="outlined" sx={{ p: 2, minWidth: 64, textAlign: 'center' }}>
-                      <Typography sx={{ fontWeight: 700 }}>{t('runes.' + rune)}</Typography>
+                    <Paper key={index} variant="outlined" className="vuxo-portal-console__preview-rune">
+                      <Box component="span" aria-hidden="true" className="vuxo-portal-console__rune-mark">
+                        {runeMarks[rune as keyof typeof runeMarks] ?? '✧'}
+                      </Box>
+                      <Typography sx={{ fontWeight: 800 }}>{t('runes.' + rune)}</Typography>
                     </Paper>
                   ))}
                 </Box>
@@ -225,15 +256,41 @@ export function PortalChallengesPage({
                 <Typography data-testid="portal-progress">
                   {t('progress', { current: answer.length, total: challenge.sequence.length })}
                 </Typography>
-                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                <Box component="ol" className="vuxo-portal-console__answer"
+                  aria-label={t('console.answerSlots')} data-testid="portal-answer-slots">
+                  {Array.from({ length: challenge.sequence.length }, (_, index) => {
+                    const entered = answer[index] as typeof runes[number] | undefined;
+                    return (
+                      <Box component="li" key={index} data-testid={'portal-answer-slot-' + index}
+                        aria-label={entered ? t('runes.' + entered) : t('console.emptySlot')}
+                        className={entered ? 'vuxo-portal-console__answer-slot is-filled' : 'vuxo-portal-console__answer-slot'}>
+                        {entered ? (
+                          <>
+                            <Box aria-hidden="true" component="span">{runeMarks[entered]}</Box>
+                            <Typography component="span" variant="caption">{t('runes.' + entered)}</Typography>
+                          </>
+                        ) : <Box component="span" aria-hidden="true">·</Box>}
+                      </Box>
+                    );
+                  })}
+                </Box>
+                <LinearProgress variant="determinate" data-testid="portal-answer-meter"
+                  aria-label={t('progress', { current: answer.length, total: challenge.sequence.length })}
+                  value={challenge.sequence.length > 0 ? answer.length / challenge.sequence.length * 100 : 0}
+                  sx={{ height: 8, borderRadius: 4 }} />
+                <Box component="div" className="vuxo-portal-console__pad" role="group" aria-label={t('console.runePad')}>
                   {runes.map(rune => (
-                    <Button
-                      key={rune}
-                      data-testid={'portal-rune-' + rune}
-                      variant="outlined"
+                    <Button key={rune} data-testid={'portal-rune-' + rune} variant="outlined"
+                      className="vuxo-portal-console__rune-button"
                       disabled={busy || answer.length >= challenge.sequence.length}
-                      onClick={() => setAnswer(values => [...values, rune])}
-                    >{t('runes.' + rune)}</Button>
+                      onClick={() => setAnswer(values => [...values, rune])}>
+                      <Box component="span" aria-hidden="true" className="vuxo-portal-console__rune-mark">
+                        {runeMarks[rune]}
+                      </Box>
+                      <Typography component="span" variant="body2" sx={{ fontWeight: 800 }}>
+                        {t('runes.' + rune)}
+                      </Typography>
+                    </Button>
                   ))}
                 </Box>
                 <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ alignItems: 'flex-start' }}>
