@@ -648,6 +648,18 @@ const initialization = i18n.use(initReactI18next).init({
         character: {
           editor: {
             eyebrow: 'Creazione personaggio',
+            studio: {
+              navigation: 'Sezioni editor personaggio',
+              identity: 'Identità e punti',
+              appearance: 'Aspetto e colori',
+              portrait: 'Anteprima del tuo Vuxian',
+              tryLook: 'Prova un altro look',
+              localNote: 'Il look cambia solo in questa anteprima; la creazione viene confermata dal server.',
+              budget: 'Punti disponibili',
+              remaining: '{{count}} punti rimasti',
+              excess: '{{count}} punti oltre il limite',
+              derived: 'Valori stimati dalle regole del personaggio; il server conferma i valori definitivi.',
+            },
             title: 'Costruisci il tuo Vuxian',
             description: 'Scegli un aspetto iniziale, distribuisci i 10 punti e controlla subito le statistiche derivate. Le regole finali vengono sempre validate dal server.',
             loading: 'Caricamento catalogo aspetto…',
@@ -1353,6 +1365,18 @@ const initialization = i18n.use(initReactI18next).init({
         character: {
           editor: {
             eyebrow: 'Character creation',
+            studio: {
+              navigation: 'Character editor sections',
+              identity: 'Identity and points',
+              appearance: 'Appearance and colors',
+              portrait: 'Your Vuxian preview',
+              tryLook: 'Try another look',
+              localNote: 'The look changes only in this preview; character creation is confirmed by the server.',
+              budget: 'Available points',
+              remaining: '{{count}} points remaining',
+              excess: '{{count}} points over the limit',
+              derived: 'Values estimated from character rules; the server confirms final values.',
+            },
             title: 'Build your Vuxian',
             description: 'Choose an initial look, distribute the 10 points and preview derived stats immediately. Final rules are always validated by the server.',
             loading: 'Loading appearance catalog…',
