@@ -64,6 +64,17 @@ Final production frontend domain: **https://vuxo.quest** on GitHub Pages (see is
 
 The existing API host is **https://api.vuxoapi.xyz** until a new API domain is explicitly configured. The Cloudflare published service URL must be **http://api:8080** when cloudflared and the API share the Compose network. Do not point Cloudflare to localhost inside its container. Never open 5432, 6379, 11434, the Docker socket or admin dashboard to the public internet.
 
+## Public post-deploy privacy contract (issue #145)
+
+The GitHub-hosted `verify-public-auth` job runs after a successful Raspberry deploy and uses the canonical `https://api.vuxoapi.xyz` host. In addition to health, deployed commit SHA, the Google/Microsoft consumer configuration, CORS and the Microsoft redirect bridge, it now performs read-only probes against:
+
+- `GET /api/personal-content/history/completed`
+- `GET /api/personal-content/history/outcomes`
+
+Each anonymous GET carries the production `Origin: https://vuxo.quest` header and **must return HTTP 401** (not 200, a redirect or a fallback page), with the canonical CORS origin and credentials policy. Preflight OPTIONS must permit GET and Authorization. **No JWT, user ID or game data is sent or logged.** The workflow fails if an endpoint is absent, accidentally public or blocked by Cloudflare/CORS. A failure does **not** undo an already applied EF migration or the database backup; investigate the production routing/API version and rerun the check after fixing it. Tests for this contract run offline in the frontend CI job (`node --test scripts/verify-public-auth.test.mjs`).
+
+This smoke proves **anonymous isolation** and routing, not successful authenticated owner-only behavior, nor end-user Google/Microsoft OAuth. Those require the existing integration tests and final real-user acceptance (issues #119, #136, #139).
+
 ## 4. Production runtime and health
 
 The regular automatic deploy uses these files:

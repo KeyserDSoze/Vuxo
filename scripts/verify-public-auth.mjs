@@ -73,6 +73,43 @@ async function checkOnce(fetcher, expectedCommit) {
     throw new Error('preflight: Content-Type not authorized');
   }
 
+  // Anonymous probes prove that the public reverse proxy forwards the
+  // owner-only routes to the deployed API without exposing private history.
+  // No JWT, cookie, player ID, or gameplay payload is transmitted or logged.
+  for (const name of ['completed', 'outcomes']) {
+    const context = 'history: ' + name;
+    const path = API + '/api/personal-content/history/' + name;
+
+    const anonymous = await get(path, { headers: { Origin: WEB } });
+    if (anonymous.status !== 401) {
+      throw new Error(context + ': anonymous GET must return HTTP 401');
+    }
+    requireCors(anonymous, context);
+
+    const options = await get(path, {
+      method: 'OPTIONS',
+      headers: {
+        Origin: WEB,
+        'Access-Control-Request-Method': 'GET',
+        'Access-Control-Request-Headers': 'authorization',
+      },
+    });
+    if (![200, 204].includes(options.status)) {
+      throw new Error(context + ': preflight status is not allowed');
+    }
+    requireCors(options, context);
+    const allowedMethods = (options.headers.get('access-control-allow-methods') ?? '')
+      .toUpperCase().split(',').map(value => value.trim());
+    const allowedHeaders = (options.headers.get('access-control-allow-headers') ?? '')
+      .toLowerCase().split(',').map(value => value.trim());
+    if (!allowedMethods.includes('GET') && !allowedMethods.includes('*')) {
+      throw new Error(context + ': preflight GET is not allowed');
+    }
+    if (!allowedHeaders.includes('authorization') && !allowedHeaders.includes('*')) {
+      throw new Error(context + ': preflight Authorization is not allowed');
+    }
+  }
+
   const bridge = await get(WEB + '/redirect.html');
   requireOk(bridge, 'Microsoft redirect bridge');
   if (!bridge.headers.get('content-type')?.includes('text/html')) {
@@ -101,7 +138,7 @@ export async function verifyPublicAuth({
       return;
     } catch (error) {
       if (attempt === attempts) {
-        const message = error instanceof Error && /^(health|version|providers|google|microsoft|preflight|Microsoft redirect bridge):/.test(error.message)
+        const message = error instanceof Error && /^(health|version|providers|google|microsoft|preflight|history|Microsoft redirect bridge):/.test(error.message)
           ? error.message : 'network, response or timeout error';
         throw new Error('Public authentication check failed: ' + message);
       }
@@ -111,7 +148,7 @@ export async function verifyPublicAuth({
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   verifyPublicAuth({ expectedCommit: process.env.VUXO_EXPECTED_COMMIT })
-    .then(() => console.log('PASS public health, commit, providers, CORS preflight, MSAL bridge'))
+    .then(() => console.log('PASS public health, commit, providers, CORS, private history auth, MSAL bridge'))
     .catch(error => {
       console.error(error.message);
       process.exitCode = 1;
