@@ -109,9 +109,26 @@ export function GameCanvas() {
     observer.observe(host.current)
     resizeWorld()
 
+    // Losing browser focus (including a background tab) can lose keyup and
+    // pointerup. Freeze the local controller and send a neutral server intent.
+    const suspendMovement = () => scene.setWindowInputActive(false)
+    const resumeMovement = () => {
+      if (!document.hidden) scene.setWindowInputActive(true)
+    }
+    const onVisibilityChange = () => {
+      if (document.hidden) suspendMovement()
+      else resumeMovement()
+    }
+    window.addEventListener('blur', suspendMovement)
+    window.addEventListener('focus', resumeMovement)
+    document.addEventListener('visibilitychange', onVisibilityChange)
+
     void client.connect()
 
     return () => {
+      window.removeEventListener('blur', suspendMovement)
+      window.removeEventListener('focus', resumeMovement)
+      document.removeEventListener('visibilitychange', onVisibilityChange)
       observer.disconnect()
       unsubscribe()
       realtime.current = null
@@ -328,6 +345,7 @@ export function GameCanvas() {
           onPointerDown={() => touch(0, -1)}
           onPointerUp={stopTouch}
           onPointerCancel={stopTouch}
+          onPointerLeave={stopTouch}
           className="vuxo-game-touch-direction"
           sx={{ gridColumn: 2, gridRow: 1 }}
         >
@@ -339,6 +357,7 @@ export function GameCanvas() {
           onPointerDown={() => touch(-1, 0)}
           onPointerUp={stopTouch}
           onPointerCancel={stopTouch}
+          onPointerLeave={stopTouch}
           className="vuxo-game-touch-direction"
           sx={{ gridColumn: 1, gridRow: 2 }}
         >
@@ -350,6 +369,7 @@ export function GameCanvas() {
           onPointerDown={() => touch(0, 1)}
           onPointerUp={stopTouch}
           onPointerCancel={stopTouch}
+          onPointerLeave={stopTouch}
           className="vuxo-game-touch-direction"
           sx={{ gridColumn: 2, gridRow: 2 }}
         >
@@ -361,6 +381,7 @@ export function GameCanvas() {
           onPointerDown={() => touch(1, 0)}
           onPointerUp={stopTouch}
           onPointerCancel={stopTouch}
+          onPointerLeave={stopTouch}
           className="vuxo-game-touch-direction"
           sx={{ gridColumn: 3, gridRow: 2 }}
         >

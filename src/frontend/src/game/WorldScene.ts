@@ -30,6 +30,7 @@ export class WorldScene extends Phaser.Scene {
   private portals: WorldPortalMarker[] = []
   private ready = false
   private inputLocked = false
+  private inputSuspended = false
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys
   private wasd!: Record<'W' | 'A' | 'S' | 'D', Phaser.Input.Keyboard.Key>
   private unsubscribe: (() => void) | null = null
@@ -121,6 +122,17 @@ export class WorldScene extends Phaser.Scene {
     }
   }
 
+  // Browser blur and hidden tabs can swallow the keyup event. Stop the
+  // server-bound movement intention and clear Phaser's held-key state before
+  // accepting a new keydown. This never changes an authoritative position.
+  setWindowInputActive(active: boolean): void {
+    this.inputSuspended = !active
+    if (this.ready) this.input.keyboard?.resetKeys()
+    this.lastHorizontal = 0
+    this.lastVertical = 0
+    this.realtime.setMovementIntent(0, 0)
+  }
+
   private drawPortals(): void {
     const current = new Set(this.portals.map(portal => portal.id))
     for (const [id, visual] of this.portalVisuals) {
@@ -181,10 +193,11 @@ export class WorldScene extends Phaser.Scene {
       visual.ring.setScale(this.reducedMotion ? 1 : 1 + Math.sin(time / 300) * 0.08)
     }
 
-    const horizontal = this.inputLocked ? 0 :
+    const keyboardBlocked = this.inputLocked || this.inputSuspended
+    const horizontal = keyboardBlocked ? 0 :
       (this.cursors.right.isDown || this.wasd.D.isDown ? 1 : 0)
       - (this.cursors.left.isDown || this.wasd.A.isDown ? 1 : 0)
-    const vertical = this.inputLocked ? 0 :
+    const vertical = keyboardBlocked ? 0 :
       (this.cursors.down.isDown || this.wasd.S.isDown ? 1 : 0)
       - (this.cursors.up.isDown || this.wasd.W.isDown ? 1 : 0)
 

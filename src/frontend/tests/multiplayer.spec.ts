@@ -84,6 +84,60 @@ test('mobile viewport exposes touch controls and touch movement', async ({ page 
   await expect.poll(() => numericAttribute(player, 'data-player-x')).toBeGreaterThan(initialX);
 });
 
+test('blur stops keyboard travel, rejects a stale held key and resumes only after a new press', async ({ page }) => {
+  await configurePlayer(page, 'blur-player', 'Focus Vuxian');
+  await page.goto(gameUrl);
+  await expectConnected(page);
+
+  const player = page.locator('[data-player-id="blur-player"]');
+  const initialX = await numericAttribute(player, 'data-player-x');
+  await page.getByTestId('game-canvas').locator('canvas').click();
+  await page.keyboard.down('ArrowRight');
+  await expect.poll(() => numericAttribute(player, 'data-player-x')).toBeGreaterThan(initialX);
+
+  // A browser can lose keyup while the key is still physically held.
+  await page.evaluate(() => window.dispatchEvent(new Event('blur')));
+  await page.waitForTimeout(300);
+  const stoppedX = await numericAttribute(player, 'data-player-x');
+  await page.waitForTimeout(250);
+  expect(await numericAttribute(player, 'data-player-x')).toBe(stoppedX);
+
+  // Restoring focus must not replay the old keydown.
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await page.waitForTimeout(250);
+  expect(await numericAttribute(player, 'data-player-x')).toBe(stoppedX);
+  await page.keyboard.up('ArrowRight');
+  await page.keyboard.down('ArrowRight');
+  await expect.poll(() => numericAttribute(player, 'data-player-x')).toBeGreaterThan(stoppedX);
+  await page.keyboard.up('ArrowRight');
+});
+
+test('leaving the touch direction with mouse pressed stops movement on narrow screens', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await configurePlayer(page, 'touch-leave-player', 'Touch Exit Vuxian');
+  await page.goto(gameUrl);
+  await expectConnected(page);
+
+  const player = page.locator('[data-player-id="touch-leave-player"]');
+  const initialX = await numericAttribute(player, 'data-player-x');
+  const right = page.getByTestId('touch-right');
+  await right.hover();
+  await page.mouse.down();
+  await expect.poll(() => numericAttribute(player, 'data-player-x')).toBeGreaterThan(initialX);
+
+  // Move out while pressed: pointerup is delivered to the canvas, not button.
+  await page.mouse.move(240, 400);
+  await page.mouse.up();
+  await page.waitForTimeout(300);
+  const stoppedX = await numericAttribute(player, 'data-player-x');
+  await page.waitForTimeout(250);
+  expect(await numericAttribute(player, 'data-player-x')).toBe(stoppedX);
+
+  await right.dispatchEvent('pointerdown');
+  await expect.poll(() => numericAttribute(player, 'data-player-x')).toBeGreaterThan(stoppedX);
+  await right.dispatchEvent('pointercancel');
+});
+
 async function configurePlayer(page: Page, playerId: string, characterName: string): Promise<void> {
   await page.addInitScript(({ id, name }) => {
     localStorage.setItem('vuxo.language', 'it');
