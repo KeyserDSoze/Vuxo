@@ -69,8 +69,17 @@ jobs:
             -e POSTGRES_USER=vuxo \
             -e POSTGRES_DB=postgres \
             -e POSTGRES_HOST_AUTH_METHOD=trust \
-            -p 127.0.0.1:55432:5432 \
+            -p 127.0.0.1::5432 \
             postgres:17-alpine
+          # Each hosted runner receives a free, loopback-only TCP port. A
+          # fixed host port can collide with other test infrastructure.
+          binding="$(docker port vuxo-postgres-integration 5432/tcp)"
+          port="${binding##*:}"
+          if [[ "$binding" != 127.0.0.1:* || ! "$port" =~ ^[0-9]{2,5}$ ]]; then
+            echo "::error::Invalid PostgreSQL loopback port allocation"
+            exit 1
+          fi
+          echo "VUXO_TEST_POSTGRES_CONNECTION_STRING=Host=127.0.0.1;Port=$port;Database=postgres;Username=vuxo;Pooling=false;Include Error Detail=true" >> "$GITHUB_ENV"
           for attempt in $(seq 1 30); do
             if docker exec vuxo-postgres-integration pg_isready -U vuxo -d postgres >/dev/null 2>&1; then
               exit 0
@@ -86,7 +95,6 @@ jobs:
       - name: Test
         env:
           Observability__OtlpEndpoint: http://127.0.0.1:4317
-          VUXO_TEST_POSTGRES_CONNECTION_STRING: Host=127.0.0.1;Port=55432;Database=postgres;Username=vuxo;Pooling=false;Include Error Detail=true
         run: dotnet test Vuxo.sln -c Release --no-build --logger trx --results-directory TestResults
       - name: Verify PostgreSQL backup and restore tooling
         run: |
