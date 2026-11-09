@@ -22,6 +22,7 @@ export function GameDeck({ children }: PropsWithChildren) {
   const { t } = useTranslation();
   const location = useLocation();
   const selected = routes.find(route => route.to === location.pathname) ?? routes[0];
+  const SelectedIcon = selected.icon;
   const activeLinkRef = useRef<HTMLAnchorElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
@@ -75,7 +76,7 @@ export function GameDeck({ children }: PropsWithChildren) {
       <Box component="section" className="vuxo-deck__main" sx={{ borderColor: 'divider', bgcolor: 'background.paper' }}>
         <Stack className="vuxo-deck__topline" direction="row" sx={{ alignItems: 'center', gap: 1.25, borderColor: 'divider' }}>
           <Box className="vuxo-deck__topline-rune" aria-hidden="true" sx={{ color: 'primary.main', bgcolor: 'action.hover' }}>
-            <selected.icon fontSize="small" />
+            <SelectedIcon fontSize="small" />
           </Box>
           <Typography component="span" variant="overline" sx={{ color: 'text.secondary', fontWeight: 850, letterSpacing: '.15em' }}>
             VUXO
