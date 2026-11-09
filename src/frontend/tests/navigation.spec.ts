@@ -122,3 +122,36 @@ function makeJwt(role: string, exp = 4_102_444_800): string {
   const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString('base64url');
   return encode({ alg: 'none', typ: 'JWT' }) + '.' + encode({ role, exp }) + '.e2e';
 }
+
+
+for (const width of [320, 390, 768, 1200, 1280, 1920]) {
+  test('game command navigation stays inside viewport at ' + width + 'px', async ({ page }) => {
+    await page.setViewportSize({ width, height: 720 });
+    await page.goto('./#/');
+    await expect(page.getByTestId('shell-brand')).toHaveAttribute('href', '#/');
+    await expect.poll(() => page.evaluate(() =>
+      document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1
+    )).toBe(true);
+    if (width >= 1200) {
+      await expect(page.getByTestId('desktop-nav').getByRole('link', { name: 'Home' })).toHaveAttribute('aria-current', 'page');
+      await expect(page.getByTestId('desktop-nav').getByRole('link', { name: 'Gioco' })).toBeVisible();
+    } else {
+      await expect(page.getByTestId('mobile-menu-toggle')).toBeVisible();
+      await page.getByTestId('mobile-menu-toggle').click();
+      await expect(page.getByTestId('mobile-nav').getByRole('link', { name: 'Home' })).toHaveAttribute('aria-current', 'page');
+      await page.keyboard.press('Escape');
+    }
+  });
+}
+
+test('active game navigation remains in sync across game and refuge without a reload', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.goto('./#/');
+  const game = page.getByTestId('desktop-nav').getByRole('link', { name: 'Gioco' });
+  await game.click();
+  await expect(page).toHaveURL(/#\/game$/);
+  await expect(game).toHaveAttribute('aria-current', 'page');
+  await expect(game).toHaveAttribute('data-active', 'true');
+  await page.getByTestId('desktop-nav').getByRole('link', { name: 'Home' }).click();
+  await expect(page.getByTestId('desktop-nav').getByRole('link', { name: 'Home' })).toHaveAttribute('aria-current', 'page');
+});
