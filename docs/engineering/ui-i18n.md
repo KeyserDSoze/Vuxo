@@ -48,3 +48,11 @@ Shell navigation and icon-assisted theme/language controls expose accessible lab
 The API returns stable machine-readable codes rather than translated domain errors. Contract tests verify that `Accept-Language: it-IT` and `en-US` produce the same error code.
 
 Dynamic narrative follows `docs/engineering/narrative-localization.md`: authoritative rules/rewards/conditions live on the canonical decision, while localized text is a render carrying locale and render-version metadata.
+
+## Mondo game-first (0.0.1, #154/#155)
+
+La route `/game` usa la viewport `100dvh` residua sotto l'AppBar: il renderer Phaser non è una card da 960×540. La superficie `game-canvas` riempie l'host; `Scale.RESIZE` e `ResizeObserver` aggiornano le dimensioni in modo da ampliare/restringere i tile visibili senza distorcere gli sprite al cambio rapporto d'aspetto. I pannelli HUD, portali e controlli touch restano UI MUI sovrapposta e usano `--vuxo-game-hud-*` derivati dai token del tema.
+
+Il pulsante fullscreen e la scorciatoia `F` usano la Fullscreen API sul contenitore che include HUD, Phaser e Dialog. `Escape` è gestito dal browser; non tentare di simulare `F11` programmaticamente. L'errore è localizzato IT/EN quando fullscreen viene rifiutato. La finestra portale usa il contenitore fullscreen come destinazione del Portal MUI per essere visibile anche in modalità immersiva.
+
+Per la Home, il Rifugio, la cronologia e l'inventario: non tagliare contenuti per imporre artificialmente il no-scroll. La futura #154 prevede scroll **interni** a pannelli dichiarati, con vista del mondo e azioni principali sempre visibili.
