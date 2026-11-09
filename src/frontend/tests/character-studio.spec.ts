@@ -78,8 +78,9 @@ test('another look cycles valid server catalog options and persists draft withou
   await expect(page.getByTestId('character-point-budget')).toHaveText(pointsBefore);
   expect(posts).toEqual([]);
   await page.reload();
+  const optionLabels: Record<string, string> = { 'hair-1': 'Corti', 'hair-2': 'Medi', 'hair-3': 'Lunghi', 'hair-4': 'Ricci' };
   await expect(page.getByTestId('hairStyle-select').getByRole('combobox'))
-    .toHaveText((await page.locator('[data-testid="hairStyle-select"] .MuiSelect-select').innerText()));
+    .toHaveText(optionLabels[after.appearance.hairStyle]);
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('vuxo.character.draft') ?? 'null')?.appearance?.hairStyle))
     .toBe(after.appearance.hairStyle);
   expect(posts).toEqual([]);
