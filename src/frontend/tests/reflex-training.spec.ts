@@ -96,3 +96,83 @@ test('keyboard navigation activates rune practice without persisting a score', a
   await expect.poll(() => page.evaluate(() =>
     document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
 });
+
+
+test('pausing reflex training preserves round and target, hides choices, and resumes without saving scores', async ({ page }) => {
+  const gameplayRequests: string[] = [];
+  page.on('request', request => {
+    const pathname = new URL(request.url()).pathname;
+    if (/\/api\/(characters|inventory|equipment|portals|world|personal-content)\b/.test(pathname)) {
+      gameplayRequests.push(request.url());
+    }
+  });
+  await page.setViewportSize({ width: 320, height: 760 });
+  await page.goto('./#/refuge/reflex');
+  await page.getByTestId('reflex-start').click();
+
+  const first = await page.getByTestId('reflex-target').getAttribute('data-rune');
+  expect(runes).toContain(first);
+  await page.getByTestId('reflex-pause').click();
+  await expect(page.getByTestId('reflex-paused')).toContainText('Allenamento in pausa');
+  await expect(page.getByTestId('reflex-target')).toHaveCount(0);
+  await expect(page.getByTestId('reflex-rune-' + first)).toHaveCount(0);
+  await expect(page.getByTestId('reflex-progress')).toContainText('1 di 8');
+  await expect(page.getByTestId('reflex-mistakes')).toContainText('0');
+
+  await page.getByTestId('language-toggle').click();
+  await expect(page.getByTestId('reflex-paused')).toContainText('Training paused');
+  await page.getByTestId('reflex-resume').focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByTestId('reflex-paused')).toHaveCount(0);
+  await expect(page.getByTestId('reflex-target')).toHaveAttribute('data-rune', first!);
+  await expect(page.getByTestId('reflex-progress')).toContainText('Round 1 of 8');
+  await expect(page.getByTestId('reflex-pause')).toHaveText('Pause training');
+
+  for (let round = 1; round <= 8; round++) {
+    await hitCurrentRune(page, round);
+  }
+  await expect(page.getByTestId('reflex-result')).toBeVisible();
+  await expect(page.getByTestId('reflex-hits')).toContainText('8 / 8');
+  await expect(page.getByTestId('reflex-result-mistakes')).toContainText('0');
+  await expect(page.getByTestId('reflex-average')).toContainText('ms');
+  expect(gameplayRequests).toEqual([]);
+  expect(await page.evaluate(() =>
+    Object.keys(localStorage).filter(key => /reflex|score|reward|pause/i.test(key)))).toEqual([]);
+  await expect.poll(() => page.evaluate(() =>
+    document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
+});
+
+test('hidden browser tab automatically pauses reflex practice without resetting mistakes or advancing rounds', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 760 });
+  await page.goto('./#/refuge/reflex');
+  await page.getByTestId('reflex-start').click();
+  const first = await page.getByTestId('reflex-target').getAttribute('data-rune');
+  const wrong = runes.find(rune => rune !== first)!;
+  await page.getByTestId('reflex-rune-' + wrong).click();
+  await expect(page.getByTestId('reflex-mistakes')).toContainText('1');
+
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  await expect(page.getByTestId('reflex-paused')).toBeVisible();
+  await expect(page.getByTestId('reflex-target')).toHaveCount(0);
+  await expect(page.getByTestId('reflex-progress')).toContainText('1 di 8');
+  await expect(page.getByTestId('reflex-mistakes')).toContainText('1');
+  // Returning to a foreground tab must not silently restart the stopwatch.
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  await expect(page.getByTestId('reflex-paused')).toBeVisible();
+  await page.getByTestId('reflex-resume').click();
+  await expect(page.getByTestId('reflex-target')).toHaveAttribute('data-rune', first!);
+  await expect(page.getByTestId('reflex-progress')).toContainText('1 di 8');
+  await expect(page.getByTestId('reflex-mistakes')).toContainText('1');
+  await page.getByTestId('reflex-rune-' + first).click();
+  await expect(page.getByTestId('reflex-progress')).toContainText('2 di 8');
+  await page.reload();
+  await expect(page.getByTestId('reflex-ready')).toBeVisible();
+  expect(await page.evaluate(() =>
+    Object.keys(localStorage).filter(key => /reflex|score|reward|pause/i.test(key)))).toEqual([]);
+});

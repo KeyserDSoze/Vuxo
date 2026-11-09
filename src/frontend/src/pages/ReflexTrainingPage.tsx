@@ -20,29 +20,57 @@ export function ReflexTrainingPage() {
   const [target, setTarget] = useState<Rune | null>(null);
   const [completed, setCompleted] = useState(0);
   const [mistakes, setMistakes] = useState(0);
+  const [paused, setPaused] = useState(false);
   const [totalReactionMs, setTotalReactionMs] = useState(0);
   const targetShownAt = useRef<number | null>(null);
 
   useEffect(() => {
-    if (phase !== 'playing' || !target) return;
-    // Start the clock at the browser paint, not during the React state update.
+    if (phase !== 'playing' || !target || paused) return;
+    // The reaction timer starts at the paint after each round or resume,
+    // never during a background tab or while the target is hidden.
     const frame = window.requestAnimationFrame(() => {
       targetShownAt.current = performance.now();
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [phase, target]);
+  }, [phase, target, paused]);
+
+  useEffect(() => {
+    if (phase !== 'playing') return;
+    const pauseWhenHidden = () => {
+      if (document.visibilityState === 'hidden') {
+        targetShownAt.current = null;
+        setPaused(true);
+      }
+    };
+    document.addEventListener('visibilitychange', pauseWhenHidden);
+    pauseWhenHidden();
+    return () => document.removeEventListener('visibilitychange', pauseWhenHidden);
+  }, [phase]);
+
+  const pause = () => {
+    if (phase !== 'playing' || paused) return;
+    targetShownAt.current = null;
+    setPaused(true);
+  };
+
+  const resume = () => {
+    if (phase !== 'playing' || !paused || document.visibilityState !== 'visible') return;
+    targetShownAt.current = null;
+    setPaused(false);
+  };
 
   const start = () => {
     setCompleted(0);
     setMistakes(0);
     setTotalReactionMs(0);
+    setPaused(false);
     targetShownAt.current = null;
     setTarget(nextRune(null));
     setPhase('playing');
   };
 
   const choose = (rune: Rune) => {
-    if (phase !== 'playing' || !target) return;
+    if (phase !== 'playing' || !target || paused || document.visibilityState === 'hidden') return;
     if (rune !== target) {
       setMistakes(value => value + 1);
       return;
@@ -89,35 +117,51 @@ export function ReflexTrainingPage() {
                 label={t('refuge.reflex.progress', { current: completed + 1, total: roundCount })}
                 sx={{ alignSelf: 'flex-start' }}
               />
-              <Paper variant="outlined" sx={{ p: 2, bgcolor: 'action.hover', textAlign: 'center' }}>
-                <Typography color="text.secondary">{t('refuge.reflex.find')}</Typography>
-                <Typography
-                  component="p"
-                  variant="h4"
-                  data-testid="reflex-target"
-                  data-rune={target}
-                  role="status"
-                  aria-live="polite"
-                  sx={{ mt: 1, fontWeight: 800 }}
-                >
-                  {t('portals.runes.' + target)}
-                </Typography>
-              </Paper>
-              <Box role="group" aria-label={t('refuge.reflex.choices')}
-                sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 1, width: '100%', maxWidth: 520 }}>
-                {runes.map(rune => (
-                  <Button
-                    key={rune}
-                    data-testid={'reflex-rune-' + rune}
-                    variant="outlined"
-                    size="large"
-                    onClick={() => choose(rune)}
-                    sx={{ minHeight: 72, fontWeight: 700 }}
-                  >
-                    {t('portals.runes.' + rune)}
+              {paused ? (
+                <Stack data-testid="reflex-paused" spacing={1.5} sx={{ alignItems: 'flex-start' }}>
+                  <Alert role="status" severity="info">{t('refuge.reflex.paused')}</Alert>
+                  <Button data-testid="reflex-resume" variant="contained" onClick={resume}
+                    sx={{ minHeight: 44 }}>
+                    {t('refuge.reflex.resume')}
                   </Button>
-                ))}
-              </Box>
+                </Stack>
+              ) : (
+                <>
+                  <Paper variant="outlined" sx={{ p: 2, bgcolor: 'action.hover', textAlign: 'center' }}>
+                    <Typography color="text.secondary">{t('refuge.reflex.find')}</Typography>
+                    <Typography
+                      component="p"
+                      variant="h4"
+                      data-testid="reflex-target"
+                      data-rune={target}
+                      role="status"
+                      aria-live="polite"
+                      sx={{ mt: 1, fontWeight: 800 }}
+                    >
+                      {t('portals.runes.' + target)}
+                    </Typography>
+                  </Paper>
+                  <Box role="group" aria-label={t('refuge.reflex.choices')}
+                    sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 1, width: '100%', maxWidth: 520 }}>
+                    {runes.map(rune => (
+                      <Button
+                        key={rune}
+                        data-testid={'reflex-rune-' + rune}
+                        variant="outlined"
+                        size="large"
+                        onClick={() => choose(rune)}
+                        sx={{ minHeight: 72, fontWeight: 700 }}
+                      >
+                        {t('portals.runes.' + rune)}
+                      </Button>
+                    ))}
+                  </Box>
+                  <Button data-testid="reflex-pause" variant="outlined" onClick={pause}
+                    sx={{ minHeight: 44, alignSelf: 'flex-start' }}>
+                    {t('refuge.reflex.pause')}
+                  </Button>
+                </>
+              )}
               <Typography color="text.secondary" data-testid="reflex-mistakes">
                 {t('refuge.reflex.mistakes', { count: mistakes })}
               </Typography>
