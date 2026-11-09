@@ -9,17 +9,31 @@ IMAGE_ID = re.compile(r"^sha256:[a-f0-9]{64}$")
 NETWORKS = "{{json .NetworkSettings.Networks}}"
 HEALTH = "{{if .State.Health}}{{.State.Health.Status}}{{else}}unknown{{end}}"
 
+# Docker starts a short-lived API-image container for each HTTP probe. On a
+# busy Pi 3 its daemon startup can exceed curl's 6-8 second request budget.
+# Keep metadata commands fast, but allow bounded extra startup/cleanup time.
+DOCKER_METADATA_TIMEOUT_SECONDS = 15
+DOCKER_PROBE_TIMEOUT_SECONDS = 45
+
 
 def run_command(argv):
-    """Ignore stderr, which can include infrastructure identifiers or secrets."""
+    """Return only status/stdout; never relay errors or timeout exception text.
+
+    A 45-second Docker CLI bound is independent of the short curl request
+    bound. It prevents a slow daemon startup from being mistaken for an HTTP
+    timeout, while retaining an absolute deadline on each ephemeral probe.
+    """
+    timeout = (DOCKER_PROBE_TIMEOUT_SECONDS
+               if argv[:2] == ["docker", "run"]
+               else DOCKER_METADATA_TIMEOUT_SECONDS)
     try:
         proc = subprocess.run(
-            argv, capture_output=True, text=True, check=False, timeout=15
+            argv, capture_output=True, text=True, check=False, timeout=timeout
         )
         return proc.returncode, proc.stdout.strip()
     except subprocess.TimeoutExpired:
-        # Distinguish the 15-second Docker subprocess bound from curl's own
-        # request timeout. Never return exception text or captured stderr.
+        # Explicit Docker CLI timeout vs curl's own exit 28; never print
+        # the exception, which may contain raw Docker output or credentials.
         return -2, ""
     except OSError:
         return -1, ""

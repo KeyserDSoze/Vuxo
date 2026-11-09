@@ -93,6 +93,8 @@ The same allowlisted temporary `curl` container now reports an explicit **HTTP 1
 
 When the initial connector-to-origin probe fails during post-failure triage, it is sampled **only once more after the public URL**, without delay or service restart (three temporary probes maximum: internal/public/internal). A different result between samples is evidence of variable observation, not proof of an edge, DNS or origin root cause. The strict GitHub-hosted public release gate remains blocking; a healthy local probe or a transient public HTTP 200 cannot substitute for its full checks. Issue #147 tracks the unresolved incident; #151 tracks diagnostic accuracy.
 
+**Pi3 diagnostics deadline (#152).** `docker ps` and `docker inspect` retain a 15-second hard limit. The *ephemeral* `docker run` probe has a separate hard 45-second CLI limit so a slow daemon startup does not prematurely mask a 6–8-second curl timeout. Curl still uses a 3-second connect limit and returns fixed safe categories. This only alters non-mutating diagnosis; the public smoke remains blocking. Never treat a local probe success as proof of Cloudflare routing. An observed 45-second Docker CLI timeout indicates the probe did not complete, not that the API returned HTTP 502.
+
 ## 4. Production runtime and health
 
 The regular automatic deploy uses these files:

@@ -130,6 +130,44 @@ class OriginTests(unittest.TestCase):
             self.assertEqual(probe.run_command(["docker", "ps"]), (1, "visible"))
 
 
+    def test_pi3_probe_has_bounded_daemon_startup_budget(self):
+        # Metadata checks must remain short; ephemeral curl containers need a
+        # separate fixed allowance to cover Docker startup on a 1 GiB Pi 3.
+        self.assertGreater(probe.DOCKER_PROBE_TIMEOUT_SECONDS,
+                           probe.DOCKER_METADATA_TIMEOUT_SECONDS)
+        self.assertLessEqual(probe.DOCKER_PROBE_TIMEOUT_SECONDS, 45)
+        commands = [
+            (["docker", "ps", "-q"], probe.DOCKER_METADATA_TIMEOUT_SECONDS),
+            (["docker", "inspect", "--format", "{{.Image}}", API],
+             probe.DOCKER_METADATA_TIMEOUT_SECONDS),
+            (["docker", "run", "--rm", "--pull=never"], probe.DOCKER_PROBE_TIMEOUT_SECONDS),
+        ]
+        for argv, expected in commands:
+            with self.subTest(command=argv[1]):
+                with patch.object(
+                    probe.subprocess, "run",
+                    return_value=subprocess.CompletedProcess(argv, 0, "200", "SECRET")
+                ) as run:
+                    self.assertEqual(probe.run_command(argv), (0, "200"))
+                    self.assertEqual(run.call_args.kwargs["timeout"], expected)
+                    self.assertTrue(run.call_args.kwargs["capture_output"])
+                    self.assertTrue(run.call_args.kwargs["text"])
+
+    def test_probe_timeout_is_redacted_and_remains_bounded(self):
+        argv = ["docker", "run", "--rm", "--pull=never"]
+        with patch.object(
+            probe.subprocess, "run",
+            side_effect=subprocess.TimeoutExpired(argv,
+                                                   probe.DOCKER_PROBE_TIMEOUT_SECONDS,
+                                                   output=b"SECRET_STDOUT",
+                                                   stderr=b"SECRET_STDERR")
+        ) as run:
+            self.assertEqual(probe.run_command(argv), (-2, ""))
+            self.assertEqual(run.call_args.kwargs["timeout"],
+                             probe.DOCKER_PROBE_TIMEOUT_SECONDS)
+        self.assertEqual(probe.classify_http_result(-2, "SECRET"),
+                         "Docker subprocess timeout")
+
     def test_fixed_categories_for_curl_docker_and_invalid_output(self):
         cases = [
             (0, "502", "HTTP 502"),

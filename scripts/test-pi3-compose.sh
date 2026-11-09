@@ -105,6 +105,11 @@ assert "verify-public-auth:" in Path(".github/workflows/deploy-pi3.yml").read_te
 origin_probe = Path("infra/pi3/diagnose_origin.py").read_text()
 triage_probe = Path("infra/pi3/diagnose_cloudflare_failure.py").read_text()
 assert "def classify_http_result(" in origin_probe, "Origin probe must distinguish HTTP vs transport"
+assert "DOCKER_METADATA_TIMEOUT_SECONDS = 15" in origin_probe
+assert "DOCKER_PROBE_TIMEOUT_SECONDS = 45" in origin_probe
+assert 'argv[:2] == ["docker", "run"]' in origin_probe, "Only Docker ephemeral run may use longer budget"
+assert "--max-time" in origin_probe and "--connect-timeout" in origin_probe, "Curl request timeout remains independent"
+
 assert "def probe_http(" in origin_probe, "Shared allowlisted safe HTTP probe required"
 for flag in ["--pull=never", "--read-only", "--cap-drop=ALL",
              "--security-opt=no-new-privileges", "--pids-limit"]:
