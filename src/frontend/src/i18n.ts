@@ -441,6 +441,14 @@ const initialization = i18n.use(initReactI18next).init({
               guardian_idempotency_key_required: 'Chiave dell’azione non valida.'
             }
           },
+          screen: {
+            chapter: 'ESPLORAZIONE',
+            refuge: 'Rifugio',
+            fullscreen: 'Schermo intero',
+            exitFullscreen: 'Esci da schermo intero',
+            fullscreenUnavailable: 'Schermo intero non disponibile. Puoi usare F11 nel browser.',
+            fullscreenHint: 'Tasto F: schermo intero',
+          },
           title: 'Mondo condiviso',
           description: 'Il movimento è autoritativo lato server. Usa WASD, le frecce o i controlli touch per inviare i tuoi intenti.',
           playersOnline: 'Giocatori online: {{count}}',
@@ -1116,6 +1124,14 @@ const initialization = i18n.use(initReactI18next).init({
               guardian_invalid_turn: 'Invalid turn.',
               guardian_idempotency_key_required: 'Invalid action request key.'
             }
+          },
+          screen: {
+            chapter: 'EXPLORATION',
+            refuge: 'Refuge',
+            fullscreen: 'Fullscreen',
+            exitFullscreen: 'Exit fullscreen',
+            fullscreenUnavailable: 'Fullscreen is unavailable here. You can use F11 in your browser.',
+            fullscreenHint: 'Press F for fullscreen',
           },
           title: 'Shared world',
           description: 'Movement is server-authoritative. Use WASD, arrow keys or touch controls to send your movement intent.',
