@@ -5,28 +5,35 @@ const gameUrl = origin + '/Vuxo/#/game'
 
 // Real browser + deterministic local two-peer world. No client-written
 // positions, server appearance, rewards or production credentials.
-test.beforeEach(async ({ request }) => {
-  const result = await request.post(origin + '/__vuxo_e2e/world/reset')
-  expect(result.ok()).toBeTruthy()
-})
+// Unlike the legacy test world, these scenarios never reset the shared
+// default room used by other parallel Playwright workers.
+const duoScope = 'world-art-duo'
+const resizeScope = 'world-art-resize'
 
-async function demoPlayer(page: Page, id: string, name: string) {
-  await page.addInitScript(({ id, name }) => {
+async function resetRoom(request: import('@playwright/test').APIRequestContext, scope: string) {
+  const result = await request.post(origin + '/__vuxo_e2e/world/reset?scope=' + scope)
+  expect(result.ok()).toBeTruthy()
+}
+
+async function demoPlayer(page: Page, id: string, name: string, scope: string) {
+  await page.addInitScript(({ id, name, scope }) => {
     localStorage.setItem('vuxo.e2ePlayerId', id)
+    localStorage.setItem('vuxo.e2eWorldScope', scope)
     localStorage.setItem('vuxo.e2eCharacterName', name)
     localStorage.setItem('vuxo.language', 'it')
     localStorage.setItem('vuxo.theme', 'dark')
-  }, { id, name })
+  }, { id, name, scope })
 }
 
-test('two illustrated wanderers coexist in the authoritative world at mobile size', async ({ browser }, info) => {
+test('two illustrated wanderers coexist in the authoritative world at mobile size', async ({ browser, request }, info) => {
+  await resetRoom(request, duoScope)
   const a = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' })
   const b = await browser.newContext({ viewport: { width: 1280, height: 720 } })
   try {
     const pageA = await a.newPage()
     const pageB = await b.newPage()
-    await demoPlayer(pageA, 'art-player-a', 'Grove Wanderer')
-    await demoPlayer(pageB, 'art-player-b', 'Moon Wanderer')
+    await demoPlayer(pageA, 'art-player-a', 'Grove Wanderer', duoScope)
+    await demoPlayer(pageB, 'art-player-b', 'Moon Wanderer', duoScope)
     await pageA.goto(gameUrl)
     await expect(pageA.getByTestId('world-connection-status')).toHaveAttribute('data-status', 'connected')
     await pageB.goto(gameUrl)
@@ -80,8 +87,9 @@ test('two illustrated wanderers coexist in the authoritative world at mobile siz
   }
 })
 
-test('illustrated world keeps the canvas responsive on a portrait-to-ultrawide resize', async ({ page }, info) => {
-  await demoPlayer(page, 'art-resize-player', 'Landscape Wanderer')
+test('illustrated world keeps the canvas responsive on a portrait-to-ultrawide resize', async ({ page, request }, info) => {
+  await resetRoom(request, resizeScope)
+  await demoPlayer(page, 'art-resize-player', 'Landscape Wanderer', resizeScope)
   await page.setViewportSize({ width: 320, height: 568 })
   await page.goto(gameUrl)
   await expect(page.getByTestId('world-connection-status')).toHaveAttribute('data-status', 'connected')
@@ -97,4 +105,31 @@ test('illustrated world keeps the canvas responsive on a portrait-to-ultrawide r
   await info.attach('world-art-wide', {
     body: await page.screenshot({ animations: 'disabled' }), contentType: 'image/png',
   })
+})
+
+test('E2E world scopes isolate players, movement and resets across parallel scenarios', async ({ request }) => {
+  await resetRoom(request, 'world-art-room-a')
+  await resetRoom(request, 'world-art-room-b')
+  for (const [scope, playerId] of [['world-art-room-a', 'isolated-a'], ['world-art-room-b', 'isolated-b']] as const) {
+    const joined = await request.post(origin + '/__vuxo_e2e/world/join?scope=' + scope, {
+      data: { playerId, characterName: playerId },
+    })
+    expect(joined.ok()).toBeTruthy()
+  }
+  const state = async (scope: string) => {
+    const response = await request.get(origin + '/__vuxo_e2e/world/state?scope=' + scope)
+    expect(response.ok()).toBeTruthy()
+    return (await response.json() as { players: Array<{ playerId: string; x: number }> }).players
+  }
+  expect((await state('world-art-room-a')).map(player => player.playerId)).toEqual(['isolated-a'])
+  expect((await state('world-art-room-b')).map(player => player.playerId)).toEqual(['isolated-b'])
+  const moved = await request.post(origin + '/__vuxo_e2e/world/intent?scope=world-art-room-b', {
+    data: { playerId: 'isolated-b', horizontal: 1, vertical: 0 },
+  })
+  expect(moved.ok()).toBeTruthy()
+  expect((await state('world-art-room-a'))[0].x).toBe(4.5)
+  expect((await state('world-art-room-b'))[0].x).toBeGreaterThan(4.5)
+  await resetRoom(request, 'world-art-room-a')
+  expect(await state('world-art-room-a')).toEqual([])
+  expect((await state('world-art-room-b')).map(player => player.playerId)).toEqual(['isolated-b'])
 })

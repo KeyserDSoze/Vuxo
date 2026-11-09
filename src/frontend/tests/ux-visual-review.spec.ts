@@ -76,6 +76,7 @@ async function prepare(page: Page, language: 'it' | 'en', theme: 'light' | 'dark
     localStorage.setItem('vuxo.theme', theme);
     if (world) {
       localStorage.setItem('vuxo.e2ePlayerId', 'visual-art-self');
+      localStorage.setItem('vuxo.e2eWorldScope', 'visual-review');
       localStorage.setItem('vuxo.e2eCharacterName', 'Visual Wanderer');
     }
     if (owner) {
@@ -103,9 +104,9 @@ if (process.env.VUXO_VISUAL_REVIEW === '1') {
               if (screen.name === 'world') {
                 // Reset and seed ONLY the local Vite E2E world. Run serially:
                 // its in-memory two-player scene is shared by browser contexts.
-                const reset = await request.post('http://127.0.0.1:4173/__vuxo_e2e/world/reset');
+                const reset = await request.post('http://127.0.0.1:4173/__vuxo_e2e/world/reset?scope=visual-review');
                 expect(reset.ok()).toBe(true);
-                const peer = await request.post('http://127.0.0.1:4173/__vuxo_e2e/world/join', {
+                const peer = await request.post('http://127.0.0.1:4173/__vuxo_e2e/world/join?scope=visual-review', {
                   data: { playerId: 'visual-art-peer', characterName: 'Moon Wanderer' },
                 });
                 expect(peer.ok()).toBe(true);

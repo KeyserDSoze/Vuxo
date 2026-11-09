@@ -13,24 +13,39 @@ type E2EPlayer = {
   revision: number;
 };
 
+type E2EWorldRoom = { players: Map<string, E2EPlayer>; spawnIndex: number };
+
 function e2eWorldPlugin(): Plugin {
-  const players = new Map<string, E2EPlayer>();
-  let spawnIndex = 0;
+  // Scopes exist only in the Playwright preview server. Production SignalR
+  // continues to own the real, unpartitioned world and coordinates.
+  const rooms = new Map<string, E2EWorldRoom>();
 
   return {
     name: 'vuxo-e2e-world',
     configurePreviewServer(server) {
       server.middlewares.use(async (request, response, next) => {
-        const path = new URL(request.url ?? '/', 'http://localhost').pathname;
+        const url = new URL(request.url ?? '/', 'http://localhost');
+        const path = url.pathname;
         if (!path.startsWith('/__vuxo_e2e/world/')) {
           next();
           return;
         }
 
         try {
+          const scope = url.searchParams.get('scope') ?? 'default';
+          if (!/^[a-zA-Z0-9_-]{1,64}$/.test(scope)) {
+            sendJson(response, 400, { code: 'invalid_e2e_world_scope' });
+            return;
+          }
+          let room = rooms.get(scope);
+          if (!room) {
+            room = { players: new Map<string, E2EPlayer>(), spawnIndex: 0 };
+            rooms.set(scope, room);
+          }
+          const players = room.players;
           if (request.method === 'POST' && path.endsWith('/reset')) {
             players.clear();
-            spawnIndex = 0;
+            room.spawnIndex = 0;
             sendJson(response, 200, { ok: true });
             return;
           }
@@ -51,7 +66,7 @@ function e2eWorldPlugin(): Plugin {
             let player = players.get(playerId);
             const isReconnect = Boolean(player);
             if (!player) {
-              const index = spawnIndex++;
+              const index = room.spawnIndex++;
               player = {
                 playerId,
                 characterId: `e2e-${playerId}`,

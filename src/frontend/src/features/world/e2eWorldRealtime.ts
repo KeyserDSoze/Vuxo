@@ -14,6 +14,7 @@ export class E2EWorldRealtimeClient implements WorldRealtimeClient {
   private readonly players = new Map<string, WorldPlayerSnapshot>()
   private readonly playerId = localStorage.getItem('vuxo.e2ePlayerId') ?? `e2e-${crypto.randomUUID()}`
   private readonly characterName = localStorage.getItem('vuxo.e2eCharacterName') ?? 'E2E Vuxian'
+  private readonly worldScope = localStorage.getItem('vuxo.e2eWorldScope')
   private status: WorldConnectionStatus = 'idle'
   private errorCode: string | null = null
   private selfPlayerId: string | null = null
@@ -23,6 +24,11 @@ export class E2EWorldRealtimeClient implements WorldRealtimeClient {
 
   constructor() {
     window.addEventListener('vuxo:e2e-reconnect', this.reconnectHandler)
+  }
+
+  private worldUrl(action: string): string {
+    const path = `/__vuxo_e2e/world/${action}`
+    return this.worldScope ? `${path}?scope=${encodeURIComponent(this.worldScope)}` : path
   }
 
   async connect(): Promise<void> {
@@ -43,7 +49,7 @@ export class E2EWorldRealtimeClient implements WorldRealtimeClient {
     this.stopPolling()
     window.removeEventListener('vuxo:e2e-reconnect', this.reconnectHandler)
     try {
-      await fetch('/__vuxo_e2e/world/leave', {
+      await fetch(this.worldUrl('leave'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ playerId: this.playerId }),
@@ -61,7 +67,7 @@ export class E2EWorldRealtimeClient implements WorldRealtimeClient {
 
   setMovementIntent(horizontal: number, vertical: number): void {
     if (!this.connected || this.status !== 'connected') return
-    void fetch('/__vuxo_e2e/world/intent', {
+    void fetch(this.worldUrl('intent'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -88,7 +94,7 @@ export class E2EWorldRealtimeClient implements WorldRealtimeClient {
   }
 
   private async join(): Promise<void> {
-    const response = await fetch('/__vuxo_e2e/world/join', {
+    const response = await fetch(this.worldUrl('join'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ playerId: this.playerId, characterName: this.characterName }),
@@ -107,7 +113,7 @@ export class E2EWorldRealtimeClient implements WorldRealtimeClient {
   private async poll(): Promise<void> {
     if (!this.connected) return
     try {
-      const response = await fetch('/__vuxo_e2e/world/state', { cache: 'no-store' })
+      const response = await fetch(this.worldUrl('state'), { cache: 'no-store' })
       if (!response.ok) throw new Error(`e2e_state_${response.status}`)
       const state = await response.json() as { players: WorldPlayerSnapshot[] }
       this.players.clear()
