@@ -1,5 +1,5 @@
-import { DarkMode, Language, LightMode, Menu as MenuIcon, SettingsBrightness } from '@mui/icons-material';
-import { AppBar, Box, Button, Chip, CircularProgress, Container, Drawer, IconButton, List, ListItemButton, ListItemText, Stack, Toolbar, Tooltip, Typography } from '@mui/material';
+import { AccountCircleOutlined, AdminPanelSettingsOutlined, AutoAwesome, BackpackOutlined, CottageOutlined, DarkMode, HomeOutlined, InfoOutlined, Language, LightMode, Menu as MenuIcon, PersonOutlined, SettingsBrightness, SportsEsportsOutlined } from '@mui/icons-material';
+import { AppBar, Box, Button, Chip, CircularProgress, Container, Drawer, IconButton, List, ListItemButton, ListItemIcon, ListItemText, Stack, Toolbar, Tooltip, Typography } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import { lazy, Suspense, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -26,15 +26,15 @@ const ReflexTrainingPage = lazy(() => import('./pages/ReflexTrainingPage').then(
 const RunePathPage = lazy(() => import('./pages/RunePathPage').then(module => ({ default: module.RunePathPage })));
 
 const navItems = [
-  { to: '/', key: 'nav.home' },
-  { to: '/refuge', key: 'nav.refuge' },
-  { to: '/auth', key: 'nav.auth' },
-  { to: '/character', key: 'nav.character' },
-  { to: '/game', key: 'nav.game' },
-  { to: '/portals', key: 'nav.portals' },
-  { to: '/inventory', key: 'nav.inventory' },
-  { to: '/admin', key: 'nav.admin' },
-  { to: '/version', key: 'nav.version' }
+  { to: '/', key: 'nav.home', icon: HomeOutlined },
+  { to: '/refuge', key: 'nav.refuge', icon: CottageOutlined },
+  { to: '/auth', key: 'nav.auth', icon: AccountCircleOutlined },
+  { to: '/character', key: 'nav.character', icon: PersonOutlined },
+  { to: '/game', key: 'nav.game', icon: SportsEsportsOutlined },
+  { to: '/portals', key: 'nav.portals', icon: AutoAwesome },
+  { to: '/inventory', key: 'nav.inventory', icon: BackpackOutlined },
+  { to: '/admin', key: 'nav.admin', icon: AdminPanelSettingsOutlined },
+  { to: '/version', key: 'nav.version', icon: InfoOutlined }
 ];
 
 export function App() {
@@ -65,17 +65,52 @@ export function App() {
         alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.20 : 0.12) +
         ', transparent 38%), ' + theme.palette.background.default
     }}>
-      <AppBar position="sticky" elevation={vuxoDesignTokens.elevation.appBar} color="transparent" sx={{ flexShrink: 0, backdropFilter: 'blur(18px)', borderBottom: 1, borderColor: 'divider', background: theme => 'linear-gradient(110deg, ' + alpha(theme.palette.background.paper, 0.96) + ', ' + alpha(theme.palette.primary.main, 0.09) + ')' }}>
-        <Toolbar sx={{ gap: { xs: 0.5, sm: 1.5 }, minHeight: vuxoDesignTokens.layout.appBarMinHeight }}>
-          <Typography variant="h6" sx={{ fontWeight: 900, letterSpacing: '0.12em', flexShrink: 0, textShadow: theme => '0 0 22px ' + alpha(theme.palette.primary.main, 0.38) }}>VUXO</Typography>
+      <AppBar position="sticky" elevation={vuxoDesignTokens.elevation.appBar} color="transparent" className="vuxo-shell-bar" sx={{
+        flexShrink: 0,
+        zIndex: theme => theme.zIndex.appBar,
+        backdropFilter: 'blur(20px)',
+        borderBottom: 1,
+        borderColor: 'divider',
+        background: theme => 'linear-gradient(120deg, ' + alpha(theme.palette.background.paper, .98) + ', ' + alpha(theme.palette.background.paper, .9) + ' 65%, ' + alpha(theme.palette.primary.main, .14) + ')',
+        boxShadow: theme => '0 10px 38px ' + alpha(theme.palette.common.black, theme.palette.mode === 'dark' ? .27 : .09),
+      }}>
+        <Toolbar className="vuxo-shell-toolbar" sx={{ gap: { xs: 0.5, sm: 1, lg: .5, xl: 1 }, minHeight: vuxoDesignTokens.layout.appBarMinHeight }}>
+          <Box component={RouterLink} to="/" aria-label="VUXO" data-testid="shell-brand" className="vuxo-shell-brand" sx={{ color: 'text.primary', flexShrink: 0 }}>
+            <Box component="span" aria-hidden="true" className="vuxo-shell-brand-rune">✦</Box>
+            <Typography component="span" sx={{ fontWeight: 900, letterSpacing: '.12em', fontSize: { xs: '1.05rem', xl: '1.2rem' }, textShadow: theme => '0 0 22px ' + alpha(theme.palette.primary.main, 0.34) }}>VUXO</Typography>
+          </Box>
           <Chip data-testid="shell-version" size="small" label={t('shell.version', { version: build?.version ?? '…' })} sx={{ display: { xs: 'none', md: 'inline-flex', lg: 'none', xl: 'inline-flex' } }} />
-          <Stack component="nav" data-testid="desktop-nav" aria-label={t('shell.navigation')} direction="row" spacing={0.5} sx={{ ml: 1, minWidth: 0, display: { xs: 'none', lg: 'flex' } }}>
-            {visibleNavItems.map(item => (
-              <Button key={item.to} component={RouterLink} to={item.to} color="inherit" size="small" aria-current={location.pathname === item.to ? 'page' : undefined} sx={{ flexShrink: 0, borderRadius: 1.5, bgcolor: location.pathname === item.to ? 'action.selected' : 'transparent', borderBottom: 2, borderColor: location.pathname === item.to ? 'primary.main' : 'transparent' }}>
-                {t(item.key)}
-              </Button>
-            ))}
+          <Stack component="nav" data-testid="desktop-nav" aria-label={t('shell.navigation')} className="vuxo-shell-tabs" direction="row" spacing={0.25} sx={{ ml: { lg: .5, xl: 1 }, minWidth: 0, display: { xs: 'none', lg: 'flex' } }}>
+            {visibleNavItems.map(item => {
+              const NavIcon = item.icon;
+              const selected = location.pathname === item.to;
+              return (
+                <Button
+                  key={item.to}
+                  component={RouterLink}
+                  to={item.to}
+                  startIcon={<NavIcon sx={{ fontSize: '17px !important' }} />}
+                  color="inherit"
+                  size="small"
+                  aria-current={selected ? 'page' : undefined}
+                  data-active={selected ? 'true' : 'false'}
+                  className="vuxo-shell-tab"
+                  sx={{
+                    flexShrink: 0,
+                    border: 1,
+                    borderColor: selected ? 'primary.main' : 'transparent',
+                    bgcolor: selected ? 'action.selected' : 'transparent',
+                    color: selected ? 'primary.main' : 'text.primary',
+                  }}
+                >
+                  {t(item.key)}
+                </Button>
+              );
+            })}
           </Stack>
+          <Typography data-testid="shell-current-route" component="span" variant="caption" sx={{ display: { xs: 'none', sm: 'inline', lg: 'none' }, ml: 1, fontWeight: 800, color: 'primary.main' }}>
+            {t(navItems.find(item => item.to === location.pathname)?.key ?? 'nav.home')}
+          </Typography>
           <Box sx={{ flexGrow: 1 }} />
           <Tooltip title={themeLabel}>
             <Button data-testid="theme-toggle" aria-label={themeLabel} color="inherit" size="small" onClick={cycleMode} startIcon={<ThemeIcon />}>
@@ -92,18 +127,34 @@ export function App() {
           </IconButton>
         </Toolbar>
       </AppBar>
-      <Drawer anchor="right" open={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)}>
-        <Box id="vuxo-mobile-navigation" component="nav" data-testid="mobile-nav" aria-label={t('shell.navigation')} sx={{ width: { xs: 'min(85vw, 320px)', sm: 320 }, p: 2 }}>
+      <Drawer anchor="right" open={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} sx={{
+        '& .MuiDrawer-paper': {
+          background: theme => 'linear-gradient(150deg, ' + theme.palette.background.paper + ', ' + alpha(theme.palette.primary.main, .11) + ')',
+          borderLeft: 1,
+          borderColor: 'divider',
+        }
+      }}>
+        <Box id="vuxo-mobile-navigation" component="nav" data-testid="mobile-nav" aria-label={t('shell.navigation')} className="vuxo-mobile-navigation" sx={{ width: { xs: 'min(86vw, 340px)', sm: 340 }, p: 2, height: '100%', overflowY: 'auto' }}>
           <Stack direction="row" sx={{ alignItems: "center", justifyContent: "space-between", mb: 2 }}>
             <Typography variant="h6" sx={{ fontWeight: 800 }}>VUXO</Typography>
             <Button onClick={() => setMobileMenuOpen(false)}>{t('shell.closeMenu')}</Button>
           </Stack>
-          <List disablePadding>
-            {visibleNavItems.map(item => (
-              <ListItemButton key={item.to} component={RouterLink} to={item.to} selected={location.pathname === item.to} aria-current={location.pathname === item.to ? 'page' : undefined} onClick={() => setMobileMenuOpen(false)}>
-                <ListItemText primary={t(item.key)} />
-              </ListItemButton>
-            ))}
+          <List disablePadding className="vuxo-shell-drawer-list">
+            {visibleNavItems.map(item => {
+              const NavIcon = item.icon;
+              const selected = location.pathname === item.to;
+              return (
+                <ListItemButton key={item.to} component={RouterLink} to={item.to} selected={selected} aria-current={selected ? 'page' : undefined} onClick={() => setMobileMenuOpen(false)} sx={{
+                  mb: .6, gap: 1, borderRadius: 2, minHeight: 48,
+                  border: 1, borderColor: selected ? 'primary.main' : 'divider',
+                  bgcolor: selected ? 'action.selected' : 'transparent',
+                  '&:focus-visible': { outline: 2, outlineColor: 'primary.main' },
+                }}>
+                  <ListItemIcon sx={{ minWidth: 28, color: selected ? 'primary.main' : 'text.secondary' }}><NavIcon fontSize="small" /></ListItemIcon>
+                  <ListItemText primary={t(item.key)} primaryTypographyProps={{ fontWeight: selected ? 800 : 600 }} />
+                </ListItemButton>
+              );
+            })}
           </List>
         </Box>
       </Drawer>
