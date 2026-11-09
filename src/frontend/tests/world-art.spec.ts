@@ -133,9 +133,18 @@ test('two illustrated wanderers coexist in the authoritative world at mobile siz
 
     await pageA.evaluate(() => window.dispatchEvent(new Event('vuxo:e2e-reconnect')))
     await expect(pageA.getByTestId('world-connection-status')).toHaveAttribute('data-status', 'connected')
-    await expect.poll(() => pageA.evaluate(() =>
-      (document.querySelector('[data-testid="game-canvas"]')
-        ?.getAttribute('data-e2e-avatar-appearance') ?? '').includes('"hairColor":"red"'))).toBe(true)
+    await expect.poll(() => pageA.evaluate(() => {
+      const encoded = document.querySelector('[data-testid="game-canvas"]')
+        ?.getAttribute('data-e2e-avatar-appearance')
+      if (!encoded) return false
+      const players = JSON.parse(encoded) as Array<{ playerId: string; appearance: string }>
+      const self = players.find(player => player.playerId === 'art-player-a')
+      const peer = players.find(player => player.playerId === 'art-player-b')
+      // The attribute is JSON containing JSON strings: parse the outer
+      // document before comparing decoded catalog values.
+      return Boolean(self?.appearance.includes('"hairColor":"red"')
+        && peer?.appearance.includes('"hairColor":"blonde"'))
+    })).toBe(true)
 
     await info.attach('world-art-mobile-two-players', {
       body: await pageA.screenshot({ animations: 'disabled' }), contentType: 'image/png',

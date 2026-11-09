@@ -106,10 +106,32 @@ if (process.env.VUXO_VISUAL_REVIEW === '1') {
                 // its in-memory two-player scene is shared by browser contexts.
                 const reset = await request.post('http://127.0.0.1:4173/__vuxo_e2e/world/reset?scope=visual-review');
                 expect(reset.ok()).toBe(true);
-                const peer = await request.post('http://127.0.0.1:4173/__vuxo_e2e/world/join?scope=visual-review', {
-                  data: { playerId: 'visual-art-peer', characterName: 'Moon Wanderer' },
-                });
-                expect(peer.ok()).toBe(true);
+                // Preview-only server fixtures: these saved cosmetics must
+                // come from the world state, not from the browser rendering them.
+                const fixtures = [
+                  {
+                    playerId: 'visual-art-peer',
+                    characterName: 'Moon Wanderer',
+                    appearance: { catalogVersion: '0.0.1', hairStyle: 'hair-2',
+                      hairColor: 'blonde', face: 'face-2', bodyType: 'body-3',
+                      skinTone: 'skin-5', topColor: 'red', bottomStyle: 'shorts',
+                      bottomColor: 'black', shoeStyle: 'shoe-1', shoeColor: 'white' },
+                  },
+                  {
+                    playerId: 'visual-art-self',
+                    characterName: 'Visual Wanderer',
+                    appearance: { catalogVersion: '0.0.1', hairStyle: 'hair-4',
+                      hairColor: 'red', face: 'face-3', bodyType: 'body-1',
+                      skinTone: 'skin-3', topColor: 'green', bottomStyle: 'skirt',
+                      bottomColor: 'white', shoeStyle: 'shoe-2', shoeColor: 'blue' },
+                  },
+                ];
+                for (const fixture of fixtures) {
+                  const seeded = await request.post('http://127.0.0.1:4173/__vuxo_e2e/world/join?scope=visual-review', {
+                    data: fixture,
+                  });
+                  expect(seeded.ok()).toBe(true);
+                }
               }
               await page.goto('./#' + screen.route);
               await expect(page.getByTestId(screen.ready).first()).toBeVisible();
@@ -121,6 +143,20 @@ if (process.env.VUXO_VISUAL_REVIEW === '1') {
                 await expect(page.getByTestId('world-presence')).toContainText('Moon Wanderer');
                 await expect(page.getByTestId('game-canvas')).toHaveAttribute('data-e2e-illustrated-player-count', '2');
                 await expect(page.getByTestId('game-canvas')).toHaveAttribute('data-e2e-world-art-version', 'vuxo-world-art-v1');
+                await expect.poll(() => page.evaluate(() => {
+                  const encoded = document.querySelector('[data-testid="game-canvas"]')
+                    ?.getAttribute('data-e2e-avatar-appearance');
+                  if (!encoded) return false;
+                  const entries = JSON.parse(encoded) as Array<{ playerId: string; appearance: string }>;
+                  const self = entries.find(entry => entry.playerId === 'visual-art-self');
+                  const peer = entries.find(entry => entry.playerId === 'visual-art-peer');
+                  return Boolean(entries.length === 2
+                    && self?.appearance.includes('"hairColor":"red"')
+                    && self?.appearance.includes('"topColor":"green"')
+                    && self?.appearance.includes('"bottomStyle":"skirt"')
+                    && peer?.appearance.includes('"hairColor":"blonde"')
+                    && peer?.appearance.includes('"skinTone":"skin-5"'));
+                })).toBe(true);
                 await expect.poll(() => page.evaluate(() => {
                   const encoded = document.querySelector('[data-testid="game-canvas"]')
                     ?.getAttribute('data-e2e-name-label-bounds');
