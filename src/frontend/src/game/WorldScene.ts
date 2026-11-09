@@ -19,6 +19,8 @@ type PlayerVisual = {
 export class WorldScene extends Phaser.Scene {
   private readonly players = new Map<string, PlayerVisual>()
   private readonly portalVisuals = new Map<string, PortalVisual>()
+  private terrainGraphics: Phaser.GameObjects.Graphics | null = null
+  private terrainBounds = ''
   private portals: WorldPortalMarker[] = []
   private ready = false
   private inputLocked = false
@@ -40,6 +42,7 @@ export class WorldScene extends Phaser.Scene {
   }
 
   create() {
+    this.terrainGraphics = this.add.graphics().setDepth(-10)
     this.drawWorldGrid()
     this.ready = true
     this.drawPortals()
@@ -49,6 +52,8 @@ export class WorldScene extends Phaser.Scene {
     this.unsubscribe = this.realtime.subscribe(state => this.applyState(state))
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.ready = false
+      this.terrainGraphics = null
+      this.terrainBounds = ''
       this.realtime.setMovementIntent(0, 0)
       this.unsubscribe?.()
       this.unsubscribe = null
@@ -94,6 +99,7 @@ export class WorldScene extends Phaser.Scene {
   }
 
   update(time: number, delta: number) {
+    this.drawWorldGrid()
     // The camera can still be following the player after the marker is drawn.
     // Expose its current screen position only to the Playwright test bridge.
     if (this.onPortalScreenPosition) {
@@ -196,14 +202,51 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private drawWorldGrid(): void {
-    const graphics = this.add.graphics()
-    graphics.setDepth(-10)
+    const graphics = this.terrainGraphics
+    if (!graphics) return
 
-    for (let tileX = -16; tileX < 48; tileX++) {
-      for (let tileY = -16; tileY < 48; tileY++) {
-        const shade = (tileX + tileY) % 2 === 0 ? 0x1e3a8a : 0x1e40af
-        graphics.fillStyle(shade, 1)
-        graphics.fillRect(tileX * TILE_SIZE, tileY * TILE_SIZE, TILE_SIZE - 1, TILE_SIZE - 1)
+    // Terrain is a deterministic, decorative client surface. It does not
+    // create collision, rewards, server-owned positions or world state.
+    // Redraw only when the visible tile bounds change (including on resize).
+    const camera = this.cameras.main
+    const zoom = Math.max(0.1, camera.zoom)
+    const left = Math.floor(camera.scrollX / TILE_SIZE) - 2
+    const top = Math.floor(camera.scrollY / TILE_SIZE) - 2
+    const right = Math.ceil((camera.scrollX + camera.width / zoom) / TILE_SIZE) + 2
+    const bottom = Math.ceil((camera.scrollY + camera.height / zoom) / TILE_SIZE) + 2
+    const bounds = `${left}:${top}:${right}:${bottom}`
+    if (bounds === this.terrainBounds) return
+    this.terrainBounds = bounds
+    graphics.clear()
+
+    for (let tileX = left; tileX <= right; tileX++) {
+      for (let tileY = top; tileY <= bottom; tileY++) {
+        const hash = Math.imul(tileX ^ 0x45d9f3b, 0x27d4eb2d) ^
+          Math.imul(tileY ^ 0x119de1f3, 0x165667b1)
+        const noise = (hash ^ (hash >>> 16)) >>> 0
+        const x = tileX * TILE_SIZE
+        const y = tileY * TILE_SIZE
+        const ground = [0x16354b, 0x183c51, 0x1b4054, 0x1c384d][noise % 4]
+        graphics.fillStyle(ground, 1)
+        graphics.fillRect(x, y, TILE_SIZE, TILE_SIZE)
+
+        // Fine trails, moss and glowing specks make this a place rather than
+        // a checkerboard, without pretending the temporary ground is content.
+        if (noise % 5 === 0) {
+          graphics.fillStyle(0x315a55, 0.65)
+          graphics.fillRect(x + 4, y + 22, 8, 2)
+          graphics.fillRect(x + 9, y + 17, 2, 7)
+        }
+        if (noise % 23 === 0) {
+          graphics.fillStyle(0x76c9ba, 0.75)
+          graphics.fillRect(x + 21, y + 7, 3, 3)
+        }
+        if (noise % 47 === 0) {
+          graphics.fillStyle(0x304c64, 1)
+          graphics.fillRect(x + 5, y + 5, 14, 10)
+          graphics.fillStyle(0x46677a, 0.8)
+          graphics.fillRect(x + 5, y + 5, 14, 2)
+        }
       }
     }
   }
