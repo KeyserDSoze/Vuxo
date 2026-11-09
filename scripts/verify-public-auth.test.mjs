@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { verifyPublicAuth } from './verify-public-auth.mjs';
+import { diagnosePublicRoutes, verifyPublicAuth } from './verify-public-auth.mjs';
 
 const commit = '0123456789abcdef0123456789abcdef01234567';
 const origin = 'https://vuxo.quest';
@@ -207,4 +207,72 @@ test('public version diagnostic includes only safe numerical status', async () =
     expectedCommit: commit, fetcher, attempts: 1,
   }), error => /version: expected HTTP 200 \(got HTTP 503\)/
       .test(error.message) && !error.message.includes(secret));
+});
+
+test('public HTTP 530 is actionable without exposing upstream body', async () => {
+  const { fetcher } = fixture({ '/health': res('SECRET-CLOUDFLARE-HTML', 530) });
+  await assert.rejects(
+    () => verifyPublicAuth({ expectedCommit: commit, fetcher, attempts: 1 }),
+    error => error.message.includes('health: expected HTTP 200 (got HTTP 530)')
+      && !error.message.includes('SECRET-CLOUDFLARE-HTML'));
+});
+test('diagnostics report only numeric status and restricted server class', async () => {
+  const secret = 'PRIVATE-CLIENT-ID-AND-TOKEN';
+  const { fetcher } = fixture({
+    '/health': res(secret, 530, { 'Server': 'cloudflare', 'Location': 'https://untrusted.test/' + secret }),
+    '/api/auth/providers': res(secret, 403, { 'Server': secret }),
+  });
+  const output = [];
+  await diagnosePublicRoutes({ fetcher, log: message => output.push(message) });
+  assert.equal(output.length, 9);
+  assert.match(output[0], /^health: HTTP 530 \(server: cloudflare\)$/);
+  assert.match(output[2], /^providers: HTTP 403 \(server: other\)$/);
+  assert.ok(!output.join(' ').includes(secret));
+});
+test('diagnostics redact transport errors but continue with other routes', async () => {
+  const { fetcher: base } = fixture();
+  const output = [];
+  await diagnosePublicRoutes({
+    fetcher: (url, options) => url.endsWith('/health')
+      ? Promise.reject(new Error('PRIVATE-TOKEN')) : base(url, options),
+    log: message => output.push(message),
+  });
+  assert.equal(output.length, 9);
+  assert.equal(output[0], 'health: network or timeout failure');
+  assert.equal(output[8], 'msal-bridge: HTTP 200 (server: other)');
+});
+
+test('DNS and TLS failures get fixed categories without leaking host or error data', async () => {
+  const secret = 'SECRET-LOCATION-AND-TOKEN';
+  for (const [code, message] of [
+    ['ENOTFOUND', 'DNS lookup failed'],
+    ['ERR_TLS_CERT_ALTNAME_INVALID', 'TLS certificate error'],
+    ['UND_ERR_CONNECT_TIMEOUT', 'connection timeout'],
+  ]) {
+    const { fetcher: base } = fixture();
+    const output = [];
+    const failure = new Error(secret);
+    failure.cause = { code, detail: secret };
+    await diagnosePublicRoutes({
+      fetcher: (url, options) => url.endsWith('/redirect.html')
+        ? Promise.reject(failure) : base(url, options),
+      log: line => output.push(line),
+    });
+    assert.equal(output[8], 'msal-bridge: ' + message);
+    assert.ok(!output.join(' ').includes(secret));
+  }
+});
+
+test('diagnostics probe both anonymous Journal routes and preflight without sending tokens', async () => {
+  const { fetcher, calls } = fixture();
+  const output = [];
+  await diagnosePublicRoutes({ fetcher, log: line => output.push(line) });
+  assert.equal(output.length, 9);
+  assert.equal(output[4], 'history-completed: HTTP 401 (server: other)');
+  assert.equal(output[5], 'history-completed-preflight: HTTP 204 (server: other)');
+  assert.equal(output[6], 'history-outcomes: HTTP 401 (server: other)');
+  assert.equal(output[7], 'history-outcomes-preflight: HTTP 204 (server: other)');
+  const history = calls.filter(item => item.path.startsWith('/api/personal-content/history/'));
+  assert.deepEqual(history.map(item => item.method), ['GET', 'OPTIONS', 'GET', 'OPTIONS']);
+  assert.ok(history.every(item => item.authorization === null && item.cookie === null));
 });

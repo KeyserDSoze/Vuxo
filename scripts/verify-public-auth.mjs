@@ -8,8 +8,13 @@ import { pathToFileURL } from 'node:url';
 const API = 'https://api.vuxoapi.xyz';
 const WEB = 'https://vuxo.quest';
 
+// Status numbers are safe to disclose; never print a response body, Location or token.
+function safeStatus(status) {
+  return Number.isInteger(status) && status >= 100 && status <= 599 ? String(status) : 'unknown';
+}
+
 function requireOk(response, context) {
-  if (response.status !== 200) throw new Error(context + ': expected HTTP 200 (got HTTP ' + response.status + ')');
+  if (response.status !== 200) throw new Error(context + ': expected HTTP 200 (got HTTP ' + safeStatus(response.status) + ')');
 }
 function requireCors(response, context) {
   if (response.headers.get('access-control-allow-origin') !== WEB) {
@@ -146,11 +151,77 @@ export async function verifyPublicAuth({
     }
   }
 }
+/**
+ * Read-only status probe for a GitHub-hosted runner. After a failed route,
+ * continue to check other routes. Do not print bodies or provider IDs.
+ */
+// Report only transport categories from a fixed allow-list, never raw error text.
+function safeTransportCategory(error) {
+  const code = error?.cause?.code ?? error?.code;
+  if (code === 'ENOTFOUND') return 'DNS lookup failed';
+  if (code === 'EAI_AGAIN') return 'DNS lookup temporarily unavailable';
+  if (code === 'UND_ERR_CONNECT_TIMEOUT' || code === 'ETIMEDOUT' || error?.name === 'TimeoutError') {
+    return 'connection timeout';
+  }
+  if (['CERT_HAS_EXPIRED', 'UNABLE_TO_VERIFY_LEAF_SIGNATURE', 'ERR_TLS_CERT_ALTNAME_INVALID'].includes(code)) {
+    return 'TLS certificate error';
+  }
+  if (code === 'ECONNREFUSED' || code === 'ECONNRESET') return 'connection rejected or reset';
+  return 'network or timeout failure';
+}
+export async function diagnosePublicRoutes({ fetcher = fetch, log = console.log } = {}) {
+  const endpoints = [
+    ['health', API + '/health', {}],
+    ['version', API + '/api/meta/version', {}],
+    ['providers', API + '/api/auth/providers', { headers: { Origin: WEB } }],
+    ['social-preflight', API + '/api/auth/social', { method: 'OPTIONS', headers: {
+      Origin: WEB,
+      'Access-Control-Request-Method': 'POST',
+      'Access-Control-Request-Headers': 'content-type',
+    } }],
+    // Anonymous Journal probes deliberately omit cookies, Authorization and player IDs.
+    ['history-completed', API + '/api/personal-content/history/completed', { headers: { Origin: WEB } }],
+    ['history-completed-preflight', API + '/api/personal-content/history/completed', {
+      method: 'OPTIONS', headers: {
+        Origin: WEB, 'Access-Control-Request-Method': 'GET',
+        'Access-Control-Request-Headers': 'authorization',
+      },
+    }],
+    ['history-outcomes', API + '/api/personal-content/history/outcomes', { headers: { Origin: WEB } }],
+    ['history-outcomes-preflight', API + '/api/personal-content/history/outcomes', {
+      method: 'OPTIONS', headers: {
+        Origin: WEB, 'Access-Control-Request-Method': 'GET',
+        'Access-Control-Request-Headers': 'authorization',
+      },
+    }],
+    ['msal-bridge', WEB + '/redirect.html', {}],
+  ];
+  for (const [label, url, options] of endpoints) {
+    try {
+      const response = await fetcher(url, {
+        ...options, redirect: 'manual', signal: AbortSignal.timeout(8000),
+      });
+      const server = response.headers?.get('server')?.toLowerCase().includes('cloudflare')
+        ? 'cloudflare' : 'other';
+      log(label + ': HTTP ' + safeStatus(response.status) + ' (server: ' + server + ')');
+    } catch (error) {
+      log(label + ': ' + safeTransportCategory(error));
+    }
+  }
+}
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  verifyPublicAuth({ expectedCommit: process.env.VUXO_EXPECTED_COMMIT })
-    .then(() => console.log('PASS public health, commit, providers, CORS, private history auth, MSAL bridge'))
-    .catch(error => {
-      console.error(error.message);
+  if (process.env.VUXO_PUBLIC_AUTH_DIAGNOSTICS === 'true') {
+    diagnosePublicRoutes().catch(() => {
+      console.error('Public status diagnostics failed without exposing response data');
       process.exitCode = 1;
     });
+  } else {
+    // A green informational diagnostic never weakens this strict release gate.
+    verifyPublicAuth({ expectedCommit: process.env.VUXO_EXPECTED_COMMIT })
+      .then(() => console.log('PASS public health, commit, providers, CORS, private history auth, MSAL bridge'))
+      .catch(error => {
+        console.error(error.message);
+        process.exitCode = 1;
+      });
+  }
 }

@@ -346,3 +346,9 @@ Keep [issue #121](https://github.com/KeyserDSoze/Vuxo/issues/121) open until bot
 - [Google Identity Services setup](https://developers.google.com/identity/gsi/web/guides/get-google-api-clientid).
 - [Google branding and verification](https://developers.google.com/identity/verification/authentication-policy-compliance).
 - [Google ID token verification](https://developers.google.com/identity/gsi/web/guides/verify-google-id-token).
+
+## 11. Public HTTP diagnostics (read-only)
+
+When the external post-deploy gate reports HTTP 502, open **Actions → Diagnose public VUXO authentication (read only) → Run workflow** on `main`. The manual GitHub-hosted job independently checks `https://api.vuxoapi.xyz` health, version route, provider discovery, social CORS preflight, and anonymous private-history GET/OPTIONS, plus `https://vuxo.quest/redirect.html`. Only numeric HTTP status, allowlisted server class (`cloudflare` or `other`) and fixed DNS/TLS/timeout categories are printed. No response bodies, provider IDs, tokens, cookies, raw transport exceptions or redirect targets are logged. A failed route does not prevent the remaining probes.
+
+**This diagnostic can be green while the production API is broken.** The strict `verify-public-auth` deploy job remains the release gate: HTTP 200 health/version/discovery, exact commit, canonical CORS and private GET 401/preflight are mandatory. Check Cloudflare published application `api.vuxoapi.xyz` → `http://api:8080`, ensure both `api` and `cloudflared` share the Compose network, and inspect locally redacted connector diagnostics if 502 persists. Do not publish tunnel tokens or provider IDs. Do not close #147, #121 or claim working OAuth until the external gate and real Google/Microsoft consumer browser logins pass.

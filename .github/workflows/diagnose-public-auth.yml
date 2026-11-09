@@ -1,0 +1,27 @@
+name: Diagnose public VUXO authentication (read only)
+
+# Optional operator workflow. Never deploys, mutates player data or requires
+# secrets. This reports statuses only; a green workflow does NOT prove login.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  public-http-status:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Report public route HTTP status without response bodies
+        env:
+          VUXO_PUBLIC_AUTH_DIAGNOSTICS: 'true'
+        run: node scripts/verify-public-auth.mjs
+      - name: Explain diagnostic-only result
+        run: |
+          echo 'This workflow reports independent public HTTP statuses (including private-history anonymous probes). A green job does not prove that authentication or the public API works.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Check the numeric statuses in the job log. Production acceptance requires the deploy verify-public-auth job and real Google/Microsoft browser login.' >> "$GITHUB_STEP_SUMMARY"
