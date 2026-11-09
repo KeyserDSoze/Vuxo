@@ -8,6 +8,7 @@ import { Link as RouterLink } from 'react-router-dom';
 // server-verified portal layouts or authoritative player positions.
 type Position = { x: number; y: number };
 type Direction = 'up' | 'down' | 'left' | 'right';
+type PathHint = { direction: Direction; remaining: number };
 const size = 4;
 const startPosition: Position = { x: 0, y: 0 };
 const goalPosition: Position = { x: size - 1, y: size - 1 };
@@ -32,6 +33,32 @@ function isWall(puzzle: number, x: number, y: number): boolean {
   return walls[puzzle].some(wall => wall.x === x && wall.y === y);
 }
 
+// Breadth-first search finds a shortest orthogonal route. The fixed direction
+// order makes ties reproducible; the hint never changes the player position.
+function getShortestPathHint(puzzle: number, from: Position): PathHint | null {
+  const queue: { point: Position; first: Direction | null; steps: number }[] = [
+    { point: from, first: null, steps: 0 },
+  ];
+  const visited = new Set([from.x + ',' + from.y]);
+
+  for (let index = 0; index < queue.length; index += 1) {
+    const current = queue[index];
+    if (current.point.x === goalPosition.x && current.point.y === goalPosition.y) {
+      return current.first ? { direction: current.first, remaining: current.steps } : null;
+    }
+    for (const direction of directions) {
+      const offset = offsets[direction];
+      const point = { x: current.point.x + offset.x, y: current.point.y + offset.y };
+      const key = point.x + ',' + point.y;
+      if (point.x < 0 || point.y < 0 || point.x >= size || point.y >= size
+        || isWall(puzzle, point.x, point.y) || visited.has(key)) continue;
+      visited.add(key);
+      queue.push({ point, first: current.first ?? direction, steps: current.steps + 1 });
+    }
+  }
+  return null;
+}
+
 export function RunePathPage() {
   const { t } = useTranslation();
   const [puzzle, setPuzzle] = useState(0);
@@ -40,12 +67,14 @@ export function RunePathPage() {
   const [moves, setMoves] = useState(0);
   const [bumps, setBumps] = useState(0);
   const [history, setHistory] = useState<Position[]>([]);
+  const [hint, setHint] = useState<PathHint | null>(null);
 
   const start = () => {
     setPosition(startPosition);
     setMoves(0);
     setBumps(0);
     setHistory([]);
+    setHint(null);
     setPhase('playing');
   };
 
@@ -59,6 +88,7 @@ export function RunePathPage() {
       return;
     }
     setHistory(value => [...value, position]);
+    setHint(null);
     setPosition(next);
     setMoves(value => value + 1);
     if (next.x === goalPosition.x && next.y === goalPosition.y) {
@@ -69,8 +99,14 @@ export function RunePathPage() {
   const undo = () => {
     if (phase !== 'playing' || history.length === 0) return;
     setPosition(history[history.length - 1]);
+    setHint(null);
     setHistory(value => value.slice(0, -1));
     setMoves(value => value - 1);
+  };
+
+  const showHint = () => {
+    if (phase !== 'playing') return;
+    setHint(getShortestPathHint(puzzle, position));
   };
 
   const keyboard = (event: KeyboardEvent<HTMLDivElement>) => {
@@ -88,6 +124,7 @@ export function RunePathPage() {
     setMoves(0);
     setBumps(0);
     setHistory([]);
+    setHint(null);
   };
 
   return (
@@ -176,7 +213,23 @@ export function RunePathPage() {
                     >
                       {t('refuge.path.undo')}
                     </Button>
+                    <Button
+                      data-testid="path-hint"
+                      variant="outlined"
+                      onClick={showHint}
+                      sx={{ minHeight: 44 }}
+                    >
+                      {t('refuge.path.hintAction')}
+                    </Button>
                   </Box>
+                  {hint && (
+                    <Alert data-testid="path-hint-feedback" severity="info" role="status" aria-live="polite">
+                      {t('refuge.path.hintFeedback', {
+                        direction: t('refuge.path.directions.' + hint.direction),
+                        count: hint.remaining,
+                      })}
+                    </Alert>
+                  )}
                 </Stack>
               )}
               <Typography data-testid="path-position" role="status" aria-live="polite">

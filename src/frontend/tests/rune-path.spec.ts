@@ -185,3 +185,67 @@ test('undo reverts only valid moves, and restart clears attempts on the same pat
   expect(gameplayRequests).toEqual([]);
   expect(await page.evaluate(() => Object.keys(localStorage).filter(key => /path|score|reward/i.test(key)))).toEqual([]);
 });
+
+test('hint finds a deterministic shortest move without changing position, moves or private gameplay state', async ({ page }) => {
+  const gameplayRequests: string[] = [];
+  page.on('request', request => {
+    const pathname = new URL(request.url()).pathname;
+    if (/\/api\/(characters|inventory|equipment|portals|world|personal-content)\b/.test(pathname)) {
+      gameplayRequests.push(request.url());
+    }
+  });
+  await page.setViewportSize({ width: 320, height: 760 });
+  await page.goto('./#/refuge/path');
+  await page.getByTestId('path-start').click();
+  await expect(page.getByTestId('path-hint-feedback')).toHaveCount(0);
+
+  await page.getByTestId('path-hint').click();
+  await expect(page.getByTestId('path-hint-feedback')).toContainText('Giù');
+  await expect(page.getByTestId('path-hint-feedback')).toContainText('6 mosse');
+  await expect(page.getByTestId('path-position')).toContainText('colonna 1, riga 1');
+  await expect(page.getByTestId('path-moves')).toContainText('0');
+  await step(page, 'down');
+  await expect(page.getByTestId('path-hint-feedback')).toHaveCount(0);
+  await page.getByTestId('path-hint').click();
+  await expect(page.getByTestId('path-hint-feedback')).toContainText('5 mosse');
+
+  await step(page, 'right'); // Hitting a wall does not invalidate the same hint.
+  await expect(page.getByTestId('path-hint-feedback')).toContainText('5 mosse');
+  await expect(page.getByTestId('path-bumps')).toContainText('1');
+  await page.getByTestId('path-undo').click();
+  await expect(page.getByTestId('path-hint-feedback')).toHaveCount(0);
+  await page.getByTestId('path-hint').click();
+  await expect(page.getByTestId('path-hint-feedback')).toContainText('6 mosse');
+
+  await page.getByTestId('path-restart').click();
+  await expect(page.getByTestId('path-hint-feedback')).toHaveCount(0);
+  await expect(page.getByTestId('path-bumps')).toContainText('0');
+  await step(page, 'down', 3);
+  await step(page, 'right', 3);
+  await expect(page.getByTestId('path-complete')).toBeVisible();
+  await expect(page.getByTestId('path-hint')).toHaveCount(0);
+
+  await page.getByTestId('path-next').click();
+  await page.getByTestId('path-start').click();
+  await page.getByTestId('path-hint').click();
+  await expect(page.getByTestId('path-hint-feedback')).toContainText('Destra');
+  await expect(page.getByTestId('path-hint-feedback')).toContainText('6 mosse');
+  await step(page, 'right', 3);
+  await step(page, 'down', 3);
+  await page.getByTestId('path-next').click();
+  await page.getByTestId('path-start').click();
+  await page.getByTestId('path-hint').click();
+  await expect(page.getByTestId('path-hint-feedback')).toContainText('Giù');
+  await page.getByTestId('language-toggle').click();
+  await expect(page.getByTestId('path-hint-feedback')).toContainText('Next direction: Down');
+  await expect(page.getByTestId('path-hint-feedback')).toContainText('6 moves');
+  await expect(page.getByTestId('path-hint')).toHaveText('Show a hint');
+  await page.getByTestId('path-restart').click();
+  await expect(page.getByTestId('path-hint-feedback')).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() =>
+    document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
+
+  expect(gameplayRequests).toEqual([]);
+  expect(await page.evaluate(() => Object.keys(localStorage).filter(key =>
+    /path|score|reward|hint/i.test(key)))).toEqual([]);
+});
