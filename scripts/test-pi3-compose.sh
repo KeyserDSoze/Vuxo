@@ -7,6 +7,7 @@ bash -n infra/pi3/deploy.sh
 bash -n infra/pi3/bootstrap.sh
 bash -n infra/pi3/preflight.sh
 python3 -m unittest discover -s scripts -p 'test_pi3_auth_verification.py' -v
+python3 -m unittest discover -s scripts -p 'test_pi3_origin_diagnostics.py' -v
 
 # Build the ARM64 image on trusted green main CI without triggering the Pi.
 # Production deployment still requires a separate explicit repository flag.
@@ -78,5 +79,15 @@ restart = '"${COMPOSE[@]}" restart cloudflared'
 assert deploy_script.count(restart) == 1, "Cloudflare connector must restart once per deploy"
 assert deploy_script.index("if ! health_check; then") < deploy_script.index(up) < deploy_script.index(restart), "Connector restart must follow a healthy API"
 assert deploy_script.index(restart) < deploy_script.rindex('python3 "$ROOT/infra/pi3/verify-auth.py" "$ENV_FILE"'), "Refresh connector before final local/provider checks"
+assert deploy_script.index(restart) < deploy_script.index('python3 "$ROOT/infra/pi3/diagnose_origin.py"'), "Origin probe requires restarted connector"
+assert deploy_script.index('python3 "$ROOT/infra/pi3/verify-auth.py" "$ENV_FILE"') < deploy_script.index('python3 "$ROOT/infra/pi3/diagnose_origin.py"'), "Probe follows local provider verification"
+manual = Path(".github/workflows/diagnose-pi3-origin.yml").read_text()
+for clause in ["workflow_dispatch:", "github.ref == 'refs/heads/main'", "github.repository == 'KeyserDSoze/Vuxo'",
+               "vars.VUXO_PI3_DEPLOY_ENABLED == 'true'", "runs-on: [self-hosted, linux, ARM64, vuxo-pi3]",
+               "group: vuxo-pi3-production", "persist-credentials: false"]:
+    assert clause in manual, f"Missing main-only manual workflow safeguard: {clause}"
+assert "${{ secrets." not in manual, "Manual probe cannot use GitHub secrets"
+assert "python3 infra/pi3/diagnose_origin.py" in manual
+assert "verify-public-auth:" in Path(".github/workflows/deploy-pi3.yml").read_text(), "Do not weaken the strict public smoke
 PY
 echo "Pi 3 Compose and deploy contract passed."

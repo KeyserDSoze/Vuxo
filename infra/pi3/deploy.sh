@@ -99,5 +99,10 @@ fi
 # Local API discovery must match the intended provider IDs and production CORS.
 # Failure leaves containers intact for diagnosis; it does not roll back database migrations.
 python3 "$ROOT/infra/pi3/verify-auth.py" "$ENV_FILE"
+# Best-effort diagnosis after restart. The strict GitHub-hosted public
+# smoke must still run even if the short-lived origin probe cannot run.
+if ! python3 "$ROOT/infra/pi3/diagnose_origin.py"; then
+  echo "WARN: connector-to-API origin probe failed; external production smoke is mandatory." >&2
+fi
 "${COMPOSE[@]}" ps
 echo "Deploy healthy. Pre-deploy backup: $backup"

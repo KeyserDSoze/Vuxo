@@ -1,0 +1,37 @@
+name: Diagnose Raspberry Cloudflare origin (non-destructive)
+
+# Manual trusted-main Pi probe, no GitHub production secrets.
+# Starts one short-lived local-image container with read-only rootfs.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vuxo-pi3-production
+  cancel-in-progress: false
+
+jobs:
+  origin-path:
+    if: github.ref == 'refs/heads/main' && github.repository == 'KeyserDSoze/Vuxo' && vars.VUXO_PI3_DEPLOY_ENABLED == 'true'
+    runs-on: [self-hosted, linux, ARM64, vuxo-pi3]
+    environment: production
+    permissions:
+      contents: read
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Require current trusted main
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          test "$(git ls-remote origin refs/heads/main | cut -f1)" = "$SOURCE_SHA"
+      - name: Probe API from actual Cloudflare network namespace
+        run: python3 infra/pi3/diagnose_origin.py
+      - name: State independent public release acceptance
+        if: always()
+        run: echo 'Local origin HTTP 200 is not public production acceptance. GitHub-hosted verify-public-auth and real browser OAuth are still required.' >> "$GITHUB_STEP_SUMMARY"
