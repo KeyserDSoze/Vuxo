@@ -74,6 +74,18 @@ assert "down -v" not in Path("infra/pi3/deploy.sh").read_text().replace("Never r
 # Reconnect the Cloudflare origin only after the replacement API passes local
 # health. A long-running unchanged connector can retain stale upstream routes.
 deploy_script = Path("infra/pi3/deploy.sh").read_text()
+# A non-empty pg_dump does not prove an archive is parseable. Both the read-only
+# TOC verification and protected checksum must finish before API replacement.
+dump = "if ! \"${COMPOSE[@]}\" exec -T postgres sh -c 'exec pg_dump"
+toc = '"${COMPOSE[@]}" exec -T postgres pg_restore --list < "$backup" >/dev/null 2>&1'
+checksum = 'sha256sum --check --status "$checksum_tmp"'
+pull_api = '"${COMPOSE[@]}" pull api'
+assert deploy_script.index(dump) < deploy_script.index(toc) < deploy_script.index(checksum) < deploy_script.index(pull_api), "Validate archive/checksum before replacing API"
+assert 'rm -f "$backup"' in deploy_script and 'rm -f "$checksum_tmp"' in deploy_script, "Failed backup/checksum must be rejected"
+assert 'chmod 600 "$checksum_tmp"' in deploy_script, "Checksum needs private permissions"
+assert 'BACKUP_DIR="$(realpath "$BACKUP_DIR")"' in deploy_script, "Checksum must be location-independent"
+assert 'for exe in docker curl date mktemp realpath python3 sha256sum' in deploy_script
+
 up = '"${COMPOSE[@]}" up -d cloudflared'
 restart = '"${COMPOSE[@]}" restart cloudflared'
 assert deploy_script.count(restart) == 1, "Cloudflare connector must restart once per deploy"

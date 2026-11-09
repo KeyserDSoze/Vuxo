@@ -103,6 +103,25 @@ jobs:
             -c "CREATE TABLE backup_marker (id integer PRIMARY KEY, value text NOT NULL);" \
             -c "INSERT INTO backup_marker(id, value) VALUES (1, 'persisted-through-backup');" >/dev/null
           docker exec vuxo-postgres-integration pg_dump -U vuxo -d vuxo_backup_source --format=custom --file=/tmp/vuxo-backup.dump
+          # Verify the same host-side streaming archive path used by the Pi
+          # before any restore or API migration. A fake nonempty dump is rejected.
+          docker cp vuxo-postgres-integration:/tmp/vuxo-backup.dump "$RUNNER_TEMP/vuxo-backup-ci.dump"
+          docker exec -i vuxo-postgres-integration pg_restore --list < "$RUNNER_TEMP/vuxo-backup-ci.dump" >/dev/null
+          printf 'NOT_A_PG_DUMP' > "$RUNNER_TEMP/vuxo-corrupt-ci.dump"
+          if docker exec -i vuxo-postgres-integration pg_restore --list < "$RUNNER_TEMP/vuxo-corrupt-ci.dump" >/dev/null 2>&1; then
+            echo "::error::Corrupt PostgreSQL archive was wrongly accepted"
+            exit 1
+          fi
+          (
+            cd "$RUNNER_TEMP"
+            sha256sum -- vuxo-backup-ci.dump > vuxo-backup-ci.dump.sha256
+            sha256sum --check --status vuxo-backup-ci.dump.sha256
+          )
+          printf 'TAMPER' >> "$RUNNER_TEMP/vuxo-backup-ci.dump"
+          if (cd "$RUNNER_TEMP" && sha256sum --check --status vuxo-backup-ci.dump.sha256); then
+            echo "::error::Tampered backup unexpectedly passed its checksum"
+            exit 1
+          fi
           docker exec vuxo-postgres-integration createdb -U vuxo vuxo_backup_restore
           docker exec vuxo-postgres-integration pg_restore -U vuxo -d vuxo_backup_restore --exit-on-error /tmp/vuxo-backup.dump
           restored="$(docker exec vuxo-postgres-integration psql -U vuxo -d vuxo_backup_restore -Atc "SELECT value FROM backup_marker WHERE id = 1;" | tr -d '\r')"

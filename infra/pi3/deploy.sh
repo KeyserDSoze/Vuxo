@@ -9,7 +9,7 @@ if [[ "$(uname -m)" != "aarch64" ]]; then
   echo "Only Linux ARM64 (aarch64) is supported." >&2
   exit 2
 fi
-for exe in docker curl date mktemp realpath python3; do
+for exe in docker curl date mktemp realpath python3 sha256sum; do
   command -v "$exe" >/dev/null || { echo "Missing: $exe" >&2; exit 2; }
 done
 docker compose version >/dev/null
@@ -47,6 +47,7 @@ fi
 BACKUP_DIR="${VUXO_BACKUP_DIR:-$HOME/vuxo-backups}"
 mkdir -p "$BACKUP_DIR"
 chmod 700 "$BACKUP_DIR"
+BACKUP_DIR="$(realpath "$BACKUP_DIR")"
 backup="$(mktemp "$BACKUP_DIR/vuxo-$(date -u +%Y%m%dT%H%M%SZ)-XXXXXXXX.dump")"
 chmod 600 "$backup"
 if ! "${COMPOSE[@]}" exec -T postgres sh -c 'exec pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --format=custom' > "$backup"; then
@@ -59,6 +60,26 @@ if [[ ! -s "$backup" ]]; then
   echo "Database backup empty; refusing deployment." >&2
   exit 1
 fi
+# Validate the archive TOC from the host's copy, using PostgreSQL tooling
+# in the already-running DB container. No DB writes or migrations.
+# This is a format/readability check, NOT a full restore drill.
+if ! "${COMPOSE[@]}" exec -T postgres pg_restore --list < "$backup" >/dev/null 2>&1; then
+  rm -f "$backup"
+  echo "Database backup archive verification failed; refusing deployment." >&2
+  exit 1
+fi
+# Produce a protected, portable checksum sidecar for later off-device
+# transfer/verification. Fail closed before replacing the API on I/O errors.
+checksum_tmp="$(mktemp "$BACKUP_DIR/.vuxo-checksum-XXXXXXXX")"
+chmod 600 "$checksum_tmp"
+if ! (cd "$BACKUP_DIR" && sha256sum -- "$(basename "$backup")" > "$checksum_tmp" &&
+      sha256sum --check --status "$checksum_tmp"); then
+  rm -f "$checksum_tmp"
+  echo "Database backup checksum verification failed; refusing deployment." >&2
+  exit 1
+fi
+mv -- "$checksum_tmp" "$backup.sha256"
+echo "PASS: PostgreSQL backup archive and SHA-256 verified before API replacement (restore drill still required)"
 
 "${COMPOSE[@]}" pull api
 "${COMPOSE[@]}" up -d --no-deps api

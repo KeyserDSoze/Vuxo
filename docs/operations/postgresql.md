@@ -45,6 +45,19 @@ Creare sempre un backup verificato prima di:
 - migration distruttive o trasformazioni dati non reversibili;
 - interventi manuali sullo schema o sui dati production.
 
+## Gate automatico di backup del Raspberry (#149)
+
+`infra/pi3/deploy.sh` non considera più sufficiente un file non vuoto. Prima di sostituire il container API esegue `pg_restore --list` in sola lettura sul **file host appena prodotto**, passando il flusso al PostgreSQL già in esecuzione con `docker compose exec -T`. Se l'archivio è illeggibile, il deploy si arresta prima di pull, restart e migration. Il controllo legge il catalogo dell'archivio, non ripristina le tabelle né valida ogni riga.
+
+Dopo la lettura del catalogo, lo script scrive un checksum SHA-256 `vuxo-....dump.sha256` accanto al dump e lo ricontrolla in modo silenzioso. Backup e checksum sono file privati (permessi 0600) nella directory backup (0700). Per trasferire la copia su storage off-device, portare **insieme** `.dump` e `.dump.sha256`, poi verificare i nomi relativi dalla directory di destinazione:
+
+```bash
+cd /percorso/backup-off-device
+sha256sum --check --status ./NOME_DEL_BACKUP.dump.sha256
+```
+
+Un checksum coerente dimostra soltanto che i byte coincidono con il manifest generato: non attesta sicurezza del dispositivo, completezza logica del database o riuscita di un restore. Periodicamente eseguire il drill descritto sotto, fuori dal database production. La #59 mantiene aperte queste prove, oltre a reboot e rollback.
+
 ## Restore drill non distruttivo
 
 Il modo preferito per verificare un backup è ripristinarlo in un database temporaneo, senza toccare quello production.

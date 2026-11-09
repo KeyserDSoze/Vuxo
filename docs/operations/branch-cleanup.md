@@ -25,3 +25,7 @@ lavori #114/#117/#119, PR Phaser #80 e i branch di infrastruttura non
 integrati. Non eliminarli fino a nuova review, test e piano di delivery.
 L'ultimo controllo pubblico health Pi è fallito nella run #42523017704:
 questa operazione non deve mascherarlo né modificare dati dei giocatori.
+
+## Audit finale — 9 novembre 2026
+
+Una nuova lettura GitHub dell'elenco completo dei branch ha restituito **35 ref**, di cui **34 diversi da main**. Nessuno dei **33 nomi** congelati in `CANDIDATES` è ancora presente: l'obiettivo di rimozione dei ref già mergiati è verificato per stato finale, senza attribuire cancellazioni a un job non ispezionato. Nessun ulteriore ref è stato eliminato in questo audit. Restano intatti i cinque branch di PR ancora aperte (#110, #102, #60, #49, #46) e altri branch fuori manifest, che richiedono esame separato prima di qualunque merge o rimozione. Issue #142 chiusa con ledger e patch note aggiornate.

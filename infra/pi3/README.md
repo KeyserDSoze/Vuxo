@@ -97,12 +97,12 @@ docker compose -p vuxo --env-file /path/to/private.env \
 
 Production deployment is executed from GitHub Actions via infra/pi3/deploy.sh. The script:
 - verifies ARM64, secrets and immutable Pi image tag;
-- starts PostgreSQL and Redis and creates a custom-format **pg_dump** before API replacement;
+- starts PostgreSQL and Redis, creates a custom-format **pg_dump** on the host, checks its archive TOC through read-only **pg_restore --list**, and verifies a private SHA-256 sidecar **before** API replacement;
 - pulls the ARM64 image and recreates only the API container, without destroying named volumes;
 - checks http://127.0.0.1:8080/health; on failure attempts image-only rollback;
 - starts the Cloudflare Tunnel after core health is green.
 
-**Database migrations are NOT automatically reversed** by an image rollback. EF migrations can be incompatible with the previous API. Review schema changes and rehearse restore from a separate copy before enabling production. Backup files are stored under the runner's ~/vuxo-backups; transfer them regularly to an encrypted, off-device location. An on-microSD dump is not disaster recovery.
+**Database migrations are NOT automatically reversed** by an image rollback. EF migrations can be incompatible with the previous API. Review schema changes and rehearse restore from a separate copy before enabling production. Backup and `.sha256` files are stored under the runner's ~/vuxo-backups; transfer both regularly to an encrypted, off-device location. An on-microSD dump is not disaster recovery.
 
 On reboot systemd brings up Docker and the runner; Docker restart: unless-stopped restarts containers that were running before reboot. Test a real reboot and restored PostgreSQL/Redis persistence before launch. The very first deployment needs Docker registry access using the GITHUB_TOKEN granted by the job.
 
