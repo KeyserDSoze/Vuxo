@@ -49,6 +49,7 @@ public sealed class WorldSimulation(TimeProvider timeProvider)
                     character.Id,
                     character.Name,
                     character.Attributes.MovementSpeedMultiplier,
+                    WorldCharacterAppearance.FromPersisted(character.Appearance),
                     spawn.X,
                     spawn.Y);
                 _players.Add(normalizedPlayerId, session);
@@ -61,6 +62,7 @@ public sealed class WorldSimulation(TimeProvider timeProvider)
                 session.CharacterId = character.Id;
                 session.CharacterName = character.Name;
                 session.SpeedMultiplier = character.Attributes.MovementSpeedMultiplier;
+                session.Appearance = WorldCharacterAppearance.FromPersisted(character.Appearance);
                 session.HorizontalIntent = 0;
                 session.VerticalIntent = 0;
                 session.LastAcceptedIntentAt = null;
@@ -240,7 +242,8 @@ public sealed class WorldSimulation(TimeProvider timeProvider)
             session.X,
             session.Y,
             session.SpeedMultiplier,
-            session.Revision);
+            session.Revision,
+            session.Appearance);
 
     private sealed class PlayerSession(
         string connectionId,
@@ -248,6 +251,7 @@ public sealed class WorldSimulation(TimeProvider timeProvider)
         Guid characterId,
         string characterName,
         double speedMultiplier,
+        WorldCharacterAppearance? appearance,
         double x,
         double y)
     {
@@ -256,6 +260,7 @@ public sealed class WorldSimulation(TimeProvider timeProvider)
         public Guid CharacterId { get; set; } = characterId;
         public string CharacterName { get; set; } = characterName;
         public double SpeedMultiplier { get; set; } = speedMultiplier;
+        public WorldCharacterAppearance? Appearance { get; set; } = appearance;
         public double X { get; set; } = x;
         public double Y { get; set; } = y;
         public int HorizontalIntent { get; set; }

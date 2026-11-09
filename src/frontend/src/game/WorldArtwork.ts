@@ -1,8 +1,10 @@
 import Phaser from 'phaser'
+import type { CharacterAppearanceDraft } from '../features/character/appearance'
+import { PREVIEW_COLORS } from '../features/character/appearance'
 
 // VUXO's first original procedural world art. These graphics are presentation
-// only: no asset licence, gameplay collision, character appearance claim,
-// coordinates, economy or server-owned data are introduced.
+// only: no asset licence, gameplay collision, coordinates, economy or
+// server-owned data are introduced. When provided, cosmetics are server-sourced.
 export const WORLD_ART_VERSION = 'vuxo-world-art-v1'
 const TILE = 32
 
@@ -20,6 +22,19 @@ const peerPalettes: readonly CloakPalette[] = [
   { robe: 0x487c5a, shadow: 0x244d42, trim: 0xb6e4a6, mantle: 0x314753, hair: 0x2c3442 },
   { robe: 0x9e684c, shadow: 0x664437, trim: 0xffd3a1, mantle: 0x5d3e50, hair: 0x312d3a },
 ]
+
+
+function catalogColor(key: string, fallback: number): number {
+  const hex = PREVIEW_COLORS[key]
+  return hex && /^#[0-9a-fA-F]{6}$/.test(hex) ? Number.parseInt(hex.slice(1), 16) : fallback
+}
+
+function shade(color: number, intensity: number): number {
+  const scale = (channel: number) => Math.round(channel * intensity)
+  return (scale((color >>> 16) & 255) << 16)
+    | (scale((color >>> 8) & 255) << 8)
+    | scale(color & 255)
+}
 
 export function stableArtHash(text: string): number {
   // FNV-1a: stable across reconnects, client order and reloads.
@@ -40,12 +55,28 @@ export function createIllustratedWanderer(
   scene: Phaser.Scene,
   playerId: string,
   isSelf: boolean,
+  appearance: CharacterAppearanceDraft | null = null,
 ): Phaser.GameObjects.Container {
   const hash = stableArtHash(playerId)
-  const palette = isSelf
+  const legacyPalette = isSelf
     ? { robe: 0xb88b3b, shadow: 0x69543b, trim: 0xffe6a3, mantle: 0x48566d, hair: 0x392d3f }
     : peerPalettes[hash % peerPalettes.length]
-  const skin = [0xf0c8a3, 0xbfa184, 0xe5b28e, 0xcdaaa2][(hash >>> 5) % 4]
+  const robe = appearance ? catalogColor(appearance.topColor, legacyPalette.robe) : legacyPalette.robe
+  const palette: CloakPalette = appearance
+    ? {
+        robe,
+        shadow: shade(robe, 0.58),
+        trim: shade(robe, 1.05),
+        mantle: catalogColor(appearance.bottomColor, legacyPalette.mantle),
+        hair: catalogColor(appearance.hairColor, legacyPalette.hair),
+      }
+    : legacyPalette
+  const skin = appearance
+    ? catalogColor(appearance.skinTone, 0xe5b28e)
+    : [0xf0c8a3, 0xbfa184, 0xe5b28e, 0xcdaaa2][(hash >>> 5) % 4]
+  const footwear = appearance ? catalogColor(appearance.shoeColor, 0x172437) : 0x172437
+  const lower = appearance ? catalogColor(appearance.bottomColor, 0x1d3146) : 0x1d3146
+  const torsoWidth = appearance?.bodyType === 'body-1' ? 17 : appearance?.bodyType === 'body-3' ? 23 : 20
   const leftAccessory = (hash & 1) === 0
 
   const shadow = scene.add.ellipse(0, -1, 29, 10, 0x06131f, 0.67)
@@ -58,16 +89,21 @@ export function createIllustratedWanderer(
   painting.fillStyle(palette.mantle, 1)
   painting.fillTriangle(-10, -25, -15, -6, 0, -7)
   painting.fillTriangle(10, -25, 15, -6, 0, -7)
-  painting.fillStyle(0x1d3146, 1)
-  painting.fillRoundedRect(-9, -8, 7, 9, 2)
-  painting.fillRoundedRect(2, -8, 7, 9, 2)
-  painting.fillStyle(0x172437, 1)
-  painting.fillRoundedRect(-11, -4, 10, 5, 2)
-  painting.fillRoundedRect(1, -4, 10, 5, 2)
+  painting.fillStyle(lower, 1)
+  if (appearance?.bottomStyle === 'skirt') {
+    painting.fillTriangle(-11, -14, -12, -3, 12, -3)
+    painting.fillTriangle(-11, -14, 12, -14, 12, -3)
+  } else {
+    painting.fillRoundedRect(-9, -8, 7, 9, 2)
+    painting.fillRoundedRect(2, -8, 7, 9, 2)
+  }
+  painting.fillStyle(footwear, 1)
+  painting.fillRoundedRect(-11, -4, 10, appearance?.shoeStyle === 'shoe-2' ? 7 : 5, 2)
+  painting.fillRoundedRect(1, -4, 10, appearance?.shoeStyle === 'shoe-2' ? 7 : 5, 2)
   painting.fillStyle(palette.shadow, 1)
-  painting.fillRoundedRect(-11, -27, 22, 20, 5)
+  painting.fillRoundedRect(-torsoWidth / 2 - 1, -27, torsoWidth + 2, 20, 5)
   painting.fillStyle(palette.robe, 1)
-  painting.fillRoundedRect(-9, -26, 18, 17, 4)
+  painting.fillRoundedRect(-torsoWidth / 2, -26, torsoWidth, 17, 4)
   painting.fillStyle(palette.trim, 0.85)
   painting.fillRect(-2, -25, 4, 12)
   painting.fillRect(-9, -13, 18, 3)
@@ -89,16 +125,25 @@ export function createIllustratedWanderer(
   painting.fillStyle(0x122334, 1)
   painting.fillEllipse(0, -36, 25, 24)
   painting.fillStyle(skin, 1)
-  painting.fillEllipse(0, -35, 21, 20)
+  painting.fillEllipse(0, -35, appearance?.face === 'face-2' ? 24 : appearance?.face === 'face-3' ? 19 : 21, 20)
   painting.fillStyle(palette.hair, 1)
   painting.fillEllipse(0, -42, 23, 12)
-  painting.fillTriangle(-11, -42, -8, -32, -3, -42)
-  painting.fillTriangle(5, -43, 9, -32, 11, -42)
+  if (appearance?.hairStyle === 'hair-2' || appearance?.hairStyle === 'hair-3') {
+    painting.fillRoundedRect(-12, -42, 5, appearance.hairStyle === 'hair-3' ? 20 : 13, 2)
+    painting.fillRoundedRect(7, -42, 5, appearance.hairStyle === 'hair-3' ? 20 : 13, 2)
+  } else if (appearance?.hairStyle === 'hair-4') {
+    painting.fillTriangle(-12, -44, -4, -33, 3, -42)
+    painting.fillTriangle(0, -45, 8, -33, 12, -43)
+  } else {
+    painting.fillTriangle(-11, -42, -8, -32, -3, -42)
+    painting.fillTriangle(5, -43, 9, -32, 11, -42)
+  }
   painting.fillStyle(0x202a3d, 1)
-  painting.fillCircle(-5, -35, 1.4)
-  painting.fillCircle(5, -35, 1.4)
-  painting.fillStyle(0xd48e79, 0.8)
-  painting.fillRect(-2, -29, 4, 1)
+  painting.fillCircle(-5, appearance?.face === 'face-3' ? -36 : -35, 1.4)
+  painting.fillCircle(5, appearance?.face === 'face-3' ? -36 : -35, 1.4)
+  painting.lineStyle(1, 0x704b35, 0.9)
+  if (appearance?.face === 'face-2') painting.lineBetween(-2, -29, 2, -29)
+  else painting.strokeEllipse(0, -30, 4, appearance?.face === 'face-3' ? 1 : 2)
   // A bright clasp and a subtle rune distinguish the player's avatar.
   painting.fillStyle(isSelf ? 0xffec91 : palette.trim, 1)
   painting.fillCircle(0, -22, 3)

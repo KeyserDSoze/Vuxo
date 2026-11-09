@@ -27,6 +27,47 @@ async function demoPlayer(page: Page, id: string, name: string, scope: string) {
 
 test('two illustrated wanderers coexist in the authoritative world at mobile size', async ({ browser, request }, info) => {
   await resetRoom(request, duoScope)
+  // Preview server holds the cosmetic fixture; browsers send only playerId/name.
+  const looks = [
+  {
+    "playerId": "art-player-a",
+    "characterName": "Grove Wanderer",
+    "appearance": {
+      "catalogVersion": "0.0.1",
+      "hairStyle": "hair-4",
+      "hairColor": "red",
+      "face": "face-3",
+      "bodyType": "body-1",
+      "skinTone": "skin-3",
+      "topColor": "green",
+      "bottomStyle": "skirt",
+      "bottomColor": "white",
+      "shoeStyle": "shoe-2",
+      "shoeColor": "blue"
+    }
+  },
+  {
+    "playerId": "art-player-b",
+    "characterName": "Moon Wanderer",
+    "appearance": {
+      "catalogVersion": "0.0.1",
+      "hairStyle": "hair-2",
+      "hairColor": "blonde",
+      "face": "face-2",
+      "bodyType": "body-3",
+      "skinTone": "skin-5",
+      "topColor": "red",
+      "bottomStyle": "shorts",
+      "bottomColor": "black",
+      "shoeStyle": "shoe-1",
+      "shoeColor": "white"
+    }
+  }
+]
+  for (const fixture of looks) {
+    const seeded = await request.post(origin + '/__vuxo_e2e/world/join?scope=' + duoScope, { data: fixture })
+    expect(seeded.ok()).toBeTruthy()
+  }
   const a = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' })
   const b = await browser.newContext({ viewport: { width: 1280, height: 720 } })
   try {
@@ -43,6 +84,20 @@ test('two illustrated wanderers coexist in the authoritative world at mobile siz
       await expect(page.locator('[data-player-id="art-player-a"]')).toBeVisible()
       await expect(page.locator('[data-player-id="art-player-b"]')).toBeVisible()
       await expect(page.getByTestId('game-canvas').locator('canvas')).toBeVisible()
+      await expect.poll(() => page.evaluate(() => {
+        const encoded = document.querySelector('[data-testid="game-canvas"]')
+          ?.getAttribute('data-e2e-avatar-appearance')
+        if (!encoded) return false
+        const avatars = JSON.parse(encoded) as Array<{ playerId: string; appearance: string }>
+        if (avatars.length !== 2) return false
+        const a = avatars.find(p => p.playerId === 'art-player-a')
+        const b = avatars.find(p => p.playerId === 'art-player-b')
+        return Boolean(a?.appearance.includes('"hairColor":"red"')
+          && a?.appearance.includes('"topColor":"green"')
+          && a?.appearance.includes('"bottomStyle":"skirt"')
+          && b?.appearance.includes('"hairColor":"blonde"')
+          && b?.appearance.includes('"skinTone":"skin-5"'))
+      })).toBe(true)
       await expect.poll(() => page.evaluate(() => {
         const encoded = document.querySelector('[data-testid="game-canvas"]')
           ?.getAttribute('data-e2e-name-label-bounds')
@@ -76,6 +131,12 @@ test('two illustrated wanderers coexist in the authoritative world at mobile siz
     await pageA.keyboard.up('ArrowRight')
     await expect.poll(async () => Number(await self.getAttribute('data-player-x'))).toBeGreaterThan(oldX)
 
+    await pageA.evaluate(() => window.dispatchEvent(new Event('vuxo:e2e-reconnect')))
+    await expect(pageA.getByTestId('world-connection-status')).toHaveAttribute('data-status', 'connected')
+    await expect.poll(() => pageA.evaluate(() =>
+      (document.querySelector('[data-testid="game-canvas"]')
+        ?.getAttribute('data-e2e-avatar-appearance') ?? '').includes('"hairColor":"red"'))).toBe(true)
+
     await info.attach('world-art-mobile-two-players', {
       body: await pageA.screenshot({ animations: 'disabled' }), contentType: 'image/png',
     })
@@ -89,11 +150,18 @@ test('two illustrated wanderers coexist in the authoritative world at mobile siz
 
 test('illustrated world keeps the canvas responsive on a portrait-to-ultrawide resize', async ({ page, request }, info) => {
   await resetRoom(request, resizeScope)
+  const future = await request.post(origin + '/__vuxo_e2e/world/join?scope=' + resizeScope, {
+    data: { playerId: 'art-resize-player', characterName: 'Landscape Wanderer',
+      appearance: { catalogVersion: 'future-unknown', hairColor: 'red' } },
+  })
+  expect(future.ok()).toBeTruthy()
   await demoPlayer(page, 'art-resize-player', 'Landscape Wanderer', resizeScope)
   await page.setViewportSize({ width: 320, height: 568 })
   await page.goto(gameUrl)
   await expect(page.getByTestId('world-connection-status')).toHaveAttribute('data-status', 'connected')
   await expect(page.getByTestId('game-canvas').locator('canvas')).toBeVisible()
+  await expect.poll(() => page.getByTestId('game-canvas').getAttribute('data-e2e-avatar-appearance'))
+    .toContain('"appearance":"legacy"')
   await page.setViewportSize({ width: 1920, height: 1080 })
   await expect.poll(() => page.evaluate(() => {
     const host = document.querySelector('[data-testid="game-canvas"]')!.getBoundingClientRect()

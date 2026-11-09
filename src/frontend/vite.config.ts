@@ -2,6 +2,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { fileURLToPath } from 'node:url';
 import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
+import type { WorldCharacterAppearance } from './src/features/world/worldRealtime';
 
 type E2EPlayer = {
   playerId: string;
@@ -11,6 +12,7 @@ type E2EPlayer = {
   y: number;
   speedMultiplier: number;
   revision: number;
+  appearance?: WorldCharacterAppearance | null;
 };
 
 type E2EWorldRoom = { players: Map<string, E2EPlayer>; spawnIndex: number };
@@ -77,6 +79,10 @@ function e2eWorldPlugin(): Plugin {
                 y: 4.5,
                 speedMultiplier: 1,
                 revision: 0,
+                // Preview-only fixture; never routed to production SignalR.
+                appearance: typeof body.appearance === 'object' && body.appearance !== null
+                  ? body.appearance as WorldCharacterAppearance
+                  : null,
               };
               players.set(playerId, player);
             }

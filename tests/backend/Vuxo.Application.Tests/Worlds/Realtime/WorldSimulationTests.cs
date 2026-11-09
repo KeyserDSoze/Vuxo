@@ -14,6 +14,60 @@ public sealed class WorldSimulationTests
         }
     }
 
+    [Fact]
+    public async Task Join_TwoPlayersExposeOnlyPersistedCosmeticsThroughMoveAndReconnect()
+    {
+        var simulation = new WorldSimulation(new ManualTimeProvider());
+        var first = CreateCharacter("player-a", 4);
+        var second = PlayerCharacter.Create(
+            "player-b",
+            "Vuxian Beta",
+            PlayerAttributes.Create(0, 4, 0, 6, 0, 0),
+            new CharacterAppearance(
+                "hair-3", "red", "face-2", "body-3", "skin-5",
+                "green", "skirt", "white", "shoe-3", "blue"));
+
+        var a = simulation.Join("conn-a", "player-a", first, new WorldSpawnPoint(0, 0));
+        var b = simulation.Join("conn-b", "player-b", second, new WorldSpawnPoint(1, 0));
+        Assert.Equal(CharacterAppearanceCatalog.Version, a.Self.Appearance?.CatalogVersion);
+        Assert.Equal("black", a.Self.Appearance?.HairColor);
+        Assert.Equal("shorts", a.Self.Appearance?.BottomStyle);
+        Assert.Equal("red", b.Self.Appearance?.HairColor);
+        Assert.Equal("skin-5", b.Self.Appearance?.SkinTone);
+        Assert.Equal("skirt", b.Self.Appearance?.BottomStyle);
+        Assert.Equal("red", Assert.Single(b.Players, p => p.PlayerId == "player-b").Appearance?.HairColor);
+
+        Assert.True(simulation.SubmitIntent("conn-b", 1, 0, 1).Accepted);
+        var delta = await simulation.TickAsync(TimeSpan.FromMilliseconds(100), new StubWalkabilityMap(true));
+        Assert.Equal(b.Self.Appearance, Assert.Single(delta.Players).Appearance);
+
+        var reconnect = simulation.Join("conn-b2", "player-b", second, new WorldSpawnPoint(99, 99));
+        Assert.Equal(b.Self.Appearance, reconnect.Self.Appearance);
+        Assert.Equal(b.Self.Appearance, Assert.Single(simulation.Snapshot(), p => p.PlayerId == "player-b").Appearance);
+
+        var json = System.Text.Json.JsonSerializer.Serialize(
+            reconnect.Self,
+            new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web));
+        Assert.Contains("\"catalogVersion\":\"0.0.1\"", json);
+        Assert.Contains("\"hairColor\":\"red\"", json);
+        Assert.DoesNotContain("ownerId", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("email", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("accessToken", json, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void InvalidHistoricalCosmeticsAreNotExposedToPeers()
+    {
+        var simulation = new WorldSimulation(new ManualTimeProvider());
+        var stale = PlayerCharacter.Create(
+            "player-a", "Vuxian",
+            PlayerAttributes.Create(0, 4, 0, 6, 0, 0),
+            new CharacterAppearance("hair-1", "black", "face-1", "body-1",
+                "skin-1", "blue", "unknown-bottom", "black", "shoe-1", "black"));
+        var result = simulation.Join("conn-a", "player-a", stale, new WorldSpawnPoint(0, 0));
+        Assert.Null(result.Self.Appearance);
+    }
+
     [Theory]
     [MemberData(nameof(DexterityCases))]
     public async Task Tick_MovementDistanceUsesDexterityMultiplier(int dexterity, double expectedDistance)
@@ -134,7 +188,7 @@ public sealed class WorldSimulationTests
                 "body-1",
                 "skin-1",
                 "blue",
-                "bottom-1",
+                "shorts",
                 "black",
                 "shoe-1",
                 "black"));

@@ -1,7 +1,10 @@
 import * as signalR from '@microsoft/signalr'
+import type { CharacterAppearanceDraft } from '../character/appearance'
 import { getApiBaseUrl } from '../character/appearance'
 
 export type WorldConnectionStatus = 'idle' | 'connecting' | 'connected' | 'reconnecting' | 'disconnected' | 'error'
+
+export type WorldCharacterAppearance = CharacterAppearanceDraft & { catalogVersion: string }
 
 export type WorldPlayerSnapshot = {
   playerId: string
@@ -11,6 +14,7 @@ export type WorldPlayerSnapshot = {
   y: number
   speedMultiplier: number
   revision: number
+  appearance?: WorldCharacterAppearance | null
 }
 
 export type WorldJoinResult = {

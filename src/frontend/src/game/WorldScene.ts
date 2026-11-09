@@ -2,6 +2,7 @@ import Phaser from 'phaser'
 import type { WorldPlayerSnapshot, WorldRealtimeClient, WorldRealtimeState } from '../features/world/worldRealtime'
 import type { WorldPortalMarker } from '../features/portals/portalApi'
 import { WORLD_ART_VERSION, createIllustratedWanderer, paintWoodlandTile } from './WorldArtwork'
+import { readWorldAppearance, worldAppearanceKey } from './WorldAppearance'
 
 const TILE_SIZE = 32
 
@@ -16,6 +17,7 @@ type PlayerVisual = {
   name: Phaser.GameObjects.Text
   targetX: number
   targetY: number
+  appearanceKey: string
 }
 
 export class WorldScene extends Phaser.Scene {
@@ -62,6 +64,7 @@ export class WorldScene extends Phaser.Scene {
         const host = document.querySelector('[data-testid="game-canvas"]')
         host?.removeAttribute('data-e2e-illustrated-player-count')
         host?.removeAttribute('data-e2e-world-art-version')
+        host?.removeAttribute('data-e2e-avatar-appearance')
         host?.removeAttribute('data-e2e-name-label-bounds')
       }
       this.realtime.setMovementIntent(0, 0)
@@ -223,6 +226,9 @@ export class WorldScene extends Phaser.Scene {
       const host = document.querySelector('[data-testid="game-canvas"]')
       host?.setAttribute('data-e2e-illustrated-player-count', String(this.players.size))
       host?.setAttribute('data-e2e-world-art-version', WORLD_ART_VERSION)
+      host?.setAttribute('data-e2e-avatar-appearance', JSON.stringify(
+        [...this.players.entries()].map(([playerId, visual]) =>
+          ({ playerId, appearance: visual.appearanceKey })).sort((a, b) => a.playerId.localeCompare(b.playerId))))
     }
 
     if (this.selfPlayerId && this.cameraTargetId !== this.selfPlayerId) {
@@ -239,17 +245,33 @@ export class WorldScene extends Phaser.Scene {
     const targetX = player.x * TILE_SIZE
     const targetY = player.y * TILE_SIZE
     const existing = this.players.get(player.playerId)
+    const appearance = readWorldAppearance(player.appearance)
+    const appearanceKey = worldAppearanceKey(appearance)
+    const isSelf = player.playerId === this.selfPlayerId
     if (existing) {
       existing.targetX = targetX
       existing.targetY = targetY
       existing.name.setText(player.characterName)
+      // Redraw only when a newer authoritative snapshot changes cosmetics;
+      // movement deltas preserve the previous Phaser container and camera.
+      if (existing.appearanceKey !== appearanceKey) {
+        const old = existing.body
+        const replacement = createIllustratedWanderer(this, player.playerId, isSelf, appearance)
+        replacement.setPosition(old.x, old.y)
+        replacement.setScale(old.scaleX, old.scaleY)
+        existing.body = replacement
+        existing.appearanceKey = appearanceKey
+        if (this.cameraTargetId === player.playerId) {
+          this.cameras.main.startFollow(replacement, true, 0.12, 0.12)
+        }
+        old.destroy()
+      }
       return
     }
 
-    // Visual identity is deterministic and local; realtime supplies only
-    // canonical player coordinates/name and never authorizes cosmetic rewards.
-    const isSelf = player.playerId === this.selfPlayerId
-    const body = createIllustratedWanderer(this, player.playerId, isSelf)
+    // Only public cosmetics from the server-owned snapshot are rendered.
+    // Old/mismatched versions keep the stable original illustrated fallback.
+    const body = createIllustratedWanderer(this, player.playerId, isSelf, appearance)
     body.setPosition(targetX, targetY)
     const name = this.add.text(targetX, targetY - 54, player.characterName, {
       color: '#f8fafc',
@@ -262,7 +284,7 @@ export class WorldScene extends Phaser.Scene {
     name.setOrigin(0.5, 1)
     name.setDepth(11)
 
-    this.players.set(player.playerId, { body, name, targetX, targetY })
+    this.players.set(player.playerId, { body, name, targetX, targetY, appearanceKey })
   }
 
   private removePlayer(playerId: string): void {

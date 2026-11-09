@@ -7,4 +7,5 @@ public sealed record WorldPlayerSnapshot(
     double X,
     double Y,
     double SpeedMultiplier,
-    long Revision);
+    long Revision,
+    WorldCharacterAppearance? Appearance = null);

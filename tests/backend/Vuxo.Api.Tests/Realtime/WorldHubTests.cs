@@ -59,6 +59,10 @@ public sealed class WorldHubTests
 
         var joined = await playerJoined.Task.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.Equal("player-b", joined.PlayerId);
+        Assert.Equal(CharacterAppearanceCatalog.Version, joined.Appearance?.CatalogVersion);
+        Assert.Equal("red", joined.Appearance?.HairColor);
+        Assert.Equal("skirt", joined.Appearance?.BottomStyle);
+
 
         await connectionB.InvokeAsync("SetMovementIntent", 1, 0, 1L);
         var moved = await playerMoved.Task.WaitAsync(TimeSpan.FromSeconds(5));
@@ -74,7 +78,9 @@ public sealed class WorldHubTests
     {
         var players = new FakePlayerRepository(
             CreateCharacter("player-a", "Alpha", 2),
-            CreateCharacter("player-b", "Bravo", 5));
+            CreateCharacter("player-b", "Bravo", 5, new CharacterAppearance(
+                "hair-4", "red", "face-3", "body-2", "skin-4",
+                "green", "skirt", "blue", "shoe-2", "white")));
         var worlds = new FakeWorldRepository();
         var unitOfWork = new FakeUnitOfWork();
 
@@ -113,19 +119,19 @@ public sealed class WorldHubTests
         return payload.AccessToken;
     }
 
-    private static PlayerCharacter CreateCharacter(string ownerId, string name, int dexterity)
+    private static PlayerCharacter CreateCharacter(string ownerId, string name, int dexterity, CharacterAppearance? appearance = null)
         => PlayerCharacter.Create(
             ownerId,
             name,
             PlayerAttributes.Create(0, dexterity, 0, 10 - dexterity, 0, 0),
-            new CharacterAppearance(
+            appearance ?? new CharacterAppearance(
                 "hair-1",
                 "black",
                 "face-1",
                 "body-1",
                 "skin-1",
                 "blue",
-                "bottom-1",
+                "shorts",
                 "black",
                 "shoe-1",
                 "black"));
