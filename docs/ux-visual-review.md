@@ -42,3 +42,7 @@ La run [#42683217386](https://github.com/KeyserDSoze/Vuxo/actions/runs/426832173
 ## Character Studio — edit persistito (#173)
 
 Le suite `character-studio.spec.ts` verificano il caricamento del personaggio autenticato, la disabilitazione di nome e caratteristiche, PATCH appearance con revision corrente, pulsante disabilitato quando il look è identico e conflitti 409 non spacciati per salvataggi riusciti. La workflow Visual parte quando cambia il Character Studio e continua a catturare la matrice. Il test `e2e-live/character-appearance.spec.ts` usa **browser + API + PostgreSQL + SignalR reali** per verificare due giocatori online e un terzo browser editore, l'evento post-commit, un retry idempotente, un conflitto CAS e reconnect; non utilizza il mock Vite per la posizione. La funzionalità non concede alcun XP, oggetto o altra modifica gameplay.
+
+## Esito finale #173
+
+La [CI #42695414456](https://github.com/KeyserDSoZe/Vuxo/actions/runs/42695414456) ha passato **282 Playwright**, backend e Docker; [Live #42695413815](https://github.com/KeyserDSoze/Vuxo/actions/runs/42695413815) **3 test real browser/API/PostgreSQL/SignalR**, [Visual #42693836368](https://github.com/KeyserDSoZe/Vuxo/actions/runs/42693836368) **75 test**, Pages #42695414305 success. I test provano che il Character Studio salva un look dopo la creazione e che due client online vedono l'aggiornamento senza spoofing, con CAS e reconnect. La review fisica full screen #155, scala avatar desktop #174, art direction #167 e stabilità API pubblica Cloudflare #147 sono attività diverse.
