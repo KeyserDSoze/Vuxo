@@ -18,6 +18,8 @@ export function RefugePortalCompletionHistory() {
   const [mode, setMode] = useState<HistoryMode>('completed');
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
   const [page, setPage] = useState(1);
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -29,12 +31,15 @@ export function RefugePortalCompletionHistory() {
     setError(false);
     if (page === 1) setEntries([]);
     void (mode === 'completed'
-      ? fetchCompletedPortals(page, 20, controller.signal)
-      : fetchPortalOutcomes(page, 20, controller.signal))
+      ? fetchCompletedPortals(page, 20, controller.signal, cursor)
+      : fetchPortalOutcomes(page, 20, controller.signal, cursor))
       .then(result => {
         if (controller.signal.aborted) return;
         setEntries(previous => page === 1 ? result.items : [...previous, ...result.items]);
         setHasMore(result.hasMore);
+        // Prefer the server's exact seek position; older API versions still
+        // work via their original page/offset contract.
+        setNextCursor(result.nextCursor ?? null);
       })
       .catch(() => {
         if (!controller.signal.aborted) setError(true);
@@ -43,7 +48,7 @@ export function RefugePortalCompletionHistory() {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [page, attempt, mode]);
+  }, [page, attempt, mode, cursor]);
 
   const locale = i18n.resolvedLanguage?.startsWith('en') ? 'en-US' : 'it-IT';
   const formatDate = (value: string) => {
@@ -56,6 +61,8 @@ export function RefugePortalCompletionHistory() {
   function refresh() {
     setEntries([]);
     setHasMore(false);
+    setCursor(null);
+    setNextCursor(null);
     setLoading(true);
     setPage(1);
     setAttempt(previous => previous + 1);
@@ -65,6 +72,8 @@ export function RefugePortalCompletionHistory() {
     if (nextMode === mode) return;
     setEntries([]);
     setHasMore(false);
+    setCursor(null);
+    setNextCursor(null);
     setLoading(true);
     setError(false);
     setPage(1);
@@ -194,11 +203,20 @@ export function RefugePortalCompletionHistory() {
         </Stack>
         {!loading && !error && hasMore && (
           <Button data-testid="refuge-journal-completed-more" variant="outlined"
-            onClick={() => setPage(value => value + 1)} sx={{ alignSelf: 'flex-start' }}>
+            onClick={() => {
+              setCursor(nextCursor);
+              setPage(value => value + 1);
+            }} sx={{ alignSelf: 'flex-start' }}>
             {t(mode === 'completed'
               ? 'refuge.journal.completed.more'
               : 'refuge.journal.outcomes.more')}
           </Button>
+        )}
+        {!loading && !error && hasMore && nextCursor && (
+          <Typography variant="caption" color="text.secondary"
+            data-testid="refuge-journal-seek-hint">
+            {t('refuge.journal.stablePaging')}
+          </Typography>
         )}
         <Typography variant="caption" color="text.secondary"
           data-testid="refuge-journal-completed-disclaimer">

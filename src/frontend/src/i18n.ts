@@ -80,6 +80,7 @@ const initialization = i18n.use(initReactI18next).init({
             refreshAll: 'Aggiorna tutto',
             retry: 'Aggiorna',
             dateUnavailable: 'Data non disponibile',
+            stablePaging: 'Le pagine successive restano in ordine anche se arrivano nuovi eventi.',
             outcomes: {
               title: 'Esiti verificati dei portali',
               description: 'Una cronologia di eventi confermati: rune risolte, primi errori con danno e conclusioni dei duelli PvE.',
@@ -644,6 +645,7 @@ const initialization = i18n.use(initReactI18next).init({
             refreshAll: 'Refresh all',
             retry: 'Refresh',
             dateUnavailable: 'Date unavailable',
+            stablePaging: 'Older pages stay in order even when new events arrive.',
             outcomes: {
               title: 'Verified portal outcomes',
               description: 'A timeline of confirmed events: solved runes, first damaging mistakes and finished PvE showdowns.',

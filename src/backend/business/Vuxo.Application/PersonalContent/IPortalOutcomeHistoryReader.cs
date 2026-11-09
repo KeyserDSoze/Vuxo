@@ -8,7 +8,8 @@ public interface IPortalOutcomeHistoryReader
 {
     Task<PortalOutcomeHistoryPage> ListForPlayerAsync(
         string playerId, int page, int pageSize,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        PortalHistoryPosition? after = null);
 }
 
 public static class PortalOutcomeKinds
@@ -32,4 +33,5 @@ public sealed record PortalOutcomeHistoryPage(
     IReadOnlyList<PortalOutcomeHistoryItem> Items,
     int Page,
     int PageSize,
-    bool HasMore);
+    bool HasMore,
+    string? NextCursor = null);

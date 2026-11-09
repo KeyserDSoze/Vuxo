@@ -111,6 +111,55 @@ public sealed class PortalCompletionHistoryApiTests
         Assert.Equal("portal_history_invalid_pagination", json.RootElement.GetProperty("code").GetString());
     }
 
+    [Theory]
+    [InlineData("?after=")]
+    [InlineData("?after=not-a-cursor")]
+    [InlineData("?after=v2")]
+    public async Task History_RejectsInvalidCursor_BeforeDatabaseRead(string query)
+    {
+        var reader = new FakeReader();
+        using var factory = CreateFactory(reader);
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, "player-a");
+
+        var response = await client.GetAsync(Path + query);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(0, reader.Reads);
+        using var payload = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal("portal_history_invalid_cursor",
+            payload.RootElement.GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public async Task History_AcceptsSeekCursor_AndDoesNotRepeatEntryWhenNewerResultArrives()
+    {
+        var reader = new FakeReader();
+        reader.Records.AddRange([
+            ("player-a", NewCompletion(1)),
+            ("player-a", NewCompletion(2)),
+            ("player-b", NewCompletion(3))
+        ]);
+        using var factory = CreateFactory(reader);
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, "player-a");
+
+        var first = await client.GetFromJsonAsync<PortalCompletionHistoryPage>(
+            Path + "?page=1&pageSize=1");
+        Assert.NotNull(first);
+        Assert.True(first.HasMore);
+        Assert.NotNull(first.NextCursor);
+        reader.Records.Add(("player-a", NewCompletion(4)));
+
+        var second = await client.GetFromJsonAsync<PortalCompletionHistoryPage>(
+            Path + "?page=2&pageSize=1&after=" + Uri.EscapeDataString(first.NextCursor));
+        Assert.NotNull(second);
+        Assert.Equal(NewId(1), Assert.Single(second.Items).GrantId);
+        Assert.False(second.HasMore);
+        Assert.Equal("player-a", reader.LastOwner);
+        Assert.Equal(NewId(2), reader.LastPosition?.EventId);
+    }
+
     private static VuxoApiFactory CreateFactory(FakeReader reader) =>
         new(configureServices: services =>
         {
@@ -146,22 +195,32 @@ public sealed class PortalCompletionHistoryApiTests
         public readonly List<(string Owner, PortalCompletionHistoryItem Item)> Records = [];
         public string? LastOwner { get; private set; }
         public int Reads { get; private set; }
+        public PortalHistoryPosition? LastPosition { get; private set; }
 
         public Task<PortalCompletionHistoryPage> ListCompletedForPlayerAsync(
             string playerId, int page, int pageSize,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default,
+            PortalHistoryPosition? after = null)
         {
             Reads++;
             LastOwner = playerId;
-            var result = Records.Where(x => x.Owner == playerId)
+            LastPosition = after;
+            var ordered = Records.Where(x => x.Owner == playerId)
                 .Select(x => x.Item)
                 .OrderByDescending(x => x.CompletedAtUtc)
-                .ThenByDescending(x => x.GrantId)
-                .Skip((page - 1) * pageSize)
-                .Take(pageSize + 1)
-                .ToArray();
+                .ThenByDescending(x => x.GrantId);
+            var candidates = after is { } position
+                ? ordered.Where(x => x.CompletedAtUtc < position.OccurredAtUtc ||
+                    (x.CompletedAtUtc == position.OccurredAtUtc &&
+                     x.GrantId.CompareTo(position.EventId) < 0))
+                : ordered.Skip((page - 1) * pageSize);
+            var result = candidates.Take(pageSize + 1).ToArray();
+            var visible = result.Take(pageSize).ToArray();
+            var more = result.Length > pageSize;
             return Task.FromResult(new PortalCompletionHistoryPage(
-                result.Take(pageSize).ToArray(), page, pageSize, result.Length > pageSize));
+                visible, page, pageSize, more,
+                more ? PortalHistoryCursor.Encode(new PortalHistoryPosition(
+                    visible[^1].CompletedAtUtc, visible[^1].GrantId)) : null));
         }
     }
 

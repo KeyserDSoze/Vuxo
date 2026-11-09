@@ -136,8 +136,8 @@ public static class PersonalContentEndpoints
         // owner-matched receipts and audit evidence; no inferred outcomes.
         endpoints.MapGet(
             "/api/personal-content/history/outcomes",
-            async (ClaimsPrincipal user, IPortalOutcomeHistoryReader history,
-                int? page, int? pageSize, CancellationToken cancellationToken) =>
+            async (HttpRequest request, ClaimsPrincipal user, IPortalOutcomeHistoryReader history,
+                int? page, int? pageSize, string? after, CancellationToken cancellationToken) =>
             {
                 var playerId = user.FindFirstValue(ClaimTypes.NameIdentifier);
                 if (string.IsNullOrWhiteSpace(playerId)) return Results.Unauthorized();
@@ -147,8 +147,12 @@ public static class PersonalContentEndpoints
                 if (requestedPage is < 1 or > 1000 || requestedSize is < 1 or > 50)
                     return Results.BadRequest(new { code = "portal_history_invalid_pagination" });
 
+                if ((request.Query.ContainsKey("after") && string.IsNullOrEmpty(after)) ||
+                    !PortalHistoryCursor.TryDecode(after, out var position))
+                    return Results.BadRequest(new { code = "portal_history_invalid_cursor" });
+
                 return Results.Ok(await history.ListForPlayerAsync(
-                    playerId, requestedPage, requestedSize, cancellationToken));
+                    playerId, requestedPage, requestedSize, cancellationToken, position));
             })
             .RequireAuthorization();
 
@@ -156,8 +160,8 @@ public static class PersonalContentEndpoints
         // A consumed grant or an inventory reward alone is never proof.
         endpoints.MapGet(
             "/api/personal-content/history/completed",
-            async (ClaimsPrincipal user, IPortalCompletionHistoryReader history,
-                int? page, int? pageSize, CancellationToken cancellationToken) =>
+            async (HttpRequest request, ClaimsPrincipal user, IPortalCompletionHistoryReader history,
+                int? page, int? pageSize, string? after, CancellationToken cancellationToken) =>
             {
                 var playerId = user.FindFirstValue(ClaimTypes.NameIdentifier);
                 if (string.IsNullOrWhiteSpace(playerId)) return Results.Unauthorized();
@@ -169,8 +173,12 @@ public static class PersonalContentEndpoints
                     return Results.BadRequest(new { code = "portal_history_invalid_pagination" });
                 }
 
+                if ((request.Query.ContainsKey("after") && string.IsNullOrEmpty(after)) ||
+                    !PortalHistoryCursor.TryDecode(after, out var position))
+                    return Results.BadRequest(new { code = "portal_history_invalid_cursor" });
+
                 return Results.Ok(await history.ListCompletedForPlayerAsync(
-                    playerId, requestedPage, requestedSize, cancellationToken));
+                    playerId, requestedPage, requestedSize, cancellationToken, position));
             })
             .RequireAuthorization();
 

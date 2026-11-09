@@ -17,7 +17,8 @@ public sealed class PortalOutcomeHistoryReader(VuxoDbContext db)
 
     public async Task<PortalOutcomeHistoryPage> ListForPlayerAsync(
         string playerId, int page, int pageSize,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        PortalHistoryPosition? after = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(playerId);
         if (page is < 1 or > 1000 || pageSize is < 1 or > 50)
@@ -99,16 +100,29 @@ public sealed class PortalOutcomeHistoryReader(VuxoDbContext db)
                 audit.OccurredAtUtc
             };
 
-        // UNION ALL is executed in PostgreSQL, with a single bounded page,
-        // stable tie-break on audit event ID and no unbounded client fetch.
-        var rows = await completions
+        // UNION ALL remains fully SQL-side; row-value seek uses the same
+        // (OccurredAtUtc, EventId) tie-break as the descending order.
+        // Offset remains supported only for legacy page-based callers.
+        var ordered = completions
             .Concat(mistakes)
             .Concat(guardianTerminals)
             .OrderByDescending(row => row.OccurredAtUtc)
-            .ThenByDescending(row => row.EventId)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize + 1)
-            .ToListAsync(cancellationToken);
+            .ThenByDescending(row => row.EventId);
+        var query = ordered.AsQueryable();
+        if (after is { } position)
+        {
+            var when = position.OccurredAtUtc;
+            var eventId = position.EventId;
+            query = query.Where(row => EF.Functions.LessThan(
+                ValueTuple.Create(row.OccurredAtUtc, row.EventId),
+                ValueTuple.Create(when, eventId)));
+        }
+        else
+        {
+            query = query.Skip((page - 1) * pageSize);
+        }
+
+        var rows = await query.Take(pageSize + 1).ToListAsync(cancellationToken);
 
         var visibleRows = rows.Take(pageSize).ToArray();
         // Only successful sequence consumption events can be causally related
@@ -128,6 +142,10 @@ public sealed class PortalOutcomeHistoryReader(VuxoDbContext db)
                 row.Kind == PortalOutcomeKinds.SequenceCompleted
                     ? provenRewards.GetValueOrDefault((row.EventId, row.GrantId))
                     : null)).ToArray(),
-            page, pageSize, rows.Count > pageSize);
+            page, pageSize, rows.Count > pageSize,
+            rows.Count > pageSize && visibleRows.Length > 0
+                ? PortalHistoryCursor.Encode(new PortalHistoryPosition(
+                    visibleRows[^1].OccurredAtUtc, visibleRows[^1].EventId))
+                : null);
     }
 }

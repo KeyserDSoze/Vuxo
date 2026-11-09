@@ -103,6 +103,53 @@ public sealed class PortalOutcomeHistoryApiTests
         Assert.Equal(0, history.Calls);
     }
 
+    [Theory]
+    [InlineData("?after=")]
+    [InlineData("?after=not-a-cursor")]
+    [InlineData("?after=v2")]
+    public async Task Outcomes_RejectInvalidCursor_BeforeReadingHistory(string query)
+    {
+        var history = new FakeReader();
+        using var factory = CreateFactory(history);
+        using var client = factory.CreateClient();
+        await SignInAsync(client, "player-a");
+
+        var response = await client.GetAsync(Route + query);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(0, history.Calls);
+        using var payload = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal("portal_history_invalid_cursor",
+            payload.RootElement.GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public async Task Outcomes_CursorDoesNotRepeatEarlierEntryAfterNewerAuditAppears()
+    {
+        var history = new FakeReader();
+        history.Rows.Add(("player-a", Event(1, PortalOutcomeKinds.SequenceFirstMistake)));
+        history.Rows.Add(("player-a", Event(2, PortalOutcomeKinds.SequenceCompleted)));
+        history.Rows.Add(("player-b", Event(3, PortalOutcomeKinds.GuardianVictory)));
+        using var factory = CreateFactory(history);
+        using var client = factory.CreateClient();
+        await SignInAsync(client, "player-a");
+
+        var first = await client.GetFromJsonAsync<PortalOutcomeHistoryPage>(
+            Route + "?page=1&pageSize=1");
+        Assert.NotNull(first);
+        Assert.True(first.HasMore);
+        Assert.NotNull(first.NextCursor);
+        history.Rows.Add(("player-a", Event(4, PortalOutcomeKinds.GuardianRetreat)));
+
+        var second = await client.GetFromJsonAsync<PortalOutcomeHistoryPage>(
+            Route + "?page=2&pageSize=1&after=" + Uri.EscapeDataString(first.NextCursor));
+        Assert.NotNull(second);
+        Assert.Equal(Id(1), Assert.Single(second.Items).EventId);
+        Assert.False(second.HasMore);
+        Assert.Equal(Id(2), history.LastPosition?.EventId);
+        Assert.Equal("player-a", history.LastOwner);
+    }
+
     private static VuxoApiFactory CreateFactory(FakeReader reader) =>
         new(configureServices: services =>
         {
@@ -135,22 +182,32 @@ public sealed class PortalOutcomeHistoryApiTests
         public List<(string Owner, PortalOutcomeHistoryItem Item)> Rows { get; } = [];
         public int Calls { get; private set; }
         public string? LastOwner { get; private set; }
+        public PortalHistoryPosition? LastPosition { get; private set; }
 
         public Task<PortalOutcomeHistoryPage> ListForPlayerAsync(
             string playerId, int page, int pageSize,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default,
+            PortalHistoryPosition? after = null)
         {
             Calls++;
             LastOwner = playerId;
-            var rows = Rows.Where(row => row.Owner == playerId)
+            LastPosition = after;
+            var ordered = Rows.Where(row => row.Owner == playerId)
                 .Select(row => row.Item)
                 .OrderByDescending(row => row.OccurredAtUtc)
-                .ThenByDescending(row => row.EventId)
-                .Skip((page - 1) * pageSize)
-                .Take(pageSize + 1)
-                .ToArray();
+                .ThenByDescending(row => row.EventId);
+            var candidates = after is { } position
+                ? ordered.Where(row => row.OccurredAtUtc < position.OccurredAtUtc ||
+                    (row.OccurredAtUtc == position.OccurredAtUtc &&
+                     row.EventId.CompareTo(position.EventId) < 0))
+                : ordered.Skip((page - 1) * pageSize);
+            var rows = candidates.Take(pageSize + 1).ToArray();
+            var visible = rows.Take(pageSize).ToArray();
+            var more = rows.Length > pageSize;
             return Task.FromResult(new PortalOutcomeHistoryPage(
-                rows.Take(pageSize).ToArray(), page, pageSize, rows.Length > pageSize));
+                visible, page, pageSize, more,
+                more ? PortalHistoryCursor.Encode(new PortalHistoryPosition(
+                    visible[^1].OccurredAtUtc, visible[^1].EventId)) : null));
         }
     }
 

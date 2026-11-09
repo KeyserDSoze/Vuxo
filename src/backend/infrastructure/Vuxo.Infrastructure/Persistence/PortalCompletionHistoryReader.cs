@@ -16,7 +16,8 @@ public sealed class PortalCompletionHistoryReader(VuxoDbContext dbContext)
 
     public async Task<PortalCompletionHistoryPage> ListCompletedForPlayerAsync(
         string playerId, int page, int pageSize,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        PortalHistoryPosition? after = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(playerId);
         if (page is < 1 or > 1000 || pageSize is < 1 or > 50)
@@ -44,12 +45,24 @@ public sealed class PortalCompletionHistoryReader(VuxoDbContext dbContext)
                 eventRecord.OccurredAtUtc
             };
 
-        // Bounded offset pagination: deterministic ordering under a fixed
-        // snapshot, limit 50/page and at most 1000 pages. Read-only.
-        var rows = await records
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize + 1)
-            .ToListAsync(cancellationToken);
+        // Backward-compatible offset on legacy requests; seek past an exact
+        // (timestamp, event UUID) position on subsequent pages. Newer inserts
+        // never shift a seek window, including when timestamps are tied.
+        var query = records.AsQueryable();
+        if (after is { } position)
+        {
+            var when = position.OccurredAtUtc;
+            var eventId = position.EventId;
+            query = query.Where(row => EF.Functions.LessThan(
+                ValueTuple.Create(row.OccurredAtUtc, row.EventId),
+                ValueTuple.Create(when, eventId)));
+        }
+        else
+        {
+            query = query.Skip((page - 1) * pageSize);
+        }
+
+        var rows = await query.Take(pageSize + 1).ToListAsync(cancellationToken);
 
         var visibleRows = rows.Take(pageSize).ToArray();
         var provenRewards = await PortalRewardProvenanceReader.ForCompletionsAsync(
@@ -62,6 +75,10 @@ public sealed class PortalCompletionHistoryReader(VuxoDbContext dbContext)
                 row.Id, row.ContentKey, row.RuleVersion,
                 row.CreatedAtUtc, row.OccurredAtUtc,
                 provenRewards.GetValueOrDefault((row.EventId, row.Id)))).ToArray(),
-            page, pageSize, rows.Count > pageSize);
+            page, pageSize, rows.Count > pageSize,
+            rows.Count > pageSize && visibleRows.Length > 0
+                ? PortalHistoryCursor.Encode(new PortalHistoryPosition(
+                    visibleRows[^1].OccurredAtUtc, visibleRows[^1].EventId))
+                : null);
     }
 }

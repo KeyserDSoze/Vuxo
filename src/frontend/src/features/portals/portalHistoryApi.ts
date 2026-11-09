@@ -15,15 +15,16 @@ export type PortalCompletionPage = {
   page: number;
   pageSize: number;
   hasMore: boolean;
+  nextCursor?: string | null;
 };
 
 export async function fetchCompletedPortals(
-  page = 1, pageSize = 20, signal?: AbortSignal,
+  page = 1, pageSize = 20, signal?: AbortSignal, after?: string | null,
 ): Promise<PortalCompletionPage> {
   const token = readStoredSession()?.accessToken;
   if (!token) throw new Error('portal_history_authentication_required');
   const response = await fetch(
-    `${getApiBaseUrl()}/api/personal-content/history/completed?page=${page}&pageSize=${pageSize}`,
+    `${getApiBaseUrl()}/api/personal-content/history/completed?page=${page}&pageSize=${pageSize}${after ? `&after=${encodeURIComponent(after)}` : ''}`,
     { headers: { Authorization: `Bearer ${token}` }, signal },
   );
   if (!response.ok) throw new Error('portal_history_request_failed');
@@ -55,15 +56,16 @@ export type PortalOutcomePage = {
   page: number;
   pageSize: number;
   hasMore: boolean;
+  nextCursor?: string | null;
 };
 
 export async function fetchPortalOutcomes(
-  page = 1, pageSize = 20, signal?: AbortSignal,
+  page = 1, pageSize = 20, signal?: AbortSignal, after?: string | null,
 ): Promise<PortalOutcomePage> {
   const token = readStoredSession()?.accessToken;
   if (!token) throw new Error('portal_history_authentication_required');
   const response = await fetch(
-    `${getApiBaseUrl()}/api/personal-content/history/outcomes?page=${page}&pageSize=${pageSize}`,
+    `${getApiBaseUrl()}/api/personal-content/history/outcomes?page=${page}&pageSize=${pageSize}${after ? `&after=${encodeURIComponent(after)}` : ''}`,
     { headers: { Authorization: `Bearer ${token}` }, signal },
   );
   if (!response.ok) throw new Error('portal_outcomes_request_failed');
