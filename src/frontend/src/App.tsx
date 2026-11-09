@@ -42,6 +42,7 @@ export function App() {
   const { mode, cycleMode } = useVuxoTheme();
   const { build } = useBuildInfo();
   const location = useLocation();
+  const isWorldRoute = location.pathname === '/game';
   const accessState = useAdminAccessState();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const visibleNavItems = navItems.filter(item => item.to !== '/admin' || accessState === 'administrator');
@@ -52,19 +53,23 @@ export function App() {
   const toggleLanguage = () => void i18n.changeLanguage(language === 'it' ? 'en' : 'it');
 
   return (
-    <Box sx={{
-      minHeight: '100vh',
+    <Box data-testid="app-shell" className={isWorldRoute ? 'vuxo-app vuxo-app--world' : 'vuxo-app'} sx={{
+      minHeight: isWorldRoute ? '100dvh' : '100vh',
+      height: isWorldRoute ? '100dvh' : undefined,
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: isWorldRoute ? 'hidden' : undefined,
       background: theme => 'radial-gradient(circle at 20% 0%, ' +
         alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.20 : 0.12) +
         ', transparent 38%), ' + theme.palette.background.default
     }}>
-      <AppBar position="sticky" elevation={vuxoDesignTokens.elevation.appBar} color="transparent" sx={{ backdropFilter: 'blur(18px)', borderBottom: 1, borderColor: 'divider' }}>
+      <AppBar position="sticky" elevation={vuxoDesignTokens.elevation.appBar} color="transparent" sx={{ flexShrink: 0, backdropFilter: 'blur(18px)', borderBottom: 1, borderColor: 'divider', background: theme => 'linear-gradient(110deg, ' + alpha(theme.palette.background.paper, 0.96) + ', ' + alpha(theme.palette.primary.main, 0.09) + ')' }}>
         <Toolbar sx={{ gap: { xs: 0.5, sm: 1.5 }, minHeight: vuxoDesignTokens.layout.appBarMinHeight }}>
-          <Typography variant="h6" sx={{ fontWeight: 900, letterSpacing: '-0.04em', flexShrink: 0 }}>VUXO</Typography>
+          <Typography variant="h6" sx={{ fontWeight: 900, letterSpacing: '0.12em', flexShrink: 0, textShadow: theme => '0 0 22px ' + alpha(theme.palette.primary.main, 0.38) }}>VUXO</Typography>
           <Chip data-testid="shell-version" size="small" label={t('shell.version', { version: build?.version ?? '…' })} sx={{ display: { xs: 'none', md: 'inline-flex', lg: 'none', xl: 'inline-flex' } }} />
           <Stack component="nav" data-testid="desktop-nav" aria-label={t('shell.navigation')} direction="row" spacing={0.5} sx={{ ml: 1, minWidth: 0, display: { xs: 'none', lg: 'flex' } }}>
             {visibleNavItems.map(item => (
-              <Button key={item.to} component={RouterLink} to={item.to} color="inherit" size="small" aria-current={location.pathname === item.to ? 'page' : undefined} sx={{ flexShrink: 0 }}>
+              <Button key={item.to} component={RouterLink} to={item.to} color="inherit" size="small" aria-current={location.pathname === item.to ? 'page' : undefined} sx={{ flexShrink: 0, borderRadius: 1.5, bgcolor: location.pathname === item.to ? 'action.selected' : 'transparent', borderBottom: 2, borderColor: location.pathname === item.to ? 'primary.main' : 'transparent' }}>
                 {t(item.key)}
               </Button>
             ))}
@@ -100,7 +105,15 @@ export function App() {
           </List>
         </Box>
       </Drawer>
-      <Container component="main" maxWidth="xl" sx={{ py: { xs: vuxoDesignTokens.layout.pagePaddingYMobile, md: vuxoDesignTokens.layout.pagePaddingYDesktop } }}>
+      <Container component="main" maxWidth={isWorldRoute ? false : 'xl'} disableGutters={isWorldRoute} sx={{
+        flex: isWorldRoute ? '1 1 auto' : undefined,
+        minHeight: 0,
+        minWidth: 0,
+        width: '100%',
+        overflow: isWorldRoute ? 'hidden' : undefined,
+        display: isWorldRoute ? 'flex' : undefined,
+        py: isWorldRoute ? 0 : { xs: vuxoDesignTokens.layout.pagePaddingYMobile, md: vuxoDesignTokens.layout.pagePaddingYDesktop },
+      }}>
         <Suspense fallback={
           <Stack role="status" data-testid="route-loading" direction="row" spacing={2} sx={{ alignItems: 'center', py: 5 }}>
             <CircularProgress size={28} aria-label={t('shell.loadingPage')} />
