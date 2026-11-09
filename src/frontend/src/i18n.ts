@@ -71,6 +71,20 @@ const initialization = i18n.use(initReactI18next).init({
           }
         },
         refuge: {
+        dashboard: {
+          status: 'Stato del Vuxian',
+          statusGuest: 'La salute sarà disponibile dopo l’accesso.',
+          statusLoading: 'Lettura della salute dal server…',
+          statusNotFound: 'Nessun personaggio trovato.',
+          statusUnavailable: 'Stato non disponibile: riprova nella sezione Salute.',
+          healthReview: 'Apri salute e riposo',
+          navigation: 'Sezioni del Rifugio',
+          activities: 'Attività e percorsi',
+          health: 'Salute e riposo',
+          preparation: 'Preparazione',
+          care: 'Cure future',
+          activityHint: 'Scegli un’attività: gli allenamenti locali non concedono ricompense.',
+        },
         catalog: {
           title: 'Attività fuori dal mondo',
           description: 'Scopri le modalità versione per versione, anche senza entrare nella mappa.',
@@ -762,6 +776,20 @@ const initialization = i18n.use(initReactI18next).init({
           }
         },
         refuge: {
+        dashboard: {
+          status: 'Vuxian status',
+          statusGuest: 'Health becomes available after signing in.',
+          statusLoading: 'Reading health from the server…',
+          statusNotFound: 'No character found.',
+          statusUnavailable: 'Status unavailable: try again in Health.',
+          healthReview: 'Open health and rest',
+          navigation: 'Refuge sections',
+          activities: 'Activities and paths',
+          health: 'Health and rest',
+          preparation: 'Preparation',
+          care: 'Future care',
+          activityHint: 'Choose an activity: local practice does not grant rewards.',
+        },
         catalog: {
           title: 'Beyond-world activities',
           description: 'Explore versioned practice modes without loading the game world.',
