@@ -355,3 +355,121 @@
   .vuxo-refuge-dashboard .vuxo-refuge-activity { transition: none; }
   .vuxo-refuge-dashboard .vuxo-refuge-activity:hover { transform: none; }
 }
+
+
+/* #163 — character studio: the avatar stays alongside the server-validated draft. */
+.vuxo-character-studio { min-width: 0; }
+.vuxo-character-studio__hero {
+  border: 1px solid;
+  border-radius: clamp(14px, 1.6vw, 21px);
+  padding: clamp(12px, 1.7vw, 24px);
+  background: radial-gradient(ellipse at 89% 18%, color-mix(in srgb, var(--deck-glow) 16%, transparent), transparent 49%);
+}
+.vuxo-character-studio__hero .MuiTypography-h3 {
+  font-size: clamp(1.8rem, 3vw, 3.25rem);
+  line-height: 1.12;
+}
+.vuxo-character-studio__hero .MuiTypography-body1 {
+  max-width: 67ch;
+  line-height: 1.44;
+  font-size: .9rem;
+}
+.vuxo-character-studio__nav {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  min-height: 45px;
+  padding: 5px;
+  border: 1px solid;
+  border-radius: 12px;
+  scrollbar-width: thin;
+  overscroll-behavior-inline: contain;
+}
+.vuxo-character-studio__nav .MuiButton-root {
+  flex: 0 0 auto;
+  min-height: 34px;
+  padding-inline: 12px;
+  border-radius: 9px;
+  font-size: .77rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.vuxo-character-studio__nav .MuiButton-root:hover {
+  background: color-mix(in srgb, var(--deck-glow) 11%, transparent);
+}
+.vuxo-character-studio__portrait {
+  border-color: color-mix(in srgb, var(--deck-glow) 39%, transparent) !important;
+  overflow: hidden;
+  background: radial-gradient(ellipse at 50% 20%, color-mix(in srgb, var(--deck-glow) 17%, transparent), transparent 67%);
+}
+.vuxo-character-studio__portrait-content { display: flex; flex-direction: column; gap: 10px; }
+.vuxo-character-studio__portrait-heading { text-align: center; font-weight: 850; }
+.vuxo-character-studio__portrait [data-testid="character-preview"] {
+  border-color: color-mix(in srgb, var(--deck-glow) 27%, transparent);
+  box-shadow: 0 10px 26px -24px var(--deck-glow);
+}
+.vuxo-character-studio__portrait .vuxo-character-studio__stats .MuiTypography-h6 {
+  font-size: clamp(1.2rem, 1.7vw, 1.6rem);
+  font-variant-numeric: tabular-nums;
+  font-weight: 850;
+}
+.vuxo-character-studio__try-look { width: 100%; align-self: center; }
+.vuxo-character-studio__local-note { text-align: center; }
+.vuxo-character-studio__derived { line-height: 1.3; }
+.vuxo-character-studio__section {
+  scroll-margin-top: 58px;
+  border-color: color-mix(in srgb, var(--deck-glow) 25%, transparent) !important;
+}
+.vuxo-character-studio__section:focus-visible { outline-offset: -4px; }
+.vuxo-character-studio__section .MuiTypography-h5 { font-size: clamp(1.1rem, 1.6vw, 1.55rem); }
+.vuxo-character-studio__submit {
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
+  padding: 9px;
+  border: 1px solid;
+  border-radius: 12px;
+  box-shadow: 0 -7px 22px -20px var(--deck-glow);
+}
+.vuxo-character-studio__submit .MuiButton-root { min-height: 42px; width: 100%; }
+@media (max-width: 899px) {
+  .vuxo-character-studio__portrait-content {
+    display: grid;
+    grid-template-columns: minmax(0, 165px) minmax(0, 1fr);
+    gap: 8px 15px;
+    align-items: center;
+  }
+  .vuxo-character-studio__portrait-heading { grid-column: 1 / -1; text-align: left; }
+  .vuxo-character-studio__portrait [data-testid="character-preview"] {
+    grid-column: 1; grid-row: 2 / 5;
+    max-width: 165px; width: 100%; margin: 0;
+  }
+  .vuxo-character-studio__stats { grid-column: 2; grid-row: 2; margin-top: 0 !important; flex-wrap: wrap; }
+  .vuxo-character-studio__try-look { grid-column: 2; grid-row: 3; }
+  .vuxo-character-studio__local-note { grid-column: 2; grid-row: 4; text-align: left; }
+  .vuxo-character-studio__derived { grid-column: 1 / -1; grid-row: 5; }
+  .vuxo-character-studio__section { scroll-margin-top: 56px; }
+}
+@media (max-width: 430px) {
+  .vuxo-character-studio__hero { padding: 11px; }
+  .vuxo-character-studio__hero .MuiTypography-h3 { font-size: 1.75rem; }
+  .vuxo-character-studio__portrait-content { grid-template-columns: minmax(0, 105px) minmax(0, 1fr); gap: 5px 9px; padding: 11px !important; }
+  .vuxo-character-studio__portrait [data-testid="character-preview"] { max-width: 105px; }
+  .vuxo-character-studio__portrait .vuxo-character-studio__stats { display: flex; gap: 7px; }
+  .vuxo-character-studio__stats .MuiTypography-caption { font-size: .67rem; }
+  .vuxo-character-studio__portrait .vuxo-character-studio__stats .MuiTypography-h6 { font-size: 1.08rem; }
+  .vuxo-character-studio__try-look.MuiButton-root { font-size: .68rem; padding: 3px 5px; }
+  .vuxo-character-studio__local-note { font-size: .66rem; line-height: 1.18; }
+  .vuxo-character-studio__derived { font-size: .64rem; }
+  .vuxo-character-studio__nav .MuiButton-root { font-size: .69rem; padding-inline: 8px; }
+  .vuxo-character-studio__section .MuiCardContent-root { padding: 13px; }
+  .vuxo-character-studio__form .MuiTextField-root .MuiInputBase-root { min-width: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vuxo-character-studio__portrait,
+  .vuxo-character-studio__try-look { transition: none; }
+}
