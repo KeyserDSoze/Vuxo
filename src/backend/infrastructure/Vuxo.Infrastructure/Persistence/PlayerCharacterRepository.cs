@@ -16,7 +16,7 @@ public sealed class PlayerCharacterRepository(VuxoDbContext dbContext) : IPlayer
 
         var attributes = PlayerAttributes.Create(entity.Strength, entity.Dexterity, entity.Intelligence, entity.Constitution, entity.Luck, entity.Faith);
         var appearance = new CharacterAppearance(entity.HairStyle, entity.HairColor, entity.Face, entity.BodyType, entity.SkinTone, entity.TopColor, entity.BottomStyle, entity.BottomColor, entity.ShoeStyle, entity.ShoeColor);
-        return PlayerCharacter.Rehydrate(entity.Id, entity.OwnerId, entity.Name, entity.Level, attributes, appearance, entity.CurrentHealth);
+        return PlayerCharacter.Rehydrate(entity.Id, entity.OwnerId, entity.Name, entity.Level, attributes, appearance, entity.CurrentHealth, entity.AppearanceRevision);
     }
 
     public async Task AddAsync(PlayerCharacter character, CancellationToken cancellationToken = default)

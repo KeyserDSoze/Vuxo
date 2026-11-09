@@ -8,4 +8,5 @@ public sealed record WorldPlayerSnapshot(
     double Y,
     double SpeedMultiplier,
     long Revision,
-    WorldCharacterAppearance? Appearance = null);
+    WorldCharacterAppearance? Appearance = null,
+    long AppearanceRevision = 0);

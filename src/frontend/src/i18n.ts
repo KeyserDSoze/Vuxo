@@ -668,6 +668,7 @@ const initialization = i18n.use(initReactI18next).init({
               portrait: 'Anteprima del tuo Vuxian',
               tryLook: 'Prova un altro look',
               localNote: 'Il look cambia solo in questa anteprima; la creazione viene confermata dal server.',
+              persistedNote: 'Le modifiche estetiche vengono inviate al server soltanto dopo aver premuto Salva aspetto.',
               budget: 'Punti disponibili',
               remaining: '{{count}} punti rimasti',
               excess: '{{count}} punti oltre il limite',
@@ -687,7 +688,16 @@ const initialization = i18n.use(initReactI18next).init({
             create: 'Crea personaggio',
             saving: 'Creazione…',
             created: 'Personaggio creato. Le scelte sono state salvate dal server.',
-            saveFailed: 'Non è stato possibile creare il personaggio.'
+            saveFailed: 'Non è stato possibile creare il personaggio.',
+            loadingSaved: 'Controllo se hai già un personaggio…',
+            readFailed: 'Non è possibile leggere il personaggio salvato. Per sicurezza, il salvataggio resta disattivato.',
+            editLocked: 'Personaggio esistente: nome e attributi non cambiano. Puoi modificare soltanto l’aspetto.',
+            saveLook: 'Salva aspetto',
+            savingLook: 'Salvataggio aspetto…',
+            lookSaved: 'Aspetto salvato sul server. I giocatori nel mondo riceveranno l’aggiornamento.',
+            lookSaveFailed: 'Impossibile salvare il nuovo aspetto.',
+            appearanceConflict: 'Il personaggio è stato modificato altrove. Ricarica la pagina per leggere la versione più recente.',
+            catalogChanged: 'Il catalogo non è più aggiornato. Ricarica la pagina prima di salvare.'
           },
           stats: { maxHealth: 'Vita massima', speed: 'Velocità' },
           attributes: {
@@ -1398,6 +1408,7 @@ const initialization = i18n.use(initReactI18next).init({
               portrait: 'Your Vuxian preview',
               tryLook: 'Try another look',
               localNote: 'The look changes only in this preview; character creation is confirmed by the server.',
+              persistedNote: 'Cosmetic changes reach the server only when you select Save appearance.',
               budget: 'Available points',
               remaining: '{{count}} points remaining',
               excess: '{{count}} points over the limit',
@@ -1417,7 +1428,16 @@ const initialization = i18n.use(initReactI18next).init({
             create: 'Create character',
             saving: 'Creating…',
             created: 'Character created. The server saved your choices.',
-            saveFailed: 'The character could not be created.'
+            saveFailed: 'The character could not be created.',
+            loadingSaved: 'Checking whether you already have a character…',
+            readFailed: 'The saved character could not be loaded. Saving is disabled for safety.',
+            editLocked: 'Existing character: name and attributes are locked. You may only change appearance.',
+            saveLook: 'Save appearance',
+            savingLook: 'Saving appearance…',
+            lookSaved: 'Appearance saved on the server. Players in the world will receive the update.',
+            lookSaveFailed: 'Unable to save the new appearance.',
+            appearanceConflict: 'This character was modified elsewhere. Reload the page to get its latest revision.',
+            catalogChanged: 'The catalog version has changed. Reload the page before saving.'
           },
           stats: { maxHealth: 'Maximum health', speed: 'Speed' },
           attributes: {

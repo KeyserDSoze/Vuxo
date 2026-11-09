@@ -13,6 +13,7 @@ using Vuxo.Api.Contracts.Auth;
 using Vuxo.Api.Contracts.Players;
 using Vuxo.Api.Observability;
 using Vuxo.Api.PersonalContent;
+using Vuxo.Api.Players;
 using Vuxo.Api.Realtime;
 using Vuxo.Api.Worlds;
 using Vuxo.Application.AI;
@@ -35,6 +36,7 @@ builder.Services.AddOpenApi();
 builder.Services.AddHealthChecks();
 builder.Services.AddVuxoInfrastructure(builder.Configuration);
 builder.Services.AddScoped<CharacterService>();
+builder.Services.AddScoped<CharacterAppearanceUpdateService>();
 builder.Services.AddScoped<CharacterRestService>();
 builder.Services.AddScoped<CharacterHealingService>();
 builder.Services.AddScoped<LanguageModelSmokeService>();
@@ -399,6 +401,7 @@ app.MapPost("/api/characters/me/heal/{grantId:guid}", async (
     }
 }).RequireAuthorization();
 
+app.MapCharacterAppearanceEndpoints();
 app.MapWorldEndpoints();
 app.MapPersonalContentEndpoints();
 app.MapAuditEndpoints();

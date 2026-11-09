@@ -68,6 +68,46 @@ public sealed class WorldSimulationTests
         Assert.Null(result.Self.Appearance);
     }
 
+    [Fact]
+    public void PersistedAppearanceUpdate_OnlyAdvancesOwnerAndRejectsStaleBroadcast()
+    {
+        var simulation = new WorldSimulation(new ManualTimeProvider());
+        var one = CreateCharacter("player-a", 3);
+        var other = CreateCharacter("player-b", 4);
+        var joined = simulation.Join("conn-a", "player-a", one, new WorldSpawnPoint(2, 3));
+        simulation.Join("conn-b", "player-b", other, new WorldSpawnPoint(1, 1));
+        var look = one.Appearance with { HairColor = "red", TopColor = "green" };
+
+        Assert.Null(simulation.ApplySavedAppearance("player-b", one.Id, look, 1));
+        Assert.Null(simulation.ApplySavedAppearance("player-a", other.Id, look, 1));
+        Assert.Null(simulation.ApplySavedAppearance("player-a", one.Id,
+            one.Appearance with { HairColor = "not-in-catalog" }, 1));
+
+        var updated = simulation.ApplySavedAppearance("player-a", one.Id, look, 1);
+        Assert.NotNull(updated);
+        Assert.Equal("red", updated.Appearance?.HairColor);
+        Assert.Equal(1, updated.AppearanceRevision);
+        Assert.True(updated.Revision > joined.Self.Revision);
+        Assert.Equal(joined.Self.X, updated.X);
+        Assert.Equal(joined.Self.Y, updated.Y);
+        Assert.Equal(other.Appearance.HairColor, Assert.Single(
+            simulation.Snapshot(), x => x.PlayerId == "player-b").Appearance?.HairColor);
+
+        Assert.Null(simulation.ApplySavedAppearance("player-a", one.Id,
+            one.Appearance, 1)); // replay cannot regress live cosmetics
+
+        var latest = PlayerCharacter.Rehydrate(one.Id, one.OwnerId, one.Name,
+            one.Level, one.Attributes, look, one.CurrentHealth, 1);
+        var reconnect = simulation.Join("conn-a2", "player-a", latest, new WorldSpawnPoint(70, 80));
+        Assert.Equal("red", reconnect.Self.Appearance?.HairColor);
+        Assert.Equal(1, reconnect.Self.AppearanceRevision);
+
+        // A stale read of revision zero cannot replace the later saved look.
+        var staleReconnect = simulation.Join("conn-a3", "player-a", one, new WorldSpawnPoint(70, 80));
+        Assert.Equal("red", staleReconnect.Self.Appearance?.HairColor);
+        Assert.Equal(1, staleReconnect.Self.AppearanceRevision);
+    }
+
     [Theory]
     [MemberData(nameof(DexterityCases))]
     public async Task Tick_MovementDistanceUsesDexterityMultiplier(int dexterity, double expectedDistance)

@@ -51,6 +51,8 @@ type CharacterDraft = {
   appearance: CharacterAppearanceDraft
 }
 
+type SavedCharacter = CharacterDraft & { appearanceRevision: number }
+
 const DEFAULT_DRAFT: CharacterDraft = {
   name: 'Vuxian',
   attributes: DEFAULT_ATTRIBUTES,
@@ -78,6 +80,9 @@ export function CharacterEditorPage() {
   const [catalog, setCatalog] = useState<CharacterAppearanceCatalog | null>(null)
   const [catalogError, setCatalogError] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [saved, setSaved] = useState<SavedCharacter | null>(null)
+  const [loadingSaved, setLoadingSaved] = useState(false)
+  const [savedReadError, setSavedReadError] = useState(false)
   const [result, setResult] = useState<{ kind: 'success' | 'error'; key: string } | null>(null)
 
   useEffect(() => {
@@ -93,6 +98,34 @@ export function CharacterEditorPage() {
     return () => controller.abort()
   }, [])
 
+  // For authenticated owners, the server is the source of truth: a local
+  // draft never overrides previously saved identity, stats or cosmetics.
+  useEffect(() => {
+    if (!catalog) return
+    const token = localStorage.getItem(ACCESS_TOKEN_STORAGE_KEY)
+    if (!token) return
+    const controller = new AbortController()
+    setLoadingSaved(true)
+    setSavedReadError(false)
+    void fetch(`${getApiBaseUrl()}/api/characters/me/appearance`, {
+      headers: { Authorization: `Bearer ${token}` }, signal: controller.signal,
+    }).then(async response => {
+      if (response.status === 404) { setSaved(null); return }
+      if (!response.ok) throw new Error('character_read_failed')
+      const current = await response.json() as SavedCharacter
+      if (!Number.isSafeInteger(current.appearanceRevision) || current.appearanceRevision < 0
+        || !current.appearance || !current.name || !current.attributes) throw new Error('invalid_character')
+      const next = { ...current, appearance: normalizeAppearance(current.appearance, catalog) }
+      setSaved(next)
+      setDraft({ name: next.name, attributes: next.attributes, appearance: next.appearance })
+    }).catch(error => {
+      if ((error as Error).name !== 'AbortError') setSavedReadError(true)
+    }).finally(() => {
+      if (!controller.signal.aborted) setLoadingSaved(false)
+    })
+    return () => controller.abort()
+  }, [catalog])
+
   useEffect(() => {
     localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft))
   }, [draft])
@@ -100,7 +133,10 @@ export function CharacterEditorPage() {
   const allocationTotal = Object.values(draft.attributes).reduce((sum, value) => sum + value, 0)
   const validationErrors = validateCharacterDraft(draft.name, draft.attributes)
   const accessToken = localStorage.getItem(ACCESS_TOKEN_STORAGE_KEY)
-  const canSubmit = catalog !== null && validationErrors.length === 0 && Boolean(accessToken) && !submitting
+  const dirty = saved !== null && JSON.stringify(draft.appearance) !== JSON.stringify(saved.appearance)
+  const canSubmit = catalog !== null && Boolean(accessToken) && !submitting
+    && !loadingSaved && !savedReadError
+    && (saved ? dirty : validationErrors.length === 0)
   const derived = useMemo(() => ({
     maxHealth: getCharacterMaxHealth(draft.attributes.constitution),
     movementSpeed: getCharacterMovementSpeedMultiplier(draft.attributes.dexterity),
@@ -154,26 +190,36 @@ export function CharacterEditorPage() {
     setSubmitting(true)
     setResult(null)
     try {
-      const response = await fetch(`${getApiBaseUrl()}/api/characters`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          name: draft.name,
-          ...draft.attributes,
+      const editing = saved !== null
+      const response = await fetch(`${getApiBaseUrl()}/api/characters${editing ? '/me/appearance' : ''}`, {
+        method: editing ? 'PATCH' : 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: editing ? JSON.stringify({
+          catalogVersion: catalog?.catalogVersion,
+          expectedRevision: saved.appearanceRevision,
           appearance: draft.appearance,
-        }),
+        }) : JSON.stringify({ name: draft.name, ...draft.attributes, appearance: draft.appearance }),
       })
-
       if (!response.ok) {
         const payload = await response.json().catch(() => ({})) as { code?: string }
-        setResult({ kind: 'error', key: payload.code ? `errors.${payload.code}` : 'character.editor.saveFailed' })
+        const key = payload.code === 'character_appearance_revision_conflict'
+          ? 'character.editor.appearanceConflict'
+          : payload.code === 'character_appearance_catalog_version_invalid'
+            ? 'character.editor.catalogChanged'
+            : payload.code ? `errors.${payload.code}`
+              : editing ? 'character.editor.lookSaveFailed' : 'character.editor.saveFailed'
+        setResult({ kind: 'error', key })
         return
       }
-
-      setResult({ kind: 'success', key: 'character.editor.created' })
+      const payload = await response.json() as {
+        appearanceRevision?: number; appearance?: CharacterAppearanceDraft
+      }
+      setSaved({
+        name: draft.name, attributes: draft.attributes,
+        appearance: payload.appearance ?? draft.appearance,
+        appearanceRevision: payload.appearanceRevision ?? 0,
+      })
+      setResult({ kind: 'success', key: editing ? 'character.editor.lookSaved' : 'character.editor.created' })
     } catch {
       setResult({ kind: 'error', key: 'character.editor.saveFailed' })
     } finally {
@@ -240,6 +286,9 @@ export function CharacterEditorPage() {
       </Box>
 
       {!accessToken && <Alert severity="info">{t('character.editor.authenticationRequired')}</Alert>}
+      {loadingSaved && <Alert severity="info">{t('character.editor.loadingSaved')}</Alert>}
+      {savedReadError && <Alert severity="warning">{t('character.editor.readFailed')}</Alert>}
+      {saved && <Alert data-testid="character-existing-note" severity="info">{t('character.editor.editLocked')}</Alert>}
       {result && <Alert severity={result.kind === 'success' ? 'success' : 'error'}>{t(result.key)}</Alert>}
 
       <Grid container spacing={{ xs: 1.5, md: 2.5 }} sx={{ alignItems: 'flex-start' }}>
@@ -268,7 +317,7 @@ export function CharacterEditorPage() {
                 {t('character.editor.studio.tryLook')}
               </Button>
               <Typography className="vuxo-character-studio__local-note" variant="caption" color="text.secondary">
-                {t('character.editor.studio.localNote')}
+                {t(saved ? 'character.editor.studio.persistedNote' : 'character.editor.studio.localNote')}
               </Typography>
               <Typography className="vuxo-character-studio__derived" variant="caption" color="text.secondary">
                 {t('character.editor.studio.derived')}
@@ -287,6 +336,7 @@ export function CharacterEditorPage() {
                   <TextField
                     label={t('character.editor.name')}
                     value={draft.name}
+                    disabled={Boolean(saved)}
                     onChange={event => {
                       setDraft(current => ({ ...current, name: event.target.value }))
                       setResult(null)
@@ -320,13 +370,14 @@ export function CharacterEditorPage() {
                           fullWidth
                           label={t(`character.attributes.${field}`)}
                           value={draft.attributes[field]}
+                          disabled={Boolean(saved)}
                           onChange={event => setAttribute(field, event.target.value)}
                           slotProps={{ htmlInput: { min: 0, max: 10 } }}
                         />
                       </Grid>
                     ))}
                   </Grid>
-                  {validationErrors.map(code => (
+                  {!saved && validationErrors.map(code => (
                     <Alert key={code} severity="warning">{t(`errors.${code}`)}</Alert>
                   ))}
                 </Stack>
@@ -362,7 +413,8 @@ export function CharacterEditorPage() {
             <Box className="vuxo-character-studio__submit" sx={{ bgcolor: 'background.paper', borderColor: 'divider' }}>
               <Button data-testid="create-character" variant="contained" size="large"
                 disabled={!canSubmit} onClick={() => void submit()}>
-                {submitting ? t('character.editor.saving') : t('character.editor.create')}
+                {submitting ? t(saved ? 'character.editor.savingLook' : 'character.editor.saving')
+                  : t(saved ? 'character.editor.saveLook' : 'character.editor.create')}
               </Button>
             </Box>
           </Stack>

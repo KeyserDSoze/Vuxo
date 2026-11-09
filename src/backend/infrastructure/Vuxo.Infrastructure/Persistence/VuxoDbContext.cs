@@ -32,6 +32,7 @@ public sealed class VuxoDbContext(DbContextOptions<VuxoDbContext> options) : DbC
             entity.HasIndex(x => x.OwnerId).IsUnique();
             entity.Property(x => x.OwnerId).HasMaxLength(200);
             entity.Property(x => x.Name).HasMaxLength(24);
+            entity.Property(x => x.AppearanceRevision).HasDefaultValue(0L);
         });
 
         modelBuilder.Entity<PortalGuardianTurnEntity>(entity =>

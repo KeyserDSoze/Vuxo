@@ -27,6 +27,7 @@ public static class DependencyInjection
 
         services.AddDbContext<VuxoDbContext>(options => options.UseNpgsql(connectionString));
         services.AddScoped<IPlayerCharacterRepository, PlayerCharacterRepository>();
+        services.AddScoped<ICharacterAppearanceRepository, CharacterAppearanceRepository>();
         services.AddScoped<ICharacterRestRepository, CharacterRestRepository>();
         services.AddScoped<ICharacterHealingRepository, CharacterHealingRepository>();
         services.AddScoped<IPortalMistakeDamageRepository, PortalMistakeDamageRepository>();

@@ -13,6 +13,7 @@ public sealed class PlayerCharacterEntity
     public int CurrentHealth { get; set; }
     public int Luck { get; set; }
     public int Faith { get; set; }
+    public long AppearanceRevision { get; set; }
     public required string HairStyle { get; set; }
     public required string HairColor { get; set; }
     public required string Face { get; set; }

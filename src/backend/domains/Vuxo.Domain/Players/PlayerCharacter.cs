@@ -2,7 +2,7 @@ namespace Vuxo.Domain.Players;
 
 public sealed class PlayerCharacter
 {
-    private PlayerCharacter(Guid id, string ownerId, string name, int level, PlayerAttributes attributes, CharacterAppearance appearance, PlayerHealth health)
+    private PlayerCharacter(Guid id, string ownerId, string name, int level, PlayerAttributes attributes, CharacterAppearance appearance, PlayerHealth health, long appearanceRevision)
     {
         Id = id;
         OwnerId = ownerId;
@@ -11,6 +11,7 @@ public sealed class PlayerCharacter
         Attributes = attributes;
         Appearance = appearance;
         Health = health;
+        AppearanceRevision = appearanceRevision;
     }
 
     public Guid Id { get; }
@@ -19,6 +20,7 @@ public sealed class PlayerCharacter
     public int Level { get; }
     public PlayerAttributes Attributes { get; }
     public CharacterAppearance Appearance { get; }
+    public long AppearanceRevision { get; }
     public PlayerHealth Health { get; }
     public int CurrentHealth => Health.Current;
     public int MaxHealth => Health.Maximum;
@@ -35,10 +37,10 @@ public sealed class PlayerCharacter
         }
 
         return new PlayerCharacter(Guid.NewGuid(), ownerId.Trim(), trimmedName, 0, attributes, appearance,
-            PlayerHealth.Full(attributes.MaxHealth));
+            PlayerHealth.Full(attributes.MaxHealth), 0);
     }
 
-    public static PlayerCharacter Rehydrate(Guid id, string ownerId, string name, int level, PlayerAttributes attributes, CharacterAppearance appearance, int currentHealth)
+    public static PlayerCharacter Rehydrate(Guid id, string ownerId, string name, int level, PlayerAttributes attributes, CharacterAppearance appearance, int currentHealth, long appearanceRevision = 0)
         => new(id, ownerId, name, level, attributes, appearance,
-            PlayerHealth.Restore(currentHealth, attributes.MaxHealth));
+            PlayerHealth.Restore(currentHealth, attributes.MaxHealth), appearanceRevision);
 }

@@ -50,6 +50,7 @@ public sealed class WorldSimulation(TimeProvider timeProvider)
                     character.Name,
                     character.Attributes.MovementSpeedMultiplier,
                     WorldCharacterAppearance.FromPersisted(character.Appearance),
+                    character.AppearanceRevision,
                     spawn.X,
                     spawn.Y);
                 _players.Add(normalizedPlayerId, session);
@@ -62,7 +63,13 @@ public sealed class WorldSimulation(TimeProvider timeProvider)
                 session.CharacterId = character.Id;
                 session.CharacterName = character.Name;
                 session.SpeedMultiplier = character.Attributes.MovementSpeedMultiplier;
-                session.Appearance = WorldCharacterAppearance.FromPersisted(character.Appearance);
+                // A stale in-flight reconnect must not roll back a newer
+                // persisted cosmetic update already delivered to this session.
+                if (character.AppearanceRevision >= session.AppearanceRevision)
+                {
+                    session.Appearance = WorldCharacterAppearance.FromPersisted(character.Appearance);
+                    session.AppearanceRevision = character.AppearanceRevision;
+                }
                 session.HorizontalIntent = 0;
                 session.VerticalIntent = 0;
                 session.LastAcceptedIntentAt = null;
@@ -78,6 +85,32 @@ public sealed class WorldSimulation(TimeProvider timeProvider)
                 .ToArray();
 
             return new WorldJoinResult(self, players, isReconnect, replacedConnectionId);
+        }
+    }
+
+    /// <summary>
+    /// Apply a committed owner-only cosmetic revision to a currently joined
+    /// player. Stale callbacks cannot undo a newer save; movement position and
+    /// ownership are never taken from the client.
+    /// </summary>
+    public WorldPlayerSnapshot? ApplySavedAppearance(
+        string ownerId, Guid characterId, CharacterAppearance appearance, long persistedRevision)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(ownerId);
+        var safe = WorldCharacterAppearance.FromPersisted(appearance);
+        if (safe is null || persistedRevision <= 0) return null;
+
+        lock (_gate)
+        {
+            if (!_players.TryGetValue(ownerId, out var session)
+                || session.CharacterId != characterId
+                || persistedRevision <= session.AppearanceRevision)
+                return null;
+
+            session.Appearance = safe;
+            session.AppearanceRevision = persistedRevision;
+            session.Revision++; // SignalR world.delta ordering remains monotonic.
+            return SnapshotUnsafe(session);
         }
     }
 
@@ -243,7 +276,8 @@ public sealed class WorldSimulation(TimeProvider timeProvider)
             session.Y,
             session.SpeedMultiplier,
             session.Revision,
-            session.Appearance);
+            session.Appearance,
+            session.AppearanceRevision);
 
     private sealed class PlayerSession(
         string connectionId,
@@ -252,6 +286,7 @@ public sealed class WorldSimulation(TimeProvider timeProvider)
         string characterName,
         double speedMultiplier,
         WorldCharacterAppearance? appearance,
+        long appearanceRevision,
         double x,
         double y)
     {
@@ -261,6 +296,7 @@ public sealed class WorldSimulation(TimeProvider timeProvider)
         public string CharacterName { get; set; } = characterName;
         public double SpeedMultiplier { get; set; } = speedMultiplier;
         public WorldCharacterAppearance? Appearance { get; set; } = appearance;
+        public long AppearanceRevision { get; set; } = appearanceRevision;
         public double X { get; set; } = x;
         public double Y { get; set; } = y;
         public int HorizontalIntent { get; set; }

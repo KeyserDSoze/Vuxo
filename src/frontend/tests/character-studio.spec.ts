@@ -124,3 +124,74 @@ test('reduced-motion character studio keeps controls without hover animation', a
   await page.getByTestId('character-try-look').click();
   await expect(page.getByTestId('character-studio-portrait')).toBeVisible();
 });
+
+test('owner can edit only saved cosmetics with optimistic revision, not identity or stats', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('vuxo.accessToken', 'studio-owner-token'));
+  const savedLook = {
+    hairStyle: 'hair-1', hairColor: 'black', face: 'face-1', bodyType: 'body-1',
+    skinTone: 'skin-1', topColor: 'blue', bottomStyle: 'shorts', bottomColor: 'black',
+    shoeStyle: 'shoe-1', shoeColor: 'white',
+  };
+  let sent: { catalogVersion: string; expectedRevision: number; appearance: typeof savedLook } | null = null;
+  await page.route('**/api/characters/me/appearance', async route => {
+    if (route.request().method() === 'GET') {
+      await route.fulfill({ json: {
+        name: 'Saved Vuxian',
+        attributes: { strength: 2, dexterity: 2, intelligence: 2,
+          constitution: 2, luck: 1, faith: 1 },
+        appearance: savedLook, appearanceRevision: 7, catalogVersion: '0.0.1',
+      } });
+      return;
+    }
+    sent = route.request().postDataJSON();
+    await route.fulfill({ json: { catalogVersion: '0.0.1',
+      appearanceRevision: 8, appearance: sent!.appearance, changed: true } });
+  });
+  await page.goto('./#/character');
+  await expect(page.getByTestId('character-existing-note')).toBeVisible();
+  await expect(page.getByRole('textbox', { name: 'Nome' })).toHaveValue('Saved Vuxian');
+  await expect(page.getByRole('textbox', { name: 'Nome' })).toBeDisabled();
+  await expect(page.getByRole('spinbutton', { name: 'Forza' })).toBeDisabled();
+  await expect(page.getByTestId('create-character')).toContainText('Salva aspetto');
+  await expect(page.getByTestId('create-character')).toBeDisabled();
+  await page.getByTestId('character-try-look').click();
+  await expect(page.getByTestId('create-character')).toBeEnabled();
+  await page.getByTestId('create-character').click();
+  await expect(page.getByText('Aspetto salvato sul server.', { exact: false })).toBeVisible();
+  expect(sent).not.toBeNull();
+  expect(sent!.catalogVersion).toBe('0.0.1');
+  expect(sent!.expectedRevision).toBe(7);
+  expect(sent!.appearance.hairStyle).toBe('hair-2');
+  expect(Object.keys(sent!).sort()).toEqual(['appearance', 'catalogVersion', 'expectedRevision']);
+  await expect(page.getByTestId('create-character')).toBeDisabled();
+});
+
+test('optimistic conflict never claims saved appearance and keeps local look for retry', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('vuxo.accessToken', 'studio-owner-token'));
+  let patches = 0;
+  await page.route('**/api/characters/me/appearance', async route => {
+    if (route.request().method() === 'GET') {
+      await route.fulfill({ json: {
+        name: 'Saved Vuxian', appearanceRevision: 3, catalogVersion: '0.0.1',
+        attributes: { strength: 2, dexterity: 2, intelligence: 2,
+          constitution: 2, luck: 1, faith: 1 },
+        appearance: {
+          hairStyle: 'hair-1', hairColor: 'black', face: 'face-1', bodyType: 'body-1',
+          skinTone: 'skin-1', topColor: 'blue', bottomStyle: 'shorts',
+          bottomColor: 'black', shoeStyle: 'shoe-1', shoeColor: 'white',
+        },
+      } });
+    } else {
+      patches++;
+      await route.fulfill({ status: 409, json: { code: 'character_appearance_revision_conflict' } });
+    }
+  });
+  await page.goto('./#/character');
+  await expect(page.getByTestId('character-existing-note')).toBeVisible();
+  await page.getByTestId('character-try-look').click();
+  await page.getByTestId('create-character').click();
+  await expect(page.getByText('Il personaggio è stato modificato altrove.', { exact: false })).toBeVisible();
+  expect(patches).toBe(1);
+  await expect(page.getByTestId('create-character')).toBeEnabled();
+  await expect(page.getByTestId('hairStyle-select').getByRole('combobox')).toContainText('Medi');
+});
