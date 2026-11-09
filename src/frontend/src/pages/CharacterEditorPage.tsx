@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { AutoAwesome, PersonOutlined } from '@mui/icons-material'
 import {
   Alert,
   Box,
@@ -8,6 +9,7 @@ import {
   CircularProgress,
   Divider,
   Grid,
+  LinearProgress,
   MenuItem,
   Stack,
   TextField,
@@ -104,6 +106,33 @@ export function CharacterEditorPage() {
     movementSpeed: getCharacterMovementSpeedMultiplier(draft.attributes.dexterity),
   }), [draft.attributes.constitution, draft.attributes.dexterity])
 
+  const jumpTo = (id: string) => {
+    const target = document.getElementById(id)
+    target?.scrollIntoView({ behavior: 'auto', block: 'start' })
+    target?.focus({ preventScroll: true })
+  }
+
+  // The look trial is purely local. Every replacement comes from the server-
+  // supplied catalog, and it never changes attributes or submits a character.
+  const tryAnotherLook = () => {
+    if (!catalog) return
+    const next = (current: string, options: string[]) => {
+      if (!options.length) return current
+      return options[(options.indexOf(current) + 1) % options.length] ?? current
+    }
+    setDraft(current => ({
+      ...current,
+      appearance: {
+        ...current.appearance,
+        hairStyle: next(current.appearance.hairStyle, catalog.hairStyles),
+        hairColor: next(current.appearance.hairColor, catalog.hairColors),
+        topColor: next(current.appearance.topColor, catalog.topColors),
+        bottomColor: next(current.appearance.bottomColor, catalog.bottomColors),
+      },
+    }))
+    setResult(null)
+  }
+
   const setAppearance = (field: keyof CharacterAppearanceDraft, value: string) => {
     setDraft(current => ({ ...current, appearance: { ...current.appearance, [field]: value } }))
     setResult(null)
@@ -187,8 +216,8 @@ export function CharacterEditorPage() {
   )
 
   return (
-    <Stack spacing={2} data-testid="character-editor-page">
-      <Box>
+    <Stack spacing={2} data-testid="character-editor-page" className="vuxo-character-studio">
+      <Box className="vuxo-character-studio__hero" data-testid="character-studio-hero" sx={{ borderColor: 'divider' }}>
         <Typography variant="overline" color="primary.main">{t('character.editor.eyebrow')}</Typography>
         <Typography variant="h3" component="h1" sx={{ fontWeight: 900, letterSpacing: '-0.04em' }}>
           {t('character.editor.title')}
@@ -197,16 +226,33 @@ export function CharacterEditorPage() {
           {t('character.editor.description')}
         </Typography>
       </Box>
+      <Box component="nav" className="vuxo-character-studio__nav" data-testid="character-studio-nav"
+        aria-label={t('character.editor.studio.navigation')}
+        sx={{ bgcolor: 'background.paper', borderColor: 'divider' }}>
+        <Button data-testid="character-step-identity" startIcon={<PersonOutlined />}
+          onClick={() => jumpTo('character-identity')} size="small">
+          {t('character.editor.studio.identity')}
+        </Button>
+        <Button data-testid="character-step-appearance" startIcon={<AutoAwesome />}
+          onClick={() => jumpTo('character-appearance')} size="small">
+          {t('character.editor.studio.appearance')}
+        </Button>
+      </Box>
 
       {!accessToken && <Alert severity="info">{t('character.editor.authenticationRequired')}</Alert>}
       {result && <Alert severity={result.kind === 'success' ? 'success' : 'error'}>{t(result.key)}</Alert>}
 
       <Grid container spacing={{ xs: 1.5, md: 2.5 }} sx={{ alignItems: 'flex-start' }}>
         <Grid size={{ xs: 12, md: 5, lg: 4 }}>
-          <Card variant="outlined" sx={{ position: { md: 'sticky' }, top: { md: 8 } }}>
-            <CardContent>
+          <Card variant="outlined" className="vuxo-character-studio__portrait"
+            data-testid="character-studio-portrait"
+            sx={{ position: { md: 'sticky' }, top: { md: 56 } }}>
+            <CardContent className="vuxo-character-studio__portrait-content">
+              <Typography component="h2" variant="overline" color="primary.main" className="vuxo-character-studio__portrait-heading">
+                {t('character.editor.studio.portrait')}
+              </Typography>
               <CharacterPreview appearance={draft.appearance} />
-              <Stack direction="row" sx={{ mt: 2, justifyContent: 'space-between' }}>
+              <Stack className="vuxo-character-studio__stats" direction="row" sx={{ mt: 2, justifyContent: 'space-between', gap: 1 }}>
                 <Box>
                   <Typography variant="caption" color="text.secondary">{t('character.stats.maxHealth')}</Typography>
                   <Typography variant="h6">{derived.maxHealth}</Typography>
@@ -216,13 +262,25 @@ export function CharacterEditorPage() {
                   <Typography variant="h6">×{derived.movementSpeed.toFixed(1)}</Typography>
                 </Box>
               </Stack>
+              <Button data-testid="character-try-look" variant="outlined" size="small"
+                className="vuxo-character-studio__try-look" startIcon={<AutoAwesome />}
+                onClick={tryAnotherLook}>
+                {t('character.editor.studio.tryLook')}
+              </Button>
+              <Typography className="vuxo-character-studio__local-note" variant="caption" color="text.secondary">
+                {t('character.editor.studio.localNote')}
+              </Typography>
+              <Typography className="vuxo-character-studio__derived" variant="caption" color="text.secondary">
+                {t('character.editor.studio.derived')}
+              </Typography>
             </CardContent>
           </Card>
         </Grid>
 
         <Grid size={{ xs: 12, md: 7, lg: 8 }}>
-          <Stack spacing={3}>
-            <Card variant="outlined">
+          <Stack spacing={2} className="vuxo-character-studio__form">
+            <Card id="character-identity" tabIndex={-1} data-testid="character-studio-identity"
+              className="vuxo-character-studio__section" variant="outlined">
               <CardContent>
                 <Stack spacing={2.5}>
                   <Typography variant="h5" sx={{ fontWeight: 800 }}>{t('character.editor.identity')}</Typography>
@@ -239,10 +297,21 @@ export function CharacterEditorPage() {
                   <Divider />
                   <Stack direction={{ xs: 'column', sm: 'row' }} sx={{ justifyContent: 'space-between', gap: 1 }}>
                     <Typography variant="h6">{t('character.editor.attributes')}</Typography>
-                    <Typography color={allocationTotal === CHARACTER_ALLOCATION_POINTS ? 'text.secondary' : 'error.main'}>
+                    <Typography data-testid="character-point-budget" color={allocationTotal <= CHARACTER_ALLOCATION_POINTS ? 'text.secondary' : 'error.main'}>
                       {t('character.editor.points', { used: allocationTotal, total: CHARACTER_ALLOCATION_POINTS })}
                     </Typography>
                   </Stack>
+                  <Box data-testid="character-studio-budget" sx={{ minWidth: 0 }}>
+                    <LinearProgress aria-label={t('character.editor.studio.budget')} variant="determinate"
+                      value={Math.max(0, Math.min(100, allocationTotal / CHARACTER_ALLOCATION_POINTS * 100))}
+                      color={allocationTotal > CHARACTER_ALLOCATION_POINTS ? 'error' : 'primary'}
+                      sx={{ height: 9, borderRadius: 3 }} />
+                    <Typography variant="caption" color={allocationTotal > CHARACTER_ALLOCATION_POINTS ? 'error.main' : 'text.secondary'}>
+                      {allocationTotal <= CHARACTER_ALLOCATION_POINTS
+                        ? t('character.editor.studio.remaining', { count: CHARACTER_ALLOCATION_POINTS - allocationTotal })
+                        : t('character.editor.studio.excess', { count: allocationTotal - CHARACTER_ALLOCATION_POINTS })}
+                    </Typography>
+                  </Box>
                   <Grid container spacing={2}>
                     {(Object.keys(DEFAULT_ATTRIBUTES) as (keyof CharacterAttributesDraft)[]).map(field => (
                       <Grid key={field} size={{ xs: 6, sm: 4 }}>
@@ -264,7 +333,8 @@ export function CharacterEditorPage() {
               </CardContent>
             </Card>
 
-            <Card variant="outlined">
+            <Card id="character-appearance" tabIndex={-1} data-testid="character-studio-appearance"
+              className="vuxo-character-studio__section" variant="outlined">
               <CardContent>
                 <Stack spacing={2.5}>
                   <Box>
@@ -289,9 +359,12 @@ export function CharacterEditorPage() {
               </CardContent>
             </Card>
 
-            <Button data-testid="create-character" variant="contained" size="large" disabled={!canSubmit} onClick={() => void submit()}>
-              {submitting ? t('character.editor.saving') : t('character.editor.create')}
-            </Button>
+            <Box className="vuxo-character-studio__submit" sx={{ bgcolor: 'background.paper', borderColor: 'divider' }}>
+              <Button data-testid="create-character" variant="contained" size="large"
+                disabled={!canSubmit} onClick={() => void submit()}>
+                {submitting ? t('character.editor.saving') : t('character.editor.create')}
+              </Button>
+            </Box>
           </Stack>
         </Grid>
       </Grid>
