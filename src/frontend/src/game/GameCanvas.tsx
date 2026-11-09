@@ -101,7 +101,9 @@ export function GameCanvas() {
       const height = Math.floor(host.current?.clientHeight ?? 0)
       if (width < 1 || height < 1) return
       game.scale.resize(width, height)
-      if (scene.scene.isActive()) scene.cameras.main.setSize(width, height)
+      // The Phaser ScenePlugin is assigned only during engine boot. React's
+      // layout effect can run earlier, so ignore camera updates until ready.
+      if (scene.scene?.isActive()) scene.cameras.main.setSize(width, height)
     }
     const observer = new ResizeObserver(resizeWorld)
     observer.observe(host.current)
