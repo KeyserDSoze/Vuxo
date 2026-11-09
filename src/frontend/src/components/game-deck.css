@@ -473,3 +473,125 @@
   .vuxo-character-studio__portrait,
   .vuxo-character-studio__try-look { transition: none; }
 }
+
+
+/* #164: personal gateway console; never display the secret sequence after preview. */
+.vuxo-portal-console { min-width: 0; }
+.vuxo-portal-console__hero {
+  border-radius: clamp(14px, 1.4vw, 22px) !important;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at 87% 8%, color-mix(in srgb, var(--deck-glow) 19%, transparent), transparent 45%),
+    linear-gradient(145deg, color-mix(in srgb, var(--deck-glow) 5%, transparent), transparent);
+}
+.vuxo-portal-console__hero .MuiTypography-h2 {
+  font-size: clamp(1.85rem, 3.4vw, 3.25rem);
+  line-height: 1.08;
+  font-weight: 900;
+}
+.vuxo-portal-console__hero .MuiTypography-body1 { max-width: 67ch; font-size: .9rem; }
+.vuxo-portal-console__hero .MuiChip-root { flex: 0 0 auto; max-width: 100%; }
+.vuxo-portal-console__gateway {
+  height: 100%;
+  min-width: 0;
+  border-radius: 16px !important;
+  border-color: color-mix(in srgb, var(--deck-glow) 32%, transparent) !important;
+  background: radial-gradient(ellipse at 10% 10%, color-mix(in srgb, var(--deck-glow) 9%, transparent), transparent 52%);
+  transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease;
+}
+.vuxo-portal-console__gateway:hover {
+  transform: translateY(-2px);
+  border-color: var(--deck-glow) !important;
+  box-shadow: 0 13px 25px -23px var(--deck-glow);
+}
+.vuxo-portal-console__gateway-mark {
+  display: grid;
+  place-items: center;
+  width: 66px;
+  height: 66px;
+  color: var(--deck-glow);
+  border: 1px solid color-mix(in srgb, var(--deck-glow) 35%, transparent);
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--deck-glow) 22%, transparent), transparent 70%);
+  font-size: 2rem;
+}
+.vuxo-portal-console__arena {
+  min-width: 0;
+  border-radius: 18px !important;
+  border-color: color-mix(in srgb, var(--deck-glow) 41%, transparent) !important;
+  background: radial-gradient(ellipse at 90% 10%, color-mix(in srgb, var(--deck-glow) 15%, transparent), transparent 49%);
+}
+.vuxo-portal-console__arena .MuiTypography-h5 { font-size: clamp(1.12rem, 1.7vw, 1.6rem); font-weight: 850; }
+.vuxo-portal-console__preview,
+.vuxo-portal-console__answer {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: clamp(5px, .8vw, 13px);
+  min-width: 0;
+}
+.vuxo-portal-console__preview-rune,
+.vuxo-portal-console__answer-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-width: 0;
+  min-height: clamp(78px, 8vw, 118px);
+  padding: clamp(7px, 1vw, 14px);
+  border-radius: 12px !important;
+  border: 1px solid color-mix(in srgb, var(--deck-glow) 35%, transparent);
+  background: color-mix(in srgb, var(--deck-glow) 7%, transparent);
+  text-align: center;
+}
+.vuxo-portal-console__rune-mark {
+  display: inline-grid;
+  place-items: center;
+  color: var(--deck-glow);
+  font-size: clamp(1.55rem, 3vw, 2.65rem);
+  line-height: 1.1;
+  text-shadow: 0 0 20px color-mix(in srgb, var(--deck-glow) 40%, transparent);
+}
+.vuxo-portal-console__answer { list-style: none; margin: 0; padding: 0; }
+.vuxo-portal-console__answer-slot { min-height: 76px; border-style: dashed; }
+.vuxo-portal-console__answer-slot.is-filled {
+  border-style: solid;
+  border-color: var(--deck-glow);
+  background: color-mix(in srgb, var(--deck-glow) 13%, transparent);
+}
+.vuxo-portal-console__answer-slot > span:first-child { font-size: 1.9rem; color: var(--deck-glow); line-height: 1; }
+.vuxo-portal-console__answer-slot .MuiTypography-caption { font-size: .74rem; font-weight: 850; }
+.vuxo-portal-console__pad {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: clamp(5px, .8vw, 13px);
+}
+.vuxo-portal-console__rune-button.MuiButton-root {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+  min-height: 86px;
+  padding: 9px;
+  border-radius: 12px;
+  border-color: color-mix(in srgb, var(--deck-glow) 48%, transparent);
+}
+.vuxo-portal-console__rune-button.MuiButton-root:hover {
+  background: color-mix(in srgb, var(--deck-glow) 13%, transparent);
+  border-color: var(--deck-glow);
+}
+.vuxo-portal-console__rune-button .vuxo-portal-console__rune-mark { font-size: clamp(1.5rem, 2.8vw, 2.4rem); }
+@media (max-width: 599px) {
+  .vuxo-portal-console__pad { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .vuxo-portal-console__rune-button.MuiButton-root { min-height: 66px; gap: 2px; padding: 5px; }
+  .vuxo-portal-console__preview-rune,
+  .vuxo-portal-console__answer-slot { min-height: 64px; padding: 5px 2px; }
+  .vuxo-portal-console__rune-mark { font-size: 1.75rem; }
+  .vuxo-portal-console__preview-rune .MuiTypography-root { font-size: .71rem; }
+  .vuxo-portal-console__answer-slot > span:first-child { font-size: 1.6rem; }
+  .vuxo-portal-console__answer-slot .MuiTypography-caption { font-size: .62rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vuxo-portal-console__gateway { transition: none; }
+  .vuxo-portal-console__gateway:hover { transform: none; }
+}
