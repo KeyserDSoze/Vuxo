@@ -11,6 +11,14 @@ Due cicli complementari:
 
 Il giocatore può aprire il Rifugio e agire per pochi minuti senza avviare Phaser, ma quando torna nel mondo trova gli stessi oggetti e attributi verificati dal server.
 
+## Preparazione avventura e percorso suggerito — issue #114 e #117
+
+La home del Rifugio ha un **pannello di preparazione read-only** visibile soltanto quando la sessione JWT ha un personaggio e `GET /api/characters/me/health` fornisce HP validi. Senza sessione, con 404 o errore HP, il pannello non avvia letture equipment/encounter né espone dati di altri giocatori. Il caricamento della salute è indicizzato al token attivo; la vecchia risposta viene annullata e non può riapparire per il nuovo account.
+
+Il pannello riutilizza tre read model canonici: `fetchCharacterHealth` (HP current/max, no simulazioni), `GET /api/equipment` (slot Reliquia e Amuleto letti dal server, mai supposti), `GET /api/characters/me/encounter` (incontro attivo o assente solo se provato). Gli ultimi due sono richiesti con `Promise.allSettled`; se uno fallisce si visualizza **non verificato** per quel sottoinsieme, non `slot vuoto` o `nessun incontro`. La CTA **Aggiorna preparazione** elimina il precedente snapshot di tutte e tre le sorgenti, ricarica la salute, poi rimonta il pannello per riottenere equipaggiamento e incontro. Un riposo confermato dal backend sincronizza gli HP nelle due schede con la **risposta server** della richiesta idempotente; non si calcola cura locale.
+
+Dentro al pannello, `deriveJourneySteps` produce tre consigli **non vincolanti**: salute (0 / non piena / piena), equipaggiamento (sconosciuto / 0 / 1 / 2 slot), incontro (sconosciuto / attivo / assente). Essi suggeriscono soltanto navigazione a `/character`, `/inventory`, `/portals` o allenamento, o scroll/focus della scheda riposo; con HP=0 **non** viene suggerito riposo o consumo del Seme del Bosco, che sono vietati dal backend. Il client non calcola uno score di prontezza, non decide idoneità a combattere, non conserva progressi e non assegna oggetti/HP/XP. La UI include etichette localizzate IT/EN, tastiera e 320px senza avviare Phaser. Copertura Playwright per HP/slot/encounter, 503 parziali/recupero, refresh completo, account switch/logout, zero HP e mobilità.
+
 ## Diario del Rifugio — issue #118 (letture esistenti)
 
 Un Diario navigabile da `/#/refuge` tramite `/#/refuge/journal` riunisce le informazioni di progressione **già disponibili** senza aggiungere un secondo stato di gioco e senza attivare Phaser. L'accesso richiede una sessione VUXO; le richieste sono sempre owner-only e il componente React si rimonta quando cambia il token.
