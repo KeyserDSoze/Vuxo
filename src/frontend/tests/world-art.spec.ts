@@ -9,6 +9,7 @@ const gameUrl = origin + '/Vuxo/#/game'
 // default room used by other parallel Playwright workers.
 const duoScope = 'world-art-duo'
 const resizeScope = 'world-art-resize'
+const strideScope = 'world-art-stride'
 
 async function resetRoom(request: import('@playwright/test').APIRequestContext, scope: string) {
   const result = await request.post(origin + '/__vuxo_e2e/world/reset?scope=' + scope)
@@ -155,6 +156,59 @@ test('two illustrated wanderers coexist in the authoritative world at mobile siz
   } finally {
     await Promise.all([a.close(), b.close()])
   }
+})
+
+test('server-owned walking drives stride while reduced-motion remains static, including live preference change', async ({ page, request }, info) => {
+  await resetRoom(request, strideScope)
+  await demoPlayer(page, 'stride-player', 'Stride Wanderer', strideScope)
+  await page.emulateMedia({ reducedMotion: 'no-preference' })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto(gameUrl)
+  await expect(page.getByTestId('world-connection-status')).toHaveAttribute('data-status', 'connected')
+  const host = page.getByTestId('game-canvas')
+  const self = page.locator('[data-player-id="stride-player"]')
+
+  const pose = async () => host.evaluate(element => {
+    const encoded = element.getAttribute('data-e2e-avatar-motion')
+    if (!encoded) return null
+    const frames = JSON.parse(encoded) as Array<{ playerId: string; moving: boolean; bob: number }>
+    return frames.find(entry => entry.playerId === 'stride-player') ?? null
+  })
+
+  await expect.poll(async () => (await pose())?.moving).toBe(false)
+  await expect.poll(async () => (await pose())?.bob).toBe(0)
+  const start = Number(await self.getAttribute('data-player-x'))
+  await host.locator('canvas').click()
+  await page.keyboard.down('ArrowRight')
+  await expect.poll(async () => Number(await self.getAttribute('data-player-x'))).toBeGreaterThan(start)
+  await expect.poll(async () => {
+    const state = await pose()
+    return Boolean(state?.moving && state.bob > 0.25)
+  }).toBe(true)
+
+  await info.attach('moving-avatar-normal-motion', {
+    body: await page.screenshot({ animations: 'disabled' }), contentType: 'image/png',
+  })
+
+  // A browser preference change during travel must stop only the decorative
+  // stride, not the world-authoritative movement or avatar appearance.
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await expect.poll(async () => {
+    const state = await pose()
+    return Boolean(state?.moving && state.bob === 0)
+  }).toBe(true)
+  const beforeReducedTravel = Number(await self.getAttribute('data-player-x'))
+  await expect.poll(async () => Number(await self.getAttribute('data-player-x')))
+    .toBeGreaterThan(beforeReducedTravel)
+  await page.keyboard.up('ArrowRight')
+  await expect.poll(async () => (await pose())?.moving).toBe(false)
+  await expect.poll(async () => (await pose())?.bob).toBe(0)
+  await expect(host).toHaveAttribute('data-e2e-illustrated-player-count', '1')
+  await expect(host.locator('canvas')).toBeVisible()
+  await expect.poll(() => page.evaluate(() =>
+    document.documentElement.scrollWidth <= innerWidth + 1 &&
+    document.documentElement.scrollHeight <= innerHeight + 1
+  )).toBe(true)
 })
 
 test('illustrated world keeps the canvas responsive on a portrait-to-ultrawide resize', async ({ page, request }, info) => {

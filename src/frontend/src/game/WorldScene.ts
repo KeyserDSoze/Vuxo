@@ -1,7 +1,7 @@
 import Phaser from 'phaser'
 import type { WorldPlayerSnapshot, WorldRealtimeClient, WorldRealtimeState } from '../features/world/worldRealtime'
 import type { WorldPortalMarker } from '../features/portals/portalApi'
-import { WORLD_ART_VERSION, createIllustratedWanderer, paintWoodlandTile } from './WorldArtwork'
+import { WORLD_ART_VERSION, createIllustratedWanderer, paintWoodlandTile, setIllustratedWandererStride } from './WorldArtwork'
 import { readWorldAppearance, worldAppearanceKey } from './WorldAppearance'
 import { computeWorldCameraZoom } from './WorldCamera'
 
@@ -49,7 +49,12 @@ export class WorldScene extends Phaser.Scene {
   }
 
   create() {
-    this.reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const motionPreference = window.matchMedia('(prefers-reduced-motion: reduce)')
+    this.reducedMotion = motionPreference.matches
+    const onMotionPreferenceChanged = (event: MediaQueryListEvent) => {
+      this.reducedMotion = event.matches
+    }
+    motionPreference.addEventListener('change', onMotionPreferenceChanged)
     this.terrainGraphics = this.add.graphics().setDepth(-10)
     this.updateCameraZoom(this.scale.width, this.scale.height)
     this.drawWorldGrid()
@@ -61,6 +66,7 @@ export class WorldScene extends Phaser.Scene {
     this.unsubscribe = this.realtime.subscribe(state => this.applyState(state))
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.ready = false
+      motionPreference.removeEventListener('change', onMotionPreferenceChanged)
       this.terrainGraphics = null
       this.terrainBounds = ''
       if (import.meta.env.VITE_E2E_REALTIME === 'true') {
@@ -68,6 +74,7 @@ export class WorldScene extends Phaser.Scene {
         host?.removeAttribute('data-e2e-illustrated-player-count')
         host?.removeAttribute('data-e2e-world-art-version')
         host?.removeAttribute('data-e2e-avatar-appearance')
+        host?.removeAttribute('data-e2e-avatar-motion')
         host?.removeAttribute('data-e2e-name-label-bounds')
         host?.removeAttribute('data-e2e-camera-zoom')
         host?.removeAttribute('data-e2e-world-coverage')
@@ -208,11 +215,26 @@ export class WorldScene extends Phaser.Scene {
     }
 
     const interpolation = 1 - Math.exp(-delta / 80)
-    for (const visual of this.players.values()) {
+    const motionEvidence: Array<{ playerId: string; moving: boolean; bob: number }> = []
+    for (const [playerId, visual] of this.players) {
       visual.body.x = Phaser.Math.Linear(visual.body.x, visual.targetX, interpolation)
       visual.body.y = Phaser.Math.Linear(visual.body.y, visual.targetY, interpolation)
-      const offset = visual.targetX - visual.body.x
-      if (Math.abs(offset) > 2) visual.body.setScale(offset < 0 ? -1 : 1, 1)
+      const offsetX = visual.targetX - visual.body.x
+      const offsetY = visual.targetY - visual.body.y
+      if (Math.abs(offsetX) > 2) visual.body.setScale(offsetX < 0 ? -1 : 1, 1)
+
+      // Walk only when the interpolated sprite is approaching a position
+      // received from the world authority. The root keeps its original
+      // coordinates, camera follow, mirror direction and collision contract.
+      const remaining = Math.hypot(offsetX, offsetY)
+      const bob = setIllustratedWandererStride(visual.body, remaining, time, this.reducedMotion)
+      if (import.meta.env.VITE_E2E_REALTIME === 'true') {
+        motionEvidence.push({ playerId, moving: remaining > 0.75, bob })
+      }
+    }
+    if (import.meta.env.VITE_E2E_REALTIME === 'true') {
+      document.querySelector('[data-testid="game-canvas"]')
+        ?.setAttribute('data-e2e-avatar-motion', JSON.stringify(motionEvidence))
     }
     this.layoutPlayerNameLabels()
   }

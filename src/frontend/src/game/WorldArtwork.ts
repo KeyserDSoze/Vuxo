@@ -16,6 +16,44 @@ type CloakPalette = {
   hair: number
 }
 
+// Object references are weak so a Phaser scene's destroyed avatars do not
+// survive a reconnect, new cosmetics or route navigation.
+const wandererMotion = new WeakMap<Phaser.GameObjects.Container, {
+  gait: Phaser.GameObjects.Container
+  trail: Phaser.GameObjects.Ellipse
+}>()
+
+/**
+ * Purely decorative walk-cycle of the painted silhouette. The parent avatar
+ * is still anchored to the authoritative interpolated world position, which
+ * is also used by the camera and name labels.
+ *
+ * No new game state, tweens, timers, per-frame objects or physics bodies.
+ * A non-zero bob is returned only for E2E diagnostics.
+ */
+export function setIllustratedWandererStride(
+  avatar: Phaser.GameObjects.Container,
+  remainingDistance: number,
+  timeMs: number,
+  reducedMotion: boolean,
+): number {
+  const layer = wandererMotion.get(avatar)
+  if (!layer) return 0
+  if (reducedMotion || !Number.isFinite(remainingDistance) || remainingDistance <= 0.75) {
+    layer.gait.y = 0
+    layer.gait.angle = 0
+    layer.trail.alpha = 0
+    return 0
+  }
+
+  const cycle = timeMs / 125
+  const bob = Math.abs(Math.sin(cycle)) * 2.5
+  layer.gait.y = -bob
+  layer.gait.angle = Math.sin(cycle) * 2.25
+  layer.trail.alpha = Math.max(0, Math.sin(cycle)) * 0.28
+  return bob
+}
+
 const peerPalettes: readonly CloakPalette[] = [
   { robe: 0x267e92, shadow: 0x16485d, trim: 0x8ce1da, mantle: 0x254668, hair: 0x172636 },
   { robe: 0x8362ae, shadow: 0x453b6a, trim: 0xd8bdfb, mantle: 0x433257, hair: 0x302640 },
@@ -150,7 +188,13 @@ export function createIllustratedWanderer(
   painting.fillStyle(0xffffff, 0.85)
   painting.fillCircle(-1, -23, 0.8)
 
-  const body = scene.add.container(0, 0, [glow, shadow, painting])
+  // Only the illustrated silhouette moves vertically, never its root/feet.
+  // A single low-opacity ground flash is drawn once and reused every frame.
+  const trail = scene.add.ellipse(0, -1, 30, 8, palette.trim, 0.38)
+  trail.alpha = 0
+  const gait = scene.add.container(0, 0, [painting])
+  const body = scene.add.container(0, 0, [glow, shadow, trail, gait])
+  wandererMotion.set(body, { gait, trail })
   body.setDepth(10)
   body.setSize(34, 50)
   return body
