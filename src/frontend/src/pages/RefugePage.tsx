@@ -84,6 +84,30 @@ export function RefugePage() {
 
   return (
     <Stack spacing={2} data-testid="refuge-page" className="vuxo-refuge-dashboard">
+      <Box component="nav" className="vuxo-refuge-sections" data-testid="refuge-section-nav"
+        aria-label={t('refuge.dashboard.navigation')} sx={{ bgcolor: 'background.paper', borderColor: 'divider' }}>
+        <Button data-testid="refuge-jump-activities" size="small"
+          startIcon={<SportsEsportsOutlined />} onClick={() => openSection('refuge-activities-section')}>
+          {t('refuge.dashboard.activities')}
+        </Button>
+        {session && (
+          <Button data-testid="refuge-jump-health" size="small"
+            startIcon={<FavoriteBorder />} onClick={() => openSection('refuge-health')}>
+            {t('refuge.dashboard.health')}
+          </Button>
+        )}
+        {health && (
+          <Button data-testid="refuge-jump-preparation" size="small"
+            startIcon={<BackpackOutlined />} onClick={() => openSection('refuge-preparation')}>
+            {t('refuge.dashboard.preparation')}
+          </Button>
+        )}
+        <Button data-testid="refuge-jump-care" size="small"
+          startIcon={<AutoAwesome />} onClick={() => openSection('refuge-care-section')}>
+          {t('refuge.dashboard.care')}
+        </Button>
+      </Box>
+
       <Paper component="header" className="vuxo-refuge-hero" data-testid="refuge-command-hero"
         variant="outlined" sx={{ p: { xs: 1.5, sm: 2.25, md: 3 } }}>
         <Box className="vuxo-refuge-hero__grid">
@@ -147,30 +171,6 @@ export function RefugePage() {
           </Box>
         </Box>
       </Paper>
-
-      <Box component="nav" className="vuxo-refuge-sections" data-testid="refuge-section-nav"
-        aria-label={t('refuge.dashboard.navigation')} sx={{ bgcolor: 'background.paper', borderColor: 'divider' }}>
-        <Button data-testid="refuge-jump-activities" size="small"
-          startIcon={<SportsEsportsOutlined />} onClick={() => openSection('refuge-activities-section')}>
-          {t('refuge.dashboard.activities')}
-        </Button>
-        {session && (
-          <Button data-testid="refuge-jump-health" size="small"
-            startIcon={<FavoriteBorder />} onClick={() => openSection('refuge-health')}>
-            {t('refuge.dashboard.health')}
-          </Button>
-        )}
-        {health && (
-          <Button data-testid="refuge-jump-preparation" size="small"
-            startIcon={<BackpackOutlined />} onClick={() => openSection('refuge-preparation')}>
-            {t('refuge.dashboard.preparation')}
-          </Button>
-        )}
-        <Button data-testid="refuge-jump-care" size="small"
-          startIcon={<AutoAwesome />} onClick={() => openSection('refuge-care-section')}>
-          {t('refuge.dashboard.care')}
-        </Button>
-      </Box>
 
       {session && (
         <Paper id="refuge-health" tabIndex={-1} data-testid="refuge-health" variant="outlined" sx={{ p: { xs: 2.5, sm: 3 } }}>
