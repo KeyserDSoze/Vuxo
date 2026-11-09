@@ -88,6 +88,6 @@ for clause in ["workflow_dispatch:", "github.ref == 'refs/heads/main'", "github.
     assert clause in manual, f"Missing main-only manual workflow safeguard: {clause}"
 assert "${{ secrets." not in manual, "Manual probe cannot use GitHub secrets"
 assert "python3 infra/pi3/diagnose_origin.py" in manual
-assert "verify-public-auth:" in Path(".github/workflows/deploy-pi3.yml").read_text(), "Do not weaken the strict public smoke
+assert "verify-public-auth:" in Path(".github/workflows/deploy-pi3.yml").read_text(), "Do not weaken the strict public smoke"
 PY
 echo "Pi 3 Compose and deploy contract passed."
