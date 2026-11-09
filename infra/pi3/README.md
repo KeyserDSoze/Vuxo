@@ -87,6 +87,12 @@ If the GitHub-hosted `verify-public-auth` job fails after a successful Pi deploy
 
 A temporary container reuses the local API image containing `curl`, with `--pull=never`, read-only root filesystem, no mounts/ports and dropped capabilities. The job prints only fixed outcomes and safe numeric HTTP status; it never prints connector logs, runtime tokens, Docker environment, HTTP bodies/headers, network addresses or request IDs. The external HTTP test remains the release acceptance gate. If the internal origin is HTTP 200 but both public vantage points report 502, inspect the Cloudflare published hostname and its connector assignment in the Cloudflare dashboard; **no root cause is proven solely by these probes**.
 
+## Interpreting the redacted origin probes (#151)
+
+The same allowlisted temporary `curl` container now reports an explicit **HTTP 100–599** status, or a fixed category for DNS resolution, TCP connect, curl timeout, Docker-process timeout, TLS/certificate errors, connection reset, Docker launch/exec failure, malformed status, or unknown probe failure. Raw stdout/stderr, IP addresses, tokens, headers and response bodies stay private. Only two exact health URLs are accepted by the probe helper: `http://api:8080/health` and `https://api.vuxoapi.xyz/health`.
+
+When the initial connector-to-origin probe fails during post-failure triage, it is sampled **only once more after the public URL**, without delay or service restart (three temporary probes maximum: internal/public/internal). A different result between samples is evidence of variable observation, not proof of an edge, DNS or origin root cause. The strict GitHub-hosted public release gate remains blocking; a healthy local probe or a transient public HTTP 200 cannot substitute for its full checks. Issue #147 tracks the unresolved incident; #151 tracks diagnostic accuracy.
+
 ## 4. Production runtime and health
 
 The regular automatic deploy uses these files:

@@ -102,6 +102,19 @@ for clause in ["workflow_dispatch:", "github.ref == 'refs/heads/main'", "github.
 assert "${{ secrets." not in manual, "Manual probe cannot use GitHub secrets"
 assert "python3 infra/pi3/diagnose_origin.py" in manual
 assert "verify-public-auth:" in Path(".github/workflows/deploy-pi3.yml").read_text(), "Do not weaken the strict public smoke"
+origin_probe = Path("infra/pi3/diagnose_origin.py").read_text()
+triage_probe = Path("infra/pi3/diagnose_cloudflare_failure.py").read_text()
+assert "def classify_http_result(" in origin_probe, "Origin probe must distinguish HTTP vs transport"
+assert "def probe_http(" in origin_probe, "Shared allowlisted safe HTTP probe required"
+for flag in ["--pull=never", "--read-only", "--cap-drop=ALL",
+             "--security-opt=no-new-privileges", "--pids-limit"]:
+    assert flag in origin_probe, "Missing non-destructive diagnostic flag: " + flag
+assert origin_probe.count('"docker", "run"') == 1, "Only centralized safe Docker probe allowed"
+assert "public_result = origin.probe_http(" in triage_probe, "Public probe must use same classifier"
+assert "if internal_status != 0:" in triage_probe, "Bound internal recheck to failed first origin probe"
+assert "one bounded internal origin recheck:" in triage_probe
+assert "https://attacker" not in origin_probe
+
 # On a red public gate, both GitHub-hosted and Pi vantage points must collect
 # only safe read-only evidence; never turn the public gate green.
 release = Path(".github/workflows/deploy-pi3.yml").read_text()

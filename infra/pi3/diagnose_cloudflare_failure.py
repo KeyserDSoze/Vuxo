@@ -49,22 +49,14 @@ def diagnose(run=origin.run_command, emit=print):
         emit("WARN: local API image unavailable for public route cross-check")
         return 0
 
-    # The API image is already present on the Pi and contains curl. Share only
-    # cloudflared's network namespace. Never pull, mount, publish, inject env
-    # or execute shell commands on the running connector.
-    exit_code, value = run([
-        "docker", "run", "--rm", "--pull=never",
-        "--network", f"container:{connector}",
-        "--read-only", "--cap-drop=ALL", "--security-opt=no-new-privileges",
-        "--pids-limit", "32", "--entrypoint", "curl", image,
-        "--silent", "--output", "/dev/null", "--connect-timeout", "3",
-        "--max-time", "8", "--write-out", "%{http_code}",
-        PUBLIC_HEALTH,
-    ])
-    if exit_code == 0 and len(value) == 3 and value.isascii() and value.isdecimal() and value[0] in "12345":
-        emit("INFO: public API from Pi connector network namespace: HTTP " + value)
-    else:
-        emit("INFO: public API from Pi connector network namespace: unavailable")
+    # Shared safe, allowlisted classification for both fixed URLs. Internal
+    # recheck is bounded to one extra ephemeral probe ONLY after an initial
+    # failure, after the public sample (to capture a possible change).
+    public_result = origin.probe_http(run, connector, image, PUBLIC_HEALTH, max_time=8)
+    emit("INFO: public API from Pi connector network namespace: " + public_result)
+    if internal_status != 0:
+        retry_result = origin.probe_http(run, connector, image, "http://api:8080/health")
+        emit("INFO: one bounded internal origin recheck: " + retry_result)
     emit("NOTE: this is a read-only comparison, not a successful release gate or OAuth test")
     return 0
 

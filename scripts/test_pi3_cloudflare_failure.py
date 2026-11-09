@@ -20,6 +20,8 @@ class FakeDocker:
         self.internal_status = "200"
         self.external_status = "502"
         self.external_exit = 0
+        self.internal_exit = 0
+        self.internal_sequence = None
         self.inspect_failure = False
 
     def __call__(self, args):
@@ -45,7 +47,9 @@ class FakeDocker:
             raise AssertionError("Unexpected inspection template")
         if args[:2] == ["docker", "run"]:
             if args[-1] == "http://api:8080/health":
-                return 0, self.internal_status
+                if self.internal_sequence is not None:
+                    return self.internal_sequence.pop(0)
+                return self.internal_exit, self.internal_status
             if args[-1] == triage.PUBLIC_HEALTH:
                 return self.external_exit, self.external_status
         raise AssertionError("Unexpected/unsafe command")
@@ -122,11 +126,11 @@ class EdgeTriageTests(unittest.TestCase):
         fake = FakeDocker()
         fake.external_status = "502 SECRET_TOKEN"
         _, output = self.evaluate(fake)
-        self.assertIn("public API from Pi connector network namespace: unavailable", output)
+        self.assertIn("public API from Pi connector network namespace: invalid HTTP status", output)
         self.assertNotIn("SECRET_TOKEN", output)
         fake.external_status, fake.external_exit = "200", 60
         _, output = self.evaluate(fake)
-        self.assertIn("unavailable", output)
+        self.assertIn("TLS certificate validation failure", output)
         self.assertNotIn("HTTP 200\nNOTE: this is", output)
 
     def test_failed_internal_probe_still_reports_public_status(self):
@@ -149,6 +153,44 @@ class EdgeTriageTests(unittest.TestCase):
         self.assertEqual(triage.restart_category("2"), "seen")
         for value in (None, "SECRET", "-1", "9999999999999"):
             self.assertEqual(triage.restart_category(value), "unknown")
+
+
+    def test_origin_rechecked_once_only_after_failure_and_after_public_probe(self):
+        fake = FakeDocker()
+        fake.internal_sequence = [(28, "PRIVATE_TIMEOUT"), (0, "200")]
+        _, output = self.evaluate(fake)
+        self.assertIn("probe: curl request timeout", output)
+        self.assertIn("one bounded internal origin recheck: HTTP 200", output)
+        self.assertNotIn("PRIVATE_TIMEOUT", output)
+        runs = [args[-1] for args in fake.calls if args[:2] == ["docker", "run"]]
+        self.assertEqual(runs, ["http://api:8080/health", triage.PUBLIC_HEALTH,
+                                "http://api:8080/health"])
+
+    def test_http_502_internal_is_not_reported_as_transport_error(self):
+        fake = FakeDocker()
+        fake.internal_sequence = [(0, "502"), (0, "502")]
+        _, output = self.evaluate(fake)
+        self.assertIn("probe: HTTP 502", output)
+        self.assertIn("one bounded internal origin recheck: HTTP 502", output)
+        runs = [args for args in fake.calls if args[:2] == ["docker", "run"]]
+        self.assertEqual(len(runs), 3)
+
+    def test_no_extra_internal_probe_after_success(self):
+        fake = FakeDocker()
+        _, output = self.evaluate(fake)
+        self.assertNotIn("one bounded internal origin recheck", output)
+        self.assertEqual(len([c for c in fake.calls if c[:2] == ["docker", "run"]]), 2)
+
+    def test_public_dns_and_docker_probe_failures_are_redacted(self):
+        fake = FakeDocker()
+        for code, label in [(6, "DNS resolution failure"),
+                            (28, "curl request timeout"),
+                            (125, "Docker container launch failure")]:
+            fake.external_exit, fake.external_status = code, "PRIVATE_DOCKER_SECRET"
+            with self.subTest(code=code):
+                _, output = self.evaluate(fake)
+                self.assertIn("public API from Pi connector network namespace: " + label, output)
+                self.assertNotIn("PRIVATE_DOCKER_SECRET", output)
 
 
 if __name__ == "__main__":

@@ -119,15 +119,64 @@ class OriginTests(unittest.TestCase):
         status, output = self.result(fake)
         self.assertEqual(status, 1)
         self.assertIn("cannot confirm API origin HTTP 200", output)
-        self.assertNotIn("502", output)
+        self.assertIn("probe: HTTP 502", output)
 
     def test_subprocess_timeout_and_stderr_hidden(self):
         with patch.object(probe.subprocess, "run",
                           side_effect=subprocess.TimeoutExpired(["docker"], 15)):
-            self.assertEqual(probe.run_command(["docker", "ps"]), (-1, ""))
+            self.assertEqual(probe.run_command(["docker", "ps"]), (-2, ""))
         with patch.object(probe.subprocess, "run",
                           return_value=subprocess.CompletedProcess(["docker"], 1, "visible", "SECRET")):
             self.assertEqual(probe.run_command(["docker", "ps"]), (1, "visible"))
+
+
+    def test_fixed_categories_for_curl_docker_and_invalid_output(self):
+        cases = [
+            (0, "502", "HTTP 502"),
+            (0, "200", "HTTP 200"),
+            (0, "200 SECRET-LOCATION", "invalid HTTP status"),
+            (0, "999", "invalid HTTP status"),
+            (6, "private DNS server", "DNS resolution failure"),
+            (7, "private IP", "TCP connection failure"),
+            (28, "private token", "curl request timeout"),
+            (35, "private certificate", "TLS handshake failure"),
+            (60, "private certificate", "TLS certificate validation failure"),
+            (52, "private body", "empty upstream reply"),
+            (56, "private socket", "connection reset or closed"),
+            (125, "docker secret", "Docker container launch failure"),
+            (126, "docker secret", "Docker container execution failure"),
+            (127, "docker secret", "Docker probe executable unavailable"),
+            (-2, "private exception", "Docker subprocess timeout"),
+            (-1, "private exception", "Docker subprocess unavailable"),
+            (19, "private exception", "probe execution failure"),
+            (None, "private exception", "probe execution failure"),
+        ]
+        for code, raw, category in cases:
+            with self.subTest(code=code, raw=raw):
+                self.assertEqual(probe.classify_http_result(code, raw), category)
+                self.assertNotIn("private", category.lower())
+
+    def test_safe_probe_rejects_invalid_target_before_docker(self):
+        fake = FakeDocker()
+        self.assertEqual(probe.probe_http(fake, CONNECTOR, IMAGE,
+                                         "https://attacker.test/secret"),
+                         "probe input rejected")
+        self.assertEqual(probe.probe_http(fake, CONNECTOR, IMAGE, 
+                                         "http://api:8080/health", max_time=900),
+                         "probe input rejected")
+        self.assertEqual(fake.calls, [])
+
+    def test_dns_timeout_and_docker_launch_are_not_misreported_as_http(self):
+        fake = FakeDocker()
+        for code, message in [(6, "DNS resolution failure"),
+                              (28, "curl request timeout"),
+                              (125, "Docker container launch failure")]:
+            fake.exit_code, fake.http_code = code, "502 PRIVATE_SECRET"
+            with self.subTest(code=code):
+                status, output = self.result(fake)
+                self.assertEqual(status, 1)
+                self.assertIn("probe: " + message, output)
+                self.assertNotIn("PRIVATE_SECRET", output)
 
 
 if __name__ == "__main__":

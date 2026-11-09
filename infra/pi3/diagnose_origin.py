@@ -17,7 +17,11 @@ def run_command(argv):
             argv, capture_output=True, text=True, check=False, timeout=15
         )
         return proc.returncode, proc.stdout.strip()
-    except (OSError, subprocess.TimeoutExpired):
+    except subprocess.TimeoutExpired:
+        # Distinguish the 15-second Docker subprocess bound from curl's own
+        # request timeout. Never return exception text or captured stderr.
+        return -2, ""
+    except OSError:
         return -1, ""
 
 
@@ -52,6 +56,53 @@ def network_names(container, run):
     return {name for name in networks if isinstance(name, str) and name}
 
 
+def classify_http_result(exit_code, output):
+    """Allowlisted probe outcome. Never include raw subprocess output/errors."""
+    if exit_code == 0:
+        if isinstance(output, str) and re.fullmatch(r"[1-5][0-9]{2}", output):
+            return "HTTP " + output
+        return "invalid HTTP status"
+    # docker run forwards curl's exit code. 125-127 are Docker/exec failures,
+    # not HTTP responses. Unknown codes and raw stderr are deliberately hidden.
+    errors = {
+        -2: "Docker subprocess timeout",
+        -1: "Docker subprocess unavailable",
+        6: "DNS resolution failure",
+        7: "TCP connection failure",
+        28: "curl request timeout",
+        35: "TLS handshake failure",
+        60: "TLS certificate validation failure",
+        52: "empty upstream reply",
+        56: "connection reset or closed",
+        125: "Docker container launch failure",
+        126: "Docker container execution failure",
+        127: "Docker probe executable unavailable",
+    }
+    return errors.get(exit_code, "probe execution failure") if isinstance(exit_code, int) else "probe execution failure"
+
+
+def probe_http(run, connector, image, url, *, max_time=6):
+    """Probe only two fixed health URLs from an existing connector namespace.
+
+    Use the locally available API image as an ephemeral curl runner. Never
+    mount a socket, inject credentials, pull an image or publish any port.
+    """
+    if (not isinstance(connector, str) or not CONTAINER_ID.fullmatch(connector)
+        or not isinstance(image, str) or not IMAGE_ID.fullmatch(image)
+        or url not in ("http://api:8080/health", "https://api.vuxoapi.xyz/health")
+        or max_time not in (6, 8)):
+        return "probe input rejected"
+    exit_code, output = run([
+        "docker", "run", "--rm", "--pull=never",
+        "--network", f"container:{connector}",
+        "--read-only", "--cap-drop=ALL", "--security-opt=no-new-privileges",
+        "--pids-limit", "32", "--entrypoint", "curl", image,
+        "--silent", "--output", "/dev/null", "--connect-timeout", "3",
+        "--max-time", str(max_time), "--write-out", "%{http_code}",
+        url,
+    ])
+    return classify_http_result(exit_code, output)
+
 def diagnose(run=run_command, emit=print):
     """Fixed PASS/FAIL strings only; a success does NOT verify the public tunnel."""
     api = container_id("api", run)
@@ -78,20 +129,10 @@ def diagnose(run=run_command, emit=print):
         emit("FAIL: local API image digest unavailable")
         return 1
 
-    # Reuse the locally present, non-root API image's curl binary. Share only
-    # cloudflared's network namespace; no mounts, secrets, ports or image pulls.
-    code, http = run([
-        "docker", "run", "--rm", "--pull=never",
-        "--network", f"container:{connector}",
-        "--read-only", "--cap-drop=ALL", "--security-opt=no-new-privileges",
-        "--pids-limit", "32", "--entrypoint", "curl", image_id,
-        "--silent", "--output", "/dev/null", "--connect-timeout", "3",
-        "--max-time", "6", "--write-out", "%{http_code}",
-        "http://api:8080/health",
-    ])
-    if code != 0 or http != "200":
-        emit("FAIL: connector network namespace cannot confirm API origin HTTP 200")
-        emit("NOTE: check Docker DNS/network; public Cloudflare route remains unverified")
+    result = probe_http(run, connector, image_id, "http://api:8080/health")
+    if result != "HTTP 200":
+        emit("FAIL: connector network namespace cannot confirm API origin HTTP 200 (probe: " + result + ")")
+        emit("NOTE: origin probe result is not a public Cloudflare route diagnosis")
         return 1
     emit("PASS: connector network namespace reaches API origin HTTP 200")
     emit("NOTE: Cloudflare hostname and real OAuth require independent external verification")
