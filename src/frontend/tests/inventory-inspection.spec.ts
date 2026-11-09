@@ -91,7 +91,9 @@ test('inventory invalidation dismisses inspection instead of displaying a stale 
   const card = page.getByTestId('inventory-stack').filter({ hasText: 'Seme del bosco' });
   await card.getByTestId('inventory-inspect').click();
   await expect(page.getByRole('dialog', { name: 'Ispezione oggetto' })).toBeVisible();
-  await page.getByTestId('inventory-loadout-refresh').click();
+  // The dialog traps focus; trigger the refresh callback to simulate an
+  // invalidated owner snapshot while inspection is open.
+  await page.getByTestId('inventory-loadout-refresh').evaluate(element => (element as HTMLButtonElement).click());
   await expect(page.getByRole('dialog', { name: 'Ispezione oggetto' })).toHaveCount(0);
 
   await page.evaluate(() => {
@@ -112,7 +114,7 @@ test('English inspection and focus stay usable on 320px dark mobile', async ({ p
   await page.getByTestId('theme-toggle').click();
   await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme)).toBe('dark');
   await expect(page.getByTestId('inventory-stack')).toHaveCount(3);
-  const button = page.getByTestId('inventory-stack').filter({ hasText: 'Grove seed' }).getByTestId('inventory-inspect');
+  const button = page.getByTestId('inventory-stack').filter({ hasText: 'Grove Seed' }).getByTestId('inventory-inspect');
   await button.focus();
   await expect(button).toBeFocused();
   await page.keyboard.press('Enter');
