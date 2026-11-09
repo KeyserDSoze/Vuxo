@@ -76,7 +76,7 @@ export function PortalCompass({
       data-direction={bearing.direction}
       data-distance={bearing.distance}
       direction="row"
-      alignItems="center"
+      sx={{ alignItems: 'center' }}
       spacing={1}
       className="vuxo-game-portal-compass"
       role="group"
@@ -90,10 +90,10 @@ export function PortalCompass({
         </Box>
       </Box>
       <Box sx={{ minWidth: 0 }}>
-        <Typography component="span" className="vuxo-game-compass-title" variant="caption" display="block">
+        <Typography component="span" className="vuxo-game-compass-title" variant="caption" sx={{ display: 'block' }}>
           {t('game.portal.compass.target', { number: bearing.number })}
         </Typography>
-        <Typography component="span" className="vuxo-game-compass-readout" variant="caption" display="block">
+        <Typography component="span" className="vuxo-game-compass-readout" variant="caption" sx={{ display: 'block' }}>
           {readout}
         </Typography>
       </Box>
