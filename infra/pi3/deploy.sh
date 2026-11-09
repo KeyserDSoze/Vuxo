@@ -91,6 +91,11 @@ if ! health_check; then
 fi
 
 "${COMPOSE[@]}" up -d cloudflared
+# A deployment replaces the API container (and its Docker IP). Compose up
+# leaves an unchanged long-running connector process untouched; restart it to
+# discard stale upstream connections/DNS after the new API is healthy.
+# Cloudflared is stateless; this does not touch PostgreSQL, Redis or backups.
+"${COMPOSE[@]}" restart cloudflared
 # Local API discovery must match the intended provider IDs and production CORS.
 # Failure leaves containers intact for diagnosis; it does not roll back database migrations.
 python3 "$ROOT/infra/pi3/verify-auth.py" "$ENV_FILE"

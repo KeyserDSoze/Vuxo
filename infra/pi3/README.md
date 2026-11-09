@@ -75,6 +75,12 @@ Each anonymous GET carries the production `Origin: https://vuxo.quest` header an
 
 This smoke proves **anonymous isolation** and routing, not successful authenticated owner-only behavior, nor end-user Google/Microsoft OAuth. Those require the existing integration tests and final real-user acceptance (issues #119, #136, #139).
 
+## Cloudflare origin reconnection after an API replacement (issue #147)
+
+The Pi deployment replaces the `api` container after a pre-deploy PostgreSQL backup and waits for **local** `http://127.0.0.1:8080/health` before touching the connector. `docker compose up -d cloudflared` can leave an unchanged, long-running tunnel process in place while Docker replaces the API container/IP. After local API health, `infra/pi3/deploy.sh` now executes `docker compose restart cloudflared` to establish fresh origin connections. The connector is stateless; the step does **not** alter PostgreSQL/Redis, persisted volumes, Cloudflare tokens or DNS routes.
+
+**This is a mitigation, not proof of the cause of HTTP 502.** The external GitHub-hosted `verify-public-auth` check must still pass the canonical public health, deployed version, providers, CORS, anonymous owner-only 401 endpoints and Microsoft bridge. If it fails, retain the last explicit response status, inspect the Cloudflare tunnel dashboard/route and connector logs on the Pi without printing tokens, and confirm the container service name `api:8080` matches the configured private ingress. Do not mark production live based only on a green local container. The CI `scripts/test-pi3-compose.sh` asserts that connector restart follows the local health gate and precedes the final on-host checks.
+
 ## 4. Production runtime and health
 
 The regular automatic deploy uses these files:

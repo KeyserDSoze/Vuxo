@@ -70,5 +70,13 @@ for path in ["docker/compose.pi3.monitor.yml", "docker/compose.pi3.rabbitmq.yml"
     body = Path(path).read_text()
     assert "127.0.0.1:" in body, f"Admin ports must bind loopback: {path}"
 assert "down -v" not in Path("infra/pi3/deploy.sh").read_text().replace("Never run down -v", "")
+# Reconnect the Cloudflare origin only after the replacement API passes local
+# health. A long-running unchanged connector can retain stale upstream routes.
+deploy_script = Path("infra/pi3/deploy.sh").read_text()
+up = '"${COMPOSE[@]}" up -d cloudflared'
+restart = '"${COMPOSE[@]}" restart cloudflared'
+assert deploy_script.count(restart) == 1, "Cloudflare connector must restart once per deploy"
+assert deploy_script.index("if ! health_check; then") < deploy_script.index(up) < deploy_script.index(restart), "Connector restart must follow a healthy API"
+assert deploy_script.index(restart) < deploy_script.rindex('python3 "$ROOT/infra/pi3/verify-auth.py" "$ENV_FILE"'), "Refresh connector before final local/provider checks"
 PY
 echo "Pi 3 Compose and deploy contract passed."
