@@ -209,3 +209,33 @@
   .vuxo-deck__route, .vuxo-deck__scroll [data-testid="refuge-activities"] > .MuiGrid-root > .MuiPaper-root { transition: none; }
   .vuxo-deck__route:hover, .vuxo-deck__scroll [data-testid="refuge-activities"] > .MuiGrid-root > .MuiPaper-root:hover { transform: none; }
 }
+
+
+/* #161: owner inventory piles are visual cards; metadata still comes only from API read-models. */
+.vuxo-inventory-card {
+  border-color: color-mix(in srgb, var(--vuxo-focus-ring) 28%, transparent);
+  background:
+    radial-gradient(circle at 12% 8%, color-mix(in srgb, var(--vuxo-focus-ring) 8%, transparent), transparent 52%);
+  transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease;
+}
+.vuxo-inventory-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--vuxo-focus-ring);
+  box-shadow: 0 13px 26px -22px var(--vuxo-focus-ring);
+}
+.vuxo-inventory-card__emblem {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 63px;
+  height: 63px;
+  border: 1px solid;
+  border-radius: 15px;
+}
+@media (max-width: 480px) {
+  .vuxo-inventory-card__emblem { width: 51px; height: 51px; border-radius: 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vuxo-inventory-card { transition: none; }
+  .vuxo-inventory-card:hover { transform: none; }
+}
