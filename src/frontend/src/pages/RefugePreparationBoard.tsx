@@ -62,8 +62,9 @@ export function RefugePreparationBoard({ accessToken, health, onRefresh, onRevie
   }
 
   return (
-    <Paper component="section" variant="outlined" aria-labelledby="refuge-preparation-title"
-      data-testid="refuge-preparation" sx={{ p: { xs: 2.5, sm: 3.5 } }}>
+    <Paper component="section" id="refuge-preparation" tabIndex={-1} variant="outlined"
+      aria-labelledby="refuge-preparation-title" data-testid="refuge-preparation"
+      sx={{ p: { xs: 2.5, sm: 3.5 } }}>
       <Stack spacing={2.5}>
         <Stack direction={{ xs: 'column', sm: 'row' }}
           sx={{ gap: 1.5, alignItems: { sm: 'flex-start' }, justifyContent: 'space-between' }}>
