@@ -143,7 +143,11 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
     : { stacks, awards: items },
   [stacks, items, loadout, browseQuery, browseFilter, browseSlot, browseSort, i18n.resolvedLanguage, t]);
   const displayedStacks = browseReady ? view.stacks : [];
-  const displayedItems = browseReady ? view.awards : items;
+  // The chronicle is a complete owner-backed grant history. Hidden
+  // Backpack filters must never silently hide events or consumed awards.
+  const displayedItems = browseReady
+    ? viewMode === 'journal' ? items : view.awards
+    : items;
   const noMatches = canBrowse && displayedStacks.length === 0 && displayedItems.length === 0;
   const showGear = viewMode === 'all' || viewMode === 'gear';
   const showBag = viewMode === 'all' || viewMode === 'bag';

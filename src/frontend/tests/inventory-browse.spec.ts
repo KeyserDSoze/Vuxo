@@ -261,6 +261,13 @@ test('game-first inventory views separate gear, backpack and history without cha
   await expect(page.getByTestId('inventory-browse-controls')).toBeVisible();
   await expect(page.getByTestId('inventory-stack')).toHaveCount(2); // seed and pearl are available charms
 
+  // This filter belongs only to the Backpack, never to the entire grant
+  // history. A consumed item must remain visible in the Chronicle.
+  await page.getByTestId('inventory-view-journal').click();
+  await expect(page.getByTestId('inventory-item')).toHaveCount(4);
+  await expect(page.getByTestId('inventory-item').filter({ hasText: 'Consumato' })).toHaveCount(1);
+  await page.getByTestId('inventory-view-bag').click();
+  await expect(page.getByTestId('inventory-stack')).toHaveCount(2);
   await page.getByTestId('inventory-browse-clear').click();
   await expect(page.getByTestId('inventory-stack')).toHaveCount(3);
   await page.getByTestId('inventory-inspect').first().click();
