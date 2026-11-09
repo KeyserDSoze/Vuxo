@@ -65,10 +65,6 @@ export const vuxoDesignTokens = {
       gameHudText: '#eef7ff',
       gameHudBorder: '#526986',
       gameHudAccent: '#86eee3',
-      gameHud: '#071227',
-      gameHudText: '#eef7ff',
-      gameHudBorder: '#526986',
-      gameHudAccent: '#86eee3',
     },
     dark: {
       primary: '#8ab4ff',
@@ -77,6 +73,10 @@ export const vuxoDesignTokens = {
       paper: '#101827',
       focusRing: '#b7d0ff',
       gameCanvas: '#172554',
+      gameHud: '#071227',
+      gameHudText: '#eef7ff',
+      gameHudBorder: '#526986',
+      gameHudAccent: '#86eee3',
     },
   },
 } as const;
