@@ -556,29 +556,30 @@ test('responsive camera keeps a real Phaser portal hit area clickable after ultr
   await expect.poll(async () => Number(await host.getAttribute('data-e2e-camera-zoom')))
     .toBeGreaterThanOrEqual(1.75);
 
-  // The projected marker is evaluated by Phaser with the actual zoom and
-  // scroll; clicking it still invokes the original server-validated action.
+  // The portal and owner spawn at the same authoritative world tile. The
+  // viewport transition must recenter immediately; otherwise a marker's
+  // screen coordinates drift while Playwright prepares a click.
   await expect.poll(() => host.evaluate(element => {
+    const canvas = element.querySelector('canvas') as HTMLCanvasElement | null;
+    if (!canvas) return Number.POSITIVE_INFINITY;
     const x = Number(element.dataset.portalScreenX);
     const y = Number(element.dataset.portalScreenY);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return Number.POSITIVE_INFINITY;
+    return Math.hypot(x - canvas.width / 2, y - canvas.height / 2);
+  })).toBeLessThan(14);
+
+  // Take the projected marker and canvas bounds in one browser evaluation,
+  // not 3 round trips separated by multiple 1440p frames on slow CI GPUs.
+  const marker = await host.evaluate(element => {
     const canvas = element.querySelector('canvas') as HTMLCanvasElement | null;
-    return !!canvas && Number.isFinite(x) && Number.isFinite(y)
-      && x > 0 && y > 0 && x < canvas.width && y < canvas.height;
-  })).toBe(true);
-  const marker = await host.evaluate(element => ({
-    x: Number(element.dataset.portalScreenX),
-    y: Number(element.dataset.portalScreenY),
-  }));
-  const bounds = await canvas.boundingBox();
-  const pixels = await canvas.evaluate(element => ({
-    width: (element as HTMLCanvasElement).width,
-    height: (element as HTMLCanvasElement).height,
-  }));
-  if (!bounds) throw new Error('World canvas not mounted');
-  await canvas.click({ position: {
-    x: marker.x * bounds.width / pixels.width,
-    y: marker.y * bounds.height / pixels.height,
-  } });
+    if (!canvas) throw new Error('World canvas not mounted');
+    const box = canvas.getBoundingClientRect();
+    return {
+      x: Number(element.dataset.portalScreenX) * box.width / canvas.width,
+      y: Number(element.dataset.portalScreenY) * box.height / canvas.height,
+    };
+  });
+  await canvas.click({ position: marker });
   await expect(page.getByTestId('world-portal-dialog')).toBeVisible();
   expect(api.getEntryCalls()).toBe(1);
   await expect(page.getByTestId('world-connection-status')).toHaveAttribute('data-status', 'connected');

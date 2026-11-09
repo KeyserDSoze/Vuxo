@@ -85,6 +85,12 @@ export class WorldScene extends Phaser.Scene {
     if (width < 1 || height < 1) return
     this.cameras.main.setSize(width, height)
     this.updateCameraZoom(width, height)
+    // Resizing from portrait to ultrawide changes camera-space geometry
+    // drastically. Snap the existing follow target once; keep smooth lerp
+    // only for subsequent player movement. No server position is modified.
+    const self = this.selfPlayerId ? this.players.get(this.selfPlayerId) : null
+    if (self && this.cameraTargetId === this.selfPlayerId)
+      this.cameras.main.centerOn(self.body.x, self.body.y)
   }
 
   private updateCameraZoom(width: number, height: number): void {
@@ -266,6 +272,9 @@ export class WorldScene extends Phaser.Scene {
       const self = this.players.get(this.selfPlayerId)
       if (self) {
         this.cameras.main.startFollow(self.body, true, 0.12, 0.12)
+        // A first join should not spend seconds flying from world origin.
+        // On later server-owned movement the follow camera still lerps.
+        this.cameras.main.centerOn(self.body.x, self.body.y)
         // Camera zoom is viewport-owned; joining or reconnecting must not
         // reset it to a fixed 1:1 desktop scale.
         this.cameraTargetId = this.selfPlayerId
