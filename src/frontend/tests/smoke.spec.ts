@@ -56,7 +56,15 @@ test('shell controls expose accessible labels and visible keyboard focus', async
   await expect(page.getByTestId('theme-toggle')).toHaveAttribute('aria-label', /Tema:/);
   await expect(page.getByTestId('language-toggle')).toHaveAttribute('aria-label', /Lingua:/);
 
+  // The new clickable VUXO emblem is the first keyboard stop, followed by Home.
+  const brand = page.getByTestId('shell-brand');
   const home = page.getByRole('link', { name: 'Home' });
+  await page.keyboard.press('Tab');
+  await expect(brand).toBeFocused();
+  await expect.poll(() => brand.evaluate(element => ({
+    focusVisible: element.matches(':focus-visible'),
+    outlineWidth: getComputedStyle(element).outlineWidth,
+  }))).toEqual({ focusVisible: true, outlineWidth: '3px' });
   await page.keyboard.press('Tab');
   await expect(home).toBeFocused();
   await expect.poll(() => home.evaluate(element => ({
