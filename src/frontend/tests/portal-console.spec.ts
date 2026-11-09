@@ -3,6 +3,11 @@ import { expect, test, type Page } from '@playwright/test';
 const grantId = '11111111-1111-4111-8111-111111111111';
 const secret = ['sun', 'moon', 'star', 'wave'];
 const grant = { id: grantId, contentKey: 'portal.memory.grove', portalKey: 'challenge.sequence.v1', expiresAtUtc: null };
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'Authorization, Content-Type',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+};
 
 async function login(page: Page, language: 'it' | 'en' = 'it') {
   const expiresAtUtc = new Date(Date.now() + 3_600_000).toISOString();
@@ -22,18 +27,18 @@ async function mockPortal(page: Page) {
   await page.route('**/api/personal-content**', route => {
     const req = route.request();
     const path = new URL(req.url()).pathname;
-    if (req.method() === 'OPTIONS') return route.fulfill({ status: 204 });
+    if (req.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: corsHeaders });
     if (req.method() === 'GET' && path === '/api/personal-content')
-      return route.fulfill({ json: consumed ? [] : [grant] });
+      return route.fulfill({ json: consumed ? [] : [grant], headers: corsHeaders });
     if (req.method() === 'GET' && path.endsWith('/challenge'))
-      return route.fulfill({ json: { grantId, version: 'portal-sequence-v1', sequence: secret } });
+      return route.fulfill({ json: { grantId, version: 'portal-sequence-v1', sequence: secret }, headers: corsHeaders });
     if (req.method() === 'POST' && path.endsWith('/challenge/attempt')) {
       const submitted = (req.postDataJSON() as { sequence: string[] }).sequence;
       posts.push(submitted);
       if (JSON.stringify(submitted) !== JSON.stringify(secret))
-        return route.fulfill({ status: 422, json: { code: 'portal_challenge_incorrect' } });
+        return route.fulfill({ status: 422, json: { code: 'portal_challenge_incorrect' }, headers: corsHeaders });
       consumed = true;
-      return route.fulfill({ json: { id: grantId, consumedAtUtc: '2026-11-04T00:00:00Z' } });
+      return route.fulfill({ json: { id: grantId, consumedAtUtc: '2026-11-04T00:00:00Z' }, headers: corsHeaders });
     }
     return route.fulfill({ status: 404 });
   });
