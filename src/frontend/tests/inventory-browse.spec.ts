@@ -242,7 +242,10 @@ test('game-first inventory views separate gear, backpack and history without cha
   const unexpected: string[] = [];
   page.on('request', request => {
     const url = new URL(request.url());
-    if (url.pathname.startsWith('/api/') && request.method() !== 'OPTIONS')
+    // Healing controls may poll encounter status independently. Switching
+    // UI views must not re-fetch owner inventory/equipment or mutate them.
+    if (/^\/api\/(inventory|equipment)(?:\/|$)/.test(url.pathname)
+      && request.method() !== 'OPTIONS')
       unexpected.push(request.method() + ':' + url.pathname);
   });
   await page.getByTestId('inventory-view-gear').click();

@@ -108,10 +108,16 @@ test('server-confirmed slots are visible and can filter available compatible obj
   await expect(page.getByTestId('inventory-browse-slot')).toContainText('Amuleto');
   await expect(page.getByTestId('inventory-stack')).toHaveCount(1);
   await expect(page.getByTestId('inventory-stack').first()).toContainText('Perla delle maree');
-  await expect(page.getByTestId('inventory-item')).toHaveCount(1);
+  // Find now navigates into the Backpack: only the stacks/actions remain
+  // visible, while the authoritative award history is in its own view.
+  await expect(page.getByTestId('inventory-view-bag')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByTestId('inventory-item')).toHaveCount(0);
   expect(api.deletes()).toBe(0);
 
+  await page.getByTestId('inventory-view-gear').click();
+  await expect(page.getByTestId('inventory-loadout')).toBeVisible();
   await page.getByTestId('inventory-loadout-find-relic').click();
+  await expect(page.getByTestId('inventory-view-bag')).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByTestId('inventory-browse-slot')).toContainText('Reliquia');
   await expect(page.getByTestId('inventory-stack')).toHaveCount(1);
   await expect(page.getByTestId('inventory-stack')).toContainText('Frammento di runa');
@@ -184,6 +190,10 @@ test('English dark mobile loadout can be operated with keyboard only', async ({ 
   await page.getByTestId('inventory-loadout-find-charm').focus();
   await page.keyboard.press('Enter');
   await expect(page.getByTestId('inventory-browse-slot')).toContainText('Charm');
+  const gearTab = page.getByTestId('inventory-view-gear');
+  await gearTab.focus();
+  await page.keyboard.press('Enter');
+  await expect(gearTab).toHaveAttribute('aria-pressed', 'true');
   await page.getByTestId('inventory-loadout-unequip-charm').focus();
   await page.keyboard.press('Enter');
   await expect(page.getByTestId('inventory-loadout-slot-charm')).toContainText('Empty slot');
