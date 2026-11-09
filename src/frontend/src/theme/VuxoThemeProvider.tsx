@@ -26,6 +26,10 @@ export function VuxoThemeProvider({ children }: PropsWithChildren) {
     document.documentElement.style.colorScheme = effectiveMode;
     document.documentElement.style.setProperty('--vuxo-focus-ring', palette.focusRing);
     document.documentElement.style.setProperty('--vuxo-game-canvas-bg', palette.gameCanvas);
+    document.documentElement.style.setProperty('--vuxo-game-hud-bg', palette.gameHud);
+    document.documentElement.style.setProperty('--vuxo-game-hud-text', palette.gameHudText);
+    document.documentElement.style.setProperty('--vuxo-game-hud-border', palette.gameHudBorder);
+    document.documentElement.style.setProperty('--vuxo-game-hud-accent', palette.gameHudAccent);
   }, [mode, effectiveMode]);
 
   const theme = useMemo(() => {
