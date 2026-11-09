@@ -80,6 +80,22 @@ const initialization = i18n.use(initReactI18next).init({
             refreshAll: 'Aggiorna tutto',
             retry: 'Aggiorna',
             dateUnavailable: 'Data non disponibile',
+            completed: {
+              show: 'Mostra portali completati',
+              hide: 'Nascondi lo storico',
+              title: 'Portali completati e verificati',
+              description: 'Sfide di rune superate con una prova persistente del server, non dedotte dagli oggetti ricevuti.',
+              loading: 'Caricamento completamenti verificati…',
+              error: 'Impossibile recuperare i portali completati. Riprova senza ripetere la sfida.',
+              empty: 'Non risultano completamenti di rune verificati nello storico disponibile.',
+              verified: 'Sfida di rune completata',
+              at: 'Completata il {{date}}',
+              reference: 'Riferimento portale: {{reference}}',
+              source: 'Contenuto: {{key}}',
+              rule: 'Regola: {{version}}',
+              more: 'Mostra altri completamenti',
+              disclaimer: 'Sono visibili soltanto i completamenti dimostrati dagli eventi di audit. Tentativi falliti, portali scaduti e consumi storici privi di prova non vengono presentati come vittorie.'
+            },
             rewards: {
               title: 'Ricompense ottenute',
               description: 'Registrazioni effettive degli oggetti assegnati al tuo personaggio dal server.',
@@ -116,7 +132,7 @@ const initialization = i18n.use(initReactI18next).init({
               available: 'Disponibile',
               open: 'Vai ai portali'
             },
-            disclaimer: 'Questo diario mostra assegnazioni di oggetti e portali ancora disponibili. Non è lo storico completo delle avventure o dei portali superati: quel registro richiederà una futura API dedicata. Un oggetto non consumato non è necessariamente utilizzabile o equipaggiabile.'
+            disclaimer: 'Il diario distingue gli oggetti assegnati, i portali disponibili e, su richiesta, i soli completamenti delle rune verificati dal server. Non contiene ancora tutte le avventure, i tentativi o gli esiti. Un oggetto non consumato non è necessariamente utilizzabile o equipaggiabile.'
           },
           rest: {
             description: 'Riposa al Rifugio per recuperare fino al 25% degli HP massimi di base. Puoi farlo una volta ogni 30 minuti. Non consuma oggetti.',
@@ -609,6 +625,22 @@ const initialization = i18n.use(initReactI18next).init({
             refreshAll: 'Refresh all',
             retry: 'Refresh',
             dateUnavailable: 'Date unavailable',
+            completed: {
+              show: 'Show verified completions',
+              hide: 'Hide verified completions',
+              title: 'Verified completed portals',
+              description: 'Rune challenges proven by persistent server audit events, never inferred from item rewards.',
+              loading: 'Loading verified completions…',
+              error: 'Could not load completed portals. Retry without replaying the challenge.',
+              empty: 'No verified rune completions are present in the available history.',
+              verified: 'Rune challenge completed',
+              at: 'Completed on {{date}}',
+              reference: 'Portal reference: {{reference}}',
+              source: 'Content: {{key}}',
+              rule: 'Ruleset: {{version}}',
+              more: 'Load more completions',
+              disclaimer: 'Only completions supported by audit events are shown. Failed attempts, expired portals and legacy consumptions without proof are not displayed as victories.'
+            },
             rewards: {
               title: 'Earned rewards',
               description: 'Actual server records of items granted to your character.',
@@ -645,7 +677,7 @@ const initialization = i18n.use(initReactI18next).init({
               available: 'Available',
               open: 'Visit portals'
             },
-            disclaimer: 'This journal shows item grants and portals still available. It is not a complete history of adventures or completed portals; that will require a dedicated future API. An item that is not consumed is not necessarily usable or equippable.'
+            disclaimer: 'The journal separates awarded items, currently available portals and, on request, only server-verified rune completions. It does not yet list every adventure, attempt or outcome. An unconsumed item is not necessarily usable or equippable.'
           },
           rest: {
             description: 'Rest at the Refuge to recover up to 25% of your base maximum HP. You can do this once every 30 minutes. No items are consumed.',

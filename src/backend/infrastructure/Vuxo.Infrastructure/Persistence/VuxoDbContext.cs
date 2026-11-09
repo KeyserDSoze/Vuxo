@@ -150,6 +150,7 @@ public sealed class VuxoDbContext(DbContextOptions<VuxoDbContext> options) : DbC
             entity.ToTable("game_events");
             entity.HasKey(x => x.EventId);
             entity.HasIndex(x => new { x.PlayerId, x.OccurredAtUtc });
+            entity.HasIndex(x => new { x.PlayerId, x.EventType, x.OccurredAtUtc, x.EventId });
             entity.HasIndex(x => x.OccurredAtUtc);
             entity.HasIndex(x => new { x.EventType, x.OccurredAtUtc });
             entity.HasIndex(x => x.CorrelationId);

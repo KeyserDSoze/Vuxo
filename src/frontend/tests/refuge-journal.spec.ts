@@ -260,7 +260,7 @@ test('English dark mobile journal is readable at 320px without Phaser or POST ac
   await page.getByTestId('theme-toggle').click();
   await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme)).toBe('dark');
   await expect(page.getByTestId('refuge-journal-rewards-count')).toContainText('3 of 3');
-  await expect(page.getByTestId('refuge-journal-limits')).toContainText('not a complete history');
+  await expect(page.getByTestId('refuge-journal-limits')).toContainText('does not yet list every adventure');
   await page.getByTestId('refuge-journal-filter').click();
   await page.getByRole('option', { name: 'Consumed', exact: true }).click();
   await expect(page.getByTestId('refuge-journal-reward')).toHaveCount(1);

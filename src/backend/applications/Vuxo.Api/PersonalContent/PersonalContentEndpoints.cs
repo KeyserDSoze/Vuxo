@@ -132,6 +132,28 @@ public static class PersonalContentEndpoints
             })
             .RequireAuthorization();
 
+        // Only persisted and causally audited sequence completions are victories.
+        // A consumed grant or an inventory reward alone is never proof.
+        endpoints.MapGet(
+            "/api/personal-content/history/completed",
+            async (ClaimsPrincipal user, IPortalCompletionHistoryReader history,
+                int? page, int? pageSize, CancellationToken cancellationToken) =>
+            {
+                var playerId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrWhiteSpace(playerId)) return Results.Unauthorized();
+
+                var requestedPage = page ?? 1;
+                var requestedSize = pageSize ?? 20;
+                if (requestedPage is < 1 or > 1000 || requestedSize is < 1 or > 50)
+                {
+                    return Results.BadRequest(new { code = "portal_history_invalid_pagination" });
+                }
+
+                return Results.Ok(await history.ListCompletedForPlayerAsync(
+                    playerId, requestedPage, requestedSize, cancellationToken));
+            })
+            .RequireAuthorization();
+
         endpoints.MapGet(
             "/api/personal-content/world-portals",
             async (ClaimsPrincipal user, WorldPortalService service, CancellationToken cancellationToken) =>

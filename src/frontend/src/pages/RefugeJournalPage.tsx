@@ -6,6 +6,7 @@ import {
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link as RouterLink } from 'react-router-dom';
+import { RefugePortalCompletionHistory } from '../features/refuge/RefugePortalCompletionHistory';
 import type { VuxoSession } from '../features/auth/authSession';
 import { useStoredSession } from '../features/auth/useStoredSession';
 import {
@@ -38,6 +39,8 @@ function RefugeJournalSession({ session }: { session: VuxoSession | null }) {
   const [filter, setFilter] = useState<JournalRewardFilter>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [sort, setSort] = useState<JournalRewardSort>('newest');
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyRevision, setHistoryRevision] = useState(0);
 
   useEffect(() => {
     if (!session) return;
@@ -112,6 +115,7 @@ function RefugeJournalSession({ session }: { session: VuxoSession | null }) {
   const refreshAll = () => {
     refreshRewards();
     refreshPortals();
+    setHistoryRevision(value => value + 1);
   };
 
   return (
@@ -339,6 +343,21 @@ function RefugeJournalSession({ session }: { session: VuxoSession | null }) {
               )}
             </Stack>
           </Paper>
+          <Stack spacing={1.5} sx={{ alignItems: 'stretch' }}>
+            <Button
+              data-testid="refuge-journal-show-completed"
+              variant="outlined"
+              aria-expanded={historyOpen}
+              aria-controls={historyOpen ? 'refuge-journal-completed-title' : undefined}
+              onClick={() => setHistoryOpen(value => !value)}
+              sx={{ minHeight: 44, alignSelf: 'flex-start' }}
+            >
+              {t(historyOpen ? 'refuge.journal.completed.hide' : 'refuge.journal.completed.show')}
+            </Button>
+            {historyOpen && (
+              <RefugePortalCompletionHistory key={session.accessToken + ':' + historyRevision} />
+            )}
+          </Stack>
           <Alert severity="info" data-testid="refuge-journal-limits">
             {t('refuge.journal.disclaimer')}
           </Alert>
