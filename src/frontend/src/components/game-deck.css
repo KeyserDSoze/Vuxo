@@ -239,3 +239,119 @@
   .vuxo-inventory-card { transition: none; }
   .vuxo-inventory-card:hover { transform: none; }
 }
+
+
+/* #162: Refuge command center — all data remains the owner-authenticated API read model. */
+.vuxo-refuge-dashboard { min-width: 0; }
+.vuxo-refuge-hero {
+  overflow: hidden;
+  border-radius: clamp(13px, 1.5vw, 20px) !important;
+  background:
+    radial-gradient(ellipse at 94% 10%, color-mix(in srgb, var(--deck-glow) 17%, transparent), transparent 46%),
+    linear-gradient(140deg, color-mix(in srgb, var(--deck-glow) 5%, transparent), transparent);
+}
+.vuxo-refuge-hero__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(210px, .8fr);
+  gap: clamp(12px, 2vw, 28px);
+  align-items: center;
+}
+.vuxo-refuge-hero__title.MuiTypography-root {
+  font-size: clamp(1.85rem, 3.2vw, 3.7rem);
+  line-height: 1.08;
+}
+.vuxo-refuge-hero__description { max-width: 62ch; font-size: .91rem; line-height: 1.45; }
+.vuxo-refuge-hero__status {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-self: stretch;
+  justify-content: center;
+  min-width: 0;
+  border: 1px solid;
+  border-radius: 14px;
+  padding: clamp(12px, 1.6vw, 22px);
+  box-shadow: inset 0 0 24px color-mix(in srgb, var(--deck-glow) 5%, transparent);
+}
+.vuxo-refuge-hero__status [data-testid="refuge-command-health"] .MuiTypography-h4 {
+  font-size: clamp(1.6rem, 2.15vw, 2.4rem);
+}
+.vuxo-refuge-hero__actions .MuiButton-root { min-height: 38px; font-size: .79rem; }
+.vuxo-refuge-sections {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 49px;
+  padding: 5px;
+  border: 1px solid;
+  border-radius: 12px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  overscroll-behavior-inline: contain;
+}
+.vuxo-refuge-sections .MuiButton-root {
+  flex: 0 0 auto;
+  min-height: 35px;
+  white-space: nowrap;
+  padding: 6px 12px;
+  border-radius: 9px;
+  font-size: .76rem;
+  font-weight: 780;
+}
+.vuxo-refuge-sections .MuiButton-root:hover {
+  background: color-mix(in srgb, var(--deck-glow) 10%, transparent);
+}
+.vuxo-refuge-dashboard #refuge-health,
+.vuxo-refuge-dashboard #refuge-preparation,
+.vuxo-refuge-dashboard #refuge-activities-section,
+.vuxo-refuge-dashboard #refuge-care-section {
+  scroll-margin-top: 60px;
+}
+.vuxo-refuge-dashboard #refuge-health,
+.vuxo-refuge-dashboard #refuge-care-section {
+  border-radius: 15px;
+  border-color: color-mix(in srgb, var(--deck-glow) 27%, transparent);
+}
+.vuxo-refuge-dashboard #refuge-activities-section {
+  min-width: 0;
+  border-radius: 12px;
+}
+.vuxo-refuge-dashboard .vuxo-refuge-activity {
+  border-color: color-mix(in srgb, var(--deck-glow) 27%, transparent);
+  border-radius: 13px;
+  transition: border-color .18s ease, transform .18s ease, box-shadow .18s ease;
+}
+.vuxo-refuge-dashboard .vuxo-refuge-activity:hover {
+  border-color: var(--deck-glow);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 23px -21px var(--deck-glow);
+}
+.vuxo-refuge-activity__icon { padding: 6px; border-radius: 10px; background: color-mix(in srgb, var(--deck-glow) 11%, transparent); box-sizing: content-box !important; }
+.vuxo-refuge-dashboard .vuxo-refuge-activity .MuiTypography-h6 { font-size: clamp(.94rem, 1.2vw, 1.1rem); }
+.vuxo-refuge-dashboard .vuxo-refuge-activity .MuiChip-root { max-width: 100%; }
+@media (max-width: 740px) {
+  .vuxo-refuge-hero__grid { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .vuxo-refuge-hero__status { gap: 4px; padding: 12px; }
+  .vuxo-refuge-hero__title.MuiTypography-root { font-size: clamp(1.85rem, 6vw, 2.8rem); }
+  .vuxo-refuge-sections { min-height: 43px; }
+  .vuxo-refuge-sections .MuiButton-root { min-height: 31px; padding: 5px 9px; font-size: .71rem; }
+  .vuxo-refuge-dashboard #refuge-health,
+  .vuxo-refuge-dashboard #refuge-preparation,
+  .vuxo-refuge-dashboard #refuge-activities-section,
+  .vuxo-refuge-dashboard #refuge-care-section { scroll-margin-top: 54px; }
+}
+@media (max-width: 400px) {
+  .vuxo-refuge-hero__description { font-size: .79rem; }
+  .vuxo-refuge-hero__actions .MuiButton-root { font-size: .69rem; min-height: 34px; padding-inline: 10px; }
+  .vuxo-refuge-hero__status { padding: 9px 11px; }
+  .vuxo-refuge-sections .MuiButton-root .MuiButton-startIcon { margin-right: 4px; }
+  .vuxo-refuge-dashboard .vuxo-refuge-activity__icon { padding: 4px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vuxo-refuge-dashboard .vuxo-refuge-activity { transition: none; }
+  .vuxo-refuge-dashboard .vuxo-refuge-activity:hover { transform: none; }
+}
