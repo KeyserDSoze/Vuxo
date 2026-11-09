@@ -96,11 +96,14 @@ test('inventory invalidation dismisses inspection instead of displaying a stale 
   await page.getByTestId('inventory-loadout-refresh').evaluate(element => (element as HTMLButtonElement).click());
   await expect(page.getByRole('dialog', { name: 'Ispezione oggetto' })).toHaveCount(0);
 
+  // Simulate the real same-tab logout signal, rather than reloading: addInitScript
+  // intentionally reseeds the test account on every page load.
   await page.evaluate(() => {
-    localStorage.clear();
-    localStorage.setItem('vuxo.language', 'it');
+    localStorage.removeItem('vuxo.accessToken');
+    localStorage.removeItem('vuxo.auth.expiresAtUtc');
+    localStorage.removeItem('vuxo.auth.user');
+    window.dispatchEvent(new Event('vuxo:session-changed'));
   });
-  await page.reload();
   await expect(page.getByTestId('inventory-auth-required')).toBeVisible();
   await expect(page.getByTestId('inventory-inspect')).toHaveCount(0);
 });
