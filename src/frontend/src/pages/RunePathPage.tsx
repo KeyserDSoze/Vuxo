@@ -1,8 +1,9 @@
 import { ArrowBack, ArrowDownward, ArrowForward, ArrowUpward } from '@mui/icons-material';
 import { Alert, Box, Button, Chip, Paper, Stack, Typography } from '@mui/material';
-import { useState, type KeyboardEvent } from 'react';
+import { useEffect, useState, type KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link as RouterLink } from 'react-router-dom';
+import { getApiBaseUrl } from '../features/character/appearance';
 
 // Three small, fixed, solvable puzzles. These are local practice maps, never
 // server-verified portal layouts or authoritative player positions.
@@ -59,6 +60,38 @@ function getShortestPathHint(puzzle: number, from: Position): PathHint | null {
   return null;
 }
 
+
+// This is compatibility of a *public practice geometry*, NOT validation of a
+// player's run, a reward entitlement, or a server-owned activity session.
+type RulesStatus = 'checking' | 'matched' | 'local';
+type RulesCheck = { puzzle: number; status: RulesStatus };
+function matchesPublicPracticeRules(value: unknown, puzzle: number): boolean {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const data = value as Record<string, unknown>;
+  if (data.rulesVersion !== 'rune-path-practice-v1' || data.puzzleIndex !== puzzle
+    || data.gridSize !== size || !Array.isArray(data.walls)
+    || data.walls.length !== walls[puzzle].length) return false;
+  const isPoint = (point: unknown, x: number, y: number) => {
+    if (!point || typeof point !== 'object' || Array.isArray(point)) return false;
+    const p = point as Record<string, unknown>;
+    return p.x === x && p.y === y;
+  };
+  if (!isPoint(data.start, startPosition.x, startPosition.y)
+    || !isPoint(data.goal, goalPosition.x, goalPosition.y)) return false;
+  const expected = new Set(walls[puzzle].map(wall => wall.x + ',' + wall.y));
+  const seen = new Set<string>();
+  for (const item of data.walls) {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) return false;
+    const point = item as Record<string, unknown>;
+    if (typeof point.x !== 'number' || typeof point.y !== 'number'
+      || !Number.isInteger(point.x) || !Number.isInteger(point.y)) return false;
+    const key = point.x + ',' + point.y;
+    if (!expected.has(key) || seen.has(key)) return false;
+    seen.add(key);
+  }
+  return seen.size === expected.size;
+}
+
 export function RunePathPage() {
   const { t } = useTranslation();
   const [puzzle, setPuzzle] = useState(0);
@@ -68,6 +101,35 @@ export function RunePathPage() {
   const [bumps, setBumps] = useState(0);
   const [history, setHistory] = useState<Position[]>([]);
   const [hint, setHint] = useState<PathHint | null>(null);
+  const [rulesCheck, setRulesCheck] = useState<RulesCheck>({ puzzle: 0, status: 'checking' });
+  // Retain local gameplay when the public API is down (including Cloudflare
+  // 502). Ignore stale responses across navigation and puzzle changes.
+  useEffect(() => {
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => {
+      controller.abort();
+      setRulesCheck({ puzzle, status: 'local' });
+    }, 4000);
+    setRulesCheck({ puzzle, status: 'checking' });
+    void fetch(getApiBaseUrl() + '/api/activities/rune-path/puzzles/' + puzzle, {
+      method: 'GET', cache: 'no-store', credentials: 'omit', signal: controller.signal,
+    }).then(async response => {
+      if (!response.ok) return false;
+      const payload: unknown = await response.json();
+      return matchesPublicPracticeRules(payload, puzzle);
+    }).then(matched => {
+      if (!controller.signal.aborted) {
+        setRulesCheck({ puzzle, status: matched ? 'matched' : 'local' });
+      }
+    }).catch(() => {
+      if (!controller.signal.aborted) setRulesCheck({ puzzle, status: 'local' });
+    }).finally(() => window.clearTimeout(timeout));
+    return () => {
+      window.clearTimeout(timeout);
+      controller.abort();
+    };
+  }, [puzzle]);
+  const rulesStatus: RulesStatus = rulesCheck.puzzle === puzzle ? rulesCheck.status : 'checking';
 
   const start = () => {
     setPosition(startPosition);
@@ -135,6 +197,15 @@ export function RunePathPage() {
         <Typography color="text.secondary">{t('refuge.path.description')}</Typography>
       </Stack>
       <Alert data-testid="path-disclaimer" severity="info">{t('refuge.path.disclaimer')}</Alert>
+      <Alert
+        severity={rulesStatus === 'matched' ? 'success' : 'info'}
+        role="status"
+        aria-live="polite"
+        data-testid="path-rules-status"
+        data-status={rulesStatus}
+      >
+        {t('refuge.path.rulesStatus.' + rulesStatus)}
+      </Alert>
 
       <Paper variant="outlined" sx={{ p: { xs: 2, md: 4 } }}>
         <Stack spacing={2.5}>

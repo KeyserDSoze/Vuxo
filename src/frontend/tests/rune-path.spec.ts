@@ -249,3 +249,117 @@ test('hint finds a deterministic shortest move without changing position, moves 
   expect(await page.evaluate(() => Object.keys(localStorage).filter(key =>
     /path|score|reward|hint/i.test(key)))).toEqual([]);
 });
+
+const serverPracticeWalls = [
+  [{ x: 1, y: 0 }, { x: 1, y: 1 }, { x: 2, y: 1 }, { x: 2, y: 2 }],
+  [{ x: 0, y: 1 }, { x: 1, y: 1 }, { x: 2, y: 1 }, { x: 2, y: 2 }],
+  [{ x: 1, y: 0 }, { x: 1, y: 1 }, { x: 2, y: 1 }, { x: 1, y: 3 }, { x: 3, y: 2 }],
+];
+function publicPracticePuzzle(index: number) {
+  return {
+    rulesVersion: 'rune-path-practice-v1', puzzleIndex: index, gridSize: 4,
+    start: { x: 0, y: 0 }, goal: { x: 3, y: 3 }, walls: serverPracticeWalls[index],
+  };
+}
+
+test('guest compares exact public practice geometry without cookies, tokens or gameplay mutation', async ({ page }) => {
+  const calls: { path: string; method: string; auth: string | undefined; cookie: string | undefined }[] = [];
+  await page.route('**/api/activities/rune-path/puzzles/*', route => {
+    const request = route.request();
+    calls.push({
+      path: new URL(request.url()).pathname,
+      method: request.method(),
+      auth: request.headers().authorization,
+      cookie: request.headers().cookie,
+    });
+    const index = Number(new URL(request.url()).pathname.split('/').pop());
+    return route.fulfill({ contentType: 'application/json', body: JSON.stringify(publicPracticePuzzle(index)) });
+  });
+  await page.goto('./#/refuge/path');
+  await expect(page.getByTestId('path-rules-status')).toHaveAttribute('data-status', 'matched');
+  await expect(page.getByTestId('path-rules-status')).toContainText('senza ricompense');
+  await page.getByTestId('path-start').click();
+  await step(page, 'down', 3);
+  await step(page, 'right', 3);
+  await expect(page.getByTestId('path-complete')).toBeVisible();
+  await page.getByTestId('path-next').click();
+  await expect(page.getByTestId('path-rules-status')).toHaveAttribute('data-status', 'matched');
+  await expect(page.getByTestId('path-puzzle')).toContainText('2 di 3');
+  expect(calls).toEqual([
+    { path: '/api/activities/rune-path/puzzles/0', method: 'GET', auth: undefined, cookie: undefined },
+    { path: '/api/activities/rune-path/puzzles/1', method: 'GET', auth: undefined, cookie: undefined },
+  ]);
+  expect(await page.evaluate(() => Object.keys(localStorage).filter(key => /path|reward|score|xp/i.test(key)))).toEqual([]);
+});
+
+test('Cloudflare 502 keeps Rune Path playable offline in English without storing progress', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 740 });
+  let requests = 0;
+  await page.route('**/api/activities/rune-path/puzzles/*', route => {
+    requests += 1;
+    return route.fulfill({ status: 502, body: 'Bad gateway' });
+  });
+  await page.goto('./#/refuge/path');
+  await page.getByTestId('language-toggle').click();
+  await expect(page.getByTestId('path-rules-status')).toHaveAttribute('data-status', 'local');
+  await expect(page.getByTestId('path-rules-status')).toContainText('Keep playing the local board');
+  await page.getByTestId('path-start').click();
+  await step(page, 'down', 3);
+  await step(page, 'right', 3);
+  await expect(page.getByTestId('path-complete')).toBeVisible();
+  expect(requests).toBe(1);
+  expect(await page.evaluate(() => Object.keys(localStorage).filter(key => /path|reward|score|xp/i.test(key)))).toEqual([]);
+  await expect.poll(() => page.evaluate(() =>
+    document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
+});
+
+test('mismatched version and altered walls fail closed but never block local play', async ({ page }) => {
+  let mode: 'version' | 'wall' = 'version';
+  await page.route('**/api/activities/rune-path/puzzles/*', route => {
+    const index = Number(new URL(route.request().url()).pathname.split('/').pop());
+    const puzzle = publicPracticePuzzle(index);
+    const bad = mode === 'version'
+      ? { ...puzzle, rulesVersion: 'rune-path-practice-v999' }
+      : { ...puzzle, walls: [puzzle.walls[0], puzzle.walls[0], ...puzzle.walls.slice(2)] };
+    return route.fulfill({ contentType: 'application/json', body: JSON.stringify(bad) });
+  });
+  await page.goto('./#/refuge/path');
+  await expect(page.getByTestId('path-rules-status')).toHaveAttribute('data-status', 'local');
+  await page.getByTestId('path-start').click();
+  await step(page, 'down', 3);
+  await step(page, 'right', 3);
+  mode = 'wall';
+  await page.getByTestId('path-next').click();
+  await expect(page.getByTestId('path-rules-status')).toHaveAttribute('data-status', 'local');
+  await expect(page.getByTestId('path-puzzle')).toContainText('2 di 3');
+  await page.getByTestId('path-start').click();
+  await step(page, 'right', 3);
+  await step(page, 'down', 3);
+  await expect(page.getByTestId('path-complete')).toBeVisible();
+});
+
+test('a late rules response from a previous puzzle never marks the next puzzle matched', async ({ page }) => {
+  let releasePrevious!: () => void;
+  let firstSeen = false;
+  const hold = new Promise<void>(resolve => { releasePrevious = resolve; });
+  await page.route('**/api/activities/rune-path/puzzles/*', async route => {
+    const index = Number(new URL(route.request().url()).pathname.split('/').pop());
+    if (index === 0) {
+      firstSeen = true;
+      await hold;
+      await route.fulfill({ contentType: 'application/json', body: JSON.stringify(publicPracticePuzzle(index)) }).catch(() => {});
+      return;
+    }
+    await route.fulfill({ status: 503 });
+  });
+  await page.goto('./#/refuge/path');
+  await expect.poll(() => firstSeen).toBe(true);
+  await page.getByTestId('path-start').click();
+  await step(page, 'down', 3);
+  await step(page, 'right', 3);
+  await page.getByTestId('path-next').click();
+  await expect(page.getByTestId('path-rules-status')).toHaveAttribute('data-status', 'local');
+  releasePrevious();
+  await expect(page.getByTestId('path-rules-status')).toHaveAttribute('data-status', 'local');
+  await expect(page.getByTestId('path-rules-status')).toContainText('Puoi continuare');
+});

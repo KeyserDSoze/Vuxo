@@ -313,6 +313,11 @@ const initialization = i18n.use(initReactI18next).init({
             title: 'Percorso delle rune',
             description: 'Raggiungi il portale su una griglia 4×4. Le pareti non si possono attraversare: trova una strada usando logica e orientamento.',
             disclaimer: 'Solo pratica locale: niente premi, esperienza, oggetti, HP o risultati salvati. Il server verifica sempre le vere sfide e ricompense.',
+            rulesStatus: {
+              checking: 'Confronto la mappa con le regole pubbliche del server… La partita resta locale.',
+              matched: 'Mappa di pratica compatibile con le regole pubbliche del server. La partita resta locale, senza ricompense.',
+              local: 'Regole pubbliche non disponibili o incompatibili. Puoi continuare con la mappa locale, senza ricompense.',
+            },
             instructions: 'Premi Inizia, poi muoviti con le frecce della tastiera, i pulsanti o le caselle adiacenti. Completa tutti e tre i percorsi.',
             start: 'Inizia',
             puzzle: 'Percorso {{current}} di {{total}}',
@@ -984,6 +989,11 @@ const initialization = i18n.use(initReactI18next).init({
             title: 'Rune path',
             description: 'Reach the portal on a 4×4 grid. Walls cannot be crossed: find a route through logic and navigation.',
             disclaimer: 'Local practice only: no rewards, experience, items, HP or saved results. The server always verifies real challenges and rewards.',
+            rulesStatus: {
+              checking: 'Comparing this board with the server’s public practice rules… Your game stays local.',
+              matched: 'Practice board matches the server’s public rules. Your game stays local, with no rewards.',
+              local: 'Public practice rules are unavailable or incompatible. Keep playing the local board, with no rewards.',
+            },
             instructions: 'Press Start, then move using keyboard arrows, direction buttons or adjacent cells. Complete all three paths.',
             start: 'Start',
             puzzle: 'Path {{current}} of {{total}}',
