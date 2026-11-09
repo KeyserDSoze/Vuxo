@@ -2,20 +2,48 @@ import type { InventoryAward } from '../inventory/inventoryApi';
 import type { PortalGrant } from '../portals/portalApi';
 
 export type JournalRewardFilter = 'all' | 'notConsumed' | 'consumed';
+export type JournalRewardSort = 'newest' | 'oldest' | 'name';
 
-/** Pure read-only presentation helpers. Never infer a completed portal from a reward. */
+export type JournalRewardBrowse = {
+  query: string;
+  sort: JournalRewardSort;
+  locale: 'it' | 'en';
+  itemLabel: (itemKey: string) => string;
+};
+
+function normalizeSearch(value: string): string {
+  return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+}
+
+/** Pure, read-only presentation helpers: never infer a completed portal from a reward. */
 export function journalRewards(
   rewards: readonly InventoryAward[], filter: JournalRewardFilter,
+  browse?: JournalRewardBrowse,
 ): InventoryAward[] {
-  return rewards.filter(reward =>
-    filter === 'all' ||
-    (filter === 'consumed' ? reward.consumed === true : reward.consumed !== true)
-  ).sort((a, b) => {
-    const first = Date.parse(a.awardedAtUtc);
-    const second = Date.parse(b.awardedAtUtc);
-    const difference = (Number.isFinite(second) ? second : 0) -
-      (Number.isFinite(first) ? first : 0);
-    return difference || a.grantId.localeCompare(b.grantId);
+  const needle = normalizeSearch(browse?.query ?? '');
+  const collator = new Intl.Collator(browse?.locale ?? 'it', { sensitivity: 'base', numeric: true });
+  const itemLabel = browse?.itemLabel ?? ((key: string) => key);
+  const dateValue = (value: string) => {
+    const parsed = Date.parse(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
+  const byRecent = (a: InventoryAward, b: InventoryAward) =>
+    dateValue(b.awardedAtUtc) - dateValue(a.awardedAtUtc);
+
+  return rewards.filter(reward => {
+    if (filter === 'consumed' && reward.consumed !== true) return false;
+    if (filter === 'notConsumed' && reward.consumed === true) return false;
+    return !needle ||
+      normalizeSearch(itemLabel(reward.itemKey)).includes(needle) ||
+      normalizeSearch(reward.itemKey).includes(needle);
+  }).sort((a, b) => {
+    const chronological = byRecent(a, b);
+    if (browse?.sort === 'oldest') return -chronological || a.grantId.localeCompare(b.grantId);
+    if (browse?.sort === 'name') {
+      return collator.compare(itemLabel(a.itemKey), itemLabel(b.itemKey)) ||
+        chronological || a.grantId.localeCompare(b.grantId);
+    }
+    return chronological || a.grantId.localeCompare(b.grantId);
   });
 }
 

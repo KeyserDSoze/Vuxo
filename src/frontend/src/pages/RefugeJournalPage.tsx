@@ -1,7 +1,7 @@
 import { AutoAwesome, BackpackOutlined, HistoryEduOutlined, Refresh } from '@mui/icons-material';
 import {
   Alert, Button, Chip, CircularProgress, FormControl, InputLabel,
-  MenuItem, Paper, Select, Stack, Typography,
+  MenuItem, Paper, Select, Stack, TextField, Typography,
 } from '@mui/material';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -15,7 +15,7 @@ import {
   fetchPortalGrants, type PortalGrant,
 } from '../features/portals/portalApi';
 import {
-  availableJournalPortals, journalRewards, type JournalRewardFilter,
+  availableJournalPortals, journalRewards, type JournalRewardFilter, type JournalRewardSort,
 } from '../features/refuge/refugeJournalModel';
 
 /**
@@ -36,6 +36,8 @@ function RefugeJournalSession({ session }: { session: VuxoSession | null }) {
   const [rewardRevision, setRewardRevision] = useState(0);
   const [portalRevision, setPortalRevision] = useState(0);
   const [filter, setFilter] = useState<JournalRewardFilter>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sort, setSort] = useState<JournalRewardSort>('newest');
 
   useEffect(() => {
     if (!session) return;
@@ -67,18 +69,33 @@ function RefugeJournalSession({ session }: { session: VuxoSession | null }) {
     return () => controller.abort();
   }, [session?.accessToken, portalRevision]);
 
+  const locale = i18n.resolvedLanguage?.startsWith('en') ? 'en' : 'it';
+  const rewardItemLabel = (itemKey: string) => {
+    const labelKey = inventoryItemLabelKeys[itemKey];
+    return labelKey
+      ? t('inventory.items.' + labelKey)
+      : t('refuge.journal.rewards.unknownItem');
+  };
   const visibleRewards = useMemo(
-    () => journalRewards(rewards ?? [], filter), [rewards, filter],
+    () => journalRewards(rewards ?? [], filter, {
+      query: searchQuery, sort, locale,
+      itemLabel: itemKey => {
+        const labelKey = inventoryItemLabelKeys[itemKey];
+        return labelKey
+          ? t('inventory.items.' + labelKey)
+          : t('refuge.journal.rewards.unknownItem');
+      },
+    }), [rewards, filter, searchQuery, sort, locale, t],
   );
   const visiblePortals = useMemo(
     () => availableJournalPortals(portals ?? []), [portals],
   );
-  const locale = i18n.resolvedLanguage?.startsWith('en') ? 'en-US' : 'it-IT';
+  const dateLocale = locale === 'en' ? 'en-US' : 'it-IT';
 
   const formatDate = (value: string) => {
     const date = new Date(value);
     return Number.isFinite(date.getTime())
-      ? date.toLocaleString(locale, { dateStyle: 'medium', timeStyle: 'short' })
+      ? date.toLocaleString(dateLocale, { dateStyle: 'medium', timeStyle: 'short' })
       : t('refuge.journal.dateUnavailable');
   };
 
@@ -160,16 +177,42 @@ function RefugeJournalSession({ session }: { session: VuxoSession | null }) {
               )}
               {rewards !== null && !rewardError && (
                 <>
-                  <FormControl size="small" sx={{ minWidth: { sm: 250 }, maxWidth: '100%' }}>
-                    <InputLabel id="refuge-journal-filter-label">{t('refuge.journal.rewards.filterLabel')}</InputLabel>
-                    <Select labelId="refuge-journal-filter-label" value={filter}
-                      label={t('refuge.journal.rewards.filterLabel')} data-testid="refuge-journal-filter"
-                      onChange={event => setFilter(event.target.value as JournalRewardFilter)}>
-                      <MenuItem value="all">{t('refuge.journal.rewards.filters.all')}</MenuItem>
-                      <MenuItem value="notConsumed">{t('refuge.journal.rewards.filters.notConsumed')}</MenuItem>
-                      <MenuItem value="consumed">{t('refuge.journal.rewards.filters.consumed')}</MenuItem>
-                    </Select>
-                  </FormControl>
+                  <Stack data-testid="refuge-journal-browse-controls"
+                    sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, alignItems: { md: 'center' }, gap: 1.5 }}>
+                    <TextField
+                      size="small" type="search" fullWidth
+                      label={t('refuge.journal.rewards.searchLabel')}
+                      placeholder={t('refuge.journal.rewards.searchHint')}
+                      value={searchQuery} onChange={event => setSearchQuery(event.target.value)}
+                      slotProps={{ htmlInput: { 'data-testid': 'refuge-journal-search' } }}
+                      sx={{ minWidth: 0, flex: { md: '1 1 220px' } }}
+                    />
+                    <FormControl size="small" sx={{ minWidth: { md: 190 }, maxWidth: '100%' }}>
+                      <InputLabel id="refuge-journal-filter-label">{t('refuge.journal.rewards.filterLabel')}</InputLabel>
+                      <Select labelId="refuge-journal-filter-label" value={filter}
+                        label={t('refuge.journal.rewards.filterLabel')} data-testid="refuge-journal-filter"
+                        onChange={event => setFilter(event.target.value as JournalRewardFilter)}>
+                        <MenuItem value="all">{t('refuge.journal.rewards.filters.all')}</MenuItem>
+                        <MenuItem value="notConsumed">{t('refuge.journal.rewards.filters.notConsumed')}</MenuItem>
+                        <MenuItem value="consumed">{t('refuge.journal.rewards.filters.consumed')}</MenuItem>
+                      </Select>
+                    </FormControl>
+                    <FormControl size="small" sx={{ minWidth: { md: 175 }, maxWidth: '100%' }}>
+                      <InputLabel id="refuge-journal-sort-label">{t('refuge.journal.rewards.sortLabel')}</InputLabel>
+                      <Select labelId="refuge-journal-sort-label" value={sort}
+                        label={t('refuge.journal.rewards.sortLabel')} data-testid="refuge-journal-sort"
+                        onChange={event => setSort(event.target.value as JournalRewardSort)}>
+                        <MenuItem value="newest">{t('refuge.journal.rewards.sorts.newest')}</MenuItem>
+                        <MenuItem value="oldest">{t('refuge.journal.rewards.sorts.oldest')}</MenuItem>
+                        <MenuItem value="name">{t('refuge.journal.rewards.sorts.name')}</MenuItem>
+                      </Select>
+                    </FormControl>
+                    <Button data-testid="refuge-journal-reset-browse" variant="text" sx={{ flexShrink: 0 }}
+                      disabled={!searchQuery && filter === 'all' && sort === 'newest'}
+                      onClick={() => { setSearchQuery(''); setFilter('all'); setSort('newest'); }}>
+                      {t('refuge.journal.rewards.resetBrowse')}
+                    </Button>
+                  </Stack>
                   <Typography variant="body2" color="text.secondary" data-testid="refuge-journal-rewards-count" aria-live="polite">
                     {t('refuge.journal.rewards.count', { shown: visibleRewards.length, total: rewards.length })}
                   </Typography>
@@ -185,10 +228,7 @@ function RefugeJournalSession({ session }: { session: VuxoSession | null }) {
                   )}
                   <Stack spacing={1.25} data-testid="refuge-journal-rewards-list">
                     {visibleRewards.map(reward => {
-                      const itemKey = inventoryItemLabelKeys[reward.itemKey];
-                      const label = itemKey
-                        ? t('inventory.items.' + itemKey)
-                        : t('refuge.journal.rewards.unknownItem');
+                      const label = rewardItemLabel(reward.itemKey);
                       return (
                         <Paper key={reward.grantId} variant="outlined" data-testid="refuge-journal-reward"
                           data-consumed={reward.consumed ? 'true' : 'false'} sx={{ p: 2 }}>

@@ -294,3 +294,108 @@ test('unknown rewards and filtered-empty states never imply that inventory was d
   await page.getByRole('option', { name: 'Tutti' }).click();
   await expect(page.getByTestId('refuge-journal-reward')).toHaveCount(1);
 });
+
+
+test('journal browse searches localized names and canonical keys, composes filters and sorts without new API reads', async ({ page }) => {
+  await signIn(page);
+  await mockJournal(page);
+  await page.goto('./#/refuge/journal');
+
+  const rows = page.getByTestId('refuge-journal-reward');
+  await expect(rows).toHaveCount(3);
+  await expect(rows.nth(0)).toContainText('Frammento di runa');
+
+  const unexpected: string[] = [];
+  page.on('request', request => {
+    if (/\/api\/(inventory|personal-content)\b/.test(new URL(request.url()).pathname)) {
+      unexpected.push(request.method() + ':' + request.url());
+    }
+  });
+
+  const search = page.getByTestId('refuge-journal-search');
+  const sort = page.getByTestId('refuge-journal-sort');
+  await expect(page.getByTestId('refuge-journal-reset-browse')).toBeDisabled();
+  await search.fill('SÈmE');
+  await expect(rows).toHaveCount(1);
+  await expect(rows.first()).toContainText('Seme del bosco');
+  await expect(page.getByTestId('refuge-journal-rewards-count')).toContainText('1 su 3');
+
+  await page.getByTestId('refuge-journal-filter').click();
+  await page.getByRole('option', { name: 'Non consumati' }).click();
+  await expect(page.getByTestId('refuge-journal-rewards-no-match')).toBeVisible();
+  await expect(page.getByTestId('refuge-journal-rewards-empty')).toHaveCount(0);
+  await expect(rows).toHaveCount(0);
+  await page.getByTestId('refuge-journal-filter').click();
+  await page.getByRole('option', { name: 'Tutti', exact: true }).click();
+
+  await search.fill('item.tidal_pearl.v1');
+  await expect(rows).toHaveCount(1);
+  await expect(rows.first()).toContainText('Perla delle maree');
+  await search.clear();
+  await sort.click();
+  await page.getByRole('option', { name: 'Meno recenti' }).click();
+  await expect(rows.nth(0)).toContainText('Seme del bosco');
+  await expect(rows.nth(2)).toContainText('Frammento di runa');
+
+  await sort.click();
+  await page.getByRole('option', { name: 'Nome', exact: true }).click();
+  await expect(rows.nth(0)).toContainText('Frammento di runa');
+  await expect(rows.nth(1)).toContainText('Perla delle maree');
+  await expect(rows.nth(2)).toContainText('Seme del bosco');
+
+  await page.getByTestId('refuge-journal-reset-browse').click();
+  await expect(search).toHaveValue('');
+  await expect(page.getByTestId('refuge-journal-reset-browse')).toBeDisabled();
+  await expect(rows.nth(0)).toContainText('Frammento di runa');
+  await expect(rows).toHaveCount(3);
+  expect(unexpected).toEqual([]);
+});
+
+test('mobile journal browse follows IT/EN language, stays local and resets on owner change', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 760 });
+  await signIn(page);
+  await mockJournal(page);
+  const unsafe: string[] = [];
+  page.on('request', request => {
+    const pathname = new URL(request.url()).pathname;
+    if (/\/api\/(inventory|personal-content)\b/.test(pathname) &&
+      request.method() !== 'GET' && request.method() !== 'OPTIONS') {
+      unsafe.push(request.url());
+    }
+    if (/\/assets\/GamePage-[^/]+\.js/.test(pathname)) unsafe.push(request.url());
+  });
+  await page.goto('./#/refuge/journal');
+  await expect(page.getByTestId('refuge-journal-reward')).toHaveCount(3);
+  await page.getByTestId('theme-toggle').click();
+  await page.getByTestId('theme-toggle').click();
+  await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme)).toBe('dark');
+
+  const search = page.getByTestId('refuge-journal-search');
+  await search.fill('item.tidal_pearl.v1');
+  await expect(page.getByTestId('refuge-journal-reward')).toContainText('Perla delle maree');
+  await page.getByTestId('language-toggle').click();
+  await expect(page.getByRole('heading', { name: 'Refuge journal' })).toBeVisible();
+  await expect(search).toHaveValue('item.tidal_pearl.v1');
+  await expect(page.getByTestId('refuge-journal-reward')).toContainText('Tidal Pearl');
+  await expect(search).toHaveAttribute('placeholder', 'Item name or key');
+  await page.getByTestId('refuge-journal-reset-browse').click();
+  await page.getByTestId('refuge-journal-sort').click();
+  await page.getByRole('option', { name: 'Name', exact: true }).click();
+  await expect(page.getByTestId('refuge-journal-reward').first()).toContainText('Grove Seed');
+  await expect.poll(() => page.evaluate(() =>
+    document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
+
+  // Account-switched components must clear browse state, not reuse prior search or owner data.
+  await page.evaluate(() => {
+    localStorage.setItem('vuxo.accessToken', 'journal-owner-two');
+    localStorage.setItem('vuxo.auth.user', JSON.stringify({
+      id: 'owner-two', displayName: 'Other Hero', email: null,
+    }));
+    window.dispatchEvent(new Event('vuxo:session-changed'));
+  });
+  await expect(search).toHaveValue('');
+  await expect(page.getByTestId('refuge-journal-reset-browse')).toBeDisabled();
+  await expect(page.getByTestId('refuge-journal-rewards-count')).toContainText('3 of 3');
+  await expect(page.getByTestId('refuge-journal-reward').first()).toContainText('Rune Shard');
+  expect(unsafe).toEqual([]);
+});
