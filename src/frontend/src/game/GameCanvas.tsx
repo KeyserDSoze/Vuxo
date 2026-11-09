@@ -1,8 +1,10 @@
-import { KeyboardArrowDown, KeyboardArrowLeft, KeyboardArrowRight, KeyboardArrowUp } from '@mui/icons-material'
+import { Fullscreen, FullscreenExit, KeyboardArrowDown, KeyboardArrowLeft, KeyboardArrowRight, KeyboardArrowUp } from '@mui/icons-material'
 import { Alert, Box, Button, Chip, Dialog, DialogContent, DialogTitle, IconButton, Stack, Typography } from '@mui/material'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import Phaser from 'phaser'
+import { Link as RouterLink } from 'react-router-dom'
+import './game.css'
 import { createWorldRealtimeClient } from '../features/world/createWorldRealtimeClient'
 import type {
   WorldConnectionStatus,
@@ -18,6 +20,9 @@ import { GuardianDuel } from '../features/portals/GuardianDuel'
 export function GameCanvas() {
   const { t } = useTranslation()
   const host = useRef<HTMLDivElement>(null)
+  const screen = useRef<HTMLDivElement>(null)
+  const [isFullscreen, setIsFullscreen] = useState(false)
+  const [fullscreenError, setFullscreenError] = useState(false)
   const realtime = useRef<WorldRealtimeClient | null>(null)
   const worldScene = useRef<WorldScene | null>(null)
   const [status, setStatus] = useState<WorldConnectionStatus>('idle')
@@ -72,8 +77,8 @@ export function GameCanvas() {
     const game = new Phaser.Game({
       type: Phaser.AUTO,
       parent: host.current,
-      width: 960,
-      height: 540,
+      width: Math.max(1, host.current.clientWidth),
+      height: Math.max(1, host.current.clientHeight),
       backgroundColor: '#172554',
       pixelArt: true,
       physics: {
@@ -82,19 +87,70 @@ export function GameCanvas() {
       },
       scene: [scene],
       scale: {
-        mode: Phaser.Scale.FIT,
-        autoCenter: Phaser.Scale.CENTER_BOTH,
+        // RESIZE changes the camera's visible world area instead of letterboxing
+        // a fixed 16:9 image on ultrawide, portrait, or fullscreen displays.
+        mode: Phaser.Scale.RESIZE,
+        autoCenter: Phaser.Scale.NO_CENTER,
       },
     })
+
+    // Fullscreen changes the parent element, not necessarily window.innerWidth.
+    // ResizeObserver also handles panel, orientation, and browser F11 changes.
+    const resizeWorld = () => {
+      const width = Math.floor(host.current?.clientWidth ?? 0)
+      const height = Math.floor(host.current?.clientHeight ?? 0)
+      if (width < 1 || height < 1) return
+      game.scale.resize(width, height)
+      if (scene.scene.isActive()) scene.cameras.main.setSize(width, height)
+    }
+    const observer = new ResizeObserver(resizeWorld)
+    observer.observe(host.current)
+    resizeWorld()
 
     void client.connect()
 
     return () => {
+      observer.disconnect()
       unsubscribe()
       realtime.current = null
       worldScene.current = null
       game.destroy(true)
       void client.disconnect()
+    }
+  }, [])
+
+  const toggleFullscreen = async () => {
+    if (!screen.current) return
+    try {
+      if (document.fullscreenElement === screen.current) {
+        await document.exitFullscreen()
+      } else {
+        await screen.current.requestFullscreen()
+      }
+      setFullscreenError(false)
+    } catch {
+      // Browser policy or embedded contexts can reject fullscreen.
+      setFullscreenError(true)
+    }
+  }
+
+  useEffect(() => {
+    const synchronizeFullscreen = () => {
+      setIsFullscreen(document.fullscreenElement === screen.current)
+      setFullscreenError(false)
+    }
+    const onShortcut = (event: KeyboardEvent) => {
+      const target = event.target instanceof Element ? event.target : null
+      if (event.code !== 'KeyF' || event.repeat || event.altKey || event.ctrlKey || event.metaKey ||
+          target?.closest('input, textarea, select, [contenteditable="true"], [role="dialog"]')) return
+      event.preventDefault()
+      void toggleFullscreen()
+    }
+    document.addEventListener('fullscreenchange', synchronizeFullscreen)
+    document.addEventListener('keydown', onShortcut)
+    return () => {
+      document.removeEventListener('fullscreenchange', synchronizeFullscreen)
+      document.removeEventListener('keydown', onShortcut)
     }
   }, [])
 
@@ -157,8 +213,13 @@ export function GameCanvas() {
   const stopTouch = () => realtime.current?.setMovementIntent(0, 0)
 
   return (
-    <Stack spacing={1.5}>
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between' }}>
+    <Box ref={screen} className="vuxo-game-shell" data-testid="game-shell">
+      <Box className="game-canvas vuxo-game-world" ref={host} data-testid="game-canvas" />
+      <Box className="vuxo-game-vignette" aria-hidden="true" />
+
+      <Stack className="vuxo-game-hud vuxo-game-hud--left" spacing={0.5}>
+        <Typography component="p" className="vuxo-game-eyebrow">{t('game.screen.chapter')}</Typography>
+        <Typography component="h1" variant="h6" className="vuxo-game-title">{t('game.title')}</Typography>
         <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
           <Chip
             data-testid="world-connection-status"
@@ -167,11 +228,11 @@ export function GameCanvas() {
             color={status === 'connected' ? 'success' : status === 'error' ? 'error' : 'default'}
             label={t(`game.connection.${status}`)}
           />
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="caption" sx={{ color: 'var(--vuxo-game-hud-text)' }}>
             {t('game.playersOnline', { count: players.length })}
           </Typography>
         </Stack>
-        <Stack data-testid="world-presence" direction="row" spacing={0.75} sx={{ flexWrap: 'wrap' }}>
+        <Stack data-testid="world-presence" direction="row" spacing={0.5} className="vuxo-game-presence">
           {players.map(player => (
             <Chip
               key={player.playerId}
@@ -182,29 +243,65 @@ export function GameCanvas() {
               data-player-x={player.x}
               data-player-y={player.y}
               data-player-revision={player.revision}
+              sx={{ color: 'var(--vuxo-game-hud-text)', borderColor: 'var(--vuxo-game-hud-border)' }}
             />
           ))}
         </Stack>
       </Stack>
 
-      {portalErrorCode && (
-        <Alert data-testid="world-portal-error" severity="warning">
-          {t(`portals.errors.${portalErrorCode}`, { defaultValue: t('game.portal.genericError') })}
-        </Alert>
+      <Stack className="vuxo-game-actions" direction="row" spacing={1}>
+        <Button component={RouterLink} to="/refuge" color="inherit" variant="outlined" size="small" className="vuxo-game-button" data-testid="game-refuge-link">
+          {t('game.screen.refuge')}
+        </Button>
+        <Button
+          data-testid="game-fullscreen-toggle"
+          aria-label={t(isFullscreen ? 'game.screen.exitFullscreen' : 'game.screen.fullscreen')}
+          title={t('game.screen.fullscreenHint')}
+          onClick={() => void toggleFullscreen()}
+          startIcon={isFullscreen ? <FullscreenExit /> : <Fullscreen />}
+          color="inherit"
+          variant="outlined"
+          size="small"
+          className="vuxo-game-button"
+        >
+          {t(isFullscreen ? 'game.screen.exitFullscreen' : 'game.screen.fullscreen')}
+        </Button>
+      </Stack>
+
+      {(fullscreenError || portalErrorCode || errorCode) && (
+        <Stack className="vuxo-game-notices" spacing={0.75}>
+          {fullscreenError && (
+            <Alert data-testid="game-fullscreen-error" severity="warning">
+              {t('game.screen.fullscreenUnavailable')}
+            </Alert>
+          )}
+          {portalErrorCode && (
+            <Alert data-testid="world-portal-error" severity="warning">
+              {t(`portals.errors.${portalErrorCode}`, { defaultValue: t('game.portal.genericError') })}
+            </Alert>
+          )}
+          {errorCode && (
+            <Alert data-testid="world-error" severity="error">
+              {t(`errors.${errorCode}`, { defaultValue: t('game.connection.genericError') })}
+            </Alert>
+          )}
+        </Stack>
       )}
 
       {portals.length > 0 && (
-        <Stack spacing={1} data-testid="world-portals">
-          <Typography variant="body2" color="text.secondary">
+        <Box className="vuxo-game-portals" data-testid="world-portals">
+          <Typography variant="caption" sx={{ color: 'var(--vuxo-game-hud-text)', fontWeight: 700 }}>
             {t('game.portal.available', { count: portals.length })}
           </Typography>
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ flexWrap: 'wrap' }}>
+          <Stack direction="row" spacing={0.75} className="vuxo-game-portal-actions">
             {portals.map((portal, index) => (
               <Button
                 key={portal.id}
                 data-testid="world-portal-enter"
                 data-grant-id={portal.id}
                 variant="outlined"
+                size="small"
+                className="vuxo-game-button"
                 disabled={status !== 'connected' || !nearby(portal) || Boolean(activePortal)}
                 onClick={() => void enter(portal.id)}
               >
@@ -213,77 +310,61 @@ export function GameCanvas() {
             ))}
           </Stack>
           {portals.some(portal => !nearby(portal)) && (
-            <Typography variant="caption" color="text.secondary">{t('game.portal.moveCloser')}</Typography>
+            <Typography variant="caption" sx={{ color: 'var(--vuxo-game-hud-text)', opacity: 0.8 }}>
+              {t('game.portal.moveCloser')}
+            </Typography>
           )}
-        </Stack>
-      )}
-
-      {errorCode && (
-        <Typography data-testid="world-error" variant="caption" color="error.main">
-          {t(`errors.${errorCode}`, { defaultValue: t('game.connection.genericError') })}
-        </Typography>
-      )}
-
-      <Box sx={{ position: 'relative', width: '100%', aspectRatio: '16 / 9', minHeight: 240 }}>
-        <Box className="game-canvas" ref={host} data-testid="game-canvas" sx={{ position: 'absolute', inset: 0 }} />
-
-        <Box
-          data-testid="touch-controls"
-          sx={{
-            position: 'absolute',
-            left: 12,
-            bottom: 12,
-            display: { xs: 'grid', md: 'none' },
-            gridTemplateColumns: 'repeat(3, 44px)',
-            gridTemplateRows: 'repeat(2, 44px)',
-            gap: 0.5,
-            zIndex: 20,
-            touchAction: 'none',
-          }}
-        >
-          <IconButton
-            aria-label={t('game.controls.up')}
-            data-testid="touch-up"
-            onPointerDown={() => touch(0, -1)}
-            onPointerUp={stopTouch}
-            onPointerCancel={stopTouch}
-            sx={{ gridColumn: 2, gridRow: 1, bgcolor: 'background.paper', opacity: 0.85 }}
-          >
-            <KeyboardArrowUp />
-          </IconButton>
-          <IconButton
-            aria-label={t('game.controls.left')}
-            data-testid="touch-left"
-            onPointerDown={() => touch(-1, 0)}
-            onPointerUp={stopTouch}
-            onPointerCancel={stopTouch}
-            sx={{ gridColumn: 1, gridRow: 2, bgcolor: 'background.paper', opacity: 0.85 }}
-          >
-            <KeyboardArrowLeft />
-          </IconButton>
-          <IconButton
-            aria-label={t('game.controls.down')}
-            data-testid="touch-down"
-            onPointerDown={() => touch(0, 1)}
-            onPointerUp={stopTouch}
-            onPointerCancel={stopTouch}
-            sx={{ gridColumn: 2, gridRow: 2, bgcolor: 'background.paper', opacity: 0.85 }}
-          >
-            <KeyboardArrowDown />
-          </IconButton>
-          <IconButton
-            aria-label={t('game.controls.right')}
-            data-testid="touch-right"
-            onPointerDown={() => touch(1, 0)}
-            onPointerUp={stopTouch}
-            onPointerCancel={stopTouch}
-            sx={{ gridColumn: 3, gridRow: 2, bgcolor: 'background.paper', opacity: 0.85 }}
-          >
-            <KeyboardArrowRight />
-          </IconButton>
         </Box>
+      )}
+
+      <Box data-testid="touch-controls" className="vuxo-game-touch-controls">
+        <IconButton
+          aria-label={t('game.controls.up')}
+          data-testid="touch-up"
+          onPointerDown={() => touch(0, -1)}
+          onPointerUp={stopTouch}
+          onPointerCancel={stopTouch}
+          className="vuxo-game-touch-direction"
+          sx={{ gridColumn: 2, gridRow: 1 }}
+        >
+          <KeyboardArrowUp />
+        </IconButton>
+        <IconButton
+          aria-label={t('game.controls.left')}
+          data-testid="touch-left"
+          onPointerDown={() => touch(-1, 0)}
+          onPointerUp={stopTouch}
+          onPointerCancel={stopTouch}
+          className="vuxo-game-touch-direction"
+          sx={{ gridColumn: 1, gridRow: 2 }}
+        >
+          <KeyboardArrowLeft />
+        </IconButton>
+        <IconButton
+          aria-label={t('game.controls.down')}
+          data-testid="touch-down"
+          onPointerDown={() => touch(0, 1)}
+          onPointerUp={stopTouch}
+          onPointerCancel={stopTouch}
+          className="vuxo-game-touch-direction"
+          sx={{ gridColumn: 2, gridRow: 2 }}
+        >
+          <KeyboardArrowDown />
+        </IconButton>
+        <IconButton
+          aria-label={t('game.controls.right')}
+          data-testid="touch-right"
+          onPointerDown={() => touch(1, 0)}
+          onPointerUp={stopTouch}
+          onPointerCancel={stopTouch}
+          className="vuxo-game-touch-direction"
+          sx={{ gridColumn: 3, gridRow: 2 }}
+        >
+          <KeyboardArrowRight />
+        </IconButton>
       </Box>
       <Dialog
+        container={() => screen.current}
         open={activePortal !== null}
         onClose={() => setActivePortal(null)}
         fullWidth
@@ -306,6 +387,6 @@ export function GameCanvas() {
           )}
         </DialogContent>
       </Dialog>
-    </Stack>
+    </Box>
   )
 }
