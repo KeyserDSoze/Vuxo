@@ -187,7 +187,7 @@ export function CharacterEditorPage() {
   )
 
   return (
-    <Stack spacing={3}>
+    <Stack spacing={2} data-testid="character-editor-page">
       <Box>
         <Typography variant="overline" color="primary.main">{t('character.editor.eyebrow')}</Typography>
         <Typography variant="h3" component="h1" sx={{ fontWeight: 900, letterSpacing: '-0.04em' }}>
@@ -201,9 +201,9 @@ export function CharacterEditorPage() {
       {!accessToken && <Alert severity="info">{t('character.editor.authenticationRequired')}</Alert>}
       {result && <Alert severity={result.kind === 'success' ? 'success' : 'error'}>{t(result.key)}</Alert>}
 
-      <Grid container spacing={3} sx={{ alignItems: 'flex-start' }}>
+      <Grid container spacing={{ xs: 1.5, md: 2.5 }} sx={{ alignItems: 'flex-start' }}>
         <Grid size={{ xs: 12, md: 5, lg: 4 }}>
-          <Card variant="outlined" sx={{ position: { md: 'sticky' }, top: { md: 96 } }}>
+          <Card variant="outlined" sx={{ position: { md: 'sticky' }, top: { md: 8 } }}>
             <CardContent>
               <CharacterPreview appearance={draft.appearance} />
               <Stack direction="row" sx={{ mt: 2, justifyContent: 'space-between' }}>
