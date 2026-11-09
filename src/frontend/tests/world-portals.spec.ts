@@ -149,6 +149,48 @@ test('clicking a visible Phaser portal marker opens the in-world dialog', async 
   expect(api.getEntryCalls()).toBe(1);
 });
 
+test('portal dialog locks all touch intents and restores fresh movement on close', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await initializePlayer(page, 'en');
+  const api = await mockPrivatePortals(page);
+  await page.goto(origin + '/Vuxo/#/game');
+  await expect(page.getByTestId('world-connection-status'))
+    .toHaveAttribute('data-status', 'connected');
+
+  const player = page.locator('[data-player-id="portal-player"]');
+  const right = page.getByTestId('touch-right');
+  await expect(right).toBeEnabled();
+  const initialX = Number(await player.getAttribute('data-player-x'));
+  await right.dispatchEvent('pointerdown');
+  await expect.poll(async () => Number(await player.getAttribute('data-player-x')))
+    .toBeGreaterThan(initialX);
+  await right.dispatchEvent('pointerup');
+  await page.waitForTimeout(180);
+
+  await page.getByTestId('world-portal-enter').click();
+  await expect(page.getByTestId('world-portal-dialog')).toBeVisible();
+  for (const direction of ['touch-up', 'touch-down', 'touch-left', 'touch-right']) {
+    await expect(page.getByTestId(direction)).toBeDisabled();
+  }
+
+  const lockedX = Number(await player.getAttribute('data-player-x'));
+  const lockedY = Number(await player.getAttribute('data-player-y'));
+  await right.dispatchEvent('pointerdown');
+  await page.waitForTimeout(300);
+  expect(Number(await player.getAttribute('data-player-x'))).toBe(lockedX);
+  expect(Number(await player.getAttribute('data-player-y'))).toBe(lockedY);
+  expect(api.getEntryCalls()).toBe(1);
+
+  await page.getByRole('dialog').press('Escape');
+  await expect(page.getByTestId('world-portal-dialog')).toHaveCount(0);
+  await expect(right).toBeEnabled();
+  await right.dispatchEvent('pointerdown');
+  await expect.poll(async () => Number(await player.getAttribute('data-player-x')))
+    .toBeGreaterThan(lockedX);
+  await right.dispatchEvent('pointerup');
+  expect(api.getEntryCalls()).toBe(1);
+});
+
 test('far markers are not enterable through keyboard or touch control', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await initializePlayer(page, 'en');

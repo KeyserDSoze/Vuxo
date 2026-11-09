@@ -138,6 +138,57 @@ test('leaving the touch direction with mouse pressed stops movement on narrow sc
   await right.dispatchEvent('pointercancel');
 });
 
+test('touch remains neutral across blur, disabled input and fresh focus press', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await configurePlayer(page, 'touch-focus-player', 'Touch Focus Vuxian');
+  await page.goto(gameUrl);
+  await expectConnected(page);
+
+  const player = page.locator('[data-player-id="touch-focus-player"]');
+  const right = page.getByTestId('touch-right');
+  await expect(right).toBeEnabled();
+  const initialX = await numericAttribute(player, 'data-player-x');
+  await right.dispatchEvent('pointerdown');
+  await expect.poll(() => numericAttribute(player, 'data-player-x')).toBeGreaterThan(initialX);
+
+  // No pointerup is delivered when a tab/window loses focus.
+  await page.evaluate(() => window.dispatchEvent(new Event('blur')));
+  await expect(right).toBeDisabled();
+  await page.waitForTimeout(180);
+  const stoppedX = await numericAttribute(player, 'data-player-x');
+  await page.waitForTimeout(230);
+  expect(await numericAttribute(player, 'data-player-x')).toBe(stoppedX);
+
+  // Even a synthetic pointerdown cannot resume a blurred touch controller.
+  await right.dispatchEvent('pointerdown');
+  await page.waitForTimeout(200);
+  expect(await numericAttribute(player, 'data-player-x')).toBe(stoppedX);
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await expect(right).toBeEnabled();
+  await page.waitForTimeout(160);
+  expect(await numericAttribute(player, 'data-player-x')).toBe(stoppedX);
+
+  // A fresh press, not the former held pointer, can resume movement.
+  await right.dispatchEvent('pointerdown');
+  await expect.poll(() => numericAttribute(player, 'data-player-x')).toBeGreaterThan(stoppedX);
+  await right.dispatchEvent('pointerup');
+});
+
+test('touch direction buttons are disabled during a reconnect and restored afterwards', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await configurePlayer(page, 'touch-reconnect-player', 'Reconnect Touch Vuxian');
+  await page.goto(gameUrl);
+  await expectConnected(page);
+  const right = page.getByTestId('touch-right');
+  await expect(right).toBeEnabled();
+  await page.evaluate(() => window.dispatchEvent(new Event('vuxo:e2e-reconnect')));
+  await expect(page.getByTestId('world-connection-status'))
+    .toHaveAttribute('data-status', 'reconnecting');
+  await expect(right).toBeDisabled();
+  await expectConnected(page);
+  await expect(right).toBeEnabled();
+});
+
 async function configurePlayer(page: Page, playerId: string, characterName: string): Promise<void> {
   await page.addInitScript(({ id, name }) => {
     localStorage.setItem('vuxo.language', 'it');

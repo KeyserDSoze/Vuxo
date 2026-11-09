@@ -23,6 +23,10 @@ export function GameCanvas() {
   const host = useRef<HTMLDivElement>(null)
   const screen = useRef<HTMLDivElement>(null)
   const [isFullscreen, setIsFullscreen] = useState(false)
+  // Keep an immediate guard as well as accessible disabled button state.
+  // Blur and visibilitychange can arrive before React re-renders the HUD.
+  const [windowInputActive, setWindowInputActive] = useState(() => !document.hidden)
+  const windowInputActiveRef = useRef(!document.hidden)
   const [fullscreenError, setFullscreenError] = useState(false)
   const realtime = useRef<WorldRealtimeClient | null>(null)
   const worldScene = useRef<WorldScene | null>(null)
@@ -112,9 +116,18 @@ export function GameCanvas() {
 
     // Losing browser focus (including a background tab) can lose keyup and
     // pointerup. Freeze the local controller and send a neutral server intent.
-    const suspendMovement = () => scene.setWindowInputActive(false)
+    const suspendMovement = () => {
+      windowInputActiveRef.current = false
+      setWindowInputActive(false)
+      // Stops both keyboard and touch intentions through the same neutral
+      // intent; no stale touch press is replayed after focus returns.
+      scene.setWindowInputActive(false)
+    }
     const resumeMovement = () => {
-      if (!document.hidden) scene.setWindowInputActive(true)
+      if (document.hidden) return
+      windowInputActiveRef.current = true
+      setWindowInputActive(true)
+      scene.setWindowInputActive(true)
     }
     const onVisibilityChange = () => {
       if (document.hidden) suspendMovement()
@@ -226,8 +239,13 @@ export function GameCanvas() {
   const nearby = (portal: WorldPortalMarker) => Boolean(self)
     && Math.hypot(self!.x - portal.x, self!.y - portal.y) <= 1.5
 
+  const touchLocked = status !== 'connected' || activePortal !== null || !windowInputActive
   const touch = (horizontal: number, vertical: number) => {
-    realtime.current?.setMovementIntent(horizontal, vertical)
+    // Unlike Phaser's keyboard update, pointer handlers bypass WorldScene.
+    // Enforce the same modal/focus/connection lock at the input boundary.
+    if (touchLocked || !windowInputActiveRef.current || document.hidden ||
+        realtime.current?.getState().status !== 'connected') return
+    realtime.current.setMovementIntent(horizontal, vertical)
   }
 
   const stopTouch = () => realtime.current?.setMovementIntent(0, 0)
@@ -344,6 +362,7 @@ export function GameCanvas() {
         <IconButton
           aria-label={t('game.controls.up')}
           data-testid="touch-up"
+          disabled={touchLocked}
           onPointerDown={() => touch(0, -1)}
           onPointerUp={stopTouch}
           onPointerCancel={stopTouch}
@@ -356,6 +375,7 @@ export function GameCanvas() {
         <IconButton
           aria-label={t('game.controls.left')}
           data-testid="touch-left"
+          disabled={touchLocked}
           onPointerDown={() => touch(-1, 0)}
           onPointerUp={stopTouch}
           onPointerCancel={stopTouch}
@@ -368,6 +388,7 @@ export function GameCanvas() {
         <IconButton
           aria-label={t('game.controls.down')}
           data-testid="touch-down"
+          disabled={touchLocked}
           onPointerDown={() => touch(0, 1)}
           onPointerUp={stopTouch}
           onPointerCancel={stopTouch}
@@ -380,6 +401,7 @@ export function GameCanvas() {
         <IconButton
           aria-label={t('game.controls.right')}
           data-testid="touch-right"
+          disabled={touchLocked}
           onPointerDown={() => touch(1, 0)}
           onPointerUp={stopTouch}
           onPointerCancel={stopTouch}
