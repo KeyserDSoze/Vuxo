@@ -65,3 +65,8 @@ Codice finale `89bb94a`: [CI #42710599128](https://github.com/KeyserDSoZe/Vuxo/a
 ## Bussola portali personali (#178)
 
 La matrice base /game resta guest e non crea grant: non deve mostrare una bussola privata. La suite on-demand aggiunge **due screenshot owner sintetici** per il nuovo HUD portale (390×844 e 1280×720, IT/scuro). Il preview Vite conserva una sessione fake solo nel browser di test; l'endpoint world-portals è intercettato e restituisce un singolo grant artificiale a est (18.5, 4.5), senza fetch reale, credenziali produttive o mutazioni del backend. Il test esige presenza connessa, bussola a est con 14 caselle, canvas e document fit. Confrontare contrasto del quadrante, direzione della freccia e collisioni con controlli touch/pulsanti nel PNG. La review reale su hardware e la salute Cloudflare restano distinte (#155/#147).
+
+
+## Radar tattico nel mondo (#181)
+
+La matrice ospite /game mantiene i peer sintetici del mock world: il radar desktop mostra il self centrato e i peer visibili, senza inventare portali privati in assenza di sessione owner. Le due viste owner sintetiche già presenti (`private portal compass` a **390×844** e **1280×720**, IT/scuro) verificano adesso anche il radar. A 390px la mappa parte chiusa, viene aperta dal pulsante touch/tastiera e verificata insieme a bussola/canvas senza scroll del documento. A 1280px la minimappa è immediatamente visibile. I marcatori rappresentano solo le coordinate dei peer nel mock locale e un singolo grant inventato per la prova, **non** nuove API o contenuti dell'account reale. Lo screenshot non sostituisce QA reale fullscreen/device fisico #155/#165 o il controllo Cloudflare #147.

@@ -253,6 +253,60 @@ test('invalid private marker coordinates cannot create a misleading compass', as
   await expect(page.getByTestId('world-connection-status')).toHaveAttribute('data-status', 'connected');
   await expect(page.getByTestId('world-portal-enter')).toHaveCount(1);
   await expect(page.getByTestId('world-portal-compass')).toHaveCount(0);
+  await expect(page.getByTestId('world-radar-portal')).toHaveCount(0);
+});
+
+test('world radar shows only granted portal, clamps distant marker and updates after server movement', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await initializePlayer(page, 'en');
+  const api = await mockPrivatePortals(page, 18.5, 4.5);
+  await page.goto(origin + '/Vuxo/#/game');
+  await expect(page.getByTestId('world-connection-status')).toHaveAttribute('data-status', 'connected');
+
+  const radar = page.getByTestId('world-radar');
+  const marker = page.getByTestId('world-radar-portal');
+  await expect(radar).toBeVisible();
+  await expect(radar).toHaveAttribute('data-expanded', 'true');
+  await expect(page.getByTestId('world-radar-self')).toHaveAttribute('cx', '72');
+  await expect(page.getByTestId('world-radar-self')).toHaveAttribute('cy', '72');
+  await expect(marker).toHaveCount(1);
+  await expect(marker).toHaveAttribute('data-at-edge', 'true');
+  await expect(marker).toHaveAttribute('data-number', '1');
+  await expect(page.getByTestId('world-radar-chart')).toHaveAttribute('aria-label', /personal portals/);
+  expect(Number(await marker.getAttribute('x'))).toBeGreaterThan(110);
+  const initialDistance = Number(await marker.getAttribute('data-distance'));
+
+  await page.getByTestId('game-canvas').locator('canvas').click();
+  await page.keyboard.down('ArrowRight');
+  await expect.poll(async () => Number(await marker.getAttribute('data-distance'))).toBeLessThan(initialDistance);
+  await page.keyboard.up('ArrowRight');
+  expect(api.getEntryCalls()).toBe(0);
+  expect(api.getListCalls()).toBe(1);
+});
+
+test('mobile radar can open and close without scrolling the document; labels follow language', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await initializePlayer(page);
+  const api = await mockPrivatePortals(page, 18.5, 4.5);
+  await page.goto(origin + '/Vuxo/#/game');
+  await expect(page.getByTestId('world-connection-status')).toHaveAttribute('data-status', 'connected');
+  const radar = page.getByTestId('world-radar');
+  const toggle = page.getByTestId('world-radar-toggle');
+  await expect(radar).toHaveAttribute('data-expanded', 'false');
+  await expect(page.getByTestId('world-radar-chart')).toHaveCount(0);
+  await expect(toggle).toHaveAttribute('aria-label', 'Apri radar');
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.getByTestId('world-radar-chart')).toBeInViewport();
+  await expect(page.getByTestId('world-radar-portal')).toHaveCount(1);
+  await expect.poll(() => page.evaluate(() =>
+    document.documentElement.scrollWidth <= window.innerWidth + 1 &&
+    document.documentElement.scrollHeight <= window.innerHeight + 1)).toBe(true);
+  await page.getByTestId('language-toggle').click();
+  await expect(toggle).toHaveAttribute('aria-label', 'Close radar');
+  await toggle.click();
+  await expect(page.getByTestId('world-radar-chart')).toHaveCount(0);
+  expect(api.getListCalls()).toBe(1);
 });
 
 test('world markers remain private and are not rendered without a Vuxo session', async ({ page }) => {
@@ -269,6 +323,7 @@ test('world markers remain private and are not rendered without a Vuxo session',
   await expect(page.getByTestId('world-connection-status')).toHaveAttribute('data-status', 'connected');
   await expect(page.getByTestId('world-portals')).toHaveCount(0);
   await expect(page.getByTestId('world-portal-compass')).toHaveCount(0);
+  await expect(page.getByTestId('world-radar-portal')).toHaveCount(0);
   expect(requests).toBe(0);
 });
 

@@ -112,6 +112,104 @@
   background: color-mix(in srgb, var(--vuxo-game-hud-bg) 84%, transparent);
   backdrop-filter: blur(16px);
 }
+.vuxo-game-radar {
+  position: absolute;
+  z-index: 6;
+  top: clamp(82px, 11vh, 116px);
+  right: clamp(10px, 2.3vw, 28px);
+  width: 166px;
+  max-width: 42vw;
+  padding: 9px;
+  border: 1px solid var(--vuxo-game-hud-border);
+  border-radius: 14px;
+  color: var(--vuxo-game-hud-text);
+  background: color-mix(in srgb, var(--vuxo-game-hud-bg) 88%, transparent);
+  box-shadow: 0 16px 36px -24px var(--vuxo-game-hud-bg);
+  backdrop-filter: blur(12px);
+}
+.vuxo-game-radar-heading {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+.vuxo-game-radar-symbol { color: var(--vuxo-game-hud-accent); }
+.vuxo-game-radar-heading-text.MuiTypography-root {
+  color: var(--vuxo-game-hud-text);
+  font-weight: 800;
+  letter-spacing: .06em;
+}
+.vuxo-game-radar-scale.MuiTypography-root {
+  margin-left: auto;
+  color: var(--vuxo-game-hud-accent);
+  font-size: .62rem;
+}
+.vuxo-game-radar-chart {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin-top: 4px;
+  overflow: visible;
+}
+.vuxo-game-radar-boundary {
+  stroke: var(--vuxo-game-hud-accent);
+  stroke-width: 1.5;
+  fill: color-mix(in srgb, var(--vuxo-game-hud-bg) 88%, transparent);
+}
+.vuxo-game-radar-ring, .vuxo-game-radar-crosshair {
+  fill: none;
+  stroke: var(--vuxo-game-hud-border);
+  stroke-width: 1;
+  opacity: .72;
+}
+.vuxo-game-radar-crosshair { opacity: .45; stroke-dasharray: 3 5; }
+.vuxo-game-radar-north {
+  fill: var(--vuxo-game-hud-accent);
+  font-size: 9px;
+  font-weight: 800;
+}
+.vuxo-game-radar-peer {
+  fill: var(--vuxo-game-hud-text);
+  stroke: var(--vuxo-game-hud-bg);
+  stroke-width: 1.5;
+}
+.vuxo-game-radar-portal {
+  fill: var(--vuxo-game-hud-accent);
+  stroke: var(--vuxo-game-hud-text);
+  stroke-width: 1.1;
+}
+.vuxo-game-radar-portal--edge {
+  fill: transparent;
+  stroke-width: 2.2;
+}
+.vuxo-game-radar-self {
+  fill: var(--vuxo-game-hud-accent);
+  stroke: var(--vuxo-game-hud-text);
+  stroke-width: 2;
+}
+.vuxo-game-radar-self-core { fill: var(--vuxo-game-hud-bg); }
+.vuxo-game-radar--compact {
+  top: 147px;
+  width: 142px;
+  max-width: calc(100vw - 170px);
+  padding: 6px 8px;
+}
+.vuxo-game-radar--compact .vuxo-game-radar-heading-text.MuiTypography-root {
+  font-size: .68rem;
+}
+.vuxo-game-radar-toggle.MuiIconButton-root {
+  margin-left: auto;
+  padding: 2px;
+  width: 26px;
+  height: 26px;
+  color: var(--vuxo-game-hud-accent);
+  border: 1px solid var(--vuxo-game-hud-border);
+  font-size: 17px;
+}
+@media (max-height: 560px) {
+  .vuxo-game-radar--compact { top: 100px; }
+  .vuxo-game-radar--compact .vuxo-game-radar-chart { max-height: 34dvh; }
+}
 .vuxo-game-portal-compass {
   width: 100%;
   min-height: 40px;

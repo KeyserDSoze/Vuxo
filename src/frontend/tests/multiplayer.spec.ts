@@ -59,6 +59,19 @@ test('two browser contexts see reciprocal player presence', async ({ browser }) 
 
     await expect(pageA.locator('[data-player-id="player-b"]')).toHaveText('Bravo');
     await expect(pageB.locator('[data-player-id="player-a"]')).toHaveText('Alpha');
+
+    // No new subscription/endpoint: radar only uses the same live peer
+    // snapshots as presence; the self position remains fixed at the center.
+    const peerOnA = pageA.getByTestId('world-radar-peer');
+    const peerOnB = pageB.getByTestId('world-radar-peer');
+    await expect(peerOnA).toHaveCount(1);
+    await expect(peerOnB).toHaveCount(1);
+    await expect(pageA.getByTestId('world-radar-self')).toHaveAttribute('cx', '72');
+    const initialX = Number(await peerOnA.getAttribute('cx'));
+    await pageB.getByTestId('game-canvas').locator('canvas').click();
+    await pageB.keyboard.down('ArrowRight');
+    await expect.poll(async () => Number(await peerOnA.getAttribute('cx'))).toBeGreaterThan(initialX);
+    await pageB.keyboard.up('ArrowRight');
   } finally {
     await Promise.all([contextA.close(), contextB.close()]);
   }

@@ -258,6 +258,14 @@ if (process.env.VUXO_VISUAL_REVIEW === '1') {
           await expect(compass).toHaveAttribute('data-direction', 'e');
           await expect(compass).toContainText('14 caselle');
           await expect(compass).toBeInViewport();
+          const radar = page.getByTestId('world-radar');
+          await expect(radar).toBeVisible();
+          if (width === 390) {
+            await expect(radar).toHaveAttribute('data-expanded', 'false');
+            await page.getByTestId('world-radar-toggle').click();
+          }
+          await expect(page.getByTestId('world-radar-chart')).toBeInViewport();
+          await expect(page.getByTestId('world-radar-portal')).toHaveAttribute('data-at-edge', 'true');
           await expect(page.getByTestId('game-canvas').locator('canvas')).toBeVisible();
           await expect.poll(() => page.evaluate(() =>
             document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1

@@ -13,6 +13,7 @@ import type {
 } from '../features/world/worldRealtime'
 import { WorldScene } from './WorldScene'
 import { PortalCompass } from './PortalCompass'
+import { WorldRadar } from './WorldRadar'
 import { readStoredSession } from '../features/auth/authSession'
 import { enterWorldPortal, fetchWorldPortals, PortalApiError, type WorldPortalMarker } from '../features/portals/portalApi'
 import { PortalChallengesPage } from '../pages/PortalChallengesPage'
@@ -288,6 +289,8 @@ export function GameCanvas() {
           ))}
         </Stack>
       </Stack>
+
+      <WorldRadar status={status} self={self} players={players} portals={portals} />
 
       <Stack className="vuxo-game-actions" direction="row" spacing={1}>
         <Button component={RouterLink} to="/refuge" color="inherit" variant="outlined" size="small" className="vuxo-game-button" data-testid="game-refuge-link">

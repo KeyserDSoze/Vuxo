@@ -466,6 +466,16 @@ const initialization = i18n.use(initReactI18next).init({
           title: 'Mondo condiviso',
           description: 'Il movimento è autoritativo lato server. Usa WASD, le frecce o i controlli touch per inviare i tuoi intenti.',
           playersOnline: 'Giocatori online: {{count}}',
+          radar: {
+            title: 'Radar',
+            show: 'Apri radar',
+            hide: 'Chiudi radar',
+            range_one: '{{count}} casella',
+            range_other: '{{count}} caselle',
+            summary: 'Radar, raggio {{range}} caselle: {{players}} esploratori vicini, {{portals}} portali personali visibili.',
+            peer: 'Esploratore: {{name}}',
+            portal: 'Portale personale {{number}}',
+          },
           portal: {
             available: 'Portali personali nel mondo: {{count}}',
             enter: 'Entra nel portale {{number}}',
@@ -1226,6 +1236,16 @@ const initialization = i18n.use(initReactI18next).init({
           title: 'Shared world',
           description: 'Movement is server-authoritative. Use WASD, arrow keys or touch controls to send your movement intent.',
           playersOnline: 'Players online: {{count}}',
+          radar: {
+            title: 'Radar',
+            show: 'Open radar',
+            hide: 'Close radar',
+            range_one: '{{count}} tile',
+            range_other: '{{count}} tiles',
+            summary: 'Radar, {{range}}-tile radius: {{players}} nearby explorers, {{portals}} visible personal portals.',
+            peer: 'Explorer: {{name}}',
+            portal: 'Personal portal {{number}}',
+          },
           portal: {
             available: 'Personal portals in the world: {{count}}',
             enter: 'Enter portal {{number}}',
