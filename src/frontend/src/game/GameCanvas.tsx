@@ -245,6 +245,8 @@ export function GameCanvas() {
               data-player-x={player.x}
               data-player-y={player.y}
               data-player-revision={player.revision}
+              data-player-appearance-revision={player.appearanceRevision ?? 0}
+              data-player-hair-color={player.appearance?.hairColor ?? ''}
               sx={{ color: 'var(--vuxo-game-hud-text)', borderColor: 'var(--vuxo-game-hud-border)' }}
             />
           ))}

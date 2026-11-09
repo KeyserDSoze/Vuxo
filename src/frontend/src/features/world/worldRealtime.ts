@@ -15,6 +15,7 @@ export type WorldPlayerSnapshot = {
   speedMultiplier: number
   revision: number
   appearance?: WorldCharacterAppearance | null
+  appearanceRevision?: number
 }
 
 export type WorldJoinResult = {
