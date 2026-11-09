@@ -38,3 +38,7 @@ La matrice screenshot della scena `/game` verifica ora **due varianti cosmetiche
 ## Esito matrice outfit canonici (9 novembre 2026)
 
 La run [#42683217386](https://github.com/KeyserDSoze/Vuxo/actions/runs/42683217386) ha passato **75/75** scenari Playwright; il report/artifact [#13703567799](https://github.com/KeyserDSoze/Vuxo/actions/runs/42683217386/artifacts/13703567799) include screenshot di entrambi i costumi salvati nel mock. Confrontate IT/chiaro e EN/scuro a 320/390/1280/1920/3440 e segnalate differenze visive. La review dei PNG ha evidenziato un possibile miglioramento di scala/zoom a desktop e ultrawide, tracciato in #174. Il flusso di *modifica dopo creazione → broadcast live* non è ancora disponibile (#173), e gli screenshot non lo certificano.
+
+## Character Studio — edit persistito (#173)
+
+Le suite `character-studio.spec.ts` verificano il caricamento del personaggio autenticato, la disabilitazione di nome e caratteristiche, PATCH appearance con revision corrente, pulsante disabilitato quando il look è identico e conflitti 409 non spacciati per salvataggi riusciti. La workflow Visual parte quando cambia il Character Studio e continua a catturare la matrice. Il test `e2e-live/character-appearance.spec.ts` usa **browser + API + PostgreSQL + SignalR reali** per verificare due giocatori online e un terzo browser editore, l'evento post-commit, un retry idempotente, un conflitto CAS e reconnect; non utilizza il mock Vite per la posizione. La funzionalità non concede alcun XP, oggetto o altra modifica gameplay.
