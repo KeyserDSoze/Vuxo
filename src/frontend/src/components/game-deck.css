@@ -592,6 +592,13 @@
   .vuxo-portal-console__answer-slot .MuiTypography-caption { font-size: .62rem; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .vuxo-portal-console__gateway { transition: none; }
-  .vuxo-portal-console__gateway:hover { transform: none; }
+  /* MUI Paper may add a transition through generated classes; the user's
+     explicit reduced-motion preference must win over component styling. */
+  .vuxo-portal-console .vuxo-portal-console__gateway.MuiPaper-root {
+    transition: none !important;
+    animation: none !important;
+  }
+  .vuxo-portal-console .vuxo-portal-console__gateway.MuiPaper-root:hover {
+    transform: none !important;
+  }
 }
