@@ -9,7 +9,7 @@ const API = 'https://api.vuxoapi.xyz';
 const WEB = 'https://vuxo.quest';
 
 function requireOk(response, context) {
-  if (response.status !== 200) throw new Error(context + ': expected HTTP 200');
+  if (response.status !== 200) throw new Error(context + ': expected HTTP 200 (got HTTP ' + response.status + ')');
 }
 function requireCors(response, context) {
   if (response.headers.get('access-control-allow-origin') !== WEB) {
@@ -82,7 +82,7 @@ async function checkOnce(fetcher, expectedCommit) {
 
     const anonymous = await get(path, { headers: { Origin: WEB } });
     if (anonymous.status !== 401) {
-      throw new Error(context + ': anonymous GET must return HTTP 401');
+      throw new Error(context + ': anonymous GET must return HTTP 401 (got HTTP ' + anonymous.status + ')');
     }
     requireCors(anonymous, context);
 
@@ -95,7 +95,7 @@ async function checkOnce(fetcher, expectedCommit) {
       },
     });
     if (![200, 204].includes(options.status)) {
-      throw new Error(context + ': preflight status is not allowed');
+      throw new Error(context + ': preflight status is not allowed (got HTTP ' + options.status + ')');
     }
     requireCors(options, context);
     const allowedMethods = (options.headers.get('access-control-allow-methods') ?? '')

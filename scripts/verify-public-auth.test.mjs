@@ -188,3 +188,23 @@ test('private history probes never send credentials or tokens, and failures are 
     throw new Error('SECRET_PLAYER_TOKEN');
   } }, /Public authentication check failed: network, response or timeout error/);
 });
+
+test('public diagnostic exposes only safe HTTP status, not upstream response body', async () => {
+  const secret = 'NONPUBLIC_USER_TOKEN';
+  const route = '/api/personal-content/history/completed';
+  const { fetcher } = fixture({
+    [route]: res(JSON.stringify({ secret }), 403, { 'Content-Type': 'application/json' }),
+  });
+  await assert.rejects(() => verifyPublicAuth({
+    expectedCommit: commit, fetcher, attempts: 1,
+  }), error => /history: completed: anonymous GET must return HTTP 401 \(got HTTP 403\)/
+      .test(error.message) && !error.message.includes(secret));
+});
+test('public version diagnostic includes only safe numerical status', async () => {
+  const secret = 'NONPUBLIC_HOST_DATA';
+  const { fetcher } = fixture({ '/api/meta/version': res(secret, 503) });
+  await assert.rejects(() => verifyPublicAuth({
+    expectedCommit: commit, fetcher, attempts: 1,
+  }), error => /version: expected HTTP 200 \(got HTTP 503\)/
+      .test(error.message) && !error.message.includes(secret));
+});
