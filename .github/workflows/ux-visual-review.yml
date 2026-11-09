@@ -14,6 +14,9 @@ on:
       - src/frontend/src/game/WorldArtwork.ts
       - src/frontend/src/game/WorldScene.ts
       - src/frontend/tests/world-art.spec.ts
+      - src/frontend/src/pages/CharacterEditorPage.tsx
+      - src/frontend/tests/character-studio.spec.ts
+      - src/frontend/src/i18n.ts
 
 permissions:
   contents: read

@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Xunit;
 using Vuxo.Domain.Players;
 using Vuxo.Infrastructure.Persistence;
 
