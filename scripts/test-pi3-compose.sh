@@ -114,7 +114,7 @@ assert "def probe_http(" in origin_probe, "Shared allowlisted safe HTTP probe re
 for flag in ["--pull=never", "--read-only", "--cap-drop=ALL",
              "--security-opt=no-new-privileges", "--pids-limit"]:
     assert flag in origin_probe, "Missing non-destructive diagnostic flag: " + flag
-assert origin_probe.count('"docker", "run"') == 1, "Only centralized safe Docker probe allowed"
+assert origin_probe.count('"docker", "run", "--rm"') == 1, "Only one centralized ephemeral Docker probe is permitted"
 assert "public_result = origin.probe_http(" in triage_probe, "Public probe must use same classifier"
 assert "if internal_status != 0:" in triage_probe, "Bound internal recheck to failed first origin probe"
 assert "one bounded internal origin recheck:" in triage_probe
