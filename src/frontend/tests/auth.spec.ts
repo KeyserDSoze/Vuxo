@@ -302,3 +302,73 @@ function makeJwt(provider: 'microsoft' | 'google'): string {
     exp: 4_102_444_800,
   })}.e2e`;
 }
+
+test('Google SDK loading failure is recoverable without reload or repeated GIS initialization', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 760 });
+  await page.addInitScript(() => {
+    (window as Window & { __vuxoE2ERealGoogleSdk?: boolean }).__vuxoE2ERealGoogleSdk = true;
+  });
+  let scriptAttempts = 0;
+  let credentialExchanges = 0;
+  await page.route('https://accounts.google.com/gsi/client', async route => {
+    scriptAttempts += 1;
+    if (scriptAttempts === 1) {
+      await route.abort('failed');
+      return;
+    }
+    await route.fulfill({
+      contentType: 'text/javascript',
+      body: [
+        'window.__vuxoGoogleInitCalls = 0;',
+        'window.google = { accounts: { id: {',
+        '  initialize(options) {',
+        '    window.__vuxoGoogleInitCalls += 1;',
+        '    window.__vuxoGoogleCallback = options.callback;',
+        '  },',
+        '  renderButton(parent, options) {',
+        '    const button = document.createElement("button");',
+        '    button.textContent = "Mock Google sign in";',
+        '    button.dataset.locale = options.locale;',
+        '    button.addEventListener("click", () => window.__vuxoGoogleCallback({ credential: "mock-google-credential" }));',
+        '    parent.appendChild(button);',
+        '  }',
+        '} } };',
+      ].join('\n'),
+    });
+  });
+  await page.route('**/api/auth/providers', route => route.fulfill({
+    contentType: 'application/json',
+    body: JSON.stringify(providerConfiguration()),
+  }));
+  await page.route('**/api/auth/social', async route => {
+    credentialExchanges += 1;
+    const body = route.request().postDataJSON() as { provider: string; credential: string };
+    expect(body).toEqual({ provider: 'google', credential: 'mock-google-credential' });
+    await route.fulfill({ contentType: 'application/json', body: JSON.stringify(sessionResponse('google')) });
+  });
+  await page.route('**/api/auth/logout', route => route.fulfill({ status: 204 }));
+
+  await page.goto('./#/auth');
+  await expect(page.getByTestId('auth-google-sdk-error')).toContainText('non è stato caricato');
+  await expect(page.getByTestId('auth-error')).toHaveCount(0);
+  await page.getByTestId('auth-google-sdk-retry').click();
+
+  const googleButton = page.getByTestId('auth-google').getByRole('button', { name: 'Mock Google sign in' });
+  await expect(googleButton).toBeVisible();
+  await expect.poll(() => page.evaluate(() => (window as Window & { __vuxoGoogleInitCalls?: number }).__vuxoGoogleInitCalls)).toBe(1);
+  expect(scriptAttempts).toBe(2);
+
+  await page.getByTestId('language-toggle').click();
+  await expect(googleButton).toHaveAttribute('data-locale', 'en');
+  await expect.poll(() => page.evaluate(() => (window as Window & { __vuxoGoogleInitCalls?: number }).__vuxoGoogleInitCalls)).toBe(1);
+  await googleButton.click();
+  await expect(page.getByTestId('auth-user')).toContainText('google Player');
+  await page.getByTestId('auth-logout').click();
+  await expect(googleButton).toBeVisible();
+  await googleButton.click();
+  await expect(page.getByTestId('auth-user')).toContainText('google Player');
+  expect(credentialExchanges).toBe(2);
+  expect(scriptAttempts).toBe(2);
+  await expect.poll(() => page.evaluate(() =>
+    document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
+});

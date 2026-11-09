@@ -27,6 +27,8 @@ type GoogleAccountsId = {
 declare global {
   interface Window {
     google?: { accounts?: { id?: GoogleAccountsId } };
+    /** E2E-only override for testing the real GIS script lifecycle. */
+    __vuxoE2ERealGoogleSdk?: boolean;
   }
 }
 
@@ -40,18 +42,35 @@ function loadGoogleIdentityServices(): Promise<void> {
   if (window.google?.accounts?.id) return Promise.resolve();
   if (googleScriptPromise) return googleScriptPromise;
 
-  googleScriptPromise = new Promise<void>((resolve, reject) => {
-    const existing = document.querySelector<HTMLScriptElement>('script[data-vuxo-google-identity]');
+  const load = new Promise<void>((resolve, reject) => {
+    const previous = document.querySelector<HTMLScriptElement>('script[data-vuxo-google-identity]');
+    // A loaded script without a GIS global cannot be reused on retry.
+    if (previous?.dataset.vuxoGoogleLoaded === 'true') previous.remove();
+    const existing = previous?.isConnected ? previous : null;
     const script = existing ?? document.createElement('script');
 
-    const onLoad = () => window.google?.accounts?.id
-      ? resolve()
-      : reject(new Error('google_identity_unavailable'));
-    const onError = () => reject(new Error('google_identity_load_failed'));
+    const cleanup = () => {
+      script.removeEventListener('load', onLoad);
+      script.removeEventListener('error', onError);
+    };
+    const onLoad = () => {
+      cleanup();
+      if (window.google?.accounts?.id) {
+        script.dataset.vuxoGoogleLoaded = 'true';
+        resolve();
+      } else {
+        script.remove();
+        reject(new Error('google_identity_unavailable'));
+      }
+    };
+    const onError = () => {
+      cleanup();
+      script.remove();
+      reject(new Error('google_identity_load_failed'));
+    };
 
-    script.addEventListener('load', onLoad, { once: true });
-    script.addEventListener('error', onError, { once: true });
-
+    script.addEventListener('load', onLoad);
+    script.addEventListener('error', onError);
     if (!existing) {
       script.src = 'https://accounts.google.com/gsi/client';
       script.async = true;
@@ -61,6 +80,11 @@ function loadGoogleIdentityServices(): Promise<void> {
     }
   });
 
+  // Never cache a rejected SDK promise: retry must load a fresh script.
+  googleScriptPromise = load.catch(error => {
+    googleScriptPromise = null;
+    throw error;
+  });
   return googleScriptPromise;
 }
 
@@ -81,15 +105,18 @@ export function GoogleSignInButton({
   const onErrorRef = useRef(onError);
   onCredentialRef.current = onCredential;
   onErrorRef.current = onError;
-  const [loadingSdk, setLoadingSdk] = useState(import.meta.env.VITE_E2E_AUTH !== 'true');
+  const useE2eCredential = import.meta.env.VITE_E2E_AUTH === 'true' && !window.__vuxoE2ERealGoogleSdk;
+  const [sdkState, setSdkState] = useState<'loading' | 'ready' | 'failed'>(useE2eCredential ? 'ready' : 'loading');
+  const [retryVersion, setRetryVersion] = useState(0);
 
   useEffect(() => {
-    if (import.meta.env.VITE_E2E_AUTH === 'true' || !containerRef.current) return;
+    if (useE2eCredential || !containerRef.current) return;
 
     let active = true;
     let onGoogleResponse: ((response: GoogleCredentialResponse) => void) | null = null;
     const container = containerRef.current;
     container.replaceChildren();
+    setSdkState('loading');
 
     void loadGoogleIdentityServices()
       .then(() => {
@@ -122,12 +149,12 @@ export function GoogleSignInButton({
           width: 280,
           locale: i18n.resolvedLanguage?.startsWith('en') ? 'en' : 'it',
         });
-        setLoadingSdk(false);
+        setSdkState('ready');
       })
       .catch(() => {
         if (!active) return;
-        setLoadingSdk(false);
-        onErrorRef.current();
+        // Loading the SDK is not an OAuth credential failure.
+        setSdkState('failed');
       });
 
     return () => {
@@ -137,9 +164,9 @@ export function GoogleSignInButton({
       }
       container.replaceChildren();
     };
-  }, [clientId, i18n.resolvedLanguage]);
+  }, [clientId, i18n.resolvedLanguage, retryVersion, useE2eCredential]);
 
-  if (import.meta.env.VITE_E2E_AUTH === 'true') {
+  if (useE2eCredential) {
     return (
       <Button
         data-testid="auth-google"
@@ -154,9 +181,24 @@ export function GoogleSignInButton({
   }
 
   return (
-    <Box data-testid="auth-google" sx={{ minHeight: 44, display: 'flex', alignItems: 'center' }}>
-      {loadingSdk ? <CircularProgress size={28} aria-label={t('loadingProvider')} /> : null}
-      <Box ref={containerRef} sx={{ display: disabled ? 'none' : 'block' }} />
+    <Box data-testid="auth-google" sx={{ minHeight: 44 }}>
+      {sdkState === 'loading' ? <CircularProgress size={28} aria-label={t('loadingProvider')} /> : null}
+      {sdkState === 'failed' ? (
+        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 1.5 }}>
+          <Box component="p" role="alert" data-testid="auth-google-sdk-error" sx={{ m: 0, color: 'text.secondary' }}>
+            {t('googleSdkUnavailable')}
+          </Box>
+          <Button
+            data-testid="auth-google-sdk-retry"
+            variant="outlined"
+            disabled={disabled}
+            onClick={() => setRetryVersion(version => version + 1)}
+          >
+            {t('retryGoogleSdk')}
+          </Button>
+        </Box>
+      ) : null}
+      <Box ref={containerRef} sx={{ display: sdkState === 'ready' && !disabled ? 'block' : 'none' }} />
     </Box>
   );
 }
