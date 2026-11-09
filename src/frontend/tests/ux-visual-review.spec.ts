@@ -236,5 +236,36 @@ if (process.env.VUXO_VISUAL_REVIEW === '1') {
         }
       }
     }
+    // A dedicated owner-safe visual scene verifies the actual compass HUD.
+    // The regular world matrix remains guest-only; this fixture is local and
+    // never contacts production or requests a real OAuth login.
+    for (const [width, height] of [[390, 844], [1280, 720]] as const) {
+      test('private portal compass IT-dark ' + width + 'x' + height,
+        async ({ page, request }, info) => {
+          await page.setViewportSize({ width, height });
+          await prepare(page, 'it', 'dark', true, true);
+          await page.route('**/api/personal-content/world-portals', route => route.fulfill({
+            json: [{ id: grantId, contentKey: 'portal.grove', x: 18.5, y: 4.5 }],
+            headers: cors,
+          }));
+          const reset = await request.post(
+            'http://127.0.0.1:4173/__vuxo_e2e/world/reset?scope=visual-review');
+          expect(reset.ok()).toBe(true);
+          await page.goto('./#/game');
+          await expect(page.getByTestId('world-connection-status'))
+            .toHaveAttribute('data-status', 'connected');
+          const compass = page.getByTestId('world-portal-compass');
+          await expect(compass).toHaveAttribute('data-direction', 'e');
+          await expect(compass).toContainText('14 caselle');
+          await expect(compass).toBeInViewport();
+          await expect(page.getByTestId('game-canvas').locator('canvas')).toBeVisible();
+          await expect.poll(() => page.evaluate(() =>
+            document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1
+            && document.documentElement.scrollHeight <= window.innerHeight + 1)).toBe(true);
+          const screenshot = info.outputPath('owner-compass.png');
+          await page.screenshot({ path: screenshot, animations: 'disabled' });
+          await info.attach('owner-portal-compass', { path: screenshot, contentType: 'image/png' });
+        });
+    }
   });
 }
