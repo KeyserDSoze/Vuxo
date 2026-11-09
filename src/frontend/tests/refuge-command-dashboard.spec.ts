@@ -116,28 +116,35 @@ test('health and rest show only confirmed owner HP, and overview updates from th
   await expect(page.getByTestId('refuge-command-guest')).toBeVisible();
 });
 
-test('404 and 503 are not presented as zero or full HP in command center', async ({ page }) => {
+test('404 never invents a health value and offers character creation', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.route('**/api/characters/me/health', route => route.fulfill({ status: 404 }));
+  await page.goto('./#/refuge');
+  await login(page);
+  await expect(page.getByTestId('refuge-health-not-found')).toBeVisible();
+  await expect(page.getByTestId('refuge-command-unavailable')).toContainText('Nessun personaggio');
+  await expect(page.getByTestId('refuge-command-health')).toHaveCount(0);
+  await expect(page.getByTestId('refuge-health-not-found').getByRole('link')).toHaveAttribute('href', '#/character');
+});
+
+test('503 stays unavailable until a server-backed retry succeeds', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   let count = 0;
   await page.route('**/api/characters/me/health', route => {
-    count += 1;
-    if (count === 1) return route.fulfill({ status: 404 });
-    if (count === 2) return route.fulfill({ status: 503 });
+    count++;
+    if (count === 1) return route.fulfill({ status: 503 });
     return route.fulfill({
       json: { name: 'Vuxian', currentHealth: 9, maxHealth: 20, rulesVersion: 'character-health-v1' },
     });
   });
   await page.goto('./#/refuge');
   await login(page);
-  await expect(page.getByTestId('refuge-health-not-found')).toBeVisible();
-  await expect(page.getByTestId('refuge-command-unavailable')).toContainText('Nessun personaggio');
-  await expect(page.getByTestId('refuge-command-health')).toHaveCount(0);
-  await page.getByTestId('refuge-health-retry').click();
   await expect(page.getByTestId('refuge-health-error')).toBeVisible();
   await expect(page.getByTestId('refuge-command-unavailable')).toContainText('Stato non disponibile');
+  await expect(page.getByTestId('refuge-command-health')).toHaveCount(0);
   await page.getByTestId('refuge-health-retry').click();
   await expect(page.getByTestId('refuge-command-health')).toContainText('9 / 20 HP');
-  expect(count).toBe(3);
+  expect(count).toBe(2);
 });
 
 test('English dark Refuge section commands stay translated and keyboard reachable on narrow displays', async ({ page }) => {
