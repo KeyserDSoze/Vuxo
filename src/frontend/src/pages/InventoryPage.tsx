@@ -1,5 +1,5 @@
 import { Alert, Box, Button, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, Grid, InputLabel, MenuItem, Paper, Select, Stack, TextField, Typography } from '@mui/material';
-import { AutoAwesome, EcoOutlined, Inventory2Outlined, VisibilityOutlined, WaterDropOutlined } from '@mui/icons-material';
+import { AutoAwesome, BackpackOutlined, ExploreOutlined, FavoriteBorder, VisibilityOutlined } from '@mui/icons-material';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link as RouterLink } from 'react-router-dom';
@@ -24,9 +24,9 @@ const statKeys = ['strength', 'dexterity', 'intelligence', 'constitution', 'luck
 
 function iconForInventoryItem(itemKey: string) {
   if (itemKey === 'item.rune_shard.v1') return AutoAwesome;
-  if (itemKey === 'item.grove_seed.v1') return EcoOutlined;
-  if (itemKey === 'item.tidal_pearl.v1') return WaterDropOutlined;
-  return Inventory2Outlined;
+  if (itemKey === 'item.grove_seed.v1') return FavoriteBorder;
+  if (itemKey === 'item.tidal_pearl.v1') return ExploreOutlined;
+  return BackpackOutlined;
 }
 
 /** Reset all owner data and browse state immediately when the authenticated account changes. */
@@ -135,7 +135,7 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
   const noMatches = canBrowse && displayedStacks.length === 0 && displayedItems.length === 0;
 
   const inspectedStack = browseReady ? stacks.find(stack => stack.itemKey === inspectedItemKey) : undefined;
-  const inspectedIcon = inspectedStack ? iconForInventoryItem(inspectedStack.itemKey) : Inventory2Outlined;
+  const inspectedIcon = inspectedStack ? iconForInventoryItem(inspectedStack.itemKey) : BackpackOutlined;
   const InspectedIcon = inspectedIcon;
   const inspectedSlot = inspectedStack ? equipmentSlotFor(inspectedStack.itemKey) : null;
 
