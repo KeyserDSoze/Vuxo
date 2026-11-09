@@ -43,6 +43,8 @@ export function App() {
   const { build } = useBuildInfo();
   const location = useLocation();
   const isWorldRoute = location.pathname === '/game';
+  const isHomeRoute = location.pathname === '/';
+  const isViewportRoute = isWorldRoute || isHomeRoute;
   const accessState = useAdminAccessState();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const visibleNavItems = navItems.filter(item => item.to !== '/admin' || accessState === 'administrator');
@@ -53,12 +55,12 @@ export function App() {
   const toggleLanguage = () => void i18n.changeLanguage(language === 'it' ? 'en' : 'it');
 
   return (
-    <Box data-testid="app-shell" className={isWorldRoute ? 'vuxo-app vuxo-app--world' : 'vuxo-app'} sx={{
-      minHeight: isWorldRoute ? '100dvh' : '100vh',
-      height: isWorldRoute ? '100dvh' : undefined,
+    <Box data-testid="app-shell" className={isWorldRoute ? 'vuxo-app vuxo-app--world' : isHomeRoute ? 'vuxo-app vuxo-app--home' : 'vuxo-app'} sx={{
+      minHeight: isViewportRoute ? '100dvh' : '100vh',
+      height: isViewportRoute ? '100dvh' : undefined,
       display: 'flex',
       flexDirection: 'column',
-      overflow: isWorldRoute ? 'hidden' : undefined,
+      overflow: isViewportRoute ? 'hidden' : undefined,
       background: theme => 'radial-gradient(circle at 20% 0%, ' +
         alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.20 : 0.12) +
         ', transparent 38%), ' + theme.palette.background.default
@@ -105,14 +107,14 @@ export function App() {
           </List>
         </Box>
       </Drawer>
-      <Container component="main" maxWidth={isWorldRoute ? false : 'xl'} disableGutters={isWorldRoute} sx={{
-        flex: isWorldRoute ? '1 1 auto' : undefined,
+      <Container component="main" maxWidth={isViewportRoute ? false : 'xl'} disableGutters={isViewportRoute} sx={{
+        flex: isViewportRoute ? '1 1 auto' : undefined,
         minHeight: 0,
         minWidth: 0,
         width: '100%',
-        overflow: isWorldRoute ? 'hidden' : undefined,
-        display: isWorldRoute ? 'flex' : undefined,
-        py: isWorldRoute ? 0 : { xs: vuxoDesignTokens.layout.pagePaddingYMobile, md: vuxoDesignTokens.layout.pagePaddingYDesktop },
+        overflow: isViewportRoute ? 'hidden' : undefined,
+        display: isViewportRoute ? 'flex' : undefined,
+        py: isViewportRoute ? 0 : { xs: vuxoDesignTokens.layout.pagePaddingYMobile, md: vuxoDesignTokens.layout.pagePaddingYDesktop },
       }}>
         <Suspense fallback={
           <Stack role="status" data-testid="route-loading" direction="row" spacing={2} sx={{ alignItems: 'center', py: 5 }}>
