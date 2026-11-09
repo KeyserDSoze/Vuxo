@@ -1,17 +1,20 @@
 import Phaser from 'phaser'
 import type { WorldPlayerSnapshot, WorldRealtimeClient, WorldRealtimeState } from '../features/world/worldRealtime'
 import type { WorldPortalMarker } from '../features/portals/portalApi'
+import { createIllustratedWanderer, paintWoodlandTile, stableArtHash } from './WorldArtwork'
 
 const TILE_SIZE = 32
 
 type PortalVisual = {
   ring: Phaser.GameObjects.Arc
   center: Phaser.GameObjects.Arc
+  arch: Phaser.GameObjects.Graphics
 }
 
 type PlayerVisual = {
-  body: Phaser.GameObjects.Rectangle
+  body: Phaser.GameObjects.Container
   name: Phaser.GameObjects.Text
+  labelOffset: number
   targetX: number
   targetY: number
 }
@@ -21,6 +24,7 @@ export class WorldScene extends Phaser.Scene {
   private readonly portalVisuals = new Map<string, PortalVisual>()
   private terrainGraphics: Phaser.GameObjects.Graphics | null = null
   private terrainBounds = ''
+  private reducedMotion = false
   private portals: WorldPortalMarker[] = []
   private ready = false
   private inputLocked = false
@@ -42,6 +46,7 @@ export class WorldScene extends Phaser.Scene {
   }
 
   create() {
+    this.reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     this.terrainGraphics = this.add.graphics().setDepth(-10)
     this.drawWorldGrid()
     this.ready = true
@@ -80,6 +85,7 @@ export class WorldScene extends Phaser.Scene {
       if (current.has(id)) continue
       visual.ring.destroy()
       visual.center.destroy()
+      visual.arch.destroy()
       this.portalVisuals.delete(id)
     }
 
@@ -87,13 +93,25 @@ export class WorldScene extends Phaser.Scene {
       if (this.portalVisuals.has(portal.id)) continue
       const x = portal.x * TILE_SIZE
       const y = portal.y * TILE_SIZE
+      // An illustrated stone arch behind the existing interactive portal ring.
+      // Hit area and onPortalClick continue to use the original ring alone.
+      const arch = this.add.graphics().setDepth(5)
+      arch.lineStyle(6, 0x263f5d, 1)
+      arch.strokeEllipse(x, y, 49, 66)
+      arch.lineStyle(2, 0xc4a8ed, 0.92)
+      arch.strokeEllipse(x, y, 40, 55)
+      arch.fillStyle(0x9fe9e6, 0.95)
+      arch.fillTriangle(x - 3, y - 35, x + 3, y - 35, x, y - 42)
+      arch.fillStyle(0x405976, 1)
+      arch.fillRoundedRect(x - 26, y + 22, 11, 7, 2)
+      arch.fillRoundedRect(x + 15, y + 22, 11, 7, 2)
       const ring = this.add.circle(x, y, 19, 0x8b5cf6, 0.35)
         .setStrokeStyle(3, 0xe9d5ff, 1)
         .setDepth(6)
         .setInteractive({ useHandCursor: true })
       const center = this.add.circle(x, y, 8, 0xc084fc, 0.95).setDepth(7)
       ring.on('pointerdown', () => this.onPortalClick?.(portal.id))
-      this.portalVisuals.set(portal.id, { ring, center })
+      this.portalVisuals.set(portal.id, { ring, center, arch })
     }
     this.onPortalsRendered?.(this.portalVisuals.size)
   }
@@ -115,7 +133,7 @@ export class WorldScene extends Phaser.Scene {
       }
     }
     for (const visual of this.portalVisuals.values()) {
-      visual.ring.setScale(1 + Math.sin(time / 300) * 0.08)
+      visual.ring.setScale(this.reducedMotion ? 1 : 1 + Math.sin(time / 300) * 0.08)
     }
 
     const horizontal = this.inputLocked ? 0 :
@@ -135,7 +153,9 @@ export class WorldScene extends Phaser.Scene {
     for (const visual of this.players.values()) {
       visual.body.x = Phaser.Math.Linear(visual.body.x, visual.targetX, interpolation)
       visual.body.y = Phaser.Math.Linear(visual.body.y, visual.targetY, interpolation)
-      visual.name.setPosition(visual.body.x, visual.body.y - 25)
+      visual.name.setPosition(visual.body.x, visual.body.y - visual.labelOffset)
+      const offset = visual.targetX - visual.body.x
+      if (Math.abs(offset) > 2) visual.body.setScale(offset < 0 ? -1 : 1, 1)
     }
   }
 
@@ -169,27 +189,24 @@ export class WorldScene extends Phaser.Scene {
       return
     }
 
+    // Visual identity is deterministic and local; realtime supplies only
+    // canonical player coordinates/name and never authorizes cosmetic rewards.
     const isSelf = player.playerId === this.selfPlayerId
-    const body = this.add.rectangle(
-      targetX,
-      targetY,
-      22,
-      28,
-      isSelf ? 0xfbbf24 : 0x38bdf8,
-    )
-    body.setDepth(10)
-
-    const name = this.add.text(targetX, targetY - 25, player.characterName, {
+    const body = createIllustratedWanderer(this, player.playerId, isSelf)
+    body.setPosition(targetX, targetY)
+    const labelOffset = 54 + (stableArtHash(player.playerId) % 2) * 15
+    const name = this.add.text(targetX, targetY - labelOffset, player.characterName, {
       color: '#f8fafc',
       fontFamily: 'system-ui, sans-serif',
       fontSize: '12px',
-      backgroundColor: '#0f172acc',
-      padding: { x: 4, y: 2 },
+      fontStyle: 'bold',
+      backgroundColor: '#0c2234e8',
+      padding: { x: 5, y: 3 },
     })
     name.setOrigin(0.5, 1)
     name.setDepth(11)
 
-    this.players.set(player.playerId, { body, name, targetX, targetY })
+    this.players.set(player.playerId, { body, name, labelOffset, targetX, targetY })
   }
 
   private removePlayer(playerId: string): void {
@@ -221,32 +238,7 @@ export class WorldScene extends Phaser.Scene {
 
     for (let tileX = left; tileX <= right; tileX++) {
       for (let tileY = top; tileY <= bottom; tileY++) {
-        const hash = Math.imul(tileX ^ 0x45d9f3b, 0x27d4eb2d) ^
-          Math.imul(tileY ^ 0x119de1f3, 0x165667b1)
-        const noise = (hash ^ (hash >>> 16)) >>> 0
-        const x = tileX * TILE_SIZE
-        const y = tileY * TILE_SIZE
-        const ground = [0x16354b, 0x183c51, 0x1b4054, 0x1c384d][noise % 4]
-        graphics.fillStyle(ground, 1)
-        graphics.fillRect(x, y, TILE_SIZE, TILE_SIZE)
-
-        // Fine trails, moss and glowing specks make this a place rather than
-        // a checkerboard, without pretending the temporary ground is content.
-        if (noise % 5 === 0) {
-          graphics.fillStyle(0x315a55, 0.65)
-          graphics.fillRect(x + 4, y + 22, 8, 2)
-          graphics.fillRect(x + 9, y + 17, 2, 7)
-        }
-        if (noise % 23 === 0) {
-          graphics.fillStyle(0x76c9ba, 0.75)
-          graphics.fillRect(x + 21, y + 7, 3, 3)
-        }
-        if (noise % 47 === 0) {
-          graphics.fillStyle(0x304c64, 1)
-          graphics.fillRect(x + 5, y + 5, 14, 10)
-          graphics.fillStyle(0x46677a, 0.8)
-          graphics.fillRect(x + 5, y + 5, 14, 2)
-        }
+        paintWoodlandTile(graphics, tileX, tileY)
       }
     }
   }
