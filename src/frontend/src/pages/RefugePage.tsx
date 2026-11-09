@@ -79,8 +79,8 @@ export function RefugePage() {
   }
 
   return (
-    <Stack spacing={3} data-testid="refuge-page">
-      <Paper variant="outlined" sx={{ p: { xs: 3, sm: 4, md: 5 } }}>
+    <Stack spacing={2} data-testid="refuge-page">
+      <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3, md: 3.5 } }}>
         <Stack spacing={2} sx={{ alignItems: 'flex-start' }}>
           <Typography variant="overline" color="primary.main">{t('refuge.eyebrow')}</Typography>
           <Typography component="h1" variant="h2">{t('refuge.title')}</Typography>
@@ -108,7 +108,7 @@ export function RefugePage() {
           const Icon = activity.icon;
           return (
             <Grid key={activity.key} size={{ xs: 12, sm: 6, lg: 3 }}>
-              <Paper variant="outlined" sx={{ height: '100%', p: { xs: 2.5, md: 3 } }}>
+              <Paper variant="outlined" sx={{ height: '100%', p: { xs: 2, md: 2.5 } }}>
                 <Stack spacing={1.5} sx={{ height: '100%', alignItems: 'flex-start' }}>
                   <Icon color="primary" fontSize="large" aria-hidden="true" />
                   <Typography variant="h6" component="h2" sx={{ fontWeight: 800 }}>
