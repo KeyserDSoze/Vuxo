@@ -485,6 +485,19 @@ const initialization = i18n.use(initReactI18next).init({
           controls: { up: 'Muovi su', down: 'Muovi giù', left: 'Muovi a sinistra', right: 'Muovi a destra' }
         },
         portals: {
+          console: {
+            eyebrow: 'Soglie personali',
+            availableCount: 'Soglie assegnate: {{count}}',
+            assignment: 'Chiave del contenuto: {{key}}',
+            stage: 'Fase della prova',
+            previewStage: 'Memorizza',
+            answerStage: 'Ripeti',
+            completeStage: 'Confermata dal server',
+            answerSlots: 'Sequenza inserita',
+            emptySlot: 'Ancora vuoto',
+            runePad: 'Rune disponibili',
+            serverPolicy: 'Il risultato e gli eventuali premi sono confermati solo dal server.',
+          },
           mistakeDamage: 'Il portale ti ha inflitto {{damage}} HP di danno. Salute: {{current}}/{{maximum}}.',
           mistakeAlreadyRecorded: 'Questo portale non infligge altri danni per ulteriori risposte errate. Salute: {{current}}/{{maximum}}.',
           visitRefuge: 'Vai al Rifugio',
@@ -1202,6 +1215,19 @@ const initialization = i18n.use(initReactI18next).init({
           controls: { up: 'Move up', down: 'Move down', left: 'Move left', right: 'Move right' }
         },
         portals: {
+          console: {
+            eyebrow: 'Personal gateways',
+            availableCount: 'Assigned gateways: {{count}}',
+            assignment: 'Content key: {{key}}',
+            stage: 'Challenge phase',
+            previewStage: 'Memorize',
+            answerStage: 'Repeat',
+            completeStage: 'Verified by server',
+            answerSlots: 'Entered rune sequence',
+            emptySlot: 'Not entered yet',
+            runePad: 'Available runes',
+            serverPolicy: 'The server alone confirms results and any rewards.',
+          },
           mistakeDamage: 'The portal dealt {{damage}} HP of damage. Health: {{current}}/{{maximum}}.',
           mistakeAlreadyRecorded: 'Further incorrect answers to this portal do not cause additional damage. Health: {{current}}/{{maximum}}.',
           visitRefuge: 'Visit Refuge',
