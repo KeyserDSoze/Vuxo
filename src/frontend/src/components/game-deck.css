@@ -1,0 +1,211 @@
+/* #160 — A game UI rather than a scrolling marketing document.
+   The application owns viewport sizing; only this panel's content scrolls. */
+.vuxo-deck {
+  --deck-glow: var(--vuxo-focus-ring);
+  display: grid;
+  grid-template-columns: clamp(144px, 14vw, 196px) minmax(0, 1fr);
+  flex: 1 1 auto;
+  gap: clamp(7px, 1vw, 14px);
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+  padding: clamp(7px, 1vw, 14px);
+  overflow: hidden;
+}
+.vuxo-deck__rail,
+.vuxo-deck__main {
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid;
+  border-radius: clamp(13px, 1.4vw, 20px);
+  box-shadow: 0 14px 35px -30px rgba(0, 0, 0, .6);
+}
+.vuxo-deck__rail {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: clamp(8px, 1vw, 15px);
+}
+.vuxo-deck__sigil {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 22px 6px 12px;
+  text-shadow: 0 0 25px color-mix(in srgb, var(--deck-glow) 28%, transparent);
+}
+.vuxo-deck__sigil > span:first-child {
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  width: 62px;
+  height: 62px;
+  border: 1px solid color-mix(in srgb, var(--deck-glow) 32%, transparent);
+  background: radial-gradient(circle, color-mix(in srgb, var(--deck-glow) 20%, transparent), transparent 72%);
+  font-size: 2rem;
+}
+.vuxo-deck__routes {
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  overscroll-behavior: contain;
+  gap: 5px;
+}
+.vuxo-deck__route {
+  display: flex;
+  align-items: center;
+  min-height: 47px;
+  gap: 10px;
+  flex: 0 0 auto;
+  padding: 8px 11px;
+  border: 1px solid;
+  border-radius: 11px;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background-color .17s ease, border-color .17s ease, transform .17s ease;
+}
+.vuxo-deck__route:hover { transform: translateX(2px); }
+.vuxo-deck__route[aria-current="page"] { box-shadow: inset 3px 0 currentColor; }
+.vuxo-deck__main { display: flex; flex-direction: column; }
+.vuxo-deck__topline {
+  min-height: 48px;
+  flex: 0 0 auto;
+  padding: 7px clamp(12px, 2vw, 24px);
+  border-bottom: 1px solid;
+}
+.vuxo-deck__topline-rune {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+}
+.vuxo-deck__scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  padding: clamp(11px, 1.7vw, 28px);
+}
+.vuxo-deck__scroll:focus-visible { outline-offset: -5px; }
+.vuxo-deck__scroll > [data-testid] { min-width: 0; }
+.vuxo-deck__scroll > [data-testid="refuge-page"],
+.vuxo-deck__scroll > [data-testid="inventory-page"],
+.vuxo-deck__scroll > [data-testid="portal-page"] {
+  gap: clamp(12px, 1.3vw, 22px);
+}
+.vuxo-deck__scroll [data-testid="refuge-page"] > .MuiPaper-root:first-child {
+  border-radius: 18px;
+  border-color: color-mix(in srgb, var(--deck-glow) 40%, transparent);
+  background:
+    radial-gradient(ellipse at 90% 8%, color-mix(in srgb, var(--deck-glow) 14%, transparent), transparent 40%),
+    color-mix(in srgb, var(--deck-glow) 4%, transparent);
+}
+.vuxo-deck__scroll [data-testid="refuge-page"] > .MuiPaper-root:first-child .MuiTypography-h2 { font-size: clamp(2rem, 3.4vw, 3.4rem); }
+.vuxo-deck__scroll [data-testid="refuge-activities"] > .MuiGrid-root > .MuiPaper-root {
+  border-radius: 14px;
+  transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease;
+}
+.vuxo-deck__scroll [data-testid="refuge-activities"] > .MuiGrid-root > .MuiPaper-root:hover {
+  transform: translateY(-2px);
+  border-color: var(--deck-glow);
+  box-shadow: 0 12px 24px -21px var(--deck-glow);
+}
+.vuxo-deck__scroll [data-testid="inventory-page"] > .MuiBox-root:first-child .MuiTypography-h2,
+.vuxo-deck__scroll [data-testid="portal-page"] > .MuiStack-root:first-child .MuiTypography-h2 {
+  font-size: clamp(1.85rem, 3vw, 3rem);
+}
+.vuxo-deck__scroll [data-testid="inventory-loadout"],
+.vuxo-deck__scroll [data-testid="inventory-browse-controls"],
+.vuxo-deck__scroll [data-testid="portal-challenge"],
+.vuxo-deck__scroll [data-testid="refuge-preparation"],
+.vuxo-deck__scroll [data-testid="refuge-catalog"] {
+  border-radius: 16px;
+  border-color: color-mix(in srgb, var(--deck-glow) 26%, transparent);
+}
+.vuxo-deck__scroll [data-testid="portal-challenge"] {
+  background:
+    radial-gradient(circle at 85% 8%, color-mix(in srgb, var(--deck-glow) 12%, transparent), transparent 45%);
+}
+.vuxo-deck__scroll [data-testid="portal-preview"] > .MuiPaper-root {
+  min-width: 74px;
+  border-color: var(--deck-glow);
+  border-radius: 12px;
+  box-shadow: 0 0 15px color-mix(in srgb, var(--deck-glow) 12%, transparent);
+}
+.vuxo-deck__scroll [data-testid="inventory-stack"],
+.vuxo-deck__scroll [data-testid="inventory-item"] { border-radius: 14px; }
+.vuxo-deck__scroll > [data-testid="character-editor-page"] .MuiCard-root {
+  border-radius: 17px;
+  border-color: color-mix(in srgb, var(--deck-glow) 27%, transparent);
+}
+.vuxo-deck__scroll [data-testid="character-editor-page"] .MuiCard-root[style] {
+  background: radial-gradient(circle at 80% 0%, color-mix(in srgb, var(--deck-glow) 8%, transparent), transparent 60%);
+}
+@media (max-width: 899px) {
+  .vuxo-deck {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 6px;
+  }
+  .vuxo-deck__rail {
+    flex: 0 0 auto;
+    width: 100%;
+    flex-direction: row;
+    align-items: center;
+    padding: 5px 7px;
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .vuxo-deck__sigil {
+    flex: 0 0 auto;
+    flex-direction: row;
+    padding: 0 6px 0 2px;
+    gap: 2px;
+  }
+  .vuxo-deck__sigil > span:first-child { width: 33px; height: 33px; font-size: 1.2rem; border: 0; }
+  .vuxo-deck__sigil .MuiTypography-root { display: none; }
+  .vuxo-deck__routes {
+    flex-direction: row !important;
+    gap: 4px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    min-width: 0;
+    flex: 1 1 auto;
+    padding: 2px;
+  }
+  .vuxo-deck__route {
+    min-height: 39px;
+    padding: 6px 9px;
+    gap: 6px;
+    border-radius: 8px;
+  }
+  .vuxo-deck__route .MuiTypography-root { font-size: .76rem; }
+  .vuxo-deck__route[aria-current="page"] { box-shadow: inset 0 -2px currentColor; }
+  .vuxo-deck__main { flex: 1 1 0; border-radius: 12px; }
+  .vuxo-deck__topline { min-height: 42px; padding: 5px 12px; }
+  .vuxo-deck__scroll { padding: clamp(9px, 2.1vw, 18px); }
+}
+@media (max-width: 480px) {
+  .vuxo-deck__sigil { display: none; }
+  .vuxo-deck__route { min-height: 37px; padding: 5px 8px; gap: 5px; }
+  .vuxo-deck__route .MuiSvgIcon-root { font-size: 17px; }
+  .vuxo-deck__route .MuiTypography-root { font-size: .7rem; }
+  .vuxo-deck__topline { min-height: 38px; }
+  .vuxo-deck__scroll { padding: 9px; }
+  .vuxo-deck__scroll [data-testid="refuge-page"] > .MuiPaper-root:first-child { padding: 16px; }
+  .vuxo-deck__scroll [data-testid="refuge-activities"] > .MuiGrid-root > .MuiPaper-root { padding: 15px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vuxo-deck__route, .vuxo-deck__scroll [data-testid="refuge-activities"] > .MuiGrid-root > .MuiPaper-root { transition: none; }
+  .vuxo-deck__route:hover, .vuxo-deck__scroll [data-testid="refuge-activities"] > .MuiGrid-root > .MuiPaper-root:hover { transform: none; }
+}
