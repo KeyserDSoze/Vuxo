@@ -75,7 +75,7 @@ export function HomePage() {
   const selectedDestination = realm === 'world' && !signedIn ? '/auth' : realmLinks[realm];
 
   return (
-    <Stack className="vuxo-landing" spacing={{ xs: 2, md: 3 }}>
+    <Stack className="vuxo-landing" spacing={0} data-testid="home-screen" data-awake={awake ? 'true' : 'false'} style={sceneVariables}>
       <Box
         component="section"
         ref={heroRef}
@@ -84,7 +84,6 @@ export function HomePage() {
         data-awake={awake ? 'true' : 'false'}
         data-sigil={awake ? sigilPhase : 'idle'}
         className="vuxo-landing__hero"
-        style={sceneVariables}
         onPointerMove={moveScene}
         onPointerLeave={resetScene}
         aria-label={t('home.sceneLabel')}
@@ -149,10 +148,14 @@ export function HomePage() {
         </Box>
       </Box>
 
-      {awake && <HomeRuneTeaser key={realm} realm={realm} destination={selectedDestination} onPhaseChange={setSigilPhase} />}
+      {awake && (
+        <Box className="vuxo-landing__teaser-rail" data-testid="home-teaser-panel">
+          <HomeRuneTeaser key={realm} realm={realm} destination={selectedDestination} onPhaseChange={setSigilPhase} />
+        </Box>
+      )}
 
-      <Box component="section" aria-labelledby="home-paths-title">
-        <Stack direction={{ xs: 'column', sm: 'row' }} sx={{ mb: 2, gap: 1, alignItems: { xs: 'flex-start', sm: 'center' }, justifyContent: 'space-between' }}>
+      <Box component="section" aria-labelledby="home-paths-title" className="vuxo-landing__hub">
+        <Stack className="vuxo-landing__hub-heading" direction={{ xs: 'column', sm: 'row' }} sx={{ gap: 1, alignItems: { xs: 'flex-start', sm: 'center' }, justifyContent: 'space-between' }}>
           <Box>
             <Typography variant="overline" color="primary.main" sx={{ fontWeight: 800, letterSpacing: '0.18em' }}>{t('home.pathsEyebrow')}</Typography>
             <Typography id="home-paths-title" component="h2" variant="h4" sx={{ fontWeight: 850, letterSpacing: '-0.035em' }}>{t('home.pathsTitle')}</Typography>
@@ -185,8 +188,8 @@ export function HomePage() {
                   <Box className="vuxo-landing__path-icon" sx={{ bgcolor: 'action.hover', color: 'primary.main' }}><Icon fontSize="medium" /></Box>
                   <Typography component="span" variant="caption" color="text.secondary">0{index + 1} / 03</Typography>
                 </Box>
-                <Typography component="h3" variant="h6" sx={{ fontWeight: 850 }}>{t(`home.features.${key}.title`)}</Typography>
-                <Typography component="p" variant="body2" color="text.secondary" sx={{ lineHeight: 1.65 }}>{t(`home.features.${key}.description`)}</Typography>
+                <Typography component="h3" variant="h6" className="vuxo-landing__path-title" sx={{ fontWeight: 850 }}>{t(`home.features.${key}.title`)}</Typography>
+                <Typography component="p" variant="body2" className="vuxo-landing__path-description" color="text.secondary" sx={{ lineHeight: 1.65 }}>{t(`home.features.${key}.description`)}</Typography>
                 <Box className="vuxo-landing__path-bottom" sx={{ color: realm === key ? 'primary.main' : 'text.secondary' }}>
                   <Typography component="span" variant="caption" sx={{ fontWeight: 750 }}>{t(realm === key ? 'home.pathSelected' : 'home.pathPreview')}</Typography>
                   <ArrowForward fontSize="small" />
@@ -195,12 +198,12 @@ export function HomePage() {
             );
           })}
         </Box>
-        <Stack id="home-selected-path" data-testid="home-selected-path" direction={{ xs: 'column', sm: 'row' }} sx={{ gap: 2, mt: 2, px: { xs: 1, sm: 2 }, py: 1, alignItems: { xs: 'stretch', sm: 'center' }, justifyContent: 'space-between' }}>
-          <Box>
+        <Stack id="home-selected-path" data-testid="home-selected-path" className="vuxo-landing__selection" direction="row" sx={{ gap: 1.5, alignItems: 'center', justifyContent: 'space-between' }}>
+          <Box className="vuxo-landing__selection-copy">
             <Typography variant="body2" color="text.secondary">{t('home.selectedEyebrow')}</Typography>
             <Typography component="p" variant="subtitle1" sx={{ fontWeight: 750 }}>{t(`home.features.${realm}.preview`)}</Typography>
           </Box>
-          <Button component={RouterLink} to={selectedDestination} endIcon={<ArrowForward />} variant="text" sx={{ alignSelf: { xs: 'flex-start', sm: 'center' }, whiteSpace: 'nowrap' }} data-testid="home-path-link">
+          <Button component={RouterLink} to={selectedDestination} endIcon={<ArrowForward />} variant="contained" className="vuxo-landing__selection-link" data-testid="home-path-link">
             {t('home.discoverPath')}
           </Button>
         </Stack>
