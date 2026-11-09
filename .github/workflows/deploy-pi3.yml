@@ -169,3 +169,47 @@ jobs:
         env:
           VUXO_EXPECTED_COMMIT: ${{ needs.build-arm64.outputs.source_sha }}
         run: node scripts/verify-public-auth.mjs
+      # Report independent safe route statuses without swallowing this failure.
+      # No user tokens, provider IDs, raw headers or response bodies are logged.
+      - name: Diagnose independent public routes after failed release gate
+        if: ${{ failure() }}
+        continue-on-error: true
+        env:
+          VUXO_PUBLIC_AUTH_DIAGNOSTICS: 'true'
+        run: node scripts/verify-public-auth.mjs
+      - name: Explain failed release and follow-up
+        if: ${{ failure() }}
+        run: |
+          echo 'PUBLIC RELEASE FAILED: the strict health/version/CORS/private-401 gate did not pass.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Read the sanitized route statuses above, then compare them with the Pi connector diagnosis job.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Do not mark OAuth/live deployment accepted based only on the internal origin probe.' >> "$GITHUB_STEP_SUMMARY"
+
+  triage-pi3-after-public-failure:
+    # Trusted main, successful Pi deploy and a *failed* GitHub-hosted public
+    # check are all required. This job is read-only and uses NO GitHub secrets.
+    needs: [build-arm64, deploy-pi3, verify-public-auth]
+    if: >-
+      always() &&
+      needs.deploy-pi3.result == 'success' &&
+      needs.verify-public-auth.result == 'failure' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      vars.VUXO_PI3_DEPLOY_ENABLED == 'true'
+    runs-on: [self-hosted, linux, ARM64, vuxo-pi3]
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.build-arm64.outputs.source_sha }}
+          persist-credentials: false
+      - name: Collect fixed-category container and public edge evidence
+        # Always informational: failure of this diagnostic cannot turn the
+        # original release gate green, and must not restart containers.
+        run: python3 infra/pi3/diagnose_cloudflare_failure.py
+      - name: Explain read-only evidence limitations
+        if: always()
+        run: |
+          echo 'This read-only job reports API-origin vs Cloudflare edge HTTP statuses, plus connector OOM/restart categories.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'No tunnel tokens or provider credentials were loaded. Verify the published route in Cloudflare; public acceptance remains FAILED.' >> "$GITHUB_STEP_SUMMARY"

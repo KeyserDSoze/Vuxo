@@ -363,3 +363,9 @@ When the external post-deploy gate reports HTTP 502, open **Actions → Diagnose
 6. Run the external production smoke after routing changes. It must still pass HTTP 200/version/providers/CORS/private HTTP 401 before declaring production ready. Test Google and Microsoft personal-account login separately.
 
 **NOTE:** The probe creates and automatically deletes one temporary container using the existing API image. Its root filesystem is read-only and it has no mounts or published ports. It does not modify the running application, database, tunnel configuration, credentials, or user content.
+
+## 13. Automatic edge failure evidence (no secrets)
+
+When a production deploy reports `verify-public-auth` failure, no manual diagnostic dispatch is required to collect the first evidence. The failed GitHub-hosted job automatically probes nine independent safe routes, and a conditional trusted-main Pi job compares the API origin with the public `https://api.vuxoapi.xyz/health` route **from inside the connector network namespace**. It also reports only whether Docker saw an OOM kill and whether the connector restart count is zero, positive or unavailable.
+
+Both diagnostics are read-only and emit only safe fixed labels/numeric HTTP statuses. They never load GitHub production secrets, print tokens, request IDs, IP addresses, headers or bodies, or change Docker services. The release job **must remain failed** if `verify-public-auth` fails. A mismatch (internal HTTP 200, external HTTP 502) is evidence for investigating Cloudflare hostname/ingress/connector assignment, not proof of a particular misconfiguration. Keep #147 open until the real public tests pass consistently, then separately test Google and Microsoft interactive sign-in.

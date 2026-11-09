@@ -8,6 +8,7 @@ bash -n infra/pi3/bootstrap.sh
 bash -n infra/pi3/preflight.sh
 python3 -m unittest discover -s scripts -p 'test_pi3_auth_verification.py' -v
 python3 -m unittest discover -s scripts -p 'test_pi3_origin_diagnostics.py' -v
+python3 -m unittest discover -s scripts -p 'test_pi3_cloudflare_failure.py' -v
 
 # Build the ARM64 image on trusted green main CI without triggering the Pi.
 # Production deployment still requires a separate explicit repository flag.
@@ -101,5 +102,23 @@ for clause in ["workflow_dispatch:", "github.ref == 'refs/heads/main'", "github.
 assert "${{ secrets." not in manual, "Manual probe cannot use GitHub secrets"
 assert "python3 infra/pi3/diagnose_origin.py" in manual
 assert "verify-public-auth:" in Path(".github/workflows/deploy-pi3.yml").read_text(), "Do not weaken the strict public smoke"
+# On a red public gate, both GitHub-hosted and Pi vantage points must collect
+# only safe read-only evidence; never turn the public gate green.
+release = Path(".github/workflows/deploy-pi3.yml").read_text()
+assert "if: ${{ failure() }}" in release, "Public failure must trigger diagnostics"
+assert "VUXO_PUBLIC_AUTH_DIAGNOSTICS: 'true'" in release, "Independent public status probe required"
+assert "triage-pi3-after-public-failure:" in release, "Missing Pi-side failure triage"
+tail = release.split("  triage-pi3-after-public-failure:", 1)[1]
+for required in ["always() &&", "needs.deploy-pi3.result == 'success'",
+                 "needs.verify-public-auth.result == 'failure'", "vars.VUXO_PI3_DEPLOY_ENABLED == 'true'",
+                 "github.event.workflow_run.head_branch == 'main'",
+                 "runs-on: [self-hosted, linux, ARM64, vuxo-pi3]",
+                 "persist-credentials: false", "python3 infra/pi3/diagnose_cloudflare_failure.py"]:
+    assert required in tail, f"Missing safe Pi triage guard: {required}"
+assert "${{ secrets." not in tail, "Diagnostic must not load production secrets"
+strict = release.split("  verify-public-auth:", 1)[1].split("  triage-pi3-after-public-failure:", 1)[0]
+assert strict.index("run: node scripts/verify-public-auth.mjs") < strict.index("if: ${{ failure() }}"), "Strict gate must run before diagnostics"
+assert "continue-on-error: true" in strict, "Diagnostic itself must be informational"
+
 PY
 echo "Pi 3 Compose and deploy contract passed."

@@ -81,6 +81,12 @@ The Pi deployment replaces the `api` container after a pre-deploy PostgreSQL bac
 
 **This is a mitigation, not proof of the cause of HTTP 502.** The external GitHub-hosted `verify-public-auth` check must still pass the canonical public health, deployed version, providers, CORS, anonymous owner-only 401 endpoints and Microsoft bridge. If it fails, retain the last explicit response status, inspect the Cloudflare tunnel dashboard/route and connector logs on the Pi without printing tokens, and confirm the container service name `api:8080` matches the configured private ingress. Do not mark production live based only on a green local container. The CI `scripts/test-pi3-compose.sh` asserts that connector restart follows the local health gate and precedes the final on-host checks.
 
+## Public edge failure triage — automatic, no credentials (#150)
+
+If the GitHub-hosted `verify-public-auth` job fails after a successful Pi deployment, **the release workflow stays red**. It automatically runs the existing sanitized nine-route public HTTP diagnostic on the GitHub runner. A separate read-only Pi job then compares `http://api:8080/health` and `https://api.vuxoapi.xyz/health` **from the connector network namespace**, and reports fixed Docker OOM/restart *categories*. The Pi job runs only for a trusted `main` revision after `deploy-pi3` succeeds and public verification fails. It uses no new secrets or environmental credentials, and it never changes services, storage, tunnels or published routes.
+
+A temporary container reuses the local API image containing `curl`, with `--pull=never`, read-only root filesystem, no mounts/ports and dropped capabilities. The job prints only fixed outcomes and safe numeric HTTP status; it never prints connector logs, runtime tokens, Docker environment, HTTP bodies/headers, network addresses or request IDs. The external HTTP test remains the release acceptance gate. If the internal origin is HTTP 200 but both public vantage points report 502, inspect the Cloudflare published hostname and its connector assignment in the Cloudflare dashboard; **no root cause is proven solely by these probes**.
+
 ## 4. Production runtime and health
 
 The regular automatic deploy uses these files:
