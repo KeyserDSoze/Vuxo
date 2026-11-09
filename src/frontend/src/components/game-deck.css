@@ -602,3 +602,39 @@
     transform: none !important;
   }
 }
+
+
+/* #166: five destinations remain discoverable on narrow screens.
+   Text may ellipsize, but every icon and its complete accessible name remain. */
+@media (max-width: 599px) {
+  .vuxo-deck__rail { padding: 4px; }
+  .vuxo-deck__routes {
+    display: grid !important;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 2px;
+    width: 100%;
+    padding: 2px;
+    overflow: hidden;
+  }
+  .vuxo-deck__route {
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-width: 0;
+    min-height: 52px;
+    padding: 5px 1px;
+    gap: 3px;
+    border-radius: 9px;
+  }
+  .vuxo-deck__route .MuiSvgIcon-root { flex-shrink: 0; font-size: 19px; }
+  .vuxo-deck__route .MuiTypography-root {
+    display: block;
+    width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: center;
+    font-size: .59rem;
+    line-height: 1.2;
+  }
+}

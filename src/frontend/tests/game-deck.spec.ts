@@ -107,3 +107,38 @@ test('reduced-motion deck keeps keyboard navigation without route hover movement
   await inventory.focus();
   await expect(inventory).toBeFocused();
 });
+
+
+// #166: all five shortcuts must be discoverable without horizontal scrolling
+// on narrow phone screens, including the final World destination.
+for (const width of [320, 390, 480, 599]) {
+  test('compact deck exposes all 5 links at ' + width + 'px without clipping', async ({ page }) => {
+    await page.setViewportSize({ width, height: 568 });
+    await page.goto('./#/refuge');
+    const names = ['refuge', 'character', 'inventory', 'portals', 'game'];
+    const navigation = page.getByTestId('game-deck-navigation');
+    await expect(navigation).toBeVisible();
+    for (const name of names) {
+      const link = page.getByTestId('game-deck-link-' + name);
+      await expect(link).toBeVisible();
+      await expect(link).toBeInViewport({ ratio: 0.95 });
+      await expect(link).toHaveAttribute('aria-label', /.+/);
+      await expect(link).toHaveAttribute('title', /.+/);
+    }
+    await expect.poll(() => navigation.evaluate(nav => {
+      const rail = nav.getBoundingClientRect();
+      const anchors = [...nav.querySelectorAll<HTMLAnchorElement>('.vuxo-deck__route')];
+      return anchors.length === 5
+        && nav.scrollWidth <= nav.clientWidth + 1
+        && anchors.every(a => {
+          const rect = a.getBoundingClientRect();
+          return rect.width > 25 && rect.left >= rail.left - 1 && rect.right <= rail.right + 1;
+        });
+    })).toBe(true);
+    const portals = page.getByTestId('game-deck-link-portals');
+    await portals.focus();
+    await expect(portals).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(/#\/portals$/);
+  });
+}

@@ -8,6 +8,9 @@ on:
     paths:
       - .github/workflows/ux-visual-review.yml
       - src/frontend/tests/ux-visual-review.spec.ts
+      - src/frontend/src/components/game-deck.css
+      - src/frontend/src/components/GameDeck.tsx
+      - src/frontend/tests/game-deck.spec.ts
 
 permissions:
   contents: read

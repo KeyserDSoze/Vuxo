@@ -55,6 +55,8 @@ export function GameDeck({ children }: PropsWithChildren) {
                 to={route.to}
                 className="vuxo-deck__route"
                 data-testid={`game-deck-link-${route.name}`}
+                aria-label={t(route.label)}
+                title={t(route.label)}
                 aria-current={active ? 'page' : undefined}
                 sx={{
                   color: active ? 'primary.main' : 'text.secondary',
