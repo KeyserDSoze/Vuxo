@@ -120,6 +120,18 @@ if (process.env.VUXO_VISUAL_REVIEW === '1') {
                 await expect(page.getByTestId('world-presence')).toContainText('Moon Wanderer');
                 await expect(page.getByTestId('game-canvas')).toHaveAttribute('data-e2e-illustrated-player-count', '2');
                 await expect(page.getByTestId('game-canvas')).toHaveAttribute('data-e2e-world-art-version', 'vuxo-world-art-v1');
+                await expect.poll(() => page.evaluate(() => {
+                  const encoded = document.querySelector('[data-testid="game-canvas"]')
+                    ?.getAttribute('data-e2e-name-label-bounds');
+                  if (!encoded) return false;
+                  const labels = JSON.parse(encoded) as Array<{
+                    left: number; right: number; top: number; bottom: number
+                  }>;
+                  return labels.length === 2 && labels.every((a, index) =>
+                    labels.slice(index + 1).every(b =>
+                      a.right + 5 <= b.left || b.right + 5 <= a.left ||
+                      a.bottom + 5 <= b.top || b.bottom + 5 <= a.top));
+                })).toBe(true);
                 await expect(page.getByTestId('game-canvas').locator('canvas')).toBeVisible();
                 await expect.poll(() => page.evaluate(() => {
                   const host = document.querySelector('[data-testid="game-canvas"]');

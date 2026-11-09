@@ -37,6 +37,18 @@ test('two illustrated wanderers coexist in the authoritative world at mobile siz
       await expect(page.locator('[data-player-id="art-player-b"]')).toBeVisible()
       await expect(page.getByTestId('game-canvas').locator('canvas')).toBeVisible()
       await expect.poll(() => page.evaluate(() => {
+        const encoded = document.querySelector('[data-testid="game-canvas"]')
+          ?.getAttribute('data-e2e-name-label-bounds')
+        if (!encoded) return false
+        const labels = JSON.parse(encoded) as Array<{
+          left: number; right: number; top: number; bottom: number
+        }>
+        return labels.length === 2 && labels.every((a, index) =>
+          labels.slice(index + 1).every(b =>
+            a.right + 5 <= b.left || b.right + 5 <= a.left ||
+            a.bottom + 5 <= b.top || b.bottom + 5 <= a.top))
+      })).toBe(true)
+      await expect.poll(() => page.evaluate(() => {
         const host = document.querySelector('[data-testid="game-canvas"]')
         const canvas = host?.querySelector('canvas')
         if (!host || !canvas) return false

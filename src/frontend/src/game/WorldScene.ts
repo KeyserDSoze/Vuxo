@@ -1,7 +1,7 @@
 import Phaser from 'phaser'
 import type { WorldPlayerSnapshot, WorldRealtimeClient, WorldRealtimeState } from '../features/world/worldRealtime'
 import type { WorldPortalMarker } from '../features/portals/portalApi'
-import { WORLD_ART_VERSION, createIllustratedWanderer, paintWoodlandTile, stableArtHash } from './WorldArtwork'
+import { WORLD_ART_VERSION, createIllustratedWanderer, paintWoodlandTile } from './WorldArtwork'
 
 const TILE_SIZE = 32
 
@@ -14,7 +14,6 @@ type PortalVisual = {
 type PlayerVisual = {
   body: Phaser.GameObjects.Container
   name: Phaser.GameObjects.Text
-  labelOffset: number
   targetX: number
   targetY: number
 }
@@ -63,6 +62,7 @@ export class WorldScene extends Phaser.Scene {
         const host = document.querySelector('[data-testid="game-canvas"]')
         host?.removeAttribute('data-e2e-illustrated-player-count')
         host?.removeAttribute('data-e2e-world-art-version')
+        host?.removeAttribute('data-e2e-name-label-bounds')
       }
       this.realtime.setMovementIntent(0, 0)
       this.unsubscribe?.()
@@ -158,9 +158,52 @@ export class WorldScene extends Phaser.Scene {
     for (const visual of this.players.values()) {
       visual.body.x = Phaser.Math.Linear(visual.body.x, visual.targetX, interpolation)
       visual.body.y = Phaser.Math.Linear(visual.body.y, visual.targetY, interpolation)
-      visual.name.setPosition(visual.body.x, visual.body.y - visual.labelOffset)
       const offset = visual.targetX - visual.body.x
       if (Math.abs(offset) > 2) visual.body.setScale(offset < 0 ? -1 : 1, 1)
+    }
+    this.layoutPlayerNameLabels()
+  }
+
+  /**
+   * Give nearby player names separate lanes. This alters only Phaser text
+   * positions: character coordinates, camera tracking and portal hit areas
+   * remain controlled by existing world state.
+   */
+  private layoutPlayerNameLabels(): void {
+    type Rect = { left: number; right: number; top: number; bottom: number }
+    const placed: Rect[] = []
+    const evidence: Array<Rect & { playerId: string }> = []
+    const ordered = [...this.players.entries()].sort(([idA, a], [idB, b]) =>
+      a.body.y - b.body.y || a.body.x - b.body.x || idA.localeCompare(idB))
+
+    for (const [playerId, visual] of ordered) {
+      const left = visual.body.x - visual.name.displayWidth / 2
+      const right = visual.body.x + visual.name.displayWidth / 2
+      const height = visual.name.displayHeight
+      let bottom = visual.body.y - 54
+
+      // Each conflict shifts the candidate above an already placed label.
+      // The bounded search terminates even when many players share a tile.
+      for (let attempts = 0; attempts <= placed.length; attempts++) {
+        const top = bottom - height
+        const conflict = placed.find(rect =>
+          left < rect.right + 6 && right > rect.left - 6 &&
+          top < rect.bottom + 6 && bottom > rect.top - 6)
+        if (!conflict) break
+        bottom = conflict.top - 6
+      }
+
+      const bounds = { left, right, top: bottom - height, bottom }
+      visual.name.setPosition(visual.body.x, bottom)
+      placed.push(bounds)
+      if (import.meta.env.VITE_E2E_REALTIME === 'true') evidence.push({ playerId, ...bounds })
+    }
+
+    // E2E-only geometric evidence: assertions verify layout instead of only
+    // checking name chips. Never expose a browser diagnostic in production.
+    if (import.meta.env.VITE_E2E_REALTIME === 'true') {
+      const host = document.querySelector('[data-testid="game-canvas"]')
+      host?.setAttribute('data-e2e-name-label-bounds', JSON.stringify(evidence))
     }
   }
 
@@ -208,8 +251,7 @@ export class WorldScene extends Phaser.Scene {
     const isSelf = player.playerId === this.selfPlayerId
     const body = createIllustratedWanderer(this, player.playerId, isSelf)
     body.setPosition(targetX, targetY)
-    const labelOffset = 54 + (stableArtHash(player.playerId) % 2) * 15
-    const name = this.add.text(targetX, targetY - labelOffset, player.characterName, {
+    const name = this.add.text(targetX, targetY - 54, player.characterName, {
       color: '#f8fafc',
       fontFamily: 'system-ui, sans-serif',
       fontSize: '12px',
@@ -220,7 +262,7 @@ export class WorldScene extends Phaser.Scene {
     name.setOrigin(0.5, 1)
     name.setDepth(11)
 
-    this.players.set(player.playerId, { body, name, labelOffset, targetX, targetY })
+    this.players.set(player.playerId, { body, name, targetX, targetY })
   }
 
   private removePlayer(playerId: string): void {
