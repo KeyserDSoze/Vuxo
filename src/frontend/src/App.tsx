@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { Link as RouterLink, Route, Routes, useLocation } from 'react-router-dom';
 import { useAdminAccessState } from './features/admin/useAdminAccessState';
 import { BuildUpdateNotifier } from './features/version/BuildUpdateNotifier';
+import { GameDeck } from './components/GameDeck';
 import { useBuildInfo } from './features/version/BuildInfoProvider';
 import { AuthPage } from './pages/AuthPage';
 import { CharacterEditorPage } from './pages/CharacterEditorPage';
@@ -44,7 +45,8 @@ export function App() {
   const location = useLocation();
   const isWorldRoute = location.pathname === '/game';
   const isHomeRoute = location.pathname === '/';
-  const isViewportRoute = isWorldRoute || isHomeRoute;
+  const isDeckRoute = ['/refuge', '/inventory', '/character', '/portals'].includes(location.pathname);
+  const isViewportRoute = isWorldRoute || isHomeRoute || isDeckRoute;
   const accessState = useAdminAccessState();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const visibleNavItems = navItems.filter(item => item.to !== '/admin' || accessState === 'administrator');
@@ -176,15 +178,15 @@ export function App() {
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/auth" element={<AuthPage />} />
-          <Route path="/refuge" element={<RefugePage />} />
+          <Route path="/refuge" element={<GameDeck><RefugePage /></GameDeck>} />
           <Route path="/refuge/journal" element={<RefugeJournalPage />} />
           <Route path="/refuge/training" element={<RuneTrainingPage />} />
           <Route path="/refuge/reflex" element={<ReflexTrainingPage />} />
           <Route path="/refuge/path" element={<RunePathPage />} />
-          <Route path="/character" element={<CharacterEditorPage />} />
+          <Route path="/character" element={<GameDeck><CharacterEditorPage /></GameDeck>} />
           <Route path="/game" element={<GamePage />} />
-          <Route path="/portals" element={<PortalChallengesPage />} />
-          <Route path="/inventory" element={<InventoryPage />} />
+          <Route path="/portals" element={<GameDeck><PortalChallengesPage /></GameDeck>} />
+          <Route path="/inventory" element={<GameDeck><InventoryPage /></GameDeck>} />
           <Route path="/admin" element={<AdminRoute />} />
           <Route path="/version" element={<VersionPage />} />
         </Routes>
