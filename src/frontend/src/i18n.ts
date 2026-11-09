@@ -532,6 +532,13 @@ const initialization = i18n.use(initReactI18next).init({
           awardedAt: 'Ottenuto il {{date}}',
           quantity: 'Quantità: {{count}}',
           stacksTitle: 'Pile di oggetti',
+          inspect: {
+            open: 'Esamina',
+            title: 'Ispezione oggetto',
+            close: 'Chiudi ispezione',
+            canonicalKey: 'Codice oggetto',
+            serverNote: 'Le quantità e lo stato equipaggiato sono confermati dal server. L’ispezione non modifica l’inventario.',
+          },
           loadout: {
             title: 'Il tuo equipaggiamento',
             description: 'Reliquia e amuleto confermati dal server. Scegli cosa indossare dalle pile disponibili.',
@@ -1216,6 +1223,13 @@ const initialization = i18n.use(initReactI18next).init({
           awardedAt: 'Earned on {{date}}',
           quantity: 'Quantity: {{count}}',
           stacksTitle: 'Item stacks',
+          inspect: {
+            open: 'Inspect',
+            title: 'Item inspection',
+            close: 'Close inspection',
+            canonicalKey: 'Item code',
+            serverNote: 'Quantities and equipped state come from the server. Inspecting an item never changes the inventory.',
+          },
           loadout: {
             title: 'Your equipment',
             description: 'Server-confirmed relic and charm slots. Choose what to wear from your available stacks.',
