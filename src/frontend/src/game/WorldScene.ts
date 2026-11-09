@@ -3,6 +3,7 @@ import type { WorldPlayerSnapshot, WorldRealtimeClient, WorldRealtimeState } fro
 import type { WorldPortalMarker } from '../features/portals/portalApi'
 import { WORLD_ART_VERSION, createIllustratedWanderer, paintWoodlandTile } from './WorldArtwork'
 import { readWorldAppearance, worldAppearanceKey } from './WorldAppearance'
+import { computeWorldCameraZoom } from './WorldCamera'
 
 const TILE_SIZE = 32
 
@@ -49,6 +50,7 @@ export class WorldScene extends Phaser.Scene {
   create() {
     this.reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     this.terrainGraphics = this.add.graphics().setDepth(-10)
+    this.updateCameraZoom(this.scale.width, this.scale.height)
     this.drawWorldGrid()
     this.ready = true
     this.drawPortals()
@@ -66,11 +68,36 @@ export class WorldScene extends Phaser.Scene {
         host?.removeAttribute('data-e2e-world-art-version')
         host?.removeAttribute('data-e2e-avatar-appearance')
         host?.removeAttribute('data-e2e-name-label-bounds')
+        host?.removeAttribute('data-e2e-camera-zoom')
       }
       this.realtime.setMovementIntent(0, 0)
       this.unsubscribe?.()
       this.unsubscribe = null
     })
+  }
+
+  /**
+   * Phaser uses the actual canvas parent size, not window.innerWidth.
+   * ResizeObserver drives this for fullscreen, browser zoom and panels.
+   */
+  resizeViewport(width: number, height: number): void {
+    if (width < 1 || height < 1) return
+    this.cameras.main.setSize(width, height)
+    this.updateCameraZoom(width, height)
+  }
+
+  private updateCameraZoom(width: number, height: number): void {
+    const zoom = computeWorldCameraZoom(width, height)
+    if (this.cameras.main.zoom !== zoom) {
+      this.cameras.main.setZoom(zoom)
+      // The tile bounds are recalculated on the next world update; the
+      // player follow target and all portal world coordinates are unchanged.
+      this.terrainBounds = ''
+    }
+    if (import.meta.env.VITE_E2E_REALTIME === 'true') {
+      document.querySelector('[data-testid="game-canvas"]')
+        ?.setAttribute('data-e2e-camera-zoom', String(zoom))
+    }
   }
 
   setPortals(markers: readonly WorldPortalMarker[]): void {
@@ -235,7 +262,8 @@ export class WorldScene extends Phaser.Scene {
       const self = this.players.get(this.selfPlayerId)
       if (self) {
         this.cameras.main.startFollow(self.body, true, 0.12, 0.12)
-        this.cameras.main.setZoom(1)
+        // Camera zoom is viewport-owned; joining or reconnecting must not
+        // reset it to a fixed 1:1 desktop scale.
         this.cameraTargetId = this.selfPlayerId
       }
     }

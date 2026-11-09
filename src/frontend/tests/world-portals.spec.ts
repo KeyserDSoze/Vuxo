@@ -542,3 +542,44 @@ test('Guardian history failure is recoverable without replaying combat actions',
   expect(historyRequests).toBe(2);
   expect(turnRequests).toBe(0);
 });
+
+test('responsive camera keeps a real Phaser portal hit area clickable after ultrawide resize', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await initializePlayer(page);
+  const api = await mockPrivatePortals(page);
+  await page.goto(origin + '/Vuxo/#/game');
+  const host = page.getByTestId('game-canvas');
+  const canvas = host.locator('canvas');
+  await expect(page.getByTestId('world-connection-status')).toHaveAttribute('data-status', 'connected');
+  await expect(host).toHaveAttribute('data-rendered-portals', '1');
+  await page.setViewportSize({ width: 3440, height: 1440 });
+  await expect.poll(async () => Number(await host.getAttribute('data-e2e-camera-zoom')))
+    .toBeGreaterThanOrEqual(1.75);
+
+  // The projected marker is evaluated by Phaser with the actual zoom and
+  // scroll; clicking it still invokes the original server-validated action.
+  await expect.poll(() => host.evaluate(element => {
+    const x = Number(element.dataset.portalScreenX);
+    const y = Number(element.dataset.portalScreenY);
+    const canvas = element.querySelector('canvas') as HTMLCanvasElement | null;
+    return !!canvas && Number.isFinite(x) && Number.isFinite(y)
+      && x > 0 && y > 0 && x < canvas.width && y < canvas.height;
+  })).toBe(true);
+  const marker = await host.evaluate(element => ({
+    x: Number(element.dataset.portalScreenX),
+    y: Number(element.dataset.portalScreenY),
+  }));
+  const bounds = await canvas.boundingBox();
+  const pixels = await canvas.evaluate(element => ({
+    width: (element as HTMLCanvasElement).width,
+    height: (element as HTMLCanvasElement).height,
+  }));
+  if (!bounds) throw new Error('World canvas not mounted');
+  await canvas.click({ position: {
+    x: marker.x * bounds.width / pixels.width,
+    y: marker.y * bounds.height / pixels.height,
+  } });
+  await expect(page.getByTestId('world-portal-dialog')).toBeVisible();
+  expect(api.getEntryCalls()).toBe(1);
+  await expect(page.getByTestId('world-connection-status')).toHaveAttribute('data-status', 'connected');
+});

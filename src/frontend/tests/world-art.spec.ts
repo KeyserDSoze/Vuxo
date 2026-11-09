@@ -210,3 +210,114 @@ test('E2E world scopes isolate players, movement and resets across parallel scen
   expect(await state('world-art-room-a')).toEqual([])
   expect((await state('world-art-room-b')).map(player => player.playerId)).toEqual(['isolated-b'])
 })
+
+const cameraScope = 'world-art-camera'
+
+test('adaptive camera keeps two canonical outfits, viewport HUD and movement stable across mobile-to-ultrawide resize', async ({ page, request }, info) => {
+  test.setTimeout(90_000)
+  await resetRoom(request, cameraScope)
+  const fixtures = [
+  {
+    "playerId": "camera-self",
+    "characterName": "Sun Wanderer",
+    "appearance": {
+      "catalogVersion": "0.0.1",
+      "hairStyle": "hair-4",
+      "hairColor": "red",
+      "face": "face-2",
+      "bodyType": "body-1",
+      "skinTone": "skin-3",
+      "topColor": "green",
+      "bottomStyle": "skirt",
+      "bottomColor": "white",
+      "shoeStyle": "shoe-2",
+      "shoeColor": "blue"
+    }
+  },
+  {
+    "playerId": "camera-peer",
+    "characterName": "Moon Wanderer",
+    "appearance": {
+      "catalogVersion": "0.0.1",
+      "hairStyle": "hair-2",
+      "hairColor": "blonde",
+      "face": "face-1",
+      "bodyType": "body-3",
+      "skinTone": "skin-5",
+      "topColor": "red",
+      "bottomStyle": "shorts",
+      "bottomColor": "black",
+      "shoeStyle": "shoe-1",
+      "shoeColor": "white"
+    }
+  }
+]
+  for (const fixture of fixtures) {
+    const seeded = await request.post(origin + '/__vuxo_e2e/world/join?scope=' + cameraScope, { data: fixture })
+    expect(seeded.ok()).toBeTruthy()
+  }
+  await demoPlayer(page, 'camera-self', 'Sun Wanderer', cameraScope)
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await page.setViewportSize({ width: 320, height: 568 })
+  await page.goto(gameUrl)
+
+  const host = page.getByTestId('game-canvas')
+  const self = page.locator('[data-player-id="camera-self"]')
+  await expect(page.getByTestId('world-connection-status')).toHaveAttribute('data-status', 'connected')
+  await expect(host).toHaveAttribute('data-e2e-illustrated-player-count', '2')
+  await expect(self).toBeVisible()
+
+  const samples = [
+    { width: 320, height: 568, min: 1, max: 1 },
+    { width: 390, height: 844, min: 1, max: 1 },
+    { width: 768, height: 1024, min: 1, max: 1.16 },
+    { width: 1280, height: 720, min: 1.1, max: 1.4 },
+    { width: 1920, height: 1080, min: 1.4, max: 1.9 },
+    { width: 3440, height: 1440, min: 1.75, max: 1.9 },
+  ] as const
+  const observed: number[] = []
+  const originalX = Number(await self.getAttribute('data-player-x'))
+  for (const sample of samples) {
+    await page.setViewportSize({ width: sample.width, height: sample.height })
+    await expect.poll(async () => {
+      const zoom = Number(await host.getAttribute('data-e2e-camera-zoom'))
+      return zoom >= sample.min && zoom <= sample.max
+    }).toBe(true)
+    const zoom = Number(await host.getAttribute('data-e2e-camera-zoom'))
+    observed.push(zoom)
+    await expect.poll(() => page.evaluate(() => {
+      const surface = document.querySelector('[data-testid="game-canvas"]')!
+      const canvas = surface.querySelector('canvas')!
+      const a = surface.getBoundingClientRect()
+      const b = canvas.getBoundingClientRect()
+      return Math.abs(a.width - b.width) <= 2
+        && Math.abs(a.height - b.height) <= 2
+        && document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1
+        && document.documentElement.scrollHeight <= window.innerHeight + 1
+        && document.scrollingElement!.scrollTop === 0
+    })).toBe(true)
+    await expect(page.getByTestId('world-connection-status')).toBeVisible()
+    await expect(page.getByTestId('game-fullscreen-toggle')).toBeVisible()
+    await expect(self).toHaveAttribute('data-player-x', String(originalX))
+    if (sample.width === 390 || sample.width === 1920 || sample.width === 3440) {
+      await info.attach('adaptive-world-' + sample.width + 'x' + sample.height, {
+        body: await page.screenshot({ animations: 'disabled' }),
+        contentType: 'image/png',
+      })
+    }
+  }
+  expect(observed[0]).toBe(1)
+  expect(observed[1]).toBe(1)
+  expect(observed[4]).toBeGreaterThan(observed[3])
+  expect(observed[5]).toBeGreaterThan(observed[4])
+
+  // Camera resizing never grants movement: the mock world still owns tiles.
+  await page.setViewportSize({ width: 390, height: 844 })
+  await expect(host).toHaveAttribute('data-e2e-camera-zoom', '1')
+  await page.getByTestId('game-canvas').locator('canvas').click()
+  await page.keyboard.down('ArrowRight')
+  await page.waitForTimeout(150)
+  await page.keyboard.up('ArrowRight')
+  await expect.poll(async () => Number(await self.getAttribute('data-player-x')))
+    .toBeGreaterThan(originalX)
+})

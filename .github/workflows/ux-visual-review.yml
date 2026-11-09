@@ -13,6 +13,9 @@ on:
       - src/frontend/tests/game-deck.spec.ts
       - src/frontend/src/game/WorldArtwork.ts
       - src/frontend/src/game/WorldScene.ts
+      - src/frontend/src/game/WorldCamera.ts
+      - src/frontend/tests/world-camera.spec.ts
+      - src/frontend/tests/world-portals.spec.ts
       - src/frontend/tests/world-art.spec.ts
       - src/frontend/src/pages/CharacterEditorPage.tsx
       - src/frontend/tests/character-studio.spec.ts
