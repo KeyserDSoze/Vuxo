@@ -39,7 +39,7 @@ jobs:
           CI: "true"
           VITE_BASE_PATH: /Vuxo/
           VUXO_VISUAL_REVIEW: "1"
-        run: npx playwright test tests/ux-visual-review.spec.ts --workers=2
+        run: npx playwright test tests/ux-visual-review.spec.ts tests/world-art.spec.ts --workers=1
       - name: Upload screenshots and HTML report
         if: always()
         uses: actions/upload-artifact@v4

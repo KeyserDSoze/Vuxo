@@ -22,3 +22,7 @@ Esecuzione locale da src/frontend: installare le dipendenze e Chromium, poi impo
 ## Aggiornamento world art #167
 
 Dal commit `3a602fa`, `/game` mostra viandanti 2D procedurali e un terreno originale. La visual QA deve confrontare gli screenshot world a 320, 390, 1280, 1920 e 3440 pixel, più gli allegati `world-art-mobile-two-players` e `world-art-desktop-two-players` dei test multiplayer. Controllare contrasto, nomi vicini, portali, orientamento e leggibilità. Colori e silhouette **non** sono l'appearance salvata sul server. Lo screenshot automatico non chiude la verifica hardware/fullscreen #155.
+
+## Copertura avatar reale nella matrice (issue #170)
+
+La schermata `/game` nella matrice non è più un mondo ospite vuoto: il preview Vite viene resettato e avviato con **due giocatori sintetici** (`Visual Wanderer` e `Moon Wanderer`). Il test attende lo stato connected e due contenitori grafici Phaser creati, tramite il solo segnale E2E `data-e2e-illustrated-player-count=2`, oltre alle presenze testuali. La build di produzione non espone il segnale. La workflow visuale include anche `world-art.spec.ts` con screenshot due-browser e cambio viewport, usando un unico worker per evitare interferenze nel mock multiplayer condiviso. I dati sono esclusivamente locali; non contengono account, email o personaggi veri. Il test verifica che gli avatar siano stati creati, non sostituisce una revisione visiva umana né certifica la Fullscreen API di #155.

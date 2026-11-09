@@ -69,11 +69,15 @@ async function mockDemoApi(page: Page) {
   });
 }
 
-async function prepare(page: Page, language: 'it' | 'en', theme: 'light' | 'dark', owner: boolean) {
-  await page.addInitScript(({ language, theme, owner }) => {
+async function prepare(page: Page, language: 'it' | 'en', theme: 'light' | 'dark', owner: boolean, world: boolean) {
+  await page.addInitScript(({ language, theme, owner, world }) => {
     localStorage.clear();
     localStorage.setItem('vuxo.language', language);
     localStorage.setItem('vuxo.theme', theme);
+    if (world) {
+      localStorage.setItem('vuxo.e2ePlayerId', 'visual-art-self');
+      localStorage.setItem('vuxo.e2eCharacterName', 'Visual Wanderer');
+    }
     if (owner) {
       localStorage.setItem('vuxo.accessToken', 'visual-qa-synthetic-owner');
       localStorage.setItem('vuxo.auth.expiresAtUtc', '2099-01-01T00:00:00Z');
@@ -81,7 +85,7 @@ async function prepare(page: Page, language: 'it' | 'en', theme: 'light' | 'dark
         id: 'visual-qa-only', displayName: 'Demo Vuxian', email: null,
       }));
     }
-  }, { language, theme, owner });
+  }, { language, theme, owner, world });
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await mockDemoApi(page);
 }
@@ -93,14 +97,29 @@ if (process.env.VUXO_VISUAL_REVIEW === '1') {
       for (const [width, height] of sizes) {
         for (const screen of screens) {
           test(screen.name + ' ' + variant.language + '-' + variant.theme + ' ' + width + 'x' + height,
-            async ({ page }, info) => {
+            async ({ page, request }, info) => {
               await page.setViewportSize({ width, height });
-              await prepare(page, variant.language, variant.theme, screen.owner);
+              await prepare(page, variant.language, variant.theme, screen.owner, screen.name === 'world');
+              if (screen.name === 'world') {
+                // Reset and seed ONLY the local Vite E2E world. Run serially:
+                // its in-memory two-player scene is shared by browser contexts.
+                const reset = await request.post('http://127.0.0.1:4173/__vuxo_e2e/world/reset');
+                expect(reset.ok()).toBe(true);
+                const peer = await request.post('http://127.0.0.1:4173/__vuxo_e2e/world/join', {
+                  data: { playerId: 'visual-art-peer', characterName: 'Moon Wanderer' },
+                });
+                expect(peer.ok()).toBe(true);
+              }
               await page.goto('./#' + screen.route);
               await expect(page.getByTestId(screen.ready).first()).toBeVisible();
               await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme))
                 .toBe(variant.theme);
               if (screen.name === 'world') {
+                await expect(page.getByTestId('world-connection-status')).toHaveAttribute('data-status', 'connected');
+                await expect(page.getByTestId('world-presence')).toContainText('Visual Wanderer');
+                await expect(page.getByTestId('world-presence')).toContainText('Moon Wanderer');
+                await expect(page.getByTestId('game-canvas')).toHaveAttribute('data-e2e-illustrated-player-count', '2');
+                await expect(page.getByTestId('game-canvas')).toHaveAttribute('data-e2e-world-art-version', 'vuxo-world-art-v1');
                 await expect(page.getByTestId('game-canvas').locator('canvas')).toBeVisible();
                 await expect.poll(() => page.evaluate(() => {
                   const host = document.querySelector('[data-testid="game-canvas"]');

@@ -1,7 +1,7 @@
 import Phaser from 'phaser'
 import type { WorldPlayerSnapshot, WorldRealtimeClient, WorldRealtimeState } from '../features/world/worldRealtime'
 import type { WorldPortalMarker } from '../features/portals/portalApi'
-import { createIllustratedWanderer, paintWoodlandTile, stableArtHash } from './WorldArtwork'
+import { WORLD_ART_VERSION, createIllustratedWanderer, paintWoodlandTile, stableArtHash } from './WorldArtwork'
 
 const TILE_SIZE = 32
 
@@ -59,6 +59,11 @@ export class WorldScene extends Phaser.Scene {
       this.ready = false
       this.terrainGraphics = null
       this.terrainBounds = ''
+      if (import.meta.env.VITE_E2E_REALTIME === 'true') {
+        const host = document.querySelector('[data-testid="game-canvas"]')
+        host?.removeAttribute('data-e2e-illustrated-player-count')
+        host?.removeAttribute('data-e2e-world-art-version')
+      }
       this.realtime.setMovementIntent(0, 0)
       this.unsubscribe?.()
       this.unsubscribe = null
@@ -167,6 +172,15 @@ export class WorldScene extends Phaser.Scene {
     }
 
     for (const player of state.players.values()) this.upsertPlayer(player)
+
+    // Playwright-only proof that Phaser has actually constructed both illustrated
+    // avatar containers. Presence chips and a canvas alone do not prove that.
+    // These attributes are never emitted in the production realtime build.
+    if (import.meta.env.VITE_E2E_REALTIME === 'true') {
+      const host = document.querySelector('[data-testid="game-canvas"]')
+      host?.setAttribute('data-e2e-illustrated-player-count', String(this.players.size))
+      host?.setAttribute('data-e2e-world-art-version', WORLD_ART_VERSION)
+    }
 
     if (this.selfPlayerId && this.cameraTargetId !== this.selfPlayerId) {
       const self = this.players.get(this.selfPlayerId)
