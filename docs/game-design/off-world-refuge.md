@@ -29,6 +29,16 @@ Il Diario offre su richiesta il pulsante **Mostra portali completati** (con opzi
 
 La UI recupera la cronologia paginata e mostra timestamp, riferimento e versione della regola, senza seed, soluzioni o premi ipotetici. Riaprire la sezione, il refresh completo e il cambio account eliminano lo snapshot precedente e annullano le richieste in corso. Le tre letture (premi, portali disponibili, completamenti verificati) conservano errore/empty/retry distinti. IT/EN, 320px, tastiera e test API/PostgreSQL/Playwright verificano login e owner, paginazione, dati limitati, nessuna chiamata per guest o prima dell'apertura, retry, refresh e nessun Phaser. **Lo storico non comprende ancora tutti i risultati Guardian, tentativi falliti o scadenze**: sono un'evoluzione distinta di #119 e non vanno inventati.
 
+## Cronologia degli esiti verificati — issue #119, seconda tranche
+
+Senza alterare la prima vista **Solo rune completate**, la sezione personale dello storico introduce una modalità **Tutti gli esiti verificati**. Una GET owner-only (`/api/personal-content/history/outcomes?page=1&pageSize=20`, dimensione massima 50, pagina al massimo 1000) combina in PostgreSQL, con `UNION ALL` e ordinamento stabile `OccurredAtUtc DESC, EventId DESC`, tre tipi di prova canonica, tutti legati allo stesso proprietario e all'audit:
+
+- `sequence_completed`: grant rune consumato con audit causale di soluzione della sequenza; **non** semplice assegnazione di oggetti.
+- `sequence_first_mistake`: sola ricevuta persistita di **primo** errore della sequenza, unita all'evento di danno; non equivale al totale dei tentativi sbagliati e può riportare danno nullo.
+- `guardian_victory` e `guardian_retreat`: ricevute terminali di turno del Guardiano, unite all'audit `portal.guardian_turn_resolved` tramite evento di incontro; gli scontri ancora in corso sono esclusi. La ritirata non è una sconfitta della sequenza.
+
+La risposta contiene soltanto `eventId`, `grantId`, `contentKey`, `kind`, `ruleVersion`, `occurredAtUtc`, pagina, dimensione e `hasMore`, senza `playerId`, seed, risposte o premi. La seconda migrazione aggiunge indici owner/data agli eventi di danno e ai turni PvE; non migra o inventa vecchi risultati. Il Diario mantiene l'apertura on-demand, azzera la modalità/pagina su refresh globale o cambio proprietario, differenzia i tipi con copy IT/EN e dispone di test API, integrazione PostgreSQL e Playwright mobile/keyboard/no Phaser. I tentativi senza ricevuta e le scadenze non confermate restano fuori dallo storico.
+
 ## Gestione del loadout nell'Inventario — issue #116
 
 La UI mostra i due slot correnti **solo quando** la lettura congiunta `GET /api/equipment` e `GET /api/inventory/stacks` è riuscita. Un caricamento incompleto o un errore non sono equivalenti a slot vuoto e non possono abilitare azioni sull'equipaggiamento.

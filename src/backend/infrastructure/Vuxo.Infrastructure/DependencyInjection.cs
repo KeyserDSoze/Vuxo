@@ -36,6 +36,7 @@ public static class DependencyInjection
         services.AddScoped<IWorldRepository, WorldRepository>();
         services.AddScoped<IExclusiveContentGrantRepository, ExclusiveContentGrantRepository>();
         services.AddScoped<IPortalCompletionHistoryReader, PortalCompletionHistoryReader>();
+        services.AddScoped<IPortalOutcomeHistoryReader, PortalOutcomeHistoryReader>();
         services.AddScoped<IPlayerInventoryRepository, PlayerInventoryRepository>();
         services.AddScoped<IPlayerEquipmentRepository, PlayerEquipmentRepository>();
         services.AddScoped<IVuxoIdentityRepository, VuxoIdentityRepository>();

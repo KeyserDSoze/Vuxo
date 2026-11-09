@@ -132,6 +132,26 @@ public static class PersonalContentEndpoints
             })
             .RequireAuthorization();
 
+        // Read-only outcome timeline: each row must carry immutable
+        // owner-matched receipts and audit evidence; no inferred outcomes.
+        endpoints.MapGet(
+            "/api/personal-content/history/outcomes",
+            async (ClaimsPrincipal user, IPortalOutcomeHistoryReader history,
+                int? page, int? pageSize, CancellationToken cancellationToken) =>
+            {
+                var playerId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrWhiteSpace(playerId)) return Results.Unauthorized();
+
+                var requestedPage = page ?? 1;
+                var requestedSize = pageSize ?? 20;
+                if (requestedPage is < 1 or > 1000 || requestedSize is < 1 or > 50)
+                    return Results.BadRequest(new { code = "portal_history_invalid_pagination" });
+
+                return Results.Ok(await history.ListForPlayerAsync(
+                    playerId, requestedPage, requestedSize, cancellationToken));
+            })
+            .RequireAuthorization();
+
         // Only persisted and causally audited sequence completions are victories.
         // A consumed grant or an inventory reward alone is never proof.
         endpoints.MapGet(

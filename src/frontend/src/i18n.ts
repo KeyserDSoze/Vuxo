@@ -80,6 +80,24 @@ const initialization = i18n.use(initReactI18next).init({
             refreshAll: 'Aggiorna tutto',
             retry: 'Aggiorna',
             dateUnavailable: 'Data non disponibile',
+            outcomes: {
+              title: 'Esiti verificati dei portali',
+              description: 'Una cronologia di eventi confermati: rune risolte, primi errori con danno e conclusioni dei duelli PvE.',
+              modeLabel: 'Tipo di storico',
+              modes: { completed: 'Solo rune completate', all: 'Tutti gli esiti verificati' },
+              loading: 'Caricamento esiti verificati…',
+              error: 'Non è stato possibile leggere gli esiti. Riprova senza ripetere la sfida.',
+              empty: 'Nessun esito verificabile registrato per il tuo personaggio.',
+              at: 'Registrato il {{date}}',
+              more: 'Carica altri eventi',
+              kinds: {
+                sequence_completed: 'Sequenza di rune completata',
+                sequence_first_mistake: 'Primo errore di rune registrato',
+                guardian_victory: 'Vittoria contro il Guardiano',
+                guardian_retreat: 'Ritirata dal Guardiano'
+              },
+              disclaimer: 'Lo storico comprende solo eventi persistiti e verificabili. Un primo errore con danno non conta tutti i tentativi sbagliati; una ritirata non è una sconfitta della sequenza. Scadenze e fallimenti privi di ricevuta non sono ricostruibili.'
+            },
             completed: {
               show: 'Mostra portali completati',
               hide: 'Nascondi lo storico',
@@ -625,6 +643,24 @@ const initialization = i18n.use(initReactI18next).init({
             refreshAll: 'Refresh all',
             retry: 'Refresh',
             dateUnavailable: 'Date unavailable',
+            outcomes: {
+              title: 'Verified portal outcomes',
+              description: 'A timeline of confirmed events: solved runes, first damaging mistakes and finished PvE showdowns.',
+              modeLabel: 'History type',
+              modes: { completed: 'Completed runes only', all: 'All verified outcomes' },
+              loading: 'Loading verified outcomes…',
+              error: 'Could not read your outcomes. Retry without replaying a challenge.',
+              empty: 'No verifiable outcomes have been recorded for your character.',
+              at: 'Recorded on {{date}}',
+              more: 'Load more events',
+              kinds: {
+                sequence_completed: 'Rune sequence completed',
+                sequence_first_mistake: 'First recorded rune mistake',
+                guardian_victory: 'Victory over the Guardian',
+                guardian_retreat: 'Retreat from the Guardian'
+              },
+              disclaimer: 'Only persisted, verifiable events are listed. A first damaging mistake does not count all wrong attempts; retreat is not a failed rune sequence. Unrecorded failures and expirations cannot be reconstructed.'
+            },
             completed: {
               show: 'Show verified completions',
               hide: 'Hide verified completions',
