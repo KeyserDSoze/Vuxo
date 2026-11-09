@@ -131,7 +131,7 @@ export function PortalChallengesPage({
   };
 
   return (
-    <Stack spacing={3} data-testid="portal-page">
+    <Stack spacing={2} data-testid="portal-page">
       <Stack spacing={1}>
         <Typography variant="h2" component="h1">{t('title')}</Typography>
         <Typography color="text.secondary">{t('description')}</Typography>
