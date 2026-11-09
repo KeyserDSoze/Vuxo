@@ -454,3 +454,144 @@
   .vuxo-landing__portal, .vuxo-landing__scene-parallax, .vuxo-landing__path,
   .vuxo-landing__primary.MuiButton-root { transition: none !important; }
 }
+
+
+/* #157: keep the initial adventure, realm picker and action inside the viewport.
+   If the optional rune challenge opens, only this screen may scroll. */
+.vuxo-landing {
+  display: flex; flex-direction: column; flex: 1 1 auto;
+  height: 100%; min-height: 0; min-width: 0; width: 100%;
+  gap: clamp(6px, 1vh, 12px); padding: clamp(6px, 1vh, 14px);
+  overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain;
+  scrollbar-width: thin;
+  background: radial-gradient(ellipse at 75% 22%, color-mix(in srgb, var(--landing-accent) 11%, transparent), transparent 46%), linear-gradient(155deg, var(--landing-sky-top), var(--landing-land));
+}
+.vuxo-landing__hero {
+  flex: 1 1 0; min-height: 0; border-radius: clamp(14px, 2vw, 26px);
+  grid-template-columns: minmax(0, 1.08fr) minmax(0, 1fr);
+}
+.vuxo-landing__copy {
+  align-self: center; min-height: 0; max-height: 100%; overflow-y: auto; overflow-x: hidden;
+  scrollbar-width: thin; padding: clamp(12px, 2.2vh, 30px) 12px clamp(12px, 2.2vh, 30px) clamp(17px, 3vw, 48px);
+}
+.vuxo-landing__eyebrow.MuiChip-root { margin-bottom: clamp(6px, 1vh, 12px); height: 27px; font-size: .68rem; }
+.vuxo-landing__chapter.MuiTypography-root { font-size: .66rem; margin-bottom: clamp(4px, .7vh, 9px); }
+.vuxo-landing__headline.MuiTypography-root {
+  font-size: clamp(2.15rem, 4vw, 5.15rem); line-height: 1.02; max-width: 13ch;
+  margin-bottom: clamp(8px, 1.35vh, 18px);
+}
+.vuxo-landing__description.MuiTypography-root {
+  max-width: 46ch; font-size: clamp(.84rem, 1.05vw, 1.02rem);
+  line-height: 1.43; margin-bottom: clamp(9px, 1.5vh, 18px);
+}
+.vuxo-landing__primary.MuiButton-root,
+.vuxo-landing__secondary.MuiButton-root { min-height: 39px; padding: 7px 15px; font-size: .83rem; }
+.vuxo-landing__refuge.MuiButton-root { margin-top: clamp(4px, .8vh, 12px); }
+.vuxo-landing__scene { min-height: 0; height: 100%; }
+.vuxo-landing__portal { width: clamp(180px, 17vw, 390px); height: clamp(235px, 22vw, 520px); }
+.vuxo-landing__scene-footer { bottom: 12px; }
+.vuxo-landing__hub {
+  flex: 0 0 auto; min-width: 0; padding: clamp(9px, 1.25vh, 16px) clamp(10px, 1.4vw, 21px);
+  border: 1px solid color-mix(in srgb, var(--landing-accent) 35%, transparent);
+  border-radius: clamp(13px, 1.4vw, 20px); color: var(--landing-text);
+  background: linear-gradient(130deg, color-mix(in srgb, var(--landing-sky-top) 93%, transparent), color-mix(in srgb, var(--landing-sky-bottom) 93%, transparent));
+}
+.vuxo-landing__hub-heading { margin-bottom: clamp(5px, .75vh, 9px); }
+.vuxo-landing__hub-heading .MuiTypography-overline { color: var(--landing-accent); font-size: .65rem; line-height: 1.2; }
+.vuxo-landing__hub-heading #home-paths-title { color: var(--landing-text); font-size: clamp(1.1rem, 1.7vw, 1.5rem); line-height: 1.15; }
+.vuxo-landing__hub-heading .MuiTypography-body2 { color: var(--landing-muted); font-size: .75rem; }
+.vuxo-landing__paths { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(5px, .9vw, 13px); }
+.vuxo-landing__path {
+  min-height: 101px; padding: 9px 13px; border-radius: 13px;
+  border-color: color-mix(in srgb, var(--landing-accent) 26%, transparent) !important;
+  background: color-mix(in srgb, var(--landing-sky-bottom) 78%, var(--landing-sky-top)) !important;
+  color: var(--landing-text) !important;
+}
+.vuxo-landing__path[aria-pressed="true"] {
+  border-color: var(--landing-accent) !important;
+  background: color-mix(in srgb, var(--landing-accent) 12%, var(--landing-sky-bottom)) !important;
+  box-shadow: inset 0 0 0 1px var(--landing-accent), 0 0 24px color-mix(in srgb, var(--landing-accent) 10%, transparent);
+}
+.vuxo-landing__path-head { margin-bottom: 3px; }
+.vuxo-landing__path-head .MuiTypography-caption { color: var(--landing-muted); font-size: .61rem; }
+.vuxo-landing__path-icon { width: 27px; height: 27px; border-radius: 7px; background: color-mix(in srgb, var(--landing-accent) 17%, transparent); color: var(--landing-accent); }
+.vuxo-landing__path-icon .MuiSvgIcon-root { font-size: 17px; }
+.vuxo-landing__path-title.MuiTypography-root { color: var(--landing-text); font-size: clamp(.77rem, 1.1vw, 1rem); line-height: 1.25; }
+.vuxo-landing__path-description.MuiTypography-root { color: var(--landing-muted); font-size: .73rem; line-height: 1.3; margin-top: 3px; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.vuxo-landing__path-bottom { padding-top: 5px; color: var(--landing-muted); }
+.vuxo-landing__path[aria-pressed="true"] .vuxo-landing__path-bottom { color: var(--landing-accent); }
+.vuxo-landing__selection { margin-top: 6px; padding: 4px 3px 0; min-width: 0; }
+.vuxo-landing__selection-copy { min-width: 0; }
+.vuxo-landing__selection-copy .MuiTypography-body2 { color: var(--landing-accent); font-size: .68rem; }
+.vuxo-landing__selection-copy .MuiTypography-subtitle1 { color: var(--landing-text); font-size: .82rem; line-height: 1.2; }
+.vuxo-landing__selection-link.MuiButton-root {
+  flex-shrink: 0; min-height: 34px; padding: 5px 12px; border-radius: 9px;
+  background: var(--landing-accent); color: var(--landing-sky-top);
+  font-size: .76rem; font-weight: 800; white-space: nowrap;
+}
+.vuxo-landing__selection-link.MuiButton-root:hover { background: color-mix(in srgb, var(--landing-accent) 84%, white); }
+.vuxo-landing__teaser-rail { flex: 0 0 auto; min-width: 0; }
+.vuxo-landing__teaser-rail > #home-rune-teaser { max-height: min(62dvh, 520px); overflow-y: auto; scrollbar-width: thin; }
+.vuxo-landing[data-awake="true"] .vuxo-landing__hero { flex: 0 0 min(56dvh, 480px); min-height: 230px; }
+
+@media (min-width: 600px) and (max-width: 899px) {
+  .vuxo-landing__hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .vuxo-landing__copy { padding: 20px 10px 20px 26px; }
+  .vuxo-landing__headline.MuiTypography-root { font-size: clamp(2rem, 4.8vw, 3.4rem); }
+  .vuxo-landing__portal { width: 195px; height: 255px; }
+}
+@media (max-width: 599px) {
+  .vuxo-landing { gap: 6px; padding: 6px; }
+  .vuxo-landing__hero { display: block; position: relative; border-radius: 14px; }
+  .vuxo-landing__hero::before { background: linear-gradient(90deg, var(--landing-sky-top), color-mix(in srgb, var(--landing-sky-top) 80%, transparent) 63%, transparent); }
+  .vuxo-landing__copy {
+    position: relative; z-index: 4; display: flex; flex-direction: column; align-items: flex-start;
+    width: 100%; height: 100%; max-height: 100%; padding: 12px 11px 8px 14px;
+    pointer-events: none; overflow-y: auto; scrollbar-width: thin;
+  }
+  .vuxo-landing__copy a, .vuxo-landing__copy button { pointer-events: auto; }
+  .vuxo-landing__eyebrow.MuiChip-root { height: 22px; margin-bottom: 4px; font-size: .57rem; }
+  .vuxo-landing__chapter.MuiTypography-root { font-size: .57rem; letter-spacing: .13em; margin-bottom: 4px; }
+  .vuxo-landing__headline.MuiTypography-root { max-width: 11.5ch; font-size: clamp(1.68rem, 6.5vw, 2.55rem); margin-bottom: 7px; }
+  .vuxo-landing__description.MuiTypography-root { order: 2; font-size: .74rem; line-height: 1.25; max-width: 25ch; margin-bottom: 3px; }
+  .vuxo-landing__actions { order: 1; flex-direction: row !important; gap: 5px; align-items: flex-start; }
+  .vuxo-landing__actions > .MuiButton-root { width: auto; font-size: .68rem; min-height: 32px; padding: 5px 9px; }
+  .vuxo-landing__secondary.MuiButton-root { display: none; }
+  .vuxo-landing__refuge.MuiButton-root { order: 3; margin: 4px 0 0 -4px; padding: 2px 6px; font-size: .67rem; min-height: 25px; }
+  .vuxo-landing__scene { position: absolute; inset: 0; width: 100%; height: 100%; min-height: 0; }
+  .vuxo-landing__portal { left: 80%; top: 53%; width: clamp(106px, 33vw, 150px); height: clamp(147px, 43vw, 195px); }
+  .vuxo-landing__portal-shadow { left: 80%; top: 84%; width: 125px; }
+  .vuxo-landing__portal-instruction {
+    left: auto; right: 7px; bottom: 5px; transform: none; width: 45%;
+    max-width: 160px; padding: 4px 6px; gap: 4px; white-space: normal; border-radius: 8px;
+  }
+  .vuxo-landing__portal-instruction .MuiTypography-caption { font-size: .6rem; line-height: 1.15; }
+  .vuxo-landing__scene-footer { display: none; }
+  .vuxo-landing__hub { padding: 7px 8px; border-radius: 11px; }
+  .vuxo-landing__hub-heading { margin-bottom: 5px; }
+  .vuxo-landing__hub-heading .MuiTypography-overline { font-size: .55rem; }
+  .vuxo-landing__hub-heading #home-paths-title { font-size: 1.02rem; }
+  .vuxo-landing__hub-heading .MuiTypography-body2 { display: none; }
+  .vuxo-landing__paths { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; }
+  .vuxo-landing__path { min-height: 90px; padding: 7px 5px; border-radius: 9px; }
+  .vuxo-landing__path-head { margin-bottom: 5px; }
+  .vuxo-landing__path-icon { width: 24px; height: 24px; border-radius: 6px; }
+  .vuxo-landing__path-icon .MuiSvgIcon-root { font-size: 15px; }
+  .vuxo-landing__path-head .MuiTypography-caption { font-size: .5rem; }
+  .vuxo-landing__path-title.MuiTypography-root { font-size: clamp(.67rem, 2.65vw, .84rem); line-height: 1.12; }
+  .vuxo-landing__path-description.MuiTypography-root { display: none; }
+  .vuxo-landing__path-bottom { padding-top: 4px; font-size: .56rem; }
+  .vuxo-landing__path-bottom .MuiSvgIcon-root { font-size: 14px; }
+  .vuxo-landing__selection { gap: 5px; margin-top: 5px; }
+  .vuxo-landing__selection-copy .MuiTypography-body2 { font-size: .55rem; }
+  .vuxo-landing__selection-copy .MuiTypography-subtitle1 { font-size: .65rem; line-height: 1.12; }
+  .vuxo-landing__selection-link.MuiButton-root { max-width: 51%; min-height: 30px; white-space: normal; padding: 4px 7px; font-size: .64rem; line-height: 1.12; }
+  .vuxo-landing__selection-link .MuiSvgIcon-root { font-size: 15px; }
+  .vuxo-landing__teaser-rail > #home-rune-teaser { max-height: min(72dvh, 500px); }
+}
+@media (max-height: 630px) {
+  .vuxo-landing__hero { min-height: 0; }
+  .vuxo-landing__hub-heading .MuiTypography-overline { display: none; }
+  .vuxo-landing__path-description.MuiTypography-root { display: none; }
+  .vuxo-landing__path { min-height: 82px; }
+}
