@@ -40,6 +40,10 @@ test('appearance selection updates preview and persists across reload', async ({
 
 test('authenticated submit sends canonical ids and bearer token', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('vuxo.accessToken', 'test-token'))
+  // An authenticated first-time owner has no persisted character. The editor
+  // MUST check this before allowing creation, rather than assuming a draft.
+  await page.route('**/api/characters/me/appearance', route =>
+    route.fulfill({ status: 404, json: { code: 'character_not_found' } }))
 
   let postedBody: Record<string, unknown> | null = null
   let authorization: string | null = null
@@ -54,6 +58,7 @@ test('authenticated submit sends canonical ids and bearer token', async ({ page 
   await page.getByRole('option', { name: 'Ricci' }).click()
   await page.getByTestId('shoeStyle-select').getByRole('combobox').click()
   await page.getByRole('option', { name: 'Stivaletti' }).click()
+  await expect(page.getByTestId('create-character')).toBeEnabled()
   await page.getByTestId('create-character').click()
 
   await expect(page.getByText(/personaggio creato/i)).toBeVisible()
