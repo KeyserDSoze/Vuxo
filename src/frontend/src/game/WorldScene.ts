@@ -55,6 +55,12 @@ export class WorldScene extends Phaser.Scene {
       this.reducedMotion = event.matches
     }
     motionPreference.addEventListener('change', onMotionPreferenceChanged)
+    // Phaser does not emit object pointerout when the pointer exits the
+    // *canvas*. Clear only decorative hover, never portal authorization.
+    const clearPortalHoverOnCanvasExit = () => {
+      for (const visual of this.portalVisuals.values()) visual.hovered = false
+    }
+    this.input.on(Phaser.Input.Events.GAME_OUT, clearPortalHoverOnCanvasExit)
     this.terrainGraphics = this.add.graphics().setDepth(-10)
     this.updateCameraZoom(this.scale.width, this.scale.height)
     this.drawWorldGrid()
@@ -67,6 +73,7 @@ export class WorldScene extends Phaser.Scene {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.ready = false
       motionPreference.removeEventListener('change', onMotionPreferenceChanged)
+      this.input.off(Phaser.Input.Events.GAME_OUT, clearPortalHoverOnCanvasExit)
       this.terrainGraphics = null
       this.terrainBounds = ''
       for (const visual of this.portalVisuals.values()) destroyIllustratedPortal(visual)

@@ -231,6 +231,16 @@ test('runic portal hover responds to real mouse input, preserves the 19px target
   await page.waitForTimeout(160);
   expect((await art()).haloAlphas).toEqual([0.38]);
 
+  // Leave the portal but stay inside the world canvas: Phaser pointerout.
+  const viewport = await canvas.boundingBox();
+  if (!viewport) throw new Error('World canvas is not mounted');
+  await page.mouse.move(viewport.x + viewport.width - 8, viewport.y + viewport.height / 2);
+  await expect.poll(async () => (await art()).hovered?.[0]).toBe(false);
+  await expect.poll(async () => (await art()).haloAlphas).toEqual([0.2]);
+  // Then leave the *canvas* directly from the portal. A GameObject
+  // pointerout is not fired for this path: it must use Phaser GAME_OUT.
+  await moveToMarker();
+  await expect.poll(async () => (await art()).hovered?.[0]).toBe(true);
   await page.mouse.move(2, 2);
   await expect.poll(async () => (await art()).hovered?.[0]).toBe(false);
   await expect.poll(async () => (await art()).haloAlphas).toEqual([0.2]);
