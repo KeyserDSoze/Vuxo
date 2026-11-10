@@ -193,6 +193,8 @@ export class WorldScene extends Phaser.Scene {
           count: visuals.length,
           reducedMotion: this.reducedMotion,
           hitScales: visuals.map(visual => [visual.ring.scaleX, visual.ring.scaleY]),
+          hitRadii: visuals.map(visual => visual.ring.radius),
+          hovered: visuals.map(visual => visual.hovered),
           haloAlphas: visuals.map(visual => Math.round(visual.halo.alpha * 1000) / 1000),
           coreScales: visuals.map(visual => visual.center.scaleX),
         }))

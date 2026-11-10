@@ -166,6 +166,89 @@ test('runic portal light animates without changing click hit area and freezes on
   await expect.poll(async () => (await readArt()).reducedMotion).toBe(false);
 });
 
+test('runic portal hover responds to real mouse input, preserves the 19px target and freezes under reduced motion', async ({ page }, info) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await initializePlayer(page);
+  const api = await mockPrivatePortals(page);
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.goto(origin + '/Vuxo/#/game');
+
+  const host = page.getByTestId('game-canvas');
+  const canvas = host.locator('canvas');
+  await expect(page.getByTestId('world-connection-status')).toHaveAttribute('data-status', 'connected');
+  await expect(host).toHaveAttribute('data-rendered-portals', '1');
+  await expect(host).toHaveAttribute('data-portal-screen-x', /[0-9]/);
+  await expect(host).toHaveAttribute('data-portal-screen-y', /[0-9]/);
+
+  type HoverArt = {
+    count: number; reducedMotion: boolean; hovered: boolean[];
+    hitScales: number[][]; hitRadii: number[]; haloAlphas: number[];
+    coreScales: number[];
+  };
+  const art = async (): Promise<HoverArt> =>
+    JSON.parse((await host.getAttribute('data-e2e-portal-art')) ?? '{}') as HoverArt;
+  const moveToMarker = async () => {
+    const marker = await host.evaluate(element => ({
+      x: Number(element.dataset.portalScreenX),
+      y: Number(element.dataset.portalScreenY),
+    }));
+    const dimensions = await canvas.evaluate(element => ({
+      width: (element as HTMLCanvasElement).width,
+      height: (element as HTMLCanvasElement).height,
+    }));
+    const box = await canvas.boundingBox();
+    if (!box) throw new Error('World canvas is not mounted');
+    expect(dimensions.width).toBeGreaterThan(0);
+    expect(dimensions.height).toBeGreaterThan(0);
+    expect(marker.x).toBeGreaterThan(0);
+    expect(marker.y).toBeGreaterThan(0);
+    expect(marker.x).toBeLessThan(dimensions.width);
+    expect(marker.y).toBeLessThan(dimensions.height);
+    await page.mouse.move(
+      box.x + marker.x * box.width / dimensions.width,
+      box.y + marker.y * box.height / dimensions.height,
+    );
+  };
+
+  await expect.poll(async () => (await art()).hovered?.[0]).toBe(false);
+  await expect.poll(async () => (await art()).hitRadii).toEqual([19]);
+  await moveToMarker();
+  await expect.poll(async () => (await art()).hovered?.[0]).toBe(true);
+  await expect.poll(async () => (await art()).haloAlphas[0]).toBeGreaterThan(0.29);
+  await expect.poll(async () => (await art()).hitScales).toEqual([[1, 1]]);
+  expect((await art()).hitRadii).toEqual([19]);
+  await info.attach('portal-desktop-pointer-hover', {
+    body: await page.screenshot({ animations: 'disabled' }), contentType: 'image/png',
+  });
+
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await expect.poll(async () => {
+    const current = await art();
+    return current.reducedMotion && current.hovered[0] && current.haloAlphas[0] === 0.38
+      && current.coreScales[0] === 1 && current.hitRadii[0] === 19
+      && JSON.stringify(current.hitScales) === '[[1,1]]';
+  }).toBe(true);
+  await page.waitForTimeout(160);
+  expect((await art()).haloAlphas).toEqual([0.38]);
+
+  await page.mouse.move(2, 2);
+  await expect.poll(async () => (await art()).hovered?.[0]).toBe(false);
+  await expect.poll(async () => (await art()).haloAlphas).toEqual([0.2]);
+  expect(api.getEntryCalls()).toBe(0);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await moveToMarker();
+  await expect.poll(async () => (await art()).hovered?.[0]).toBe(true);
+  await expect.poll(async () => (await art()).haloAlphas).toEqual([0.38]);
+  await info.attach('portal-mobile-reduced-motion-hover', {
+    body: await page.screenshot({ animations: 'disabled' }), contentType: 'image/png',
+  });
+  await page.mouse.down();
+  await page.mouse.up();
+  await expect(page.getByTestId('world-portal-dialog')).toBeVisible();
+  expect(api.getEntryCalls()).toBe(1);
+});
+
 test('clicking a visible Phaser portal marker opens the in-world dialog', async ({ page }) => {
   await initializePlayer(page);
   const api = await mockPrivatePortals(page);

@@ -11,6 +11,7 @@ export type IllustratedPortal = {
   shimmer: Phaser.GameObjects.Ellipse
   center: Phaser.GameObjects.Arc
   glyphs: Phaser.GameObjects.Graphics
+  hovered: boolean
 }
 
 /**
@@ -59,20 +60,32 @@ export function createIllustratedPortal(
   glyphs.lineBetween(x - 14, y + 5, x - 9, y + 5)
   glyphs.lineBetween(x + 9, y + 5, x + 14, y + 5)
 
-  return { ring, arch, halo, veil, shimmer, center, glyphs }
+  const portal: IllustratedPortal = { ring, arch, halo, veil, shimmer, center, glyphs, hovered: false }
+  // Input stays on the same 19px Phaser ring. Decorative surfaces never
+  // receive hit areas or permission to enter a grant on their own.
+  ring.on('pointerover', () => { portal.hovered = true })
+  ring.on('pointerout', () => { portal.hovered = false })
+  return portal
 }
 
 /** Animate only the non-interactive light, never the portal's input surface. */
 export function updateIllustratedPortal(portal: IllustratedPortal, timeMs: number, reducedMotion: boolean): void {
   const pulse = reducedMotion ? 0.5 : (1 + Math.sin(timeMs / 360)) / 2
-  portal.halo.setAlpha(reducedMotion ? 0.2 : 0.12 + pulse * 0.2)
-  portal.shimmer.setAlpha(reducedMotion ? 0.24 : 0.12 + pulse * 0.26)
-  portal.center.setScale(reducedMotion ? 1 : 0.95 + pulse * 0.1)
+  // A hover emphasizes only decorative objects; the clickable ring does not
+  // move or grow. Reduced motion freezes both the idle and hover states.
+  portal.halo.setAlpha((reducedMotion ? 0.2 : 0.12 + pulse * 0.2) + (portal.hovered ? 0.18 : 0))
+  portal.shimmer.setAlpha((reducedMotion ? 0.24 : 0.12 + pulse * 0.26) + (portal.hovered ? 0.16 : 0))
+  portal.veil.setAlpha(portal.hovered ? 0.58 : 0.76)
+  portal.center.setAlpha(portal.hovered ? 1 : 0.92)
+  portal.center.setScale(reducedMotion ? 1 : 0.95 + pulse * 0.1 + (portal.hovered ? 0.1 : 0))
   // The hit area stays at scale=1, center=(x,y), radius=19, even while
   // the other layers breathe. No setScale is applied to portal.ring.
 }
 
 export function destroyIllustratedPortal(portal: IllustratedPortal): void {
+  portal.ring.removeAllListeners('pointerover')
+  portal.ring.removeAllListeners('pointerout')
+  portal.ring.removeAllListeners('pointerdown')
   portal.ring.destroy()
   portal.arch.destroy()
   portal.halo.destroy()
