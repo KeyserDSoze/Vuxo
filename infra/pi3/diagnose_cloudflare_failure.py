@@ -52,7 +52,11 @@ def diagnose(run=origin.run_command, emit=print):
     # Shared safe, allowlisted classification for both fixed URLs. Internal
     # recheck is bounded to one extra ephemeral probe ONLY after an initial
     # failure, after the public sample (to capture a possible change).
-    public_result = origin.probe_http(run, connector, image, PUBLIC_HEALTH, max_time=8)
+    # The public URL can reach a different Cloudflare datacenter from the Pi
+    # than from the hosted runner. Only the three-letter colo is printed,
+    # never the CF-Ray request identifier or any raw response header.
+    public_result = origin.probe_http(
+        run, connector, image, PUBLIC_HEALTH, max_time=8, include_colo=True)
     emit("INFO: public API from Pi connector network namespace: " + public_result)
     if internal_status != 0:
         retry_result = origin.probe_http(run, connector, image, "http://api:8080/health")

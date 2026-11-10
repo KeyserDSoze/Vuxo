@@ -88,6 +88,27 @@ class EdgeTriageTests(unittest.TestCase):
         self.assertIn("public API from Pi connector network namespace: HTTP 200", output)
         self.assertIn("not a successful release gate", output)
 
+    def test_public_colo_is_minimized_to_three_letters_without_extra_probes(self):
+        fake = FakeDocker()
+        full_ray = "1234abcdef987654-FCO"
+        fake.external_status = "200\\n" + full_ray
+        _, output = self.evaluate(fake)
+        self.assertIn("public API from Pi connector network namespace: HTTP 200 (colo: FCO)", output)
+        self.assertNotIn(full_ray, output)
+        runs = [args for args in fake.calls if args[:2] == ["docker", "run"]]
+        self.assertEqual(len(runs), 2)
+        public = next(args for args in runs if args[-1] == triage.PUBLIC_HEALTH)
+        self.assertIn("%header{cf-ray}", public[public.index("--write-out") + 1])
+        internal = next(args for args in runs if args[-1] == "http://api:8080/health")
+        self.assertNotIn("%header{cf-ray}", internal[internal.index("--write-out") + 1])
+
+        fake = FakeDocker()
+        fake.external_status = "502\\n" + full_ray + " PRIVATE-HEADER"
+        _, output = self.evaluate(fake)
+        self.assertIn("public API from Pi connector network namespace: HTTP 502", output)
+        self.assertNotIn("PRIVATE", output)
+        self.assertNotIn(full_ray, output)
+
     def test_restart_and_oom_are_reduced_to_fixed_categories(self):
         fake = FakeDocker()
         fake.oom = "true"

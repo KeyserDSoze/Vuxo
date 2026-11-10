@@ -95,7 +95,25 @@ def classify_http_result(exit_code, output):
     return errors.get(exit_code, "probe execution failure") if isinstance(exit_code, int) else "probe execution failure"
 
 
-def probe_http(run, connector, image, url, *, max_time=6):
+def classify_http_with_colo(exit_code, output):
+    """Only a validated three-letter CF colo may accompany an HTTP status.
+
+    The complete CF-Ray request ID is never returned or logged; all invalid
+    headers are discarded. This is observational and not a release gate.
+    """
+    if exit_code != 0:
+        return classify_http_result(exit_code, output)
+    if not isinstance(output, str):
+        return "invalid HTTP status"
+    code, separator, cf_ray = output.partition("\n")
+    result = classify_http_result(exit_code, code)
+    if result == "invalid HTTP status" or not separator:
+        return result
+    match = re.fullmatch(r"[a-fA-F0-9]{8,32}-([A-Z]{3})", cf_ray.strip())
+    return result + " (colo: " + match.group(1) + ")" if match else result
+
+
+def probe_http(run, connector, image, url, *, max_time=6, include_colo=False):
     """Probe only two fixed health URLs from an existing connector namespace.
 
     Use the locally available API image as an ephemeral curl runner. Never
@@ -104,7 +122,9 @@ def probe_http(run, connector, image, url, *, max_time=6):
     if (not isinstance(connector, str) or not CONTAINER_ID.fullmatch(connector)
         or not isinstance(image, str) or not IMAGE_ID.fullmatch(image)
         or url not in ("http://api:8080/health", "https://api.vuxoapi.xyz/health")
-        or max_time not in (6, 8)):
+        or max_time not in (6, 8)
+        or not isinstance(include_colo, bool)
+        or (include_colo and url != "https://api.vuxoapi.xyz/health")):
         return "probe input rejected"
     exit_code, output = run([
         "docker", "run", "--rm", "--pull=never",
@@ -112,10 +132,12 @@ def probe_http(run, connector, image, url, *, max_time=6):
         "--read-only", "--cap-drop=ALL", "--security-opt=no-new-privileges",
         "--pids-limit", "32", "--entrypoint", "curl", image,
         "--silent", "--output", "/dev/null", "--connect-timeout", "3",
-        "--max-time", str(max_time), "--write-out", "%{http_code}",
+        "--max-time", str(max_time), "--write-out",
+        "%{http_code}\\n%header{cf-ray}" if include_colo else "%{http_code}",
         url,
     ])
-    return classify_http_result(exit_code, output)
+    return (classify_http_with_colo(exit_code, output) if include_colo
+            else classify_http_result(exit_code, output))
 
 def diagnose(run=run_command, emit=print):
     """Fixed PASS/FAIL strings only; a success does NOT verify the public tunnel."""

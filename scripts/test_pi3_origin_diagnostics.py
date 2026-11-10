@@ -194,6 +194,23 @@ class OriginTests(unittest.TestCase):
                 self.assertEqual(probe.classify_http_result(code, raw), category)
                 self.assertNotIn("private", category.lower())
 
+    def test_cloudflare_colo_classifier_does_not_expose_raw_ray_or_private_values(self):
+        classify = probe.classify_http_with_colo
+        full_ray = "1234abcd5678ef90-FCO"
+        self.assertEqual(classify(0, "200\\n" + full_ray), "HTTP 200 (colo: FCO)")
+        self.assertEqual(classify(0, "502\\nABCD1234-LAX"), "HTTP 502 (colo: LAX)")
+        for header in ("PRIVATE-TOKEN", "1234abcd5678ef90-FCO\\nPRIVATE",
+                       "1234abcd5678ef90-fco", "ffff-XYZ",
+                       "1234abcd5678ef90-FCO PRIVATE"):
+            with self.subTest(header=header):
+                outcome = classify(0, "502\\n" + header)
+                self.assertEqual(outcome, "HTTP 502")
+                self.assertNotIn(header, outcome)
+        self.assertEqual(classify(28, "PRIVATE-DATA"), "curl request timeout")
+        self.assertEqual(classify(0, "200"), "HTTP 200")
+        self.assertEqual(classify(0, "200 PRIVATE\\n" + full_ray),
+                         "invalid HTTP status")
+
     def test_safe_probe_rejects_invalid_target_before_docker(self):
         fake = FakeDocker()
         self.assertEqual(probe.probe_http(fake, CONNECTOR, IMAGE,
@@ -202,6 +219,12 @@ class OriginTests(unittest.TestCase):
         self.assertEqual(probe.probe_http(fake, CONNECTOR, IMAGE, 
                                          "http://api:8080/health", max_time=900),
                          "probe input rejected")
+        self.assertEqual(probe.probe_http(fake, CONNECTOR, IMAGE,
+                                         "http://api:8080/health",
+                                         include_colo=True), "probe input rejected")
+        self.assertEqual(probe.probe_http(fake, CONNECTOR, IMAGE,
+                                         "https://api.vuxoapi.xyz/health",
+                                         include_colo="yes"), "probe input rejected")
         self.assertEqual(fake.calls, [])
 
     def test_dns_timeout_and_docker_launch_are_not_misreported_as_http(self):
