@@ -155,6 +155,15 @@ export async function verifyPublicAuth({
  * Read-only status probe for a GitHub-hosted runner. After a failed route,
  * continue to check other routes. Do not print bodies or provider IDs.
  */
+// A CF-Ray is a request identifier and must never be printed. Only the
+// allowlisted three-letter datacenter suffix is useful for comparing remote
+// vantage points; malformed or non-Cloudflare headers reveal nothing.
+function safeCloudflareColo(ray) {
+  if (typeof ray !== 'string' || ray.length > 80) return null;
+  const match = /^[a-fA-F0-9]{8,32}-([A-Z]{3})$/.exec(ray.trim());
+  return match?.[1] ?? null;
+}
+
 // Report only transport categories from a fixed allow-list, never raw error text.
 function safeTransportCategory(error) {
   const code = error?.cause?.code ?? error?.code;
@@ -203,7 +212,10 @@ export async function diagnosePublicRoutes({ fetcher = fetch, log = console.log 
       });
       const server = response.headers?.get('server')?.toLowerCase().includes('cloudflare')
         ? 'cloudflare' : 'other';
-      log(label + ': HTTP ' + safeStatus(response.status) + ' (server: ' + server + ')');
+      const colo = server === 'cloudflare'
+        ? safeCloudflareColo(response.headers?.get('cf-ray')) : null;
+      log(label + ': HTTP ' + safeStatus(response.status) + ' (server: ' + server
+        + (colo ? ', colo: ' + colo : '') + ')');
     } catch (error) {
       log(label + ': ' + safeTransportCategory(error));
     }

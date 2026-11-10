@@ -229,6 +229,35 @@ test('diagnostics report only numeric status and restricted server class', async
   assert.match(output[2], /^providers: HTTP 403 \(server: other\)$/);
   assert.ok(!output.join(' ').includes(secret));
 });
+
+test('diagnostics report only a validated Cloudflare datacenter code, never full CF-Ray or headers', async () => {
+  const secret = 'PRIVATE_INTERNAL_HEADER_TOKEN';
+  const ray = 'abcdef1234567890-MXP';
+  const { fetcher } = fixture({
+    '/health': res(secret, 502, {
+      'Server': 'cloudflare',
+      'CF-Ray': ray,
+      'Location': 'https://untrusted.invalid/' + secret,
+    }),
+    '/api/meta/version': res(secret, 502, {
+      'Server': 'cloudflare',
+      'CF-Ray': ray + secret,
+    }),
+    '/api/auth/providers': res(secret, 502, {
+      'Server': 'other',
+      'CF-Ray': 'abcdef1234567890-CDG',
+    }),
+  });
+  const output = [];
+  await diagnosePublicRoutes({ fetcher, log: message => output.push(message) });
+  assert.equal(output.length, 9);
+  assert.equal(output[0], 'health: HTTP 502 (server: cloudflare, colo: MXP)');
+  assert.equal(output[1], 'version: HTTP 502 (server: cloudflare)');
+  assert.equal(output[2], 'providers: HTTP 502 (server: other)');
+  assert.ok(!output.join(' ').includes(secret));
+  assert.ok(!output.join(' ').includes(ray));
+});
+
 test('diagnostics redact transport errors but continue with other routes', async () => {
   const { fetcher: base } = fixture();
   const output = [];
