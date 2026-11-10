@@ -91,7 +91,7 @@ class EdgeTriageTests(unittest.TestCase):
     def test_public_colo_is_minimized_to_three_letters_without_extra_probes(self):
         fake = FakeDocker()
         full_ray = "1234abcdef987654-FCO"
-        fake.external_status = "200\\n" + full_ray
+        fake.external_status = "200\n" + full_ray
         _, output = self.evaluate(fake)
         self.assertIn("public API from Pi connector network namespace: HTTP 200 (colo: FCO)", output)
         self.assertNotIn(full_ray, output)
@@ -103,7 +103,7 @@ class EdgeTriageTests(unittest.TestCase):
         self.assertNotIn("%header{cf-ray}", internal[internal.index("--write-out") + 1])
 
         fake = FakeDocker()
-        fake.external_status = "502\\n" + full_ray + " PRIVATE-HEADER"
+        fake.external_status = "502\n" + full_ray + " PRIVATE-HEADER"
         _, output = self.evaluate(fake)
         self.assertIn("public API from Pi connector network namespace: HTTP 502", output)
         self.assertNotIn("PRIVATE", output)
