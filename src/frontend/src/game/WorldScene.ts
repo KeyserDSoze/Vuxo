@@ -19,6 +19,11 @@ type PlayerVisual = {
   targetX: number
   targetY: number
   appearanceKey: string
+  // Refresh only on *server* target changes, never from input events.
+  // A short frame hold keeps animation visible between sparse realtime ticks.
+  motionFrames: number
+  walkedFrames: number
+  reducedWalkFrames: number
 }
 
 export class WorldScene extends Phaser.Scene {
@@ -215,7 +220,13 @@ export class WorldScene extends Phaser.Scene {
     }
 
     const interpolation = 1 - Math.exp(-delta / 80)
-    const motionEvidence: Array<{ playerId: string; moving: boolean; bob: number }> = []
+    const motionEvidence: Array<{
+      playerId: string
+      moving: boolean
+      bob: number
+      walkedFrames: number
+      reducedWalkFrames: number
+    }> = []
     for (const [playerId, visual] of this.players) {
       visual.body.x = Phaser.Math.Linear(visual.body.x, visual.targetX, interpolation)
       visual.body.y = Phaser.Math.Linear(visual.body.y, visual.targetY, interpolation)
@@ -223,13 +234,22 @@ export class WorldScene extends Phaser.Scene {
       const offsetY = visual.targetY - visual.body.y
       if (Math.abs(offsetX) > 2) visual.body.setScale(offsetX < 0 ? -1 : 1, 1)
 
-      // Walk only when the interpolated sprite is approaching a position
-      // received from the world authority. The root keeps its original
-      // coordinates, camera follow, mirror direction and collision contract.
+      // Phaser can finish interpolating within a handful of frames even if
+      // the authoritative mock only emits a single movement snapshot. Hold
+      // a short decorative stride across render frames after a target change.
+      // This is *not* client-predicted displacement or a gameplay timer.
       const remaining = Math.hypot(offsetX, offsetY)
-      const bob = setIllustratedWandererStride(visual.body, remaining, time, this.reducedMotion)
+      const moving = remaining > 0.75 || visual.motionFrames > 0
+      const bob = setIllustratedWandererStride(
+        visual.body, moving ? Math.max(remaining, 1) : 0, time, this.reducedMotion)
+      visual.motionFrames = Math.max(0, visual.motionFrames - 1)
       if (import.meta.env.VITE_E2E_REALTIME === 'true') {
-        motionEvidence.push({ playerId, moving: remaining > 0.75, bob })
+        if (bob > 0.25) visual.walkedFrames++
+        if (moving && this.reducedMotion) visual.reducedWalkFrames++
+        motionEvidence.push({
+          playerId, moving, bob,
+          walkedFrames: visual.walkedFrames, reducedWalkFrames: visual.reducedWalkFrames,
+        })
       }
     }
     if (import.meta.env.VITE_E2E_REALTIME === 'true') {
@@ -325,6 +345,11 @@ export class WorldScene extends Phaser.Scene {
     const appearanceKey = worldAppearanceKey(appearance)
     const isSelf = player.playerId === this.selfPlayerId
     if (existing) {
+      // Sparse/irregular network snapshots should still yield a readable
+      // gait, without inferring movement from untrusted local key presses.
+      if (Math.hypot(existing.targetX - targetX, existing.targetY - targetY) > 0.05) {
+        existing.motionFrames = 12
+      }
       existing.targetX = targetX
       existing.targetY = targetY
       existing.name.setText(player.characterName)
@@ -360,7 +385,10 @@ export class WorldScene extends Phaser.Scene {
     name.setOrigin(0.5, 1)
     name.setDepth(11)
 
-    this.players.set(player.playerId, { body, name, targetX, targetY, appearanceKey })
+    this.players.set(player.playerId, {
+      body, name, targetX, targetY, appearanceKey,
+      motionFrames: 0, walkedFrames: 0, reducedWalkFrames: 0,
+    })
   }
 
   private removePlayer(playerId: string): void {

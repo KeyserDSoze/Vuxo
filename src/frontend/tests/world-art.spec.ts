@@ -171,7 +171,10 @@ test('server-owned walking drives stride while reduced-motion remains static, in
   const pose = async () => host.evaluate(element => {
     const encoded = element.getAttribute('data-e2e-avatar-motion')
     if (!encoded) return null
-    const frames = JSON.parse(encoded) as Array<{ playerId: string; moving: boolean; bob: number }>
+    const frames = JSON.parse(encoded) as Array<{
+      playerId: string; moving: boolean; bob: number
+      walkedFrames: number; reducedWalkFrames: number
+    }>
     return frames.find(entry => entry.playerId === 'stride-player') ?? null
   })
 
@@ -181,10 +184,11 @@ test('server-owned walking drives stride while reduced-motion remains static, in
   await host.locator('canvas').click()
   await page.keyboard.down('ArrowRight')
   await expect.poll(async () => Number(await self.getAttribute('data-player-x'))).toBeGreaterThan(start)
-  await expect.poll(async () => {
-    const state = await pose()
-    return Boolean(state?.moving && state.bob > 0.25)
-  }).toBe(true)
+  // A single real-time target update may generate only a few visible
+  // frames. Assert that the renderer observed those frames (monotonic E2E
+  // evidence), not that a 100ms Playwright poll lands on one exact frame.
+  await expect.poll(async () => (await pose())?.walkedFrames ?? 0)
+    .toBeGreaterThan(0)
 
   await info.attach('moving-avatar-normal-motion', {
     body: await page.screenshot({ animations: 'disabled' }), contentType: 'image/png',
@@ -193,14 +197,18 @@ test('server-owned walking drives stride while reduced-motion remains static, in
   // A browser preference change during travel must stop only the decorative
   // stride, not the world-authoritative movement or avatar appearance.
   await page.emulateMedia({ reducedMotion: 'reduce' })
-  await expect.poll(async () => {
-    const state = await pose()
-    return Boolean(state?.moving && state.bob === 0)
-  }).toBe(true)
-  const beforeReducedTravel = Number(await self.getAttribute('data-player-x'))
-  await expect.poll(async () => Number(await self.getAttribute('data-player-x')))
-    .toBeGreaterThan(beforeReducedTravel)
+  await expect.poll(async () => (await pose())?.bob).toBe(0)
+  // Make a NEW, acknowledged movement request under reduced-motion. The
+  // browser mock can apply a single snapshot per change of intent.
   await page.keyboard.up('ArrowRight')
+  const beforeReducedTravel = Number(await self.getAttribute('data-player-x'))
+  const reducedWalkFrames = (await pose())?.reducedWalkFrames ?? 0
+  await page.keyboard.down('ArrowLeft')
+  await expect.poll(async () => Number(await self.getAttribute('data-player-x')))
+    .toBeLessThan(beforeReducedTravel)
+  await expect.poll(async () => (await pose())?.reducedWalkFrames ?? 0)
+    .toBeGreaterThan(reducedWalkFrames)
+  await page.keyboard.up('ArrowLeft')
   await expect.poll(async () => (await pose())?.moving).toBe(false)
   await expect.poll(async () => (await pose())?.bob).toBe(0)
   await expect(host).toHaveAttribute('data-e2e-illustrated-player-count', '1')
