@@ -247,8 +247,29 @@ test('runic portal hover responds to real mouse input, preserves the 19px target
   expect(api.getEntryCalls()).toBe(0);
 
   await page.setViewportSize({ width: 390, height: 844 });
-  await moveToMarker();
-  await expect.poll(async () => (await art()).hovered?.[0]).toBe(true);
+  // A viewport transition temporarily changes Phaser's camera projection.
+  // Join the scene at its actual mobile size rather than targeting a stale
+  // desktop coordinate while the follow camera is still resizing.
+  await page.reload();
+  await expect(page.getByTestId('world-connection-status')).toHaveAttribute('data-status', 'connected');
+  await expect(host).toHaveAttribute('data-rendered-portals', '1');
+  await expect.poll(async () => {
+    const position = await host.evaluate(element => ({
+      x: Number(element.dataset.portalScreenX),
+      y: Number(element.dataset.portalScreenY),
+    }));
+    const size = await canvas.evaluate(element => ({
+      width: (element as HTMLCanvasElement).width,
+      height: (element as HTMLCanvasElement).height,
+    }));
+    return Number.isFinite(position.x) && Number.isFinite(position.y)
+      && position.x > 19 && position.x < size.width - 19
+      && position.y > 19 && position.y < size.height - 19;
+  }).toBe(true);
+  await expect.poll(async () => {
+    await moveToMarker();
+    return (await art()).hovered?.[0];
+  }).toBe(true);
   await expect.poll(async () => (await art()).haloAlphas).toEqual([0.38]);
   await info.attach('portal-mobile-reduced-motion-hover', {
     body: await page.screenshot({ animations: 'disabled' }), contentType: 'image/png',
