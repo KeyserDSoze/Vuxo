@@ -107,6 +107,65 @@ test('personal marker opens existing challenge in-world, then disappears on succ
   await expect(page.getByTestId('world-connection-status')).toHaveAttribute('data-status', 'connected');
 });
 
+test('runic portal light animates without changing click hit area and freezes on live reduced motion', async ({ page }, info) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await initializePlayer(page);
+  await mockPrivatePortals(page);
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.goto(origin + '/Vuxo/#/game');
+
+  const host = page.getByTestId('game-canvas');
+  await expect(page.getByTestId('world-connection-status')).toHaveAttribute('data-status', 'connected');
+  await expect(host).toHaveAttribute('data-rendered-portals', '1');
+
+  type Art = {
+    count: number;
+    reducedMotion: boolean;
+    hitScales: number[][];
+    haloAlphas: number[];
+    coreScales: number[];
+  };
+  const readArt = async (): Promise<Art> =>
+    JSON.parse((await host.getAttribute('data-e2e-portal-art')) ?? '{}') as Art;
+
+  await expect.poll(async () => (await readArt()).count).toBe(1);
+  const first = await readArt();
+  expect(first.hitScales).toEqual([[1, 1]]);
+  await expect.poll(async () => {
+    const current = await readArt();
+    return current.count === 1 && current.hitScales[0][0] === 1
+      && current.hitScales[0][1] === 1
+      && Math.abs(current.haloAlphas[0] - first.haloAlphas[0]) >= 0.025;
+  }).toBe(true);
+
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await expect.poll(async () => {
+    const current = await readArt();
+    return current.reducedMotion && current.count === 1
+      && current.haloAlphas[0] === 0.2
+      && current.coreScales[0] === 1
+      && JSON.stringify(current.hitScales) === '[[1,1]]';
+  }).toBe(true);
+  await page.waitForTimeout(160);
+  const frozen = await readArt();
+  expect(frozen.haloAlphas).toEqual([0.2]);
+  expect(frozen.coreScales).toEqual([1]);
+  expect(frozen.hitScales).toEqual([[1, 1]]);
+
+  await info.attach('illustrated-portal-mobile-reduced-motion', {
+    body: await page.screenshot({ animations: 'disabled' }),
+    contentType: 'image/png',
+  });
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await expect.poll(async () => (await readArt()).hitScales).toEqual([[1, 1]]);
+  await info.attach('illustrated-portal-desktop', {
+    body: await page.screenshot({ animations: 'disabled' }),
+    contentType: 'image/png',
+  });
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await expect.poll(async () => (await readArt()).reducedMotion).toBe(false);
+});
+
 test('clicking a visible Phaser portal marker opens the in-world dialog', async ({ page }) => {
   await initializePlayer(page);
   const api = await mockPrivatePortals(page);

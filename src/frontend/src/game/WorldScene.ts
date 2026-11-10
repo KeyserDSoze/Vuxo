@@ -4,14 +4,9 @@ import type { WorldPortalMarker } from '../features/portals/portalApi'
 import { WORLD_ART_VERSION, createIllustratedWanderer, paintWoodlandTile, setIllustratedWandererStride } from './WorldArtwork'
 import { readWorldAppearance, worldAppearanceKey } from './WorldAppearance'
 import { computeWorldCameraZoom } from './WorldCamera'
+import { createIllustratedPortal, destroyIllustratedPortal, updateIllustratedPortal, type IllustratedPortal } from './WorldPortalArtwork'
 
 const TILE_SIZE = 32
-
-type PortalVisual = {
-  ring: Phaser.GameObjects.Arc
-  center: Phaser.GameObjects.Arc
-  arch: Phaser.GameObjects.Graphics
-}
 
 type PlayerVisual = {
   body: Phaser.GameObjects.Container
@@ -28,7 +23,7 @@ type PlayerVisual = {
 
 export class WorldScene extends Phaser.Scene {
   private readonly players = new Map<string, PlayerVisual>()
-  private readonly portalVisuals = new Map<string, PortalVisual>()
+  private readonly portalVisuals = new Map<string, IllustratedPortal>()
   private terrainGraphics: Phaser.GameObjects.Graphics | null = null
   private terrainBounds = ''
   private reducedMotion = false
@@ -74,6 +69,8 @@ export class WorldScene extends Phaser.Scene {
       motionPreference.removeEventListener('change', onMotionPreferenceChanged)
       this.terrainGraphics = null
       this.terrainBounds = ''
+      for (const visual of this.portalVisuals.values()) destroyIllustratedPortal(visual)
+      this.portalVisuals.clear()
       if (import.meta.env.VITE_E2E_REALTIME === 'true') {
         const host = document.querySelector('[data-testid="game-canvas"]')
         host?.removeAttribute('data-e2e-illustrated-player-count')
@@ -83,6 +80,7 @@ export class WorldScene extends Phaser.Scene {
         host?.removeAttribute('data-e2e-name-label-bounds')
         host?.removeAttribute('data-e2e-camera-zoom')
         host?.removeAttribute('data-e2e-world-coverage')
+        host?.removeAttribute('data-e2e-portal-art')
       }
       this.realtime.setMovementIntent(0, 0)
       this.unsubscribe?.()
@@ -149,9 +147,7 @@ export class WorldScene extends Phaser.Scene {
     const current = new Set(this.portals.map(portal => portal.id))
     for (const [id, visual] of this.portalVisuals) {
       if (current.has(id)) continue
-      visual.ring.destroy()
-      visual.center.destroy()
-      visual.arch.destroy()
+      destroyIllustratedPortal(visual)
       this.portalVisuals.delete(id)
     }
 
@@ -159,25 +155,10 @@ export class WorldScene extends Phaser.Scene {
       if (this.portalVisuals.has(portal.id)) continue
       const x = portal.x * TILE_SIZE
       const y = portal.y * TILE_SIZE
-      // An illustrated stone arch behind the existing interactive portal ring.
-      // Hit area and onPortalClick continue to use the original ring alone.
-      const arch = this.add.graphics().setDepth(5)
-      arch.lineStyle(6, 0x263f5d, 1)
-      arch.strokeEllipse(x, y, 49, 66)
-      arch.lineStyle(2, 0xc4a8ed, 0.92)
-      arch.strokeEllipse(x, y, 40, 55)
-      arch.fillStyle(0x9fe9e6, 0.95)
-      arch.fillTriangle(x - 3, y - 35, x + 3, y - 35, x, y - 42)
-      arch.fillStyle(0x405976, 1)
-      arch.fillRoundedRect(x - 26, y + 22, 11, 7, 2)
-      arch.fillRoundedRect(x + 15, y + 22, 11, 7, 2)
-      const ring = this.add.circle(x, y, 19, 0x8b5cf6, 0.35)
-        .setStrokeStyle(3, 0xe9d5ff, 1)
-        .setDepth(6)
-        .setInteractive({ useHandCursor: true })
-      const center = this.add.circle(x, y, 8, 0xc084fc, 0.95).setDepth(7)
-      ring.on('pointerdown', () => this.onPortalClick?.(portal.id))
-      this.portalVisuals.set(portal.id, { ring, center, arch })
+      // The API grants marker ownership; this decor never creates a portal.
+      this.portalVisuals.set(portal.id, createIllustratedPortal(
+        this, x, y, () => this.onPortalClick?.(portal.id),
+      ))
     }
     this.onPortalsRendered?.(this.portalVisuals.size)
   }
@@ -202,7 +183,19 @@ export class WorldScene extends Phaser.Scene {
       }
     }
     for (const visual of this.portalVisuals.values()) {
-      visual.ring.setScale(this.reducedMotion ? 1 : 1 + Math.sin(time / 300) * 0.08)
+      updateIllustratedPortal(visual, time, this.reducedMotion)
+    }
+    // Browser-only E2E geometry evidence; not present in production builds.
+    if (import.meta.env.VITE_E2E_REALTIME === 'true') {
+      const visuals = [...this.portalVisuals.values()]
+      document.querySelector('[data-testid="game-canvas"]')
+        ?.setAttribute('data-e2e-portal-art', JSON.stringify({
+          count: visuals.length,
+          reducedMotion: this.reducedMotion,
+          hitScales: visuals.map(visual => [visual.ring.scaleX, visual.ring.scaleY]),
+          haloAlphas: visuals.map(visual => Math.round(visual.halo.alpha * 1000) / 1000),
+          coreScales: visuals.map(visual => visual.center.scaleX),
+        }))
     }
 
     const keyboardBlocked = this.inputLocked || this.inputSuspended
