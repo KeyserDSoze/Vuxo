@@ -3,7 +3,7 @@ import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { signalLocalProcessTree } from './dev-process-tree.mjs'
-import { parseLocalEnv, renderLocalEnv, validateLocalEnv, composeArguments, localProcessEnvironment, localDockerIdentity, prepareHostDependencyMount, localHostEnvironment, hostRuntimeEnvironment, hostCommandArguments, localHttpEndpoints, waitForLocalHttp } from './dev-lib.mjs'
+import { parseLocalEnv, renderLocalEnv, validateLocalEnv, composeArguments, developmentFlags, localProcessEnvironment, localDockerIdentity, prepareHostDependencyMount, localHostEnvironment, hostRuntimeEnvironment, hostCommandArguments, localHttpEndpoints, localOtelHealthEndpoint, waitForLocalHttp } from './dev-lib.mjs'
 
 const templateFile = fileURLToPath(new URL('../docker/local.env.example', import.meta.url))
 const envFile = fileURLToPath(new URL('../docker/.env.local', import.meta.url))
@@ -16,9 +16,9 @@ const frontendNodeModulesDir = fileURLToPath(new URL('../src/frontend/node_modul
 const help = () => console.log(`VUXO local development (0.0.1)
   node scripts/dev.mjs init              Create docker/.env.local, never overwrite
   node scripts/dev.mjs doctor            Validate local config and installed tools
-  node scripts/dev.mjs infra [--ollama]  Start loopback PostgreSQL/Redis (Ollama opt-in)
-  node scripts/dev.mjs up [--ollama]     Docker .NET API + Vite hot reload (Ollama opt-in)
-  node scripts/dev.mjs debug [--ollama]  Host .NET/Vite watch after ready local DB/Redis
+  node scripts/dev.mjs infra [--ollama] [--observability]  Start local dependencies
+  node scripts/dev.mjs up [--ollama] [--observability]     Docker API + Vite hot reload
+  node scripts/dev.mjs debug [--ollama] [--observability]  Host .NET/Vite + Docker services
   node scripts/dev.mjs test              Run xUnit/PostgreSQL and Chromium Playwright
   node scripts/dev.mjs status            Show local Compose container status
   node scripts/dev.mjs logs [service]    Show last 100 lines of local service logs
@@ -155,7 +155,8 @@ async function main(args) {
     console.log('Local development configuration valid (secrets redacted).')
     return
   }
-  const optionsValid = ['infra', 'up', 'debug'].includes(command) ? (options.length === 0 || (options.length === 1 && options[0] === '--ollama'))
+  const optionalCommands = ['infra', 'up', 'debug'].includes(command)
+  const optionsValid = optionalCommands ? options.every(option => ['--ollama', '--observability'].includes(option)) && new Set(options).size === options.length
     : command === 'logs' ? options.length <= 1 : options.length === 0
   if (!['infra', 'up', 'debug', 'test', 'status', 'logs', 'down'].includes(command) || !optionsValid) {
     throw new Error('Unknown command or unsupported options; run: node scripts/dev.mjs help')
@@ -168,19 +169,27 @@ async function main(args) {
   }
   // --ollama is the explicit user opt-in: start the model service AND enable
   // the API's LLM adapter for this invocation. The private file is unchanged.
-  const withOllama = ['infra', 'up', 'debug'].includes(command) && options[0] === '--ollama'
+  const flags = optionalCommands ? developmentFlags(command, options) : { ollama: false, observability: false }
+  const withOllama = flags.ollama
+  const withObservability = flags.observability
+  const selectedServices = [...(withOllama ? ['ollama'] : []), ...(withObservability ? ['observability'] : [])]
   const runtimeConfig = {
     ...config,
     ...(withOllama ? { VUXO_LLM_ENABLED: 'true' } : {}),
+    VUXO_DEV_OTEL_ENABLED: String(withObservability),
     ...localDockerIdentity(),
   }
   await docker(composeArguments(envFile, composeFile, 'check', undefined, appComposeFile), runtimeConfig)
   if (command === 'debug' || command === 'test') {
     // Wait for actual PostgreSQL and Redis health, rather than simply the
     // process start. test runs use unique PostgreSQL databases per xUnit fact.
-    await docker(composeArguments(envFile, composeFile, 'ready', undefined, appComposeFile), runtimeConfig)
+    await docker(composeArguments(envFile, composeFile, 'ready', withObservability ? 'observability' : undefined, appComposeFile), runtimeConfig)
     if (withOllama) {
       await docker(composeArguments(envFile, composeFile, 'infra', 'ollama', appComposeFile), runtimeConfig)
+    }
+    if (withObservability && !await waitForLocalHttp(localOtelHealthEndpoint(config).url,
+      { attempts: 30, intervalMs: 1000 })) {
+      throw new Error('Local OpenTelemetry collector health never returned HTTP 200')
     }
     const host = hostRuntimeEnvironment(runtimeConfig)
     const npmEnvironment = localHostEnvironment(process.env)
@@ -214,10 +223,10 @@ async function main(args) {
     }
     return
   }
-  const extra = ['infra', 'up'].includes(command) ? (options[0] === '--ollama' ? 'ollama' : undefined) : options[0]
+  const extra = ['infra', 'up'].includes(command) ? selectedServices : options[0]
   await docker(composeArguments(envFile, composeFile, command, extra, appComposeFile), runtimeConfig)
   if (command === 'up') {
-    const endpoints = localHttpEndpoints(config)
+    const endpoints = [...localHttpEndpoints(config), ...(withObservability ? [localOtelHealthEndpoint(config)] : [])]
     const checks = await Promise.all(endpoints.map(async endpoint => ({
       ...endpoint, healthy: await waitForLocalHttp(endpoint.url),
     })))

@@ -162,6 +162,12 @@ jobs:
       - name: Check ASP.NET health, CORS discovery and Vite HTML over loopback
         timeout-minutes: 2
         run: node scripts/dev-smoke.mjs
+      - name: Smoke local OpenTelemetry collector explicitly opted in
+        timeout-minutes: 9
+        run: |
+          node scripts/dev.mjs up --observability
+          node scripts/dev-smoke.mjs
+          node scripts/dev-otel-smoke.mjs
       - name: Stop Docker application before testing host IDE debug
         run: node scripts/dev.mjs down
       - name: Smoke real host .NET watch, Vite and PostgreSQL via debug

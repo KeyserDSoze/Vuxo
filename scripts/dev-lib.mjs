@@ -2,6 +2,11 @@ import { randomBytes } from 'node:crypto'
 import { accessSync, constants, mkdirSync, statSync } from 'node:fs'
 import { setTimeout as delay } from 'node:timers/promises'
 
+const OPTIONAL_PORTS = [
+  ['VUXO_OTEL_DEV_PORT', '54317'],
+  ['VUXO_OTEL_HEALTH_DEV_PORT', '53133'],
+]
+
 const REQUIRED_PORTS = [
   'VUXO_API_DEV_PORT',
   'VUXO_FRONTEND_DEV_PORT',
@@ -63,8 +68,8 @@ export function validateLocalEnv(values) {
     errors.push('VUXO_LLM_MODEL: expected safe model:tag without whitespace or shell characters')
   }
   const ports = new Set()
-  for (const name of REQUIRED_PORTS) {
-    const raw = values[name]
+  for (const [name, fallback] of [...REQUIRED_PORTS.map(name => [name, undefined]), ...OPTIONAL_PORTS]) {
+    const raw = values[name] ?? fallback
     const port = Number(raw)
     if (!/^[1-9][0-9]{0,4}$/.test(raw ?? '') || !Number.isInteger(port) || port > 65535) {
       errors.push(name + ': expected a TCP port between 1 and 65535')
@@ -94,7 +99,8 @@ export function hostRuntimeEnvironment(config) {
       Auth__EnableMockLogin: 'true',
       Cors__AllowedOrigins__0: config.VUXO_ALLOWED_ORIGIN,
       Database__ApplyMigrationsOnStartup: 'true',
-      Observability__Enabled: 'false',
+      Observability__Enabled: String(config.VUXO_DEV_OTEL_ENABLED === 'true'),
+      Observability__OtlpEndpoint: `http://127.0.0.1:${config.VUXO_OTEL_DEV_PORT ?? '54317'}`,
       Llm__Enabled: config.VUXO_LLM_ENABLED,
       Llm__BaseUrl: `http://127.0.0.1:${config.VUXO_OLLAMA_DEV_PORT}/v1`,
       Llm__Model: config.VUXO_LLM_MODEL,
@@ -168,6 +174,20 @@ export function classifyHostDebugStage(log) {
   return 'Docker dependency initialization'
 }
 
+/** Local OTLP is strictly opt-in, and its health probe is only loopback. */
+export function localOtelHealthEndpoint(config) {
+  return { name: 'OpenTelemetry', url: `http://127.0.0.1:${config.VUXO_OTEL_HEALTH_DEV_PORT ?? '53133'}/` }
+}
+
+export function developmentFlags(command, options = []) {
+  const permitted = new Set(['--ollama', '--observability'])
+  if (!['infra', 'up', 'debug'].includes(command) || options.some(option => !permitted.has(option)) ||
+      new Set(options).size !== options.length) {
+    throw new Error('Unsupported or repeated development options')
+  }
+  return { ollama: options.includes('--ollama'), observability: options.includes('--observability') }
+}
+
 /** Readiness is checked from the developer's host, not merely Docker container state. */
 export function localHttpEndpoints(config) {
   return [
@@ -193,7 +213,7 @@ export async function waitForLocalHttp(url, {
   return false
 }
 
-const ALLOWED_LOG_SERVICES = new Set(['postgres', 'redis', 'ollama', 'ollama-model-init', 'api', 'frontend'])
+const ALLOWED_LOG_SERVICES = new Set(['postgres', 'redis', 'ollama', 'ollama-model-init', 'api', 'frontend', 'otel-collector'])
 
 /** Host UID/GID is explicit; inherited production VUXO_* cannot spoof it. */
 export function localDockerIdentity(platform = process.platform,
@@ -233,13 +253,17 @@ export function composeArguments(envFile, composeFile, operation, option = undef
   // Shell-free argument arrays prevent command injection or accidental use of
   // the production Compose stack. Compose project names also isolate volumes.
   const prefix = ['compose', '--project-name', 'vuxo-dev', '--env-file', envFile, '-f', composeFile,
-    ...(appComposeFile ? ['-f', appComposeFile] : [])]
+    ...(appComposeFile ? ['-f', appComposeFile, '--profile', 'observability'] : [])]
+  const choices = Array.isArray(option) ? option : option ? [option] : []
+  const withOllama = choices.includes('ollama')
+  const withObservability = choices.includes('observability')
   if (operation === 'check') return [...prefix, 'config', '--quiet']
-  if (operation === 'ready') return [...prefix, 'up', '-d', '--wait', 'postgres', 'redis']
+  if (operation === 'ready') return [...prefix, 'up', '-d', '--wait', 'postgres', 'redis',
+    ...(withObservability ? ['otel-collector'] : [])]
   if (operation === 'infra') return [...prefix, 'up', '-d', 'postgres', 'redis',
-    ...(option === 'ollama' ? ['ollama', 'ollama-model-init'] : [])]
+    ...(withOllama ? ['ollama', 'ollama-model-init'] : []), ...(withObservability ? ['otel-collector'] : [])]
   if (operation === 'up') return [...prefix, 'up', '-d', 'postgres', 'redis', 'api', 'frontend',
-    ...(option === 'ollama' ? ['ollama', 'ollama-model-init'] : [])]
+    ...(withOllama ? ['ollama', 'ollama-model-init'] : []), ...(withObservability ? ['otel-collector'] : [])]
   if (operation === 'status') return [...prefix, 'ps']
   if (operation === 'down') return [...prefix, 'down'] // Never use -v: preserve local databases.
   if (operation === 'logs') {

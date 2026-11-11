@@ -3,7 +3,7 @@ import { strict as assert } from 'node:assert'
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { composeArguments, localProcessEnvironment, localDockerIdentity, prepareHostDependencyMount, localHostEnvironment, classifyHostDebugFailure, classifyHostDebugStage, parseLocalEnv, renderLocalEnv, validateLocalEnv, hostRuntimeEnvironment, hostCommandArguments, localHttpEndpoints, waitForLocalHttp } from './dev-lib.mjs'
+import { composeArguments, developmentFlags, localOtelHealthEndpoint, localProcessEnvironment, localDockerIdentity, prepareHostDependencyMount, localHostEnvironment, classifyHostDebugFailure, classifyHostDebugStage, parseLocalEnv, renderLocalEnv, validateLocalEnv, hostRuntimeEnvironment, hostCommandArguments, localHttpEndpoints, waitForLocalHttp } from './dev-lib.mjs'
 
 const template = readFileSync(new URL('../docker/local.env.example', import.meta.url), 'utf8')
 const mockEntropy = bytes => Buffer.alloc(bytes, 0xaf)
@@ -74,7 +74,7 @@ test('Docker full app stack is explicitly selected and remains local/non-destruc
   const root = ['/tmp/docker/.env.local', '/tmp/docker/compose.dev.yml']
   const app = '/tmp/docker/compose.dev-app.yml'
   const prefix = ['compose', '--project-name', 'vuxo-dev', '--env-file', root[0],
-    '-f', root[1], '-f', app]
+    '-f', root[1], '-f', app, '--profile', 'observability']
   assert.deepEqual(composeArguments(...root, 'check', undefined, app), [...prefix, 'config', '--quiet'])
   assert.deepEqual(composeArguments(...root, 'infra', undefined, app),
     [...prefix, 'up', '-d', 'postgres', 'redis'])
@@ -86,6 +86,50 @@ test('Docker full app stack is explicitly selected and remains local/non-destruc
     [...prefix, 'logs', '--tail', '100', 'frontend'])
   assert.deepEqual(composeArguments(...root, 'down', undefined, app), [...prefix, 'down'])
   assert.equal(composeArguments(...root, 'down', undefined, app).includes('-v'), false)
+})
+
+test('local OpenTelemetry opt-in preserves no-observability default and supports flag composition', () => {
+  const env = create()
+  assert.equal(hostRuntimeEnvironment(env).api.Observability__Enabled, 'false')
+  assert.equal(hostRuntimeEnvironment(env).api.Observability__OtlpEndpoint, 'http://127.0.0.1:54317')
+  assert.deepEqual(developmentFlags('up', ['--observability', '--ollama']),
+    { ollama: true, observability: true })
+  assert.deepEqual(developmentFlags('debug', ['--ollama', '--observability']),
+    { ollama: true, observability: true })
+  assert.throws(() => developmentFlags('up', ['--observability', '--observability']), /repeated/)
+  assert.throws(() => developmentFlags('up', ['--tunnel']), /Unsupported/)
+  assert.throws(() => developmentFlags('test', ['--observability']), /Unsupported/)
+  assert.equal(hostRuntimeEnvironment({ ...env, VUXO_DEV_OTEL_ENABLED: 'true' }).api.Observability__Enabled, 'true')
+  const root = ['/tmp/docker/.env.local', '/tmp/docker/compose.dev.yml']
+  const app = '/tmp/docker/compose.dev-app.yml'
+  const base = composeArguments(...root, 'up', [], app)
+  assert.equal(base.includes('otel-collector'), false)
+  const selected = composeArguments(...root, 'up', ['ollama', 'observability'], app)
+  assert.deepEqual(selected.slice(-3), ['ollama', 'ollama-model-init', 'otel-collector'])
+  assert.equal(selected.includes('otel-collector'), true)
+  assert.equal(composeArguments(...root, 'ready', 'observability', app).at(-1), 'otel-collector')
+  assert.equal(composeArguments(...root, 'infra', 'observability', app).at(-1), 'otel-collector')
+  assert.deepEqual(localOtelHealthEndpoint(env), { name: 'OpenTelemetry', url: 'http://127.0.0.1:53133/' })
+  env.VUXO_OTEL_DEV_PORT = '54417'
+  env.VUXO_OTEL_HEALTH_DEV_PORT = '53233'
+  assert.deepEqual(validateLocalEnv(env), [])
+  assert.equal(hostRuntimeEnvironment(env).api.Observability__OtlpEndpoint, 'http://127.0.0.1:54417')
+  assert.equal(localOtelHealthEndpoint(env).url, 'http://127.0.0.1:53233/')
+  env.VUXO_OTEL_DEV_PORT = env.VUXO_POSTGRES_DEV_PORT
+  assert.match(validateLocalEnv(env).join(' '), /duplicate local host port/)
+  // Existing private .env.local files created before these optional ports
+  // remain valid and use the same safe defaults.
+  delete env.VUXO_OTEL_DEV_PORT
+  delete env.VUXO_OTEL_HEALTH_DEV_PORT
+  assert.deepEqual(validateLocalEnv(env), [])
+  const compose = readFileSync(new URL('../docker/compose.dev-app.yml', import.meta.url), 'utf8')
+  const collector = readFileSync(new URL('../docker/observability/otel-collector.local.yml', import.meta.url), 'utf8')
+  assert.match(compose, /profiles: \[observability\]/)
+  assert.match(compose, /127\.0\.0\.1:\$\{VUXO_OTEL_DEV_PORT:-54317\}/)
+  assert.match(compose, /127\.0\.0\.1:\$\{VUXO_OTEL_HEALTH_DEV_PORT:-53133\}/)
+  assert.doesNotMatch(compose, /cloudflared|vuxo\.quest/)
+  assert.match(collector, /verbosity: basic/)
+  assert.doesNotMatch(collector, /tempo:4317|loki:3100|https?:\/\//)
 })
 
 test('process environment cannot silently override local secrets/ports via production VUXO_* values', () => {

@@ -43,7 +43,8 @@ services:
       Auth__EnableMockLogin: "true"
       Database__ApplyMigrationsOnStartup: "true"
       Cors__AllowedOrigins__0: ${VUXO_ALLOWED_ORIGIN:-http://127.0.0.1:5173}
-      Observability__Enabled: "false"
+      Observability__Enabled: ${VUXO_DEV_OTEL_ENABLED:-false}
+      Observability__OtlpEndpoint: http://otel-collector:4317
       Llm__Enabled: ${VUXO_LLM_ENABLED:-false}
       Llm__BaseUrl: http://ollama:11434/v1
       Llm__Model: ${VUXO_LLM_MODEL:-qwen3:1.7b}
@@ -56,6 +57,17 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+  # Small, opt-in local collector (no Tempo/Loki/Grafana or external exporter).
+  otel-collector:
+    profiles: [observability]
+    image: otel/opentelemetry-collector-contrib:0.161.0
+    restart: unless-stopped
+    command: ["--config=/etc/otelcol-contrib/config.yaml"]
+    volumes:
+      - ./observability/otel-collector.local.yml:/etc/otelcol-contrib/config.yaml:ro
+    ports:
+      - "127.0.0.1:${VUXO_OTEL_DEV_PORT:-54317}:4317"
+      - "127.0.0.1:${VUXO_OTEL_HEALTH_DEV_PORT:-53133}:13133"
   frontend:
     image: node:24-bookworm-slim
     user: "${VUXO_DEV_UID:-1000}:${VUXO_DEV_GID:-1000}"
