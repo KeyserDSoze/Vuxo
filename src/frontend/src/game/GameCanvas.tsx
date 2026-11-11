@@ -285,6 +285,10 @@ export function GameCanvas() {
               size="small"
               variant="outlined"
               label={player.characterName}
+              data-testid={player.playerId === selfPlayerId ? 'world-presence-self' : undefined}
+              data-self={player.playerId === selfPlayerId ? 'true' : 'false'}
+              aria-label={player.playerId === selfPlayerId
+                ? t('game.playersSelf', { name: player.characterName }) : undefined}
               data-player-id={player.playerId}
               data-player-x={player.x}
               data-player-y={player.y}

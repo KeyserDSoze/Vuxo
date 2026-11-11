@@ -60,6 +60,19 @@
   scrollbar-width: thin;
 }
 .vuxo-game-presence .MuiChip-root { flex-shrink: 0; }
+/* Self is always recognizable in crowded presence, without relying on color alone. */
+.vuxo-game-presence .MuiChip-root[data-self="true"] {
+  border-color: var(--vuxo-game-hud-accent);
+  color: var(--vuxo-game-hud-accent);
+  background: color-mix(in srgb, var(--vuxo-game-hud-accent) 13%, var(--vuxo-game-hud-bg));
+  font-weight: 800;
+}
+.vuxo-game-presence .MuiChip-root[data-self="true"] .MuiChip-label::before {
+  content: "◆";
+  margin-right: .4em;
+  font-size: .62em;
+  vertical-align: 10%;
+}
 /* Limit presence DOM in crowds; the one-line scroller remains inside the HUD. */
 .vuxo-game-presence [data-testid="world-presence-overflow"] { font-variant-numeric: tabular-nums; }
 .vuxo-game-actions {

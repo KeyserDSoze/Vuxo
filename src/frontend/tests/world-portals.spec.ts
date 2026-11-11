@@ -387,6 +387,10 @@ test('portal compass tracks only private marker bearing while moving, with local
   await expect(compass).toHaveAttribute('data-direction', 'e');
   await expect(compass).toContainText('est');
   await expect(compass).toContainText('14 caselle');
+  const selfPresence = page.getByTestId('world-presence-self');
+  await expect(selfPresence).toHaveAttribute('data-player-id', 'portal-player');
+  await expect(selfPresence).toHaveAttribute('data-self', 'true');
+  await expect(selfPresence).toHaveAttribute('aria-label', 'Tu: Portal Vuxian');
 
   const start = Number(await compass.getAttribute('data-distance'));
   await page.getByTestId('game-canvas').locator('canvas').click();
@@ -399,6 +403,7 @@ test('portal compass tracks only private marker bearing while moving, with local
   await page.getByTestId('language-toggle').click();
   await expect(compass).toContainText('east');
   await expect(compass).toHaveAttribute('aria-label', /Portal 1 compass: east/);
+  await expect(selfPresence).toHaveAttribute('aria-label', 'You: Portal Vuxian');
   expect(api.getListCalls()).toBe(1);
 });
 

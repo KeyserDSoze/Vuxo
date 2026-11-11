@@ -83,6 +83,17 @@ test('two illustrated wanderers coexist in the authoritative world at mobile siz
     await pageB.goto(gameUrl)
     await expect(pageB.getByTestId('world-connection-status')).toHaveAttribute('data-status', 'connected')
 
+    // The same two authoritative players are visible in both clients, but
+    // each viewer gets exactly one self marker (not an inferred player).
+    const selfA = pageA.getByTestId('world-presence-self')
+    const selfB = pageB.getByTestId('world-presence-self')
+    await expect(selfA).toHaveCount(1)
+    await expect(selfB).toHaveCount(1)
+    await expect(selfA).toHaveAttribute('data-player-id', 'art-player-a')
+    await expect(selfB).toHaveAttribute('data-player-id', 'art-player-b')
+    await expect(pageA.locator('[data-player-id="art-player-b"]')).toHaveAttribute('data-self', 'false')
+    await expect(pageB.locator('[data-player-id="art-player-a"]')).toHaveAttribute('data-self', 'false')
+
     for (const page of [pageA, pageB]) {
       await expect(page.locator('[data-player-id="art-player-a"]')).toBeVisible()
       await expect(page.locator('[data-player-id="art-player-b"]')).toBeVisible()
