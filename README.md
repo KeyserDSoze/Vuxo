@@ -109,6 +109,8 @@ Quando una issue viene chiusa deve contenere una nota finale con cosa è stato f
 
 ## Avvio dipendenze locali
 
+Nuovo bootstrap privato senza Bash: [guida cross-platform (issue #45)](docs/engineering/local-development.md) con `node scripts/dev.mjs init|doctor|infra|status|logs|down`. Non sostituisce ancora il workflow completo Docker/IDE/debug/test.
+
 ```bash
 cp docker/.env.example docker/.env
 # valorizzare le password placeholder
