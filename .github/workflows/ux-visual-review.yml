@@ -8,6 +8,9 @@ on:
     paths:
       - .github/workflows/ux-visual-review.yml
       - src/frontend/tests/ux-visual-review.spec.ts
+      - src/frontend/tests/auth.spec.ts
+      - src/frontend/src/features/auth/authApi.ts
+      - src/frontend/src/pages/AuthPage.tsx
       - src/frontend/src/components/game-deck.css
       - src/frontend/src/components/GameDeck.tsx
       - src/frontend/tests/game-deck.spec.ts
@@ -48,7 +51,7 @@ jobs:
           CI: "true"
           VITE_BASE_PATH: /Vuxo/
           VUXO_VISUAL_REVIEW: "1"
-        run: npx playwright test tests/ux-visual-review.spec.ts tests/world-art.spec.ts tests/world-portals.spec.ts --workers=1
+        run: npx playwright test tests/ux-visual-review.spec.ts tests/world-art.spec.ts tests/world-portals.spec.ts tests/auth.spec.ts --workers=1
       - name: Upload screenshots and HTML report
         if: always()
         uses: actions/upload-artifact@v4

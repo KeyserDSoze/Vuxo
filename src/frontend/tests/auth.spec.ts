@@ -214,7 +214,7 @@ test('late logout response does not delete a newer session from a second tab', a
 });
 
 
-test('transient Cloudflare 502 then 503 recovers provider discovery without repeating token exchange', async ({ page }) => {
+test('transient Cloudflare 502 then 503 recovers provider discovery without repeating token exchange', async ({ page }, info) => {
   let discoveryCalls = 0;
   let exchanges = 0;
   await page.route('**/api/auth/providers', async route => {
@@ -239,6 +239,9 @@ test('transient Cloudflare 502 then 503 recovers provider discovery without repe
   await expect(page.getByTestId('auth-retry-providers')).toHaveCount(0);
   expect(discoveryCalls).toBe(3);
   expect(exchanges).toBe(0);
+  await info.attach('auth-provider-recovered-after-edge-error', {
+    body: await page.screenshot({ animations: 'disabled' }), contentType: 'image/png',
+  });
   await page.getByTestId('auth-microsoft').click();
   await expect(page.getByTestId('auth-user')).toContainText('microsoft Player');
   expect(exchanges).toBe(1);
@@ -283,7 +286,7 @@ test('malformed successful provider response is not retried', async ({ page }) =
   expect(discoveryCalls).toBe(1);
 });
 
-test('failed social provider configuration is recoverable without reloading on mobile', async ({ page }) => {
+test('failed social provider configuration is recoverable without reloading on mobile', async ({ page }, info) => {
   await page.setViewportSize({ width: 390, height: 844 });
   let attempts = 0;
   await page.route('**/api/auth/providers', async route => {
@@ -300,6 +303,9 @@ test('failed social provider configuration is recoverable without reloading on m
   await expect.poll(() => attempts).toBe(3);
   await expect(page.getByTestId('auth-error')).toContainText('configurazione dei provider');
   await expect(page.getByTestId('auth-retry-providers')).toBeVisible();
+  await info.attach('auth-mobile-persistent-edge-error', {
+    body: await page.screenshot({ animations: 'disabled' }), contentType: 'image/png',
+  });
 
   await page.getByTestId('language-toggle').click();
   await expect(page.getByTestId('auth-retry-providers')).toHaveText('Try again');
