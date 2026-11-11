@@ -258,8 +258,13 @@ export class WorldScene extends Phaser.Scene {
       // This is *not* client-predicted displacement or a gameplay timer.
       const remaining = Math.hypot(offsetX, offsetY)
       const moving = remaining > 0.75 || visual.motionFrames > 0
-      const bob = setIllustratedWandererStride(
-        visual.body, moving ? Math.max(remaining, 1) : 0, time, this.reducedMotion)
+      // Off-camera bodies keep lerping toward server positions but do not
+      // spend render time updating gait/particles that cannot be seen.
+      // On re-entry the existing illustrated container resumes its cycle.
+      const bob = visual.body.visible
+        ? setIllustratedWandererStride(
+          visual.body, moving ? Math.max(remaining, 1) : 0, time, this.reducedMotion)
+        : 0
       visual.motionFrames = Math.max(0, visual.motionFrames - 1)
       if (import.meta.env.VITE_E2E_REALTIME === 'true') {
         if (bob > 0.25) visual.walkedFrames++
@@ -295,6 +300,11 @@ export class WorldScene extends Phaser.Scene {
     for (const [playerId, visual] of this.players) {
       const visible = playerId === this.selfPlayerId ||
         isWorldAvatarInView(view, visual.body.x, visual.body.y)
+      // Reset idle artwork once on exit; otherwise an invisible traveller
+      // can retain its final walk frame until it comes back into view.
+      if (!visible && visual.body.visible) {
+        setIllustratedWandererStride(visual.body, 0, 0, true)
+      }
       visual.body.setVisible(visible)
       visual.name.setVisible(visible)
       if (visible) onscreen.push([playerId, visual])
