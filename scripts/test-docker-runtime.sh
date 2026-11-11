@@ -93,7 +93,7 @@ if grep -R -n -E 'ollama:11434|localhost:11434|127\.0\.0\.1:11434' src/frontend 
 fi
 
 echo "==> Building production API image"
-docker build --file docker/Dockerfile.api --tag "$VUXO_API_IMAGE" .
+docker build --pull --file docker/Dockerfile.api --tag "$VUXO_API_IMAGE" .
 
 echo "==> Verifying final image contains runtime only"
 docker run --rm --entrypoint sh "$VUXO_API_IMAGE" -c '

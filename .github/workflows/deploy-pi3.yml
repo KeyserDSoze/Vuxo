@@ -62,6 +62,8 @@ jobs:
           context: .
           file: docker/Dockerfile.api
           platforms: linux/arm64
+          # Force a fresh SDK base; runtime is pinned to patched 10.0.15.
+          pull: true
           push: true
           tags: ${{ steps.image.outputs.image }}
 

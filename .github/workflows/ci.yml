@@ -159,6 +159,8 @@ jobs:
         run: node ../../scripts/verify-repository-foundation.mjs
       - name: Verify project governance
         run: node ../../scripts/verify-governance.mjs
+      - name: Test .NET security dependency and container baseline (offline)
+        run: node --test ../../scripts/test-dotnet-security-baseline.test.mjs
       - name: Install dependencies
         run: npm install
       - name: Test public auth, history isolation and CORS (offline)
