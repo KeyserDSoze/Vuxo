@@ -33,6 +33,14 @@ Earlier public deploy runs include [#43003860875](https://github.com/KeyserDSoZe
 
 The [Raspberry release run](https://github.com/KeyserDSoZe/Vuxo/actions/runs/43007879412) passed ARM64/deploy/backup. Its first hosted strict gate failed; same-round independent route probes from **`MSP`** were **health 200, version 502, providers 200, social OPTIONS 502, private history GET 401 and OPTIONS 204, Pages redirect 200**. The Pi connector network reached origin **HTTP 200** and public API **HTTP 200 from `MXP`**, with healthy containers and no OOM/restart. **A single rerun of only the failed public gate, same SHA without deploying, passed** (workflow attempt 2 green). This further distinguishes an intermittent request-path failure from a consistently dead origin or POP; the evidence does **not** establish a precise Cloudflare root cause.
 
+## Aggiornamento diagnostico Pi — 11 novembre 2026
+
+Nel [deploy Pi #43045979925](https://github.com/KeyserDSoZe/Vuxo/actions/runs/43045979925), build ARM64 e deploy sono riusciti, ma il gate pubblico ha osservato **HTTP 502 su otto route dal POP LAX**. Il triage ha trovato API e connector running/healthy, ma non ha misurato il percorso connector→API: la sonda apriva l'immagine API tramite `--entrypoint curl`, mentre `curl` non esiste più nel runtime dopo #196. Il messaggio `Docker probe executable unavailable` **non prova** che l'origine fosse irraggiungibile.
+
+Il probe ora usa l'eseguibile .NET incluso `/app/health/Vuxo.HealthProbe.dll` dalla stessa immagine API, in un container effimero con `--pull=never`, network namespace del connector, filesystem read-only, nessuna capability, token, mount o porta pubblicata. Con zero argomenti mantiene il normale healthcheck Docker (HTTP 200 loopback, timeout 2s, nessun output). Per la diagnostica accetta **solo** `http://api:8080/health` e `https://api.vuxoapi.xyz/health`, con timeout fissi 6 e 8 secondi e redirect disabilitati. L'output è solo uno status HTTP numerico e, se validato, il **suffisso colo di tre lettere** (mai CF-Ray completo). I test di regressione Python e Node verificano classificazione, allowlist, privacy e budget.
+
+La correzione evita falsi *unverified* causati dall'assenza di curl; **non corregge i 502 Cloudflare e non sostituisce il controllo pubblico HTTP 200/401/CORS**. Prima di chiudere #147 servono nuovi confronti multi-vantage e controlli lato proprietario Cloudflare. I successi singoli non dimostrano stabilità.
+
 ## Follow-up for the Cloudflare domain/tunnel owner (out of repo)
 
 1. Check the exact public hostname `api.vuxoapi.xyz`, its Cloudflare DNS/tunnel mapping and Zero Trust **Public Hostname** ingress for the expected internal `http://api:8080` service. Verify the route has not drifted; do not paste tunnel tokens or client secrets into issues.
