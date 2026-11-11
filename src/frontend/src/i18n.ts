@@ -483,6 +483,8 @@ const initialization = i18n.use(initReactI18next).init({
           portal: {
             available: 'Portali personali nel mondo: {{count}}',
             enter: 'Entra nel portale {{number}}',
+            showMore: 'Mostra altri {{count}} portali',
+            showLess: 'Mostra meno portali',
             moveCloser: 'Avvicinati a un portale per entrare. Puoi anche selezionare il suo simbolo sulla mappa.',
             compass: {
               target: 'Portale {{number}}',
@@ -1261,6 +1263,8 @@ const initialization = i18n.use(initReactI18next).init({
           portal: {
             available: 'Personal portals in the world: {{count}}',
             enter: 'Enter portal {{number}}',
+            showMore: 'Show {{count}} more portals',
+            showLess: 'Show fewer portals',
             moveCloser: 'Move closer to a portal to enter. You can also select its marker on the map.',
             compass: {
               target: 'Portal {{number}}',

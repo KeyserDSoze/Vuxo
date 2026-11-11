@@ -402,6 +402,41 @@ test('portal compass tracks only private marker bearing while moving, with local
   expect(api.getListCalls()).toBe(1);
 });
 
+test('crowded portal action HUD is compact on mobile and can reveal every owner grant without losing its API number', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await initializePlayer(page, 'en');
+  const far = Array.from({ length: 9 }, (_, index) => ({
+    id: 'far-portal-' + index, contentKey: 'portal.grove', x: 50.5 + index, y: 4.5,
+  }));
+  const nearbyGrantId = '33333333-3333-4333-8333-333333333333';
+  const api = await mockPrivatePortals(page, 40.5, 4.5, [
+    ...far,
+    { id: nearbyGrantId, contentKey: 'portal.grove', x: 4.5, y: 4.5 },
+  ]);
+  await page.goto(origin + '/Vuxo/#/game');
+  await expect(page.getByTestId('world-connection-status')).toHaveAttribute('data-status', 'connected');
+  const actions = page.getByTestId('world-portal-enter');
+  const toggle = page.getByTestId('world-portal-more');
+  await expect(actions).toHaveCount(6);
+  await expect(actions.first()).toHaveAttribute('data-grant-id', nearbyGrantId);
+  await expect(actions.first()).toHaveAttribute('data-portal-number', '11');
+  await expect(actions.first()).toBeEnabled();
+  await expect(page.getByTestId('world-portal-compass')).toHaveAttribute('data-target-number', '11');
+  await expect(toggle).toContainText('5 more portals');
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  await expect(actions).toHaveCount(11);
+  await expect(actions.filter({ hasText: 'Enter portal 1' })).toHaveCount(1);
+  await toggle.click();
+  await expect(actions).toHaveCount(6);
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  expect(api.getEntryCalls()).toBe(0);
+  expect(api.getListCalls()).toBe(1);
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollHeight <= innerHeight + 1
+    && document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+});
+
 test('portal compass selects the closest authorized marker rather than the first', async ({ page }) => {
   await initializePlayer(page, 'en');
   const api = await mockPrivatePortals(page, 18.5, 4.5, [{

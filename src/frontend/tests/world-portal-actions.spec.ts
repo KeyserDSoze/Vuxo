@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { rankWorldPortalActions } from '../src/game/WorldPortalActions'
+import { WORLD_PORTAL_PREVIEW_LIMIT, previewWorldPortalActions, rankWorldPortalActions } from '../src/game/WorldPortalActions'
 
 const self = { x: 4.5, y: 4.5 }
 const marker = (id: string, x: number, y = 4.5) =>
@@ -42,4 +42,23 @@ test('missing or invalid self leaves all granted actions in canonical API order'
   expect(rankWorldPortalActions(undefined, portals).map(x => x.portal)).toEqual(portals)
   expect(rankWorldPortalActions({ x: NaN, y: 0 }, portals).map(x => x.portal)).toEqual(portals)
   expect(rankWorldPortalActions(self, [])).toEqual([])
+})
+
+test('compact action preview stays bounded without dropping or rewriting grants', () => {
+  const portals = [
+    ...Array.from({ length: 25 }, (_, index) => marker('far-' + index, 40 + index)),
+    marker('reachable', 5),
+  ]
+  const ranked = rankWorldPortalActions(self, portals)
+  const compact = previewWorldPortalActions(ranked, false)
+  expect(compact.visible).toHaveLength(WORLD_PORTAL_PREVIEW_LIMIT)
+  expect(compact.hiddenCount).toBe(20)
+  expect(compact.visible[0]).toEqual({ portal: portals[25], number: 26 })
+  const expanded = previewWorldPortalActions(ranked, true)
+  expect(expanded.visible).toHaveLength(portals.length)
+  expect(expanded.hiddenCount).toBe(0)
+  expect(expanded.visible.map(item => item.portal)).toEqual(ranked.map(item => item.portal))
+  expect(ranked).toHaveLength(portals.length)
+  expect(previewWorldPortalActions(ranked.slice(0, 2), false).hiddenCount).toBe(0)
+  expect(previewWorldPortalActions([], false).visible).toEqual([])
 })

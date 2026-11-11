@@ -1,6 +1,17 @@
 import type { WorldPortalMarker } from '../features/portals/portalApi'
 import type { WorldPlayerSnapshot } from '../features/world/worldRealtime'
 
+export const WORLD_PORTAL_PREVIEW_LIMIT = 6
+
+/** Keep the quick-action HUD bounded while preserving the full owner API list. */
+export function previewWorldPortalActions<T>(
+  ranked: readonly T[],
+  expanded: boolean,
+): { visible: T[]; hiddenCount: number } {
+  const visible = expanded ? [...ranked] : ranked.slice(0, WORLD_PORTAL_PREVIEW_LIMIT)
+  return { visible, hiddenCount: ranked.length - visible.length }
+}
+
 /**
  * Presentation only: preserve every owner-granted portal and its original
  * button number. The authoritative enter endpoint validates its grant and

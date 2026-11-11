@@ -14,7 +14,7 @@ import type {
 import { WorldScene } from './WorldScene'
 import { PortalCompass } from './PortalCompass'
 import { WorldRadar } from './WorldRadar'
-import { rankWorldPortalActions } from './WorldPortalActions'
+import { previewWorldPortalActions, rankWorldPortalActions } from './WorldPortalActions'
 import { selectWorldPresence } from './WorldPresence'
 import { readStoredSession } from '../features/auth/authSession'
 import { enterWorldPortal, fetchWorldPortals, PortalApiError, type WorldPortalMarker } from '../features/portals/portalApi'
@@ -40,6 +40,7 @@ export function GameCanvas() {
   const [portals, setPortals] = useState<WorldPortalMarker[]>([])
   const [portalErrorCode, setPortalErrorCode] = useState<string | null>(null)
   const [activePortal, setActivePortal] = useState<WorldPortalMarker | null>(null)
+  const [allPortalActionsVisible, setAllPortalActionsVisible] = useState(false)
 
   useEffect(() => {
     if (!host.current) return
@@ -241,6 +242,7 @@ export function GameCanvas() {
   const presence = selectWorldPresence(players, selfPlayerId)
   // HUD ordering is a display hint only; entry is still owner-authorized by API.
   const portalActions = rankWorldPortalActions(self, portals)
+  const portalPreview = previewWorldPortalActions(portalActions, allPortalActionsVisible)
   // Client proximity is ONLY an affordance. The API always checks server state.
   const nearby = (portal: WorldPortalMarker) => Boolean(self)
     && Math.hypot(self!.x - portal.x, self!.y - portal.y) <= 1.5
@@ -353,8 +355,9 @@ export function GameCanvas() {
             {t('game.portal.available', { count: portals.length })}
           </Typography>
           {status === 'connected' && <PortalCompass self={self} portals={portals} />}
-          <Stack direction="row" spacing={0.75} className="vuxo-game-portal-actions">
-            {portalActions.map(({ portal, number }) => (
+          <Stack id="world-portal-action-list" direction="row" spacing={0.75}
+            className="vuxo-game-portal-actions" data-testid="world-portal-action-list">
+            {portalPreview.visible.map(({ portal, number }) => (
               <Button
                 key={portal.id}
                 data-testid="world-portal-enter"
@@ -370,6 +373,21 @@ export function GameCanvas() {
               </Button>
             ))}
           </Stack>
+          {portalActions.length > 6 && (
+            <Button
+              data-testid="world-portal-more"
+              aria-controls="world-portal-action-list"
+              aria-expanded={allPortalActionsVisible}
+              size="small"
+              variant="outlined"
+              className="vuxo-game-button vuxo-game-portal-expand"
+              onClick={() => setAllPortalActionsVisible(value => !value)}
+            >
+              {allPortalActionsVisible
+                ? t('game.portal.showLess')
+                : t('game.portal.showMore', { count: portalPreview.hiddenCount })}
+            </Button>
+          )}
           {portals.some(portal => !nearby(portal)) && (
             <Typography variant="caption" sx={{ color: 'var(--vuxo-game-hud-text)', opacity: 0.8 }}>
               {t('game.portal.moveCloser')}
