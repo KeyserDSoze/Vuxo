@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import { strict as assert } from 'node:assert'
 import { readFileSync } from 'node:fs'
-import { composeArguments, localProcessEnvironment, parseLocalEnv, renderLocalEnv, validateLocalEnv, hostRuntimeEnvironment, hostCommandArguments, localHttpEndpoints, waitForLocalHttp } from './dev-lib.mjs'
+import { composeArguments, localProcessEnvironment, localHostEnvironment, parseLocalEnv, renderLocalEnv, validateLocalEnv, hostRuntimeEnvironment, hostCommandArguments, localHttpEndpoints, waitForLocalHttp } from './dev-lib.mjs'
 
 const template = readFileSync(new URL('../docker/local.env.example', import.meta.url), 'utf8')
 const mockEntropy = bytes => Buffer.alloc(bytes, 0xaf)
@@ -209,4 +209,39 @@ test('up readiness checks actual loopback HTTP 200 for API and Vite, including c
     pause: async () => {},
     attempts: 1,
   }), false)
+})
+
+test('host npm/Vite/Playwright never inherit private VUXO_* values or production API/ASP.NET settings', () => {
+  const config = create()
+  const inherited = {
+    PATH: '/usr/local/bin:/usr/bin', HOME: '/home/developer',
+    VUXO_POSTGRES_PASSWORD: 'production-password',
+    VUXO_JWT_SIGNING_KEY: 'production-jwt',
+    VUXO_CLOUDFLARE_TUNNEL_TOKEN: 'production-tunnel',
+    VITE_API_BASE_URL: 'https://api.vuxoapi.xyz',
+    ASPNETCORE_URLS: 'http://0.0.0.0:5000',
+    ConnectionStrings__GameDb: 'Host=production',
+    Auth__Jwt__SigningKey: 'prod-jwt',
+    Cors__AllowedOrigins__0: 'https://vuxo.quest',
+    Llm__BaseUrl: 'https://production',
+  }
+  const frontend = localHostEnvironment(inherited, hostRuntimeEnvironment(config).frontend)
+  const npm = localHostEnvironment(inherited)
+  const backend = localHostEnvironment(inherited, hostRuntimeEnvironment(config).api)
+  const xunit = localHostEnvironment(inherited, hostRuntimeEnvironment(config).tests)
+  for (const exposed of [frontend, npm]) {
+    assert.equal(exposed.PATH, inherited.PATH)
+    assert.equal(exposed.HOME, inherited.HOME)
+    for (const secret of ['production-password', 'production-jwt', 'production-tunnel',
+      'https://api.vuxoapi.xyz', 'Host=production', 'prod-jwt', 'https://vuxo.quest']) {
+      assert.equal(JSON.stringify(exposed).includes(secret), false)
+    }
+    assert.equal(JSON.stringify(exposed).includes(config.VUXO_POSTGRES_PASSWORD), false)
+    assert.equal(JSON.stringify(exposed).includes(config.VUXO_JWT_SIGNING_KEY), false)
+  }
+  assert.equal(frontend.VITE_API_BASE_URL, 'http://127.0.0.1:8080')
+  assert.equal(backend.ASPNETCORE_URLS, 'http://127.0.0.1:8080')
+  assert.equal(backend.Auth__Jwt__SigningKey, config.VUXO_JWT_SIGNING_KEY)
+  assert.equal(xunit.VUXO_TEST_POSTGRES_CONNECTION_STRING.includes(config.VUXO_POSTGRES_PASSWORD), true)
+  assert.equal(Object.hasOwn(xunit, 'Auth__Jwt__SigningKey'), false)
 })

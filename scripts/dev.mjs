@@ -2,7 +2,7 @@
 import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { parseLocalEnv, renderLocalEnv, validateLocalEnv, composeArguments, localProcessEnvironment, hostRuntimeEnvironment, hostCommandArguments, localHttpEndpoints, waitForLocalHttp } from './dev-lib.mjs'
+import { parseLocalEnv, renderLocalEnv, validateLocalEnv, composeArguments, localProcessEnvironment, localHostEnvironment, hostRuntimeEnvironment, hostCommandArguments, localHttpEndpoints, waitForLocalHttp } from './dev-lib.mjs'
 
 const templateFile = fileURLToPath(new URL('../docker/local.env.example', import.meta.url))
 const envFile = fileURLToPath(new URL('../docker/.env.local', import.meta.url))
@@ -178,14 +178,16 @@ async function main(args) {
     if (withOllama) {
       await docker(composeArguments(envFile, composeFile, 'infra', 'ollama', appComposeFile), runtimeConfig)
     }
-    const safeEnvironment = localProcessEnvironment(process.env, runtimeConfig)
     const host = hostRuntimeEnvironment(runtimeConfig)
+    const npmEnvironment = localHostEnvironment(process.env)
+    const apiEnvironment = localHostEnvironment(process.env, host.api)
+    const frontendEnvironment = localHostEnvironment(process.env, host.frontend)
     if (command === 'debug') {
       await runHostCommand('npm install', 'npm', hostCommandArguments(config, 'npm-install'),
-        frontendDir, safeEnvironment)
+        frontendDir, npmEnvironment)
       console.log('Local IDE debug: API and Vite on 127.0.0.1; stop both with Ctrl+C.')
-      const withApi = { ...safeEnvironment, ...host.api }
-      const withFrontend = { ...safeEnvironment, ...host.frontend }
+      const withApi = apiEnvironment
+      const withFrontend = frontendEnvironment
       await runHostDebug([
         { label: 'dotnet watch', binary: 'dotnet',
           args: hostCommandArguments(config, 'api'), cwd: rootDir, env: withApi },
@@ -195,13 +197,13 @@ async function main(args) {
     } else {
       // Never skip the real PostgreSQL integration tests when running locally.
       await runHostCommand('xUnit/PostgreSQL', 'dotnet', hostCommandArguments(config, 'dotnet-test'),
-        rootDir, { ...safeEnvironment, ...host.tests, Observability__Enabled: 'false' })
+        rootDir, localHostEnvironment(process.env, { ...host.tests, Observability__Enabled: 'false' }))
       await runHostCommand('npm install', 'npm', hostCommandArguments(config, 'npm-install'),
-        frontendDir, safeEnvironment)
+        frontendDir, npmEnvironment)
       await runHostCommand('Chromium install', 'npx', hostCommandArguments(config, 'chromium'),
-        frontendDir, safeEnvironment)
+        frontendDir, npmEnvironment)
       await runHostCommand('Playwright', 'npm', hostCommandArguments(config, 'playwright'),
-        frontendDir, { ...safeEnvironment, ...host.frontend })
+        frontendDir, frontendEnvironment)
       console.log('Local xUnit/PostgreSQL and Playwright checks passed.')
     }
     return

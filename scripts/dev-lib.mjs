@@ -122,6 +122,20 @@ export function hostCommandArguments(config, operation) {
 }
 
 
+/**
+ * Host API, npm, Vite and Playwright subprocesses must not inherit secrets
+ * from a production shell or the private Docker environment. Explicit API
+ * credentials are added only to the API process; frontend tools see VITE_*
+ * public values and regular OS PATH/HOME, never local VUXO_* passwords.
+ */
+export function localHostEnvironment(processEnvironment, explicitValues = {}) {
+  const forbidden = /^(?:VUXO_|VITE_|ASPNETCORE_|Auth__|ConnectionStrings__|Redis__|Cors__|Database__|Llm__|Observability__)/
+  return {
+    ...Object.fromEntries(Object.entries(processEnvironment).filter(([key]) => !forbidden.test(key))),
+    ...explicitValues,
+  }
+}
+
 /** Readiness is checked from the developer's host, not merely Docker container state. */
 export function localHttpEndpoints(config) {
   return [
