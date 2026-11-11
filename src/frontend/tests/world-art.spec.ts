@@ -10,6 +10,7 @@ const gameUrl = origin + '/Vuxo/#/game'
 const duoScope = 'world-art-duo'
 const resizeScope = 'world-art-resize'
 const strideScope = 'world-art-stride'
+const facingScope = 'world-art-facing'
 
 async function resetRoom(request: import('@playwright/test').APIRequestContext, scope: string) {
   const result = await request.post(origin + '/__vuxo_e2e/world/reset?scope=' + scope)
@@ -131,6 +132,14 @@ test('two illustrated wanderers coexist in the authoritative world at mobile siz
     await pageA.waitForTimeout(140)
     await pageA.keyboard.up('ArrowRight')
     await expect.poll(async () => Number(await self.getAttribute('data-player-x'))).toBeGreaterThan(oldX)
+    // The same authoritative snapshot turns the *peer* on the other browser.
+    await expect.poll(() => pageB.evaluate(() => {
+      const encoded = document.querySelector('[data-testid="game-canvas"]')
+        ?.getAttribute('data-e2e-avatar-facing')
+      if (!encoded) return false
+      const facing = JSON.parse(encoded) as Array<{ playerId: string; facing: string; profileVisible: boolean }>
+      return facing.some(item => item.playerId === 'art-player-a' && item.facing === 'east' && item.profileVisible)
+    })).toBe(true)
 
     await pageA.evaluate(() => window.dispatchEvent(new Event('vuxo:e2e-reconnect')))
     await expect(pageA.getByTestId('world-connection-status')).toHaveAttribute('data-status', 'connected')
@@ -212,6 +221,67 @@ test('server-owned walking drives stride while reduced-motion remains static, in
   await expect.poll(async () => (await pose())?.moving).toBe(false)
   await expect.poll(async () => (await pose())?.bob).toBe(0)
   await expect(host).toHaveAttribute('data-e2e-illustrated-player-count', '1')
+  await expect(host.locator('canvas')).toBeVisible()
+  await expect.poll(() => page.evaluate(() =>
+    document.documentElement.scrollWidth <= innerWidth + 1 &&
+    document.documentElement.scrollHeight <= innerHeight + 1
+  )).toBe(true)
+})
+
+test('canonical server target turns avatars north, east, south and west with actual profile/back layers', async ({ page, request }, info) => {
+  await resetRoom(request, facingScope)
+  await demoPlayer(page, 'facing-player', 'Four Winds', facingScope)
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto(gameUrl)
+
+  const host = page.getByTestId('game-canvas')
+  const self = page.locator('[data-player-id="facing-player"]')
+  await expect(page.getByTestId('world-connection-status')).toHaveAttribute('data-status', 'connected')
+  await expect(host).toHaveAttribute('data-e2e-world-art-version', 'vuxo-world-art-v2')
+  const facing = async () => host.evaluate(element => {
+    const encoded = element.getAttribute('data-e2e-avatar-facing')
+    if (!encoded) return null
+    const snapshots = JSON.parse(encoded) as Array<{
+      playerId: string; facing: string; rearVisible: boolean
+      profileVisible: boolean; scaleX: number
+    }>
+    return snapshots.find(item => item.playerId === 'facing-player') ?? null
+  })
+
+  await expect.poll(async () => (await facing())?.facing).toBe('south')
+  await host.locator('canvas').click()
+  const turns = [
+    { key: 'ArrowUp', coordinate: 'y', toward: 'less', direction: 'north', rear: true, side: false, scaleX: 1 },
+    { key: 'ArrowRight', coordinate: 'x', toward: 'more', direction: 'east', rear: false, side: true, scaleX: 1 },
+    { key: 'ArrowDown', coordinate: 'y', toward: 'more', direction: 'south', rear: false, side: false, scaleX: 1 },
+    { key: 'ArrowLeft', coordinate: 'x', toward: 'less', direction: 'west', rear: false, side: true, scaleX: -1 },
+  ] as const
+  for (const turn of turns) {
+    const coordinateAttribute = turn.coordinate === 'x' ? 'data-player-x' : 'data-player-y'
+    const before = Number(await self.getAttribute(coordinateAttribute))
+    await page.keyboard.down(turn.key)
+    await expect.poll(async () => {
+      const after = Number(await self.getAttribute(coordinateAttribute))
+      return turn.toward === 'less' ? after < before : after > before
+    }).toBe(true)
+    await expect.poll(async () => (await facing())?.facing).toBe(turn.direction)
+    await page.keyboard.up(turn.key)
+    const pose = await facing()
+    expect(pose?.rearVisible).toBe(turn.rear)
+    expect(pose?.profileVisible).toBe(turn.side)
+    expect(pose?.scaleX).toBe(turn.scaleX)
+    if (turn.direction === 'north' || turn.direction === 'west') {
+      await info.attach('server-faced-' + turn.direction + '-390px', {
+        body: await page.screenshot({ animations: 'disabled' }), contentType: 'image/png',
+      })
+    }
+  }
+  const directionAfterMoving = (await facing())?.facing
+  await page.setViewportSize({ width: 1280, height: 720 })
+  await expect.poll(async () => (await facing())?.facing).toBe(directionAfterMoving)
+  await page.emulateMedia({ reducedMotion: 'no-preference' })
+  await expect.poll(async () => (await facing())?.facing).toBe(directionAfterMoving)
   await expect(host.locator('canvas')).toBeVisible()
   await expect.poll(() => page.evaluate(() =>
     document.documentElement.scrollWidth <= innerWidth + 1 &&

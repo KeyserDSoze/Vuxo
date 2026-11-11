@@ -5,7 +5,8 @@ import { PREVIEW_COLORS } from '../features/character/appearance'
 // VUXO's first original procedural world art. These graphics are presentation
 // only: no asset licence, gameplay collision, coordinates, economy or
 // server-owned data are introduced. When provided, cosmetics are server-sourced.
-export const WORLD_ART_VERSION = 'vuxo-world-art-v1'
+export const WORLD_ART_VERSION = 'vuxo-world-art-v2'
+export type WandererFacing = 'north' | 'south' | 'east' | 'west'
 const TILE = 32
 
 type CloakPalette = {
@@ -21,7 +22,35 @@ type CloakPalette = {
 const wandererMotion = new WeakMap<Phaser.GameObjects.Container, {
   gait: Phaser.GameObjects.Container
   trail: Phaser.GameObjects.Ellipse
+  profile: Phaser.GameObjects.Graphics
+  rear: Phaser.GameObjects.Graphics
+  facing: WandererFacing
 }>()
+
+/** Update only the drawing orientation, never the authoritative world anchor. */
+export function setIllustratedWandererFacing(avatar: Phaser.GameObjects.Container, facing: WandererFacing): void {
+  const layer = wandererMotion.get(avatar)
+  if (!layer) return
+  layer.facing = facing
+  layer.rear.visible = facing === 'north'
+  layer.profile.visible = facing === 'east' || facing === 'west'
+  // Both profiles are drawn once; the west profile is a mirror of east.
+  avatar.setScale(facing === 'west' ? -1 : 1, 1)
+}
+
+/** Test-only scene diagnostics can verify that drawing layers agree with the facing. */
+export function readIllustratedWandererFacing(avatar: Phaser.GameObjects.Container): {
+  facing: WandererFacing
+  rearVisible: boolean
+  profileVisible: boolean
+} | null {
+  const layer = wandererMotion.get(avatar)
+  return layer ? {
+    facing: layer.facing,
+    rearVisible: layer.rear.visible,
+    profileVisible: layer.profile.visible,
+  } : null
+}
 
 /**
  * Purely decorative walk-cycle of the painted silhouette. The parent avatar
@@ -188,13 +217,46 @@ export function createIllustratedWanderer(
   painting.fillStyle(0xffffff, 0.85)
   painting.fillCircle(-1, -23, 0.8)
 
+  // Alternate original views cover the frontal face only when the *server*
+  // changes the movement target. Both shapes are built once per avatar, then
+  // switched by visibility; they never touch position, collision or input.
+  const profile = scene.add.graphics()
+  profile.fillStyle(palette.mantle, 1)
+  profile.fillRoundedRect(-10, -27, 18, 16, 4)
+  profile.fillStyle(skin, 1)
+  profile.fillEllipse(0, -35, 21, 21)
+  profile.fillTriangle(8, -37, 14, -34, 8, -31)
+  profile.fillStyle(palette.hair, 1)
+  profile.fillEllipse(-2, -42, 21, 13)
+  profile.fillRoundedRect(-12, -41, 7, appearance?.hairStyle === 'hair-3' ? 18 : 11, 3)
+  profile.fillStyle(0x202a3d, 1)
+  profile.fillCircle(5, -35, 1.65)
+  profile.fillStyle(palette.trim, 1)
+  profile.fillCircle(0, -22, 2)
+  profile.visible = false
+
+  const rear = scene.add.graphics()
+  rear.fillStyle(palette.mantle, 1)
+  rear.fillRoundedRect(-torsoWidth / 2 - 2, -29, torsoWidth + 4, 22, 5)
+  rear.fillStyle(palette.shadow, 0.95)
+  rear.fillTriangle(-9, -12, -12, -5, 0, -7)
+  rear.fillTriangle(9, -12, 12, -5, 0, -7)
+  rear.lineStyle(2, palette.trim, 0.7)
+  rear.lineBetween(0, -24, 0, -10)
+  rear.fillStyle(palette.hair, 1)
+  rear.fillEllipse(0, -36, 24, 23)
+  rear.fillRoundedRect(-12, -45, 24, appearance?.hairStyle === 'hair-3' ? 21 : 16, 5)
+  rear.fillStyle(palette.mantle, 1)
+  rear.fillEllipse(0, -29, 25, 8)
+  rear.visible = false
+
   // Only the illustrated silhouette moves vertically, never its root/feet.
   // A single low-opacity ground flash is drawn once and reused every frame.
   const trail = scene.add.ellipse(0, -1, 30, 8, palette.trim, 0.38)
   trail.alpha = 0
-  const gait = scene.add.container(0, 0, [painting])
+  const gait = scene.add.container(0, 0, [painting, profile, rear])
   const body = scene.add.container(0, 0, [glow, shadow, trail, gait])
-  wandererMotion.set(body, { gait, trail })
+  wandererMotion.set(body, { gait, trail, profile, rear, facing: 'south' })
   body.setDepth(10)
   body.setSize(34, 50)
   return body

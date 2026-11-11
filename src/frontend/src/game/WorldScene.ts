@@ -1,7 +1,7 @@
 import Phaser from 'phaser'
 import type { WorldPlayerSnapshot, WorldRealtimeClient, WorldRealtimeState } from '../features/world/worldRealtime'
 import type { WorldPortalMarker } from '../features/portals/portalApi'
-import { WORLD_ART_VERSION, createIllustratedWanderer, paintWoodlandTile, setIllustratedWandererStride } from './WorldArtwork'
+import { WORLD_ART_VERSION, createIllustratedWanderer, paintWoodlandTile, readIllustratedWandererFacing, setIllustratedWandererFacing, setIllustratedWandererStride, type WandererFacing } from './WorldArtwork'
 import { readWorldAppearance, worldAppearanceKey } from './WorldAppearance'
 import { computeWorldCameraZoom } from './WorldCamera'
 import { createIllustratedPortal, destroyIllustratedPortal, updateIllustratedPortal, type IllustratedPortal } from './WorldPortalArtwork'
@@ -14,6 +14,7 @@ type PlayerVisual = {
   targetX: number
   targetY: number
   appearanceKey: string
+  facing: WandererFacing
   // Refresh only on *server* target changes, never from input events.
   // A short frame hold keeps animation visible between sparse realtime ticks.
   motionFrames: number
@@ -83,6 +84,7 @@ export class WorldScene extends Phaser.Scene {
         host?.removeAttribute('data-e2e-illustrated-player-count')
         host?.removeAttribute('data-e2e-world-art-version')
         host?.removeAttribute('data-e2e-avatar-appearance')
+        host?.removeAttribute('data-e2e-avatar-facing')
         host?.removeAttribute('data-e2e-avatar-motion')
         host?.removeAttribute('data-e2e-name-label-bounds')
         host?.removeAttribute('data-e2e-camera-zoom')
@@ -234,7 +236,8 @@ export class WorldScene extends Phaser.Scene {
       visual.body.y = Phaser.Math.Linear(visual.body.y, visual.targetY, interpolation)
       const offsetX = visual.targetX - visual.body.x
       const offsetY = visual.targetY - visual.body.y
-      if (Math.abs(offsetX) > 2) visual.body.setScale(offsetX < 0 ? -1 : 1, 1)
+      // Facing is retained from authoritative target changes in upsertPlayer.
+      // Interpolation and local keydown never create a turn.
 
       // Phaser can finish interpolating within a handful of frames even if
       // the authoritative mock only emits a single movement snapshot. Hold
@@ -323,6 +326,12 @@ export class WorldScene extends Phaser.Scene {
       host?.setAttribute('data-e2e-avatar-appearance', JSON.stringify(
         [...this.players.entries()].map(([playerId, visual]) =>
           ({ playerId, appearance: visual.appearanceKey })).sort((a, b) => a.playerId.localeCompare(b.playerId))))
+      host?.setAttribute('data-e2e-avatar-facing', JSON.stringify(
+        [...this.players.entries()].map(([playerId, visual]) => ({
+          playerId,
+          ...readIllustratedWandererFacing(visual.body),
+          scaleX: visual.body.scaleX,
+        })).sort((a, b) => a.playerId.localeCompare(b.playerId))))
     }
 
     if (this.selfPlayerId && this.cameraTargetId !== this.selfPlayerId) {
@@ -349,8 +358,16 @@ export class WorldScene extends Phaser.Scene {
     if (existing) {
       // Sparse/irregular network snapshots should still yield a readable
       // gait, without inferring movement from untrusted local key presses.
-      if (Math.hypot(existing.targetX - targetX, existing.targetY - targetY) > 0.05) {
+      const dx = targetX - existing.targetX
+      const dy = targetY - existing.targetY
+      if (Number.isFinite(dx) && Number.isFinite(dy) && Math.hypot(dx, dy) > 0.05) {
         existing.motionFrames = 12
+        // The server's next position determines the art direction. It is not
+        // predicted from key state, frame interpolation or camera motion.
+        existing.facing = Math.abs(dx) >= Math.abs(dy)
+          ? (dx < 0 ? 'west' : 'east')
+          : (dy < 0 ? 'north' : 'south')
+        setIllustratedWandererFacing(existing.body, existing.facing)
       }
       existing.targetX = targetX
       existing.targetY = targetY
@@ -361,7 +378,7 @@ export class WorldScene extends Phaser.Scene {
         const old = existing.body
         const replacement = createIllustratedWanderer(this, player.playerId, isSelf, appearance)
         replacement.setPosition(old.x, old.y)
-        replacement.setScale(old.scaleX, old.scaleY)
+        setIllustratedWandererFacing(replacement, existing.facing)
         existing.body = replacement
         existing.appearanceKey = appearanceKey
         if (this.cameraTargetId === player.playerId) {
@@ -388,7 +405,7 @@ export class WorldScene extends Phaser.Scene {
     name.setDepth(11)
 
     this.players.set(player.playerId, {
-      body, name, targetX, targetY, appearanceKey,
+      body, name, targetX, targetY, appearanceKey, facing: 'south',
       motionFrames: 0, walkedFrames: 0, reducedWalkFrames: 0,
     })
   }
