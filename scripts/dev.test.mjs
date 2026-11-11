@@ -104,6 +104,33 @@ test('process environment cannot silently override local secrets/ports via produ
   assert.equal(merged.PATH, '/safe')
 })
 
+test('mixed-case Windows-style environment aliases cannot leak into local child processes', () => {
+  const privateValues = {
+    vuxo_postgres_password: 'prod-postgres-lowercase',
+    Vuxo_Cloudflare_Tunnel_Token: 'prod-tunnel-mixedcase',
+    vItE_aPi_bAsE_uRl: 'https://private.example.test',
+    auth__jwt__signingkey: 'prod-jwt-lowercase',
+    connectionstrings__gamedb: 'prod-db-connection',
+    observability__otlpendpoint: 'https://private-collector.example.test',
+    otel_exporter_otlp_headers: 'Authorization=production-otlp-token',
+    OTEL_EXPORTER_OTLP_ENDPOINT: 'https://private-collector.example.test',
+    PATH: '/usr/bin:/bin',
+  }
+  const safeHost = localHostEnvironment(privateValues, { VITE_API_BASE_URL: 'http://127.0.0.1:8080' })
+  const safeDocker = localProcessEnvironment(privateValues, create())
+  assert.equal(safeHost.PATH, privateValues.PATH)
+  assert.equal(safeDocker.PATH, privateValues.PATH)
+  assert.equal(safeHost.VITE_API_BASE_URL, 'http://127.0.0.1:8080')
+  for (const secret of Object.values(privateValues).filter(value => value !== privateValues.PATH)) {
+    assert.equal(JSON.stringify(safeHost).includes(secret), false)
+  }
+  assert.equal(safeDocker.vuxo_postgres_password, undefined)
+  assert.equal(safeDocker.Vuxo_Cloudflare_Tunnel_Token, undefined)
+  assert.notEqual(safeDocker.VUXO_POSTGRES_PASSWORD, privateValues.vuxo_postgres_password)
+  // The Docker operation preserves non-VUXO process settings; the stricter
+  // host subprocess filter is responsible for OTEL/ASP.NET isolation.
+})
+
 test('local debug and test use real Docker health readiness and fixed, shell-free command plans', () => {
   const env = create()
   const root = ['/tmp/docker/.env.local', '/tmp/docker/compose.dev.yml']

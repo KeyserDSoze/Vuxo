@@ -130,7 +130,9 @@ export function hostCommandArguments(config, operation) {
  * public values and regular OS PATH/HOME, never local VUXO_* passwords.
  */
 export function localHostEnvironment(processEnvironment, explicitValues = {}) {
-  const forbidden = /^(?:VUXO_|VITE_|ASPNETCORE_|Auth__|ConnectionStrings__|Redis__|Cors__|Database__|Llm__|Observability__)/
+  // Windows environment variable names are case-insensitive; scrub every
+  // spelling on all platforms so subprocesses cannot inherit lowercase aliases.
+  const forbidden = /^(?:VUXO_|VITE_|ASPNETCORE_|Auth__|ConnectionStrings__|Redis__|Cors__|Database__|Llm__|Observability__|OTEL_|OTLP_)/i
   return {
     ...Object.fromEntries(Object.entries(processEnvironment).filter(([key]) => !forbidden.test(key))),
     ...explicitValues,
@@ -222,7 +224,7 @@ export function prepareHostDependencyMount(path) {
 /** Do not allow inherited production VUXO_* shell variables to override the private dev env-file. */
 export function localProcessEnvironment(processEnvironment, localConfig) {
   return {
-    ...Object.fromEntries(Object.entries(processEnvironment).filter(([key]) => !key.startsWith('VUXO_'))),
+    ...Object.fromEntries(Object.entries(processEnvironment).filter(([key]) => !/^VUXO_/i.test(key))),
     ...localConfig,
   }
 }
