@@ -162,6 +162,49 @@ test('portal keyboard enters runes 1–4, Backspace undo and Enter submits once 
     && document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
 });
 
+test('rapid Enter presses cannot duplicate the server attempt while the response is pending', async ({ page }) => {
+  await login(page);
+  let attempts = 0;
+  let releaseResponse: (() => void) | undefined;
+  await page.route('**/api/personal-content**', async route => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname;
+    if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: corsHeaders });
+    if (request.method() === 'GET' && path === '/api/personal-content') {
+      return route.fulfill({ json: [grant], headers: corsHeaders });
+    }
+    if (request.method() === 'GET' && path.endsWith('/challenge')) {
+      return route.fulfill({
+        json: { grantId, version: 'portal-sequence-v1', sequence: secret },
+        headers: corsHeaders,
+      });
+    }
+    if (request.method() === 'POST' && path.endsWith('/challenge/attempt')) {
+      attempts++;
+      await new Promise<void>(resolve => { releaseResponse = resolve; });
+      return route.fulfill({
+        json: { id: grantId, consumedAtUtc: '2026-11-11T10:00:00Z' },
+        headers: corsHeaders,
+      });
+    }
+    return route.fulfill({ status: 404 });
+  });
+  await page.goto('./#/portals');
+  await page.getByTestId('portal-start').click();
+  await expect(page.getByTestId('portal-preview')).toHaveCount(0, { timeout: 7000 });
+  await expect(page.getByTestId('portal-challenge')).toBeFocused();
+  for (const key of ['1', '2', '3', '4']) await page.keyboard.press(key);
+  await expect(page.getByTestId('portal-progress')).toContainText('4 / 4');
+  await page.keyboard.press('Enter');
+  await expect.poll(() => attempts).toBe(1);
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Enter');
+  expect(attempts).toBe(1);
+  releaseResponse?.();
+  await expect(page.getByTestId('portal-complete')).toBeVisible();
+  expect(attempts).toBe(1);
+});
+
 test('rune hotkeys never steal native buttons, modifiers, other page focus or preview controls', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 568 });
   await login(page, 'en');
