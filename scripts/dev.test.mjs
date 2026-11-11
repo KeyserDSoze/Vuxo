@@ -40,6 +40,18 @@ test('reject insecure secrets, production origins, duplicate and invalid host po
   assert.doesNotMatch(errors, /CHANGE_ME|https:\/\/vuxo.quest/)
 })
 
+test('custom frontend port requires a matching loopback CORS origin', () => {
+  const env = create()
+  env.VUXO_FRONTEND_DEV_PORT = '5199'
+  assert.match(validateLocalEnv(env).join(' '), /VUXO_ALLOWED_ORIGIN/)
+  env.VUXO_ALLOWED_ORIGIN = 'http://127.0.0.1:5199'
+  assert.deepEqual(validateLocalEnv(env), [])
+  env.VUXO_ALLOWED_ORIGIN = 'http://localhost:5199'
+  assert.deepEqual(validateLocalEnv(env), [])
+  env.VUXO_ALLOWED_ORIGIN = 'https://vuxo.quest'
+  assert.match(validateLocalEnv(env).join(' '), /VUXO_ALLOWED_ORIGIN/)
+})
+
 test('Compose always uses isolated local project and env file; down preserves volumes', () => {
   const root = ['/tmp/docker/.env.local', '/tmp/docker/compose.dev.yml']
   const pre = ['compose', '--project-name', 'vuxo-dev', '--env-file', root[0], '-f', root[1]]

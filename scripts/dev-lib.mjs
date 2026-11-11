@@ -44,9 +44,11 @@ export function validateLocalEnv(values) {
   for (const name of ['VUXO_POSTGRES_PASSWORD', 'VUXO_JWT_SIGNING_KEY']) {
     if (!/^[a-f0-9]{48,}$/.test(values[name] ?? '')) errors.push(name + ': missing or insecure local secret')
   }
-  if (values.VUXO_ALLOWED_ORIGIN !== 'http://127.0.0.1:5173' &&
-      values.VUXO_ALLOWED_ORIGIN !== 'http://localhost:5173') {
-    errors.push('VUXO_ALLOWED_ORIGIN: expected a local Vite origin')
+  // A user can override the frontend port; CORS must follow that port.
+  const frontendPort = values.VUXO_FRONTEND_DEV_PORT
+  if (!['http://127.0.0.1:' + frontendPort, 'http://localhost:' + frontendPort]
+      .includes(values.VUXO_ALLOWED_ORIGIN)) {
+    errors.push('VUXO_ALLOWED_ORIGIN: expected a local Vite origin on VUXO_FRONTEND_DEV_PORT')
   }
   if (!/^[a-zA-Z0-9_]+$/.test(values.VUXO_POSTGRES_DB ?? '') ||
       !/^[a-zA-Z0-9_]+$/.test(values.VUXO_POSTGRES_USER ?? '')) {
