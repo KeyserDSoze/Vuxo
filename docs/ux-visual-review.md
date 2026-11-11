@@ -2,6 +2,10 @@
 
 La matrice screenshot serve alla review di **#154**, dei pannelli **#158** e del mondo **#155**. Non sostituisce una sessione reale su browser e dispositivi fisici, né dimostra che la Fullscreen API funzioni ovunque.
 
+## Avatar con quattro orientamenti (#191 — 11 novembre 2026)
+
+L'art v2 (`vuxo-world-art-v2`) usa viste originali frontale, posteriore e di profilo specchiato e orientamento dai soli delta di posizione target ricevuti dal server, non da input locale. Confrontare gli allegati Playwright `server-faced-north-390px`, `server-faced-west-390px` e i PNG dei due browser a 390/1280; controllare occhi/volto nascosti nella vista di schiena, silhouette laterale, ancoraggio piedi, nome/portale e leggibilità rispetto al terreno. La [CI #43017357691](https://github.com/KeyserDSoZe/Vuxo/actions/runs/43017357691) ha passato **317 test Playwright**, inclusa la prova delle quattro direzioni e del facing riflesso sul peer; la [Visual #43017357812](https://github.com/KeyserDSoZe/Vuxo/actions/runs/43017357812) ha passato **116/116**. Questi dati dimostrano il contratto/rendering nei browser test, **non** la revisione umana artistica o un test fullscreen fisico: #165/#167/#155 restano aperte.
+
 ## Esecuzione
 
 1. In GitHub: **Actions → UX visual review → Run workflow**, selezionare **main**. In caso di modifica di workflow o suite, il job parte anche con push su main.
