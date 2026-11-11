@@ -4,6 +4,7 @@ import type { WorldPortalMarker } from '../features/portals/portalApi'
 import { WORLD_ART_VERSION, createIllustratedWanderer, paintWoodlandLandmarks, paintWoodlandTile, readIllustratedWandererFacing, setIllustratedWandererFacing, setIllustratedWandererStride, type WandererFacing } from './WorldArtwork'
 import { readWorldAppearance, worldAppearanceKey } from './WorldAppearance'
 import { computeWorldCameraZoom } from './WorldCamera'
+import { nextWorldTerrainWindow, type WorldTerrainWindow } from './WorldTerrainWindow'
 import { createIllustratedPortal, destroyIllustratedPortal, updateIllustratedPortal, type IllustratedPortal } from './WorldPortalArtwork'
 
 const TILE_SIZE = 32
@@ -26,7 +27,8 @@ export class WorldScene extends Phaser.Scene {
   private readonly players = new Map<string, PlayerVisual>()
   private readonly portalVisuals = new Map<string, IllustratedPortal>()
   private terrainGraphics: Phaser.GameObjects.Graphics | null = null
-  private terrainBounds = ''
+  private terrainWindow: WorldTerrainWindow | null = null
+  private terrainRedraws = 0
   private reducedMotion = false
   private portals: WorldPortalMarker[] = []
   private ready = false
@@ -76,7 +78,8 @@ export class WorldScene extends Phaser.Scene {
       motionPreference.removeEventListener('change', onMotionPreferenceChanged)
       this.input.off(Phaser.Input.Events.GAME_OUT, clearPortalHoverOnCanvasExit)
       this.terrainGraphics = null
-      this.terrainBounds = ''
+      this.terrainWindow = null
+      this.terrainRedraws = 0
       for (const visual of this.portalVisuals.values()) destroyIllustratedPortal(visual)
       this.portalVisuals.clear()
       if (import.meta.env.VITE_E2E_REALTIME === 'true') {
@@ -89,6 +92,7 @@ export class WorldScene extends Phaser.Scene {
         host?.removeAttribute('data-e2e-name-label-bounds')
         host?.removeAttribute('data-e2e-camera-zoom')
         host?.removeAttribute('data-e2e-world-coverage')
+        host?.removeAttribute('data-e2e-terrain-redraws')
         host?.removeAttribute('data-e2e-woodland-landmarks')
         host?.removeAttribute('data-e2e-portal-art')
       }
@@ -104,7 +108,9 @@ export class WorldScene extends Phaser.Scene {
    */
   resizeViewport(width: number, height: number): void {
     if (width < 1 || height < 1) return
-    this.cameras.main.setSize(width, height)
+    const camera = this.cameras.main
+    if (camera.width !== width || camera.height !== height) this.terrainWindow = null
+    camera.setSize(width, height)
     this.updateCameraZoom(width, height)
     // Resizing from portrait to ultrawide changes camera-space geometry
     // drastically. Snap the existing follow target once; keep smooth lerp
@@ -120,7 +126,7 @@ export class WorldScene extends Phaser.Scene {
       this.cameras.main.setZoom(zoom)
       // The tile bounds are recalculated on the next world update; the
       // player follow target and all portal world coordinates are unchanged.
-      this.terrainBounds = ''
+      this.terrainWindow = null
     }
     if (import.meta.env.VITE_E2E_REALTIME === 'true') {
       document.querySelector('[data-testid="game-canvas"]')
@@ -342,6 +348,7 @@ export class WorldScene extends Phaser.Scene {
         // A first join should not spend seconds flying from world origin.
         // On later server-owned movement the follow camera still lerps.
         this.cameras.main.centerOn(self.body.x, self.body.y)
+        this.terrainWindow = null
         // Camera zoom is viewport-owned; joining or reconnecting must not
         // reset it to a fixed 1:1 desktop scale.
         this.cameraTargetId = this.selfPlayerId
@@ -424,45 +431,39 @@ export class WorldScene extends Phaser.Scene {
     const graphics = this.terrainGraphics
     if (!graphics) return
 
-    // Terrain is a deterministic, decorative client surface. It does not
-    // create collision, rewards, server-owned positions or world state.
-    // Redraw only when the visible tile bounds change (including on resize).
-    const camera = this.cameras.main
-    // camera.scrollX/Y are not the visible top-left under centered zoom.
-    // worldView is the true zoom-correct view rectangle, including camera
-    // follow and RESIZE. Otherwise ultrawide gets blank right/bottom strips.
-    const view = camera.worldView
-    const left = Math.floor(view.left / TILE_SIZE) - 2
-    const top = Math.floor(view.top / TILE_SIZE) - 2
-    const right = Math.ceil(view.right / TILE_SIZE) + 2
-    const bottom = Math.ceil(view.bottom / TILE_SIZE) + 2
-    const bounds = `${left}:${top}:${right}:${bottom}`
-    if (bounds === this.terrainBounds) return
-    this.terrainBounds = bounds
-    if (import.meta.env.VITE_E2E_REALTIME === 'true') {
-      document.querySelector('[data-testid="game-canvas"]')
-        ?.setAttribute('data-e2e-world-coverage', JSON.stringify({
-          drawnLeft: left * TILE_SIZE,
-          drawnTop: top * TILE_SIZE,
-          drawnRight: (right + 1) * TILE_SIZE,
-          drawnBottom: (bottom + 1) * TILE_SIZE,
-          visibleLeft: view.left, visibleTop: view.top,
-          visibleRight: view.right, visibleBottom: view.bottom,
-        }))
-    }
-    graphics.clear()
-
-    for (let tileX = left; tileX <= right; tileX++) {
-      for (let tileY = top; tileY <= bottom; tileY++) {
-        paintWoodlandTile(graphics, tileX, tileY)
+    // The zoom-correct camera.worldView determines the coverage: scrollX/Y
+    // are not the left/top when Phaser uses centered camera zoom.
+    const view = this.cameras.main.worldView
+    const next = nextWorldTerrainWindow(view, this.terrainWindow)
+    if (next) {
+      this.terrainWindow = next
+      graphics.clear()
+      this.terrainRedraws++
+      for (let tileX = next.left; tileX <= next.right; tileX++) {
+        for (let tileY = next.top; tileY <= next.bottom; tileY++) {
+          paintWoodlandTile(graphics, tileX, tileY)
+        }
+      }
+      // Landmark coordinates and drawing order are unchanged.
+      const scenery = paintWoodlandLandmarks(graphics, next.left, next.top, next.right, next.bottom)
+      if (import.meta.env.VITE_E2E_REALTIME === 'true') {
+        document.querySelector('[data-testid="game-canvas"]')
+          ?.setAttribute('data-e2e-woodland-landmarks', JSON.stringify(scenery))
       }
     }
-    // Large scenic elements are drawn after the tile fills to prevent seams.
-    // Only E2E builds expose positions; no authoritative world data is added.
-    const scenery = paintWoodlandLandmarks(graphics, left, top, right, bottom)
-    if (import.meta.env.VITE_E2E_REALTIME === 'true') {
-      document.querySelector('[data-testid="game-canvas"]')
-        ?.setAttribute('data-e2e-woodland-landmarks', JSON.stringify(scenery))
+
+    // Per-frame visible geometry is essential for coverage tests even if the
+    // cached Graphics were not repainted. Neither attribute ships to prod.
+    if (import.meta.env.VITE_E2E_REALTIME === 'true' && this.terrainWindow) {
+      const { left, top, right, bottom } = this.terrainWindow
+      const host = document.querySelector('[data-testid="game-canvas"]')
+      host?.setAttribute('data-e2e-terrain-redraws', String(this.terrainRedraws))
+      host?.setAttribute('data-e2e-world-coverage', JSON.stringify({
+        drawnLeft: left * TILE_SIZE, drawnTop: top * TILE_SIZE,
+        drawnRight: (right + 1) * TILE_SIZE, drawnBottom: (bottom + 1) * TILE_SIZE,
+        visibleLeft: view.left, visibleTop: view.top,
+        visibleRight: view.right, visibleBottom: view.bottom,
+      }))
     }
   }
 }

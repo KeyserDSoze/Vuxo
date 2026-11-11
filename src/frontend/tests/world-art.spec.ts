@@ -577,3 +577,38 @@ test('adaptive camera keeps two canonical outfits, viewport HUD and movement sta
   await expect.poll(async () => Number(await self.getAttribute('data-player-x')))
     .toBeGreaterThan(originalX)
 })
+
+const terrainScope = 'world-art-terrain-buffer'
+
+test('server-owned movement reuses terrain and resize repaints the cached window', async ({ page, request }) => {
+  await resetRoom(request, terrainScope)
+  await demoPlayer(page, 'terrain-player', 'Terrain Explorer', terrainScope)
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto(gameUrl)
+  const host = page.getByTestId('game-canvas')
+  const self = page.locator('[data-player-id="terrain-player"]')
+  await expect(page.getByTestId('world-connection-status')).toHaveAttribute('data-status', 'connected')
+  await expect.poll(async () => Number(await host.getAttribute('data-e2e-terrain-redraws'))).toBeGreaterThan(0)
+  await page.waitForTimeout(250) // initial server-owned camera follow settles before sampling
+  const before = Number(await host.getAttribute('data-e2e-terrain-redraws'))
+  const x = Number(await self.getAttribute('data-player-x'))
+  await host.locator('canvas').click()
+  await page.keyboard.down('ArrowRight')
+  await expect.poll(async () => Number(await self.getAttribute('data-player-x'))).toBeGreaterThan(x)
+  await page.keyboard.up('ArrowRight')
+  await expect.poll(async () => host.evaluate(element => {
+    const data = element.getAttribute('data-e2e-world-coverage')
+    if (!data) return false
+    const c = JSON.parse(data) as Record<string, number>
+    return c.drawnLeft <= c.visibleLeft && c.drawnRight >= c.visibleRight
+      && c.drawnTop <= c.visibleTop && c.drawnBottom >= c.visibleBottom
+  })).toBe(true)
+  expect(Number(await host.getAttribute('data-e2e-terrain-redraws'))).toBe(before)
+  await page.setViewportSize({ width: 1920, height: 1080 })
+  await expect.poll(async () => Number(await host.getAttribute('data-e2e-terrain-redraws'))).toBeGreaterThan(before)
+  await expect(host.locator('canvas')).toBeVisible()
+  await expect.poll(() => page.evaluate(() =>
+    document.documentElement.scrollWidth <= innerWidth + 1
+    && document.documentElement.scrollHeight <= innerHeight + 1
+  )).toBe(true)
+})
