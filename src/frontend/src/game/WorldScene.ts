@@ -1,6 +1,7 @@
 import Phaser from 'phaser'
 import type { WorldPlayerSnapshot, WorldRealtimeClient, WorldRealtimeState } from '../features/world/worldRealtime'
 import type { WorldPortalMarker } from '../features/portals/portalApi'
+import { normalizeWorldPortalMarkers } from '../features/portals/worldPortalMarkers'
 import { WORLD_ART_VERSION, createIllustratedWanderer, paintWoodlandLandmarks, paintWoodlandTile, readIllustratedWandererFacing, setIllustratedWandererFacing, setIllustratedWandererStride, type WandererFacing } from './WorldArtwork'
 import { readWorldAppearance, worldAppearanceKey } from './WorldAppearance'
 import { computeWorldCameraZoom } from './WorldCamera'
@@ -135,7 +136,9 @@ export class WorldScene extends Phaser.Scene {
   }
 
   setPortals(markers: readonly WorldPortalMarker[]): void {
-    this.portals = [...markers]
+    // Defensive boundary for any non-HTTP callers of this scene: decorative
+    // world objects must never be placed at coerced/null/infinite positions.
+    this.portals = normalizeWorldPortalMarkers(markers)
     if (this.ready) this.drawPortals()
   }
 

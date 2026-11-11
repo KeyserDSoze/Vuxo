@@ -1,5 +1,6 @@
 import { getApiBaseUrl } from '../character/appearance';
 import { readStoredSession } from '../auth/authSession';
+import { normalizeWorldPortalMarkers } from './worldPortalMarkers';
 
 export const PORTAL_SEQUENCE_KEY = 'challenge.sequence.v1';
 
@@ -19,9 +20,13 @@ export type WorldPortalMarker = {
 };
 
 export async function fetchWorldPortals(signal?: AbortSignal): Promise<WorldPortalMarker[]> {
-  return portalRequest<WorldPortalMarker[]>(
+  const payload = await portalRequest<unknown>(
     '/api/personal-content/world-portals', 'GET', undefined, signal
   );
+  // The JSON decoder does not enforce TypeScript types. Never show or allow
+  // entry into a phantom portal at (0,0) when server positions are null.
+  if (!Array.isArray(payload)) throw new PortalApiError('portal_request_failed', 502);
+  return normalizeWorldPortalMarkers(payload);
 }
 
 export async function enterWorldPortal(grantId: string): Promise<WorldPortalMarker> {

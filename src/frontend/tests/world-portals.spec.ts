@@ -478,15 +478,48 @@ test('portal compass selects the closest authorized marker rather than the first
   expect(api.getEntryCalls()).toBe(0);
 });
 
-test('invalid private marker coordinates cannot create a misleading compass', async ({ page }) => {
+test('invalid private marker positions cannot create a phantom portal or entry action', async ({ page }) => {
   await initializePlayer(page);
-  await mockPrivatePortals(page, Number.NaN, Number.NaN);
-  // JSON.stringify serializes NaN as null; these are not finite world coordinates.
+  const api = await mockPrivatePortals(page, Number.NaN, Number.NaN);
+  // JSON.stringify serializes NaN as null. Without runtime validation,
+  // Phaser's null * TILE_SIZE would accidentally create a portal at (0,0).
   await page.goto(origin + '/Vuxo/#/game');
   await expect(page.getByTestId('world-connection-status')).toHaveAttribute('data-status', 'connected');
-  await expect(page.getByTestId('world-portal-enter')).toHaveCount(1);
+  await expect(page.getByTestId('world-portals')).toHaveCount(0);
+  await expect(page.getByTestId('world-portal-enter')).toHaveCount(0);
   await expect(page.getByTestId('world-portal-compass')).toHaveCount(0);
   await expect(page.getByTestId('world-radar-portal')).toHaveCount(0);
+  await expect(page.getByTestId('game-canvas')).toHaveAttribute('data-rendered-portals', '0');
+  expect(api.getEntryCalls()).toBe(0);
+});
+
+test('invalid private marker does not hide a valid owner-granted portal', async ({ page }) => {
+  await initializePlayer(page, 'en');
+  const valid = '22222222-2222-4222-8222-222222222222';
+  const api = await mockPrivatePortals(page, Number.NaN, Number.NaN, [
+    { id: valid, contentKey: 'portal.grove', x: 5.5, y: 4.5 },
+  ]);
+  await page.goto(origin + '/Vuxo/#/game');
+  await expect(page.getByTestId('world-connection-status')).toHaveAttribute('data-status', 'connected');
+  const action = page.getByTestId('world-portal-enter');
+  await expect(action).toHaveCount(1);
+  await expect(action).toHaveAttribute('data-grant-id', valid);
+  await expect(action).toBeEnabled();
+  await expect(page.getByTestId('world-radar-portal')).toHaveCount(1);
+  await expect(page.getByTestId('game-canvas')).toHaveAttribute('data-rendered-portals', '1');
+  expect(api.getEntryCalls()).toBe(0);
+});
+
+test('malformed world portal list reports an error instead of rendering a marker', async ({ page }) => {
+  await initializePlayer(page, 'en');
+  await page.route('**/api/personal-content/world-portals', route =>
+    route.fulfill({ status: 200, contentType: 'application/json', headers: cors,
+      body: JSON.stringify({ id: grantId, x: 0, y: 0 }) }));
+  await page.goto(origin + '/Vuxo/#/game');
+  await expect(page.getByTestId('world-connection-status')).toHaveAttribute('data-status', 'connected');
+  await expect(page.getByTestId('world-portal-error')).toBeVisible();
+  await expect(page.getByTestId('world-portals')).toHaveCount(0);
+  await expect(page.getByTestId('game-canvas')).toHaveAttribute('data-rendered-portals', '0');
 });
 
 test('world radar shows only granted portal, clamps distant marker and updates after server movement', async ({ page }) => {
