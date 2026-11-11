@@ -98,6 +98,10 @@ test('two illustrated wanderers coexist in the authoritative world at mobile siz
       await expect(page.locator('[data-player-id="art-player-a"]')).toBeVisible()
       await expect(page.locator('[data-player-id="art-player-b"]')).toBeVisible()
       await expect(page.getByTestId('game-canvas').locator('canvas')).toBeVisible()
+      await expect(page.getByTestId('game-canvas')).toHaveAttribute('data-e2e-illustrated-player-count', '2')
+      await expect(page.getByTestId('game-canvas')).toHaveAttribute('data-e2e-visible-avatar-count', '2')
+      await expect(page.getByTestId('game-canvas')).toHaveAttribute('data-e2e-visible-avatar-ids',
+        JSON.stringify(['art-player-a', 'art-player-b']))
       await expect.poll(() => page.evaluate(() => {
         const encoded = document.querySelector('[data-testid="game-canvas"]')
           ?.getAttribute('data-e2e-avatar-appearance')

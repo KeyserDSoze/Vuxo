@@ -5,6 +5,7 @@ import { normalizeWorldPortalMarkers } from '../features/portals/worldPortalMark
 import { WORLD_ART_VERSION, createIllustratedWanderer, paintWoodlandLandmarks, paintWoodlandTile, readIllustratedWandererFacing, setIllustratedWandererFacing, setIllustratedWandererStride, type WandererFacing } from './WorldArtwork'
 import { readWorldAppearance, worldAppearanceKey } from './WorldAppearance'
 import { computeWorldCameraZoom } from './WorldCamera'
+import { isWorldAvatarInView } from './WorldAvatarVisibility'
 import { nextWorldTerrainWindow, type WorldTerrainWindow } from './WorldTerrainWindow'
 import { createIllustratedPortal, destroyIllustratedPortal, updateIllustratedPortal, type IllustratedPortal } from './WorldPortalArtwork'
 
@@ -91,6 +92,8 @@ export class WorldScene extends Phaser.Scene {
         host?.removeAttribute('data-e2e-avatar-facing')
         host?.removeAttribute('data-e2e-avatar-motion')
         host?.removeAttribute('data-e2e-name-label-bounds')
+        host?.removeAttribute('data-e2e-visible-avatar-count')
+        host?.removeAttribute('data-e2e-visible-avatar-ids')
         host?.removeAttribute('data-e2e-camera-zoom')
         host?.removeAttribute('data-e2e-world-coverage')
         host?.removeAttribute('data-e2e-terrain-redraws')
@@ -283,10 +286,23 @@ export class WorldScene extends Phaser.Scene {
     type Rect = { left: number; right: number; top: number; bottom: number }
     const placed: Rect[] = []
     const evidence: Array<Rect & { playerId: string }> = []
-    const ordered = [...this.players.entries()].sort(([idA, a], [idB, b]) =>
+    const view = this.cameras.main.worldView
+    // Keep all canonical player snapshots, camera tracking and radar data.
+    // Only draw onscreen peer art and name labels. This prevents a dense
+    // remote crowd from consuming text-layout work or shifting local labels.
+    // The 128px overscan avoids flicker during interpolation/camera lerp.
+    const onscreen: Array<[string, PlayerVisual]> = []
+    for (const [playerId, visual] of this.players) {
+      const visible = playerId === this.selfPlayerId ||
+        isWorldAvatarInView(view, visual.body.x, visual.body.y)
+      visual.body.setVisible(visible)
+      visual.name.setVisible(visible)
+      if (visible) onscreen.push([playerId, visual])
+    }
+    onscreen.sort(([idA, a], [idB, b]) =>
       a.body.y - b.body.y || a.body.x - b.body.x || idA.localeCompare(idB))
 
-    for (const [playerId, visual] of ordered) {
+    for (const [playerId, visual] of onscreen) {
       const left = visual.body.x - visual.name.displayWidth / 2
       const right = visual.body.x + visual.name.displayWidth / 2
       const height = visual.name.displayHeight
@@ -314,6 +330,9 @@ export class WorldScene extends Phaser.Scene {
     if (import.meta.env.VITE_E2E_REALTIME === 'true') {
       const host = document.querySelector('[data-testid="game-canvas"]')
       host?.setAttribute('data-e2e-name-label-bounds', JSON.stringify(evidence))
+      host?.setAttribute('data-e2e-visible-avatar-count', String(onscreen.length))
+      host?.setAttribute('data-e2e-visible-avatar-ids', JSON.stringify(
+        onscreen.map(([playerId]) => playerId).sort()))
     }
   }
 
