@@ -262,7 +262,7 @@ test('canonical server target turns avatars north, east, south and west with act
   const host = page.getByTestId('game-canvas')
   const self = page.locator('[data-player-id="facing-player"]')
   await expect(page.getByTestId('world-connection-status')).toHaveAttribute('data-status', 'connected')
-  await expect(host).toHaveAttribute('data-e2e-world-art-version', 'vuxo-world-art-v2')
+  await expect(host).toHaveAttribute('data-e2e-world-art-version', 'vuxo-world-art-v3')
   const facing = async () => host.evaluate(element => {
     const encoded = element.getAttribute('data-e2e-avatar-facing')
     if (!encoded) return null
@@ -349,8 +349,8 @@ test('woodland landmarks persist at canonical coordinates across viewport resize
     expect(new Set(current.map(item => item.key)).size).toBe(current.length)
     for (const item of current) {
       expect(['fallen-log', 'fern-thicket', 'moss-glade']).toContain(item.kind)
-      expect(item.x % 32).toBe(0)
-      expect(item.y % 32).toBe(0)
+      expect(Math.abs(item.x % 32)).toBe(0)
+      expect(Math.abs(item.y % 32)).toBe(0)
       const signature = JSON.stringify({ kind: item.kind, x: item.x, y: item.y })
       expect(anchors.get(item.key) ?? signature).toBe(signature)
       anchors.set(item.key, signature)
