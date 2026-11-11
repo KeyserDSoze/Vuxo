@@ -26,7 +26,7 @@ test('three independent rounds preserve route expectations, POP differences and 
   assert.deepEqual(data.colos, ['DFW', 'IAD', 'MXP']);
   assert.deepEqual(pauses, [5000, 5000]);
   assert.equal(lines.length, 29);
-  assert.match(lines[28], /does not prove Cloudflare stability/);
+  assert.match(lines[28], /do NOT close #147 or prove Cloudflare stability/);
 });
 
 test('502 and 401 in the same POP are recorded independently and cannot produce green', async () => {
