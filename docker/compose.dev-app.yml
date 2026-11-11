@@ -1,13 +1,25 @@
 # Local app only. Combine with compose.dev.yml through scripts/dev.mjs up.
 # Never include this file in any production deployment or use cloudflared here.
 services:
+  # Root only prepares private NuGet/npm volumes, never source or game data.
+  dev-permissions:
+    image: alpine:3.21
+    restart: "no"
+    user: "0:0"
+    command: ["chown", "-R", "${VUXO_DEV_UID:-1000}:${VUXO_DEV_GID:-1000}", "/nuget", "/node_modules"]
+    volumes:
+      - vuxo-dev-nuget:/nuget
+      - vuxo-dev-node-modules:/node_modules
+
   api:
     image: mcr.microsoft.com/dotnet/sdk:10.0
     init: true
+    # Avoid root-owned build artifacts when switching to host debug.
+    user: "${VUXO_DEV_UID:-1000}:${VUXO_DEV_GID:-1000}"
     working_dir: /workspace
     volumes:
       - ../:/workspace
-      - vuxo-dev-nuget:/root/.nuget/packages
+      - vuxo-dev-nuget:/nuget
     command:
       - dotnet
       - watch
@@ -16,6 +28,9 @@ services:
       - run
       - --no-launch-profile
     environment:
+      HOME: /tmp
+      DOTNET_CLI_HOME: /tmp
+      NUGET_PACKAGES: /nuget
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://0.0.0.0:8080
       DOTNET_USE_POLLING_FILE_WATCHER: "true"
@@ -35,28 +50,35 @@ services:
     ports:
       - "127.0.0.1:${VUXO_API_DEV_PORT:-8080}:8080"
     depends_on:
+      dev-permissions:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
   frontend:
     image: node:24-bookworm-slim
+    user: "${VUXO_DEV_UID:-1000}:${VUXO_DEV_GID:-1000}"
     working_dir: /workspace
     volumes:
       # Do not mount docker/.env.local or the backend into the Node container.
       - ../src/frontend:/workspace
       - vuxo-dev-node-modules:/workspace/node_modules
     environment:
+      HOME: /tmp
+      NPM_CONFIG_CACHE: /tmp/.npm-cache
       VITE_BASE_PATH: /Vuxo/
       VITE_API_BASE_URL: http://127.0.0.1:${VUXO_API_DEV_PORT:-8080}
       CHOKIDAR_USEPOLLING: "true"
     command:
       - sh
       - -c
-      - npm install --no-audit --no-fund && npm run dev -- --host 0.0.0.0 --port 5173 --strictPort
+      - npm install --no-audit --no-fund --package-lock=false && npm run dev -- --host 0.0.0.0 --port 5173 --strictPort
     ports:
       - "127.0.0.1:${VUXO_FRONTEND_DEV_PORT:-5173}:5173"
     depends_on:
+      dev-permissions:
+        condition: service_completed_successfully
       api:
         condition: service_started
 

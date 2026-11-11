@@ -2,7 +2,7 @@
 import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { parseLocalEnv, renderLocalEnv, validateLocalEnv, composeArguments, localProcessEnvironment, localHostEnvironment, hostRuntimeEnvironment, hostCommandArguments, localHttpEndpoints, waitForLocalHttp } from './dev-lib.mjs'
+import { parseLocalEnv, renderLocalEnv, validateLocalEnv, composeArguments, localProcessEnvironment, localDockerIdentity, localHostEnvironment, hostRuntimeEnvironment, hostCommandArguments, localHttpEndpoints, waitForLocalHttp } from './dev-lib.mjs'
 
 const templateFile = fileURLToPath(new URL('../docker/local.env.example', import.meta.url))
 const envFile = fileURLToPath(new URL('../docker/.env.local', import.meta.url))
@@ -169,7 +169,11 @@ async function main(args) {
   // --ollama is the explicit user opt-in: start the model service AND enable
   // the API's LLM adapter for this invocation. The private file is unchanged.
   const withOllama = ['infra', 'up', 'debug'].includes(command) && options[0] === '--ollama'
-  const runtimeConfig = withOllama ? { ...config, VUXO_LLM_ENABLED: 'true' } : config
+  const runtimeConfig = {
+    ...config,
+    ...(withOllama ? { VUXO_LLM_ENABLED: 'true' } : {}),
+    ...localDockerIdentity(),
+  }
   await docker(composeArguments(envFile, composeFile, 'check', undefined, appComposeFile), runtimeConfig)
   if (command === 'debug' || command === 'test') {
     // Wait for actual PostgreSQL and Redis health, rather than simply the

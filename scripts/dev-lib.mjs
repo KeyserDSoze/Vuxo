@@ -184,6 +184,17 @@ export async function waitForLocalHttp(url, {
 
 const ALLOWED_LOG_SERVICES = new Set(['postgres', 'redis', 'ollama', 'ollama-model-init', 'api', 'frontend'])
 
+/** Host UID/GID is explicit; inherited production VUXO_* cannot spoof it. */
+export function localDockerIdentity(platform = process.platform,
+  uid = process.getuid?.(), gid = process.getgid?.()) {
+  const safe = value => Number.isSafeInteger(value) && value >= 0 && value <= 65535
+    ? String(value) : '1000'
+  return {
+    VUXO_DEV_UID: platform === 'win32' ? '1000' : safe(uid),
+    VUXO_DEV_GID: platform === 'win32' ? '1000' : safe(gid),
+  }
+}
+
 /** Do not allow inherited production VUXO_* shell variables to override the private dev env-file. */
 export function localProcessEnvironment(processEnvironment, localConfig) {
   return {
