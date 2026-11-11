@@ -64,6 +64,10 @@ test('long owner inventory history is progressively shown without losing entries
   await page.getByTestId('inventory-view-journal').click();
   await expect(page.getByTestId('inventory-item')).toHaveCount(12);
   await expect(page.getByTestId('inventory-journal-progress')).toHaveText('History displayed: 12 of 29');
+  // React StrictMode can mount effects twice in Development. The contract
+  // is that paging/view changes make NO further owner API requests.
+  const initialReads = historyReads;
+  expect(initialReads).toBeGreaterThan(0);
   const next = page.getByTestId('inventory-journal-more');
   await expect(next).toHaveText('Show 12 more events');
   await next.click();
@@ -75,7 +79,7 @@ test('long owner inventory history is progressively shown without losing entries
   await expect(next).toBeDisabled();
   await expect(next).toHaveText('Full history displayed');
   await expect(page.getByTestId('inventory-item').last()).toContainText('Rune Shard');
-  expect(historyReads).toBe(1);
+  expect(historyReads).toBe(initialReads);
 
   // Navigating back to the journal resets the visual batch, not the
   // owner API snapshot, while leaving all events accessible again.
@@ -84,7 +88,7 @@ test('long owner inventory history is progressively shown without losing entries
   await page.getByTestId('inventory-view-journal').click();
   await expect(page.getByTestId('inventory-item')).toHaveCount(12);
   await expect(next).toBeEnabled();
-  expect(historyReads).toBe(1);
+  expect(historyReads).toBe(initialReads);
   await expect.poll(() => page.evaluate(() => {
     const root = document.documentElement;
     return root.scrollWidth <= root.clientWidth + 1 &&
