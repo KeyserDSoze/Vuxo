@@ -190,7 +190,7 @@ jobs:
         with:
           node-version: 24
       - name: Test cross-platform CLI contracts on Windows Node
-        run: node --test scripts/dev.test.mjs
+        run: node --test scripts/dev.test.mjs scripts/dev-process-tree.test.mjs
       - name: Run genuine private bootstrap on Windows and reject overwrite
         shell: pwsh
         run: |
@@ -240,7 +240,7 @@ jobs:
       - name: Test browser runner and Chromium install contracts (offline)
         run: node --test ../../scripts/test-browser-runner-contract.test.mjs
       - name: Test local cross-platform dev CLI contracts (offline)
-        run: node --test ../../scripts/dev.test.mjs
+        run: node --test ../../scripts/dev.test.mjs ../../scripts/dev-process-tree.test.mjs
       - name: Install dependencies
         run: npm install
       - name: Test public auth, history isolation and CORS (offline)

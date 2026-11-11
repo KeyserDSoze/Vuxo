@@ -8,6 +8,7 @@ import { strict as assert } from 'node:assert'
 import { readFileSync } from 'node:fs'
 import { setTimeout as delay } from 'node:timers/promises'
 import { fileURLToPath } from 'node:url'
+import { stopLocalProcessTree } from './dev-process-tree.mjs'
 import {
   hostCommandArguments, hostRuntimeEnvironment, localHostEnvironment,
   localHttpEndpoints, parseLocalEnv, validateLocalEnv, classifyHostDebugFailure,
@@ -32,6 +33,7 @@ const processChild = spawn(command, args, {
   cwd: mode === 'debug' ? root : frontend,
   env: mode === 'debug' ? process.env : localHostEnvironment(process.env, host.frontend),
   shell: windowsNpm, windowsHide: true,
+  detached: process.platform !== 'win32',
   // Collect bounded private logs ONLY in memory, classify by fixed patterns;
   // never print subprocess output to CI artifacts or terminal.
   stdio: ['ignore', 'pipe', 'pipe'],
@@ -69,21 +71,7 @@ async function checkHttp(url) {
 }
 
 async function terminate() {
-  if (exited || !processChild.pid) return
-  if (process.platform === 'win32') {
-    // npm.cmd runs through cmd.exe: kill the entire process tree, not cmd alone.
-    const killer = spawn('taskkill', ['/PID', String(processChild.pid), '/T', '/F'],
-      { stdio: 'ignore', shell: false, windowsHide: true })
-    killer.on('error', () => {})
-  } else {
-    processChild.kill('SIGINT') // dev.mjs handles SIGINT and stops both host children
-  }
-  const cancel = new AbortController()
-  const closed = new Promise(resolve => processChild.once('close', resolve))
-  const grace = delay(12000, null, { signal: cancel.signal }).catch(() => {})
-  await Promise.race([closed, grace])
-  cancel.abort()
-  if (!exited) processChild.kill('SIGKILL')
+  await stopLocalProcessTree(processChild, { graceMs: 5000, killWaitMs: 1500 })
 }
 
 try {

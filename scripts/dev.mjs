@@ -2,6 +2,7 @@
 import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
+import { signalLocalProcessTree } from './dev-process-tree.mjs'
 import { parseLocalEnv, renderLocalEnv, validateLocalEnv, composeArguments, localProcessEnvironment, localDockerIdentity, prepareHostDependencyMount, localHostEnvironment, hostRuntimeEnvironment, hostCommandArguments, localHttpEndpoints, waitForLocalHttp } from './dev-lib.mjs'
 
 const templateFile = fileURLToPath(new URL('../docker/local.env.example', import.meta.url))
@@ -63,6 +64,7 @@ function createHostProcess(binary, args, cwd, environment) {
     cwd,
     env: environment,
     shell: batch,
+    detached: process.platform !== 'win32',
     stdio: 'inherit',
     windowsHide: true,
   })
@@ -78,15 +80,7 @@ async function runHostCommand(label, binary, args, cwd, environment) {
 }
 
 function stopHostChild(child) {
-  if (!child.pid) return
-  if (process.platform === 'win32') {
-    // npm.cmd spawns descendants on Windows. Terminate the process tree.
-    spawn('taskkill', ['/PID', String(child.pid), '/T', '/F'], {
-      stdio: 'ignore', windowsHide: true, shell: false,
-    }).once('error', () => {})
-  } else {
-    child.kill('SIGTERM')
-  }
+  signalLocalProcessTree(child, 'SIGTERM')
 }
 
 async function runHostDebug(steps) {
