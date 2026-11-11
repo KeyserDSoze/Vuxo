@@ -22,7 +22,12 @@ test('API and test ASP.NET Core packages stay at the patched 10.0.15 baseline', 
     for (const name of packages) {
       assert.ok(xml.includes('<PackageReference Include="' + name + '" Version="10.0.15"'), path + ': ' + name)
     }
-    assert.doesNotMatch(xml, /Version="10\.0\.(?:[0-9]|1[0-4])"/, path)
+    // Only ASP.NET Core package refs are under this advisory. An unrelated
+    // Npgsql/OpenTelemetry 10.0.x package must not trigger a false positive.
+    const aspNetVersions = [...xml.matchAll(/<PackageReference Include="Microsoft\.AspNetCore\.[^"]+" Version="([^"]+)"/g)]
+      .map(match => match[1])
+    assert.ok(aspNetVersions.length > 0, path)
+    assert.ok(aspNetVersions.every(version => version === '10.0.15'), path)
   }
 })
 

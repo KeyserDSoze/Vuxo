@@ -140,6 +140,17 @@ test('two illustrated wanderers coexist in the authoritative world at mobile siz
       const facing = JSON.parse(encoded) as Array<{ playerId: string; facing: string; profileVisible: boolean }>
       return facing.some(item => item.playerId === 'art-player-a' && item.facing === 'east' && item.profileVisible)
     })).toBe(true)
+    // The local renderer must agree with the peer's server-owned facing.
+    await expect.poll(() => pageA.evaluate(() => {
+      const encoded = document.querySelector('[data-testid="game-canvas"]')
+        ?.getAttribute('data-e2e-avatar-facing')
+      if (!encoded) return false
+      const facing = JSON.parse(encoded) as Array<{
+        playerId: string; facing: string; profileVisible: boolean; scaleX: number
+      }>
+      return facing.some(item => item.playerId === 'art-player-a'
+        && item.facing === 'east' && item.profileVisible && item.scaleX === 1)
+    })).toBe(true)
 
     await pageA.evaluate(() => window.dispatchEvent(new Event('vuxo:e2e-reconnect')))
     await expect(pageA.getByTestId('world-connection-status')).toHaveAttribute('data-status', 'connected')
