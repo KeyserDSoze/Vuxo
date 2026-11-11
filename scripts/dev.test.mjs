@@ -6,6 +6,34 @@ import { join } from 'node:path'
 import { composeArguments, developmentFlags, isLocalDockerEndpoint, localOtelHealthEndpoint, localProcessEnvironment, localDockerIdentity, prepareHostDependencyMount, localHostEnvironment, classifyHostDebugFailure, classifyHostDebugStage, parseLocalEnv, renderLocalEnv, validateLocalEnv, hostRuntimeEnvironment, hostCommandArguments, localHttpEndpoints, waitForLocalHttp } from './dev-lib.mjs'
 
 const template = readFileSync(new URL('../docker/local.env.example', import.meta.url), 'utf8')
+
+test('superseded main/PR workflows are cancelled only within each gate, not production deploys', () => {
+  const workflows = [
+    ['ci.yml', 'vuxo-ci-'],
+    ['portal-live-e2e.yml', 'vuxo-portal-live-'],
+    ['ux-visual-review.yml', 'vuxo-visual-'],
+  ]
+  const groups = new Set()
+  for (const [filename, group] of workflows) {
+    const source = readFileSync(new URL('../.github/workflows/' + filename, import.meta.url), 'utf8')
+    assert.match(source, /(^|\n)concurrency:\n  group: /)
+    assert.ok(source.includes('  group: ' + group + '${{ github.ref }}'))
+    assert.match(source, /\n  cancel-in-progress: true\n/)
+    assert.ok(!groups.has(group), 'independent gates must not cancel one another')
+    groups.add(group)
+    assert.ok(source.indexOf('\nconcurrency:\n') < source.indexOf('\njobs:\n'),
+      'workflow-level concurrency must apply to every job')
+  }
+  const pages = readFileSync(new URL('../.github/workflows/deploy-pages.yml', import.meta.url), 'utf8')
+  assert.match(pages, /group: pages\n  cancel-in-progress: true/)
+  const pi = readFileSync(new URL('../.github/workflows/deploy-pi3.yml', import.meta.url), 'utf8')
+  assert.match(pi, /group: vuxo-pi3-production\n  cancel-in-progress: false/)
+  assert.doesNotMatch(pi, /cancel-in-progress: true/)
+  // The ARM64 build follows a completed *successful* CI; a superseded or
+  // cancelled commit must never be promoted as a release.
+  assert.match(pi, /github\.event\.workflow_run\.conclusion == 'success'/)
+})
+
 const mockEntropy = bytes => Buffer.alloc(bytes, 0xaf)
 const create = () => parseLocalEnv(renderLocalEnv(template, mockEntropy))
 

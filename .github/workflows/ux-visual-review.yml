@@ -38,6 +38,13 @@ on:
 permissions:
   contents: read
 
+# Keep only the latest push/PR check per ref. Distinct groups preserve
+# CI, real-DB E2E, and visual evidence as independent acceptance gates.
+# This limits superseded runner work, not GitHub billing/platform failures.
+concurrency:
+  group: vuxo-visual-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   screenshots:
     # Avoid ubuntu-latest 26.04 migration and apt DNS during screenshot setup.
