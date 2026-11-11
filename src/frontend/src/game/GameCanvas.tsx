@@ -14,6 +14,7 @@ import type {
 import { WorldScene } from './WorldScene'
 import { PortalCompass } from './PortalCompass'
 import { WorldRadar } from './WorldRadar'
+import { rankWorldPortalActions } from './WorldPortalActions'
 import { selectWorldPresence } from './WorldPresence'
 import { readStoredSession } from '../features/auth/authSession'
 import { enterWorldPortal, fetchWorldPortals, PortalApiError, type WorldPortalMarker } from '../features/portals/portalApi'
@@ -238,6 +239,8 @@ export function GameCanvas() {
 
   const self = players.find(player => player.playerId === selfPlayerId)
   const presence = selectWorldPresence(players, selfPlayerId)
+  // HUD ordering is a display hint only; entry is still owner-authorized by API.
+  const portalActions = rankWorldPortalActions(self, portals)
   // Client proximity is ONLY an affordance. The API always checks server state.
   const nearby = (portal: WorldPortalMarker) => Boolean(self)
     && Math.hypot(self!.x - portal.x, self!.y - portal.y) <= 1.5
@@ -351,18 +354,19 @@ export function GameCanvas() {
           </Typography>
           {status === 'connected' && <PortalCompass self={self} portals={portals} />}
           <Stack direction="row" spacing={0.75} className="vuxo-game-portal-actions">
-            {portals.map((portal, index) => (
+            {portalActions.map(({ portal, number }) => (
               <Button
                 key={portal.id}
                 data-testid="world-portal-enter"
                 data-grant-id={portal.id}
+                data-portal-number={number}
                 variant="outlined"
                 size="small"
                 className="vuxo-game-button"
                 disabled={status !== 'connected' || !nearby(portal) || Boolean(activePortal)}
                 onClick={() => void enter(portal.id)}
               >
-                {t('game.portal.enter', { number: index + 1 })}
+                {t('game.portal.enter', { number })}
               </Button>
             ))}
           </Stack>

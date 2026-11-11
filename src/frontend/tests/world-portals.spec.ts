@@ -415,6 +415,16 @@ test('portal compass selects the closest authorized marker rather than the first
   await expect(compass).toHaveAttribute('data-direction', 's');
   await expect(compass).toContainText('south');
   await expect(compass).toContainText('4 tiles');
+  // The action panel mirrors compass/radar proximity without renumbering
+  // grants or granting permission to enter a still-distant portal.
+  const actions = page.getByTestId('world-portal-enter');
+  await expect(actions).toHaveCount(2);
+  await expect(actions.first()).toHaveAttribute('data-portal-number', '2');
+  await expect(actions.first()).toHaveAttribute('data-grant-id', '22222222-2222-4222-8222-222222222222');
+  await expect(actions.first()).toHaveText('Enter portal 2');
+  await expect(actions.first()).toBeDisabled();
+  await expect(actions.nth(1)).toHaveAttribute('data-portal-number', '1');
+  await expect(actions.nth(1)).toHaveAttribute('data-grant-id', grantId);
   expect(api.getEntryCalls()).toBe(0);
 });
 
