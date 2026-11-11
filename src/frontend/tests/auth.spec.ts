@@ -214,12 +214,81 @@ test('late logout response does not delete a newer session from a second tab', a
 });
 
 
+test('transient Cloudflare 502 then 503 recovers provider discovery without repeating token exchange', async ({ page }) => {
+  let discoveryCalls = 0;
+  let exchanges = 0;
+  await page.route('**/api/auth/providers', async route => {
+    discoveryCalls += 1;
+    if (discoveryCalls <= 2) {
+      await route.fulfill({ status: discoveryCalls === 1 ? 502 : 503, body: 'temporary edge failure' });
+      return;
+    }
+    await route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify(providerConfiguration()),
+    });
+  });
+  await page.route('**/api/auth/social', async route => {
+    exchanges += 1;
+    await route.fulfill({ contentType: 'application/json',
+      body: JSON.stringify(sessionResponse('microsoft')) });
+  });
+  await page.goto('./#/auth');
+  await expect(page.getByTestId('auth-microsoft')).toBeVisible();
+  await expect(page.getByTestId('auth-error')).toHaveCount(0);
+  await expect(page.getByTestId('auth-retry-providers')).toHaveCount(0);
+  expect(discoveryCalls).toBe(3);
+  expect(exchanges).toBe(0);
+  await page.getByTestId('auth-microsoft').click();
+  await expect(page.getByTestId('auth-user')).toContainText('microsoft Player');
+  expect(exchanges).toBe(1);
+});
+
+test('403 provider configuration fails immediately without retrying or revealing credentials', async ({ page }) => {
+  let discoveryCalls = 0;
+  await page.route('**/api/auth/providers', async route => {
+    discoveryCalls += 1;
+    await route.fulfill({ status: 403, body: 'RESTRICTED-EDGE-CONTENT' });
+  });
+  await page.goto('./#/auth');
+  await expect(page.getByTestId('auth-error')).toContainText('configurazione dei provider');
+  await expect(page.getByTestId('auth-retry-providers')).toBeVisible();
+  expect(discoveryCalls).toBe(1);
+  await expect(page.getByTestId('auth-page')).not.toContainText('RESTRICTED-EDGE-CONTENT');
+});
+
+test('aborting provider discovery on navigation cancels pending edge retry', async ({ page }) => {
+  let discoveryCalls = 0;
+  await page.route('**/api/auth/providers', async route => {
+    discoveryCalls += 1;
+    await route.fulfill({ status: 502, body: 'temporary edge failure' });
+  });
+  await page.goto('./#/auth');
+  await expect.poll(() => discoveryCalls).toBe(1);
+  // Exit before the first bounded retry; the obsolete auth effect must not
+  // issue any more requests after its AbortController is disposed.
+  await page.goto('./#/');
+  await page.waitForTimeout(1500);
+  expect(discoveryCalls).toBe(1);
+});
+
+test('malformed successful provider response is not retried', async ({ page }) => {
+  let discoveryCalls = 0;
+  await page.route('**/api/auth/providers', async route => {
+    discoveryCalls += 1;
+    await route.fulfill({ status: 200, contentType: 'application/json', body: 'invalid-json' });
+  });
+  await page.goto('./#/auth');
+  await expect(page.getByTestId('auth-error')).toContainText('configurazione dei provider');
+  expect(discoveryCalls).toBe(1);
+});
+
 test('failed social provider configuration is recoverable without reloading on mobile', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   let attempts = 0;
   await page.route('**/api/auth/providers', async route => {
     attempts += 1;
-    if (attempts === 1) {
+    if (attempts <= 3) {
       await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({
         code: 'social_provider_configuration_unavailable',
       }) });
@@ -228,6 +297,7 @@ test('failed social provider configuration is recoverable without reloading on m
     }
   });
   await page.goto('./#/auth');
+  await expect.poll(() => attempts).toBe(3);
   await expect(page.getByTestId('auth-error')).toContainText('configurazione dei provider');
   await expect(page.getByTestId('auth-retry-providers')).toBeVisible();
 
@@ -238,7 +308,7 @@ test('failed social provider configuration is recoverable without reloading on m
   await expect(page.getByTestId('auth-microsoft')).toHaveText('Sign in with Microsoft');
   await expect(page.getByTestId('auth-error')).toHaveCount(0);
   await expect(page.getByTestId('auth-retry-providers')).toHaveCount(0);
-  expect(attempts).toBe(2);
+  expect(attempts).toBe(4);
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
   expect(overflow).toBe(false);
 });
