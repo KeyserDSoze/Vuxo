@@ -158,6 +158,14 @@ export function classifyHostDebugFailure(log) {
   return 'host CLI exited unexpectedly; inspect local development commands'
 }
 
+/** Expose a fixed readiness phase, never the captured subprocess output. */
+export function classifyHostDebugStage(log) {
+  if (typeof log !== 'string') return 'initialization'
+  if (log.includes('VUXO_DEV_STAGE:host-watch')) return 'native API/Vite startup'
+  if (log.includes('VUXO_DEV_STAGE:npm-install')) return 'host npm dependency install'
+  return 'Docker dependency initialization'
+}
+
 /** Readiness is checked from the developer's host, not merely Docker container state. */
 export function localHttpEndpoints(config) {
   return [

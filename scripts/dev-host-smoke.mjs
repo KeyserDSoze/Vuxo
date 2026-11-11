@@ -12,6 +12,7 @@ import { stopLocalProcessTree } from './dev-process-tree.mjs'
 import {
   hostCommandArguments, hostRuntimeEnvironment, localHostEnvironment,
   localHttpEndpoints, parseLocalEnv, validateLocalEnv, classifyHostDebugFailure,
+  classifyHostDebugStage,
 } from './dev-lib.mjs'
 
 const mode = process.argv[2]
@@ -78,15 +79,20 @@ try {
   const endpointList = localHttpEndpoints(config)
   const required = mode === 'debug' ? endpointList : endpointList.filter(e => e.name === 'Vite')
   let ready = false
-  // Cold .NET restore and initial npm installs can take several minutes.
-  for (let attempt = 0; attempt < 150; attempt += 1) {
+  let pending = required.map(entry => entry.name)
+  // A fixed attempt count can overrun the CI step timeout when each HTTP
+  // request takes 2.2 seconds. Account for those requests in a real deadline.
+  const deadline = Date.now() + 7 * 60_000
+  while (Date.now() < deadline) {
     if (exited) throw new Error('Local ' + mode + ' process exited before readiness: ' +
       (startupFailed ? 'cannot spawn host subprocess' : classifyHostDebugFailure(privateDiagnostic)))
     const checks = await Promise.all(required.map(entry => checkHttp(entry.url)))
-    if (checks.every(Boolean)) { ready = true; break }
-    if (attempt < 149) await delay(2000)
+    pending = required.filter((entry, index) => !checks[index]).map(entry => entry.name)
+    if (pending.length === 0) { ready = true; break }
+    if (Date.now() < deadline) await delay(2000)
   }
-  assert.ok(ready, mode + ': API/Vite readiness timeout (local HTTP 200 required)')
+  assert.ok(ready, mode + ': HTTP readiness timeout; unavailable: ' + pending.join(', ') +
+    '; phase: ' + classifyHostDebugStage(privateDiagnostic))
   assert.equal(startupFailed, false)
   if (mode === 'debug') {
     // Reuse the same real API/CORS/frontend HTML smoke as Docker up.

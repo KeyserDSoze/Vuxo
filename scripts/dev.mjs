@@ -187,8 +187,10 @@ async function main(args) {
     const apiEnvironment = localHostEnvironment(process.env, host.api)
     const frontendEnvironment = localHostEnvironment(process.env, host.frontend)
     if (command === 'debug') {
+      console.log('VUXO_DEV_STAGE:npm-install')
       await runHostCommand('npm install', 'npm', hostCommandArguments(config, 'npm-install'),
         frontendDir, npmEnvironment)
+      console.log('VUXO_DEV_STAGE:host-watch')
       console.log('Local IDE debug: API and Vite on 127.0.0.1; stop both with Ctrl+C.')
       const withApi = apiEnvironment
       const withFrontend = frontendEnvironment

@@ -3,7 +3,7 @@ import { strict as assert } from 'node:assert'
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { composeArguments, localProcessEnvironment, localDockerIdentity, prepareHostDependencyMount, localHostEnvironment, classifyHostDebugFailure, parseLocalEnv, renderLocalEnv, validateLocalEnv, hostRuntimeEnvironment, hostCommandArguments, localHttpEndpoints, waitForLocalHttp } from './dev-lib.mjs'
+import { composeArguments, localProcessEnvironment, localDockerIdentity, prepareHostDependencyMount, localHostEnvironment, classifyHostDebugFailure, classifyHostDebugStage, parseLocalEnv, renderLocalEnv, validateLocalEnv, hostRuntimeEnvironment, hostCommandArguments, localHttpEndpoints, waitForLocalHttp } from './dev-lib.mjs'
 
 const template = readFileSync(new URL('../docker/local.env.example', import.meta.url), 'utf8')
 const mockEntropy = bytes => Buffer.alloc(bytes, 0xaf)
@@ -263,6 +263,20 @@ test('host CLI diagnostic classification never echoes private child stdout/stder
     assert.doesNotMatch(output, /SECRETVALUE|SECRET_TOKEN/)
   }
   assert.doesNotMatch(classifyHostDebugFailure(secret), /SECRETVALUE|SECRET_TOKEN/)
+})
+
+test('host smoke uses an absolute deadline and reports only static phases', () => {
+  const secret = 'local-private-jwt-and-postgres-password'
+  assert.equal(classifyHostDebugStage('VUXO_DEV_STAGE:npm-install' + secret),
+    'host npm dependency install')
+  assert.equal(classifyHostDebugStage('VUXO_DEV_STAGE:host-watch' + secret),
+    'native API/Vite startup')
+  assert.equal(classifyHostDebugStage(secret), 'Docker dependency initialization')
+  assert.doesNotMatch(classifyHostDebugStage(secret), /local-private/)
+  const smoke = readFileSync(new URL('./dev-host-smoke.mjs', import.meta.url), 'utf8')
+  assert.match(smoke, /Date\.now\(\) \+ 7 \* 60_000/)
+  assert.match(smoke, /unavailable: /)
+  assert.doesNotMatch(smoke, /for \(let attempt = 0; attempt < 150/)
 })
 
 test('development Docker uses host ownership, isolated caches and no checkout chown', () => {
