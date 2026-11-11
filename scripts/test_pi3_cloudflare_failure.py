@@ -72,7 +72,9 @@ class EdgeTriageTests(unittest.TestCase):
         self.assertEqual(len(runs), 2)
         for args in runs:
             self.assertEqual(args[args.index("--network") + 1], "container:" + CONNECTOR)
-            self.assertEqual(args[args.index("--entrypoint") + 1], "curl")
+            self.assertEqual(args[args.index("--entrypoint") + 1], "dotnet")
+            self.assertEqual(args[-2], "/app/health/Vuxo.HealthProbe.dll")
+            self.assertNotIn("--write-out", args)
             for required in ("--rm", "--pull=never", "--read-only", "--cap-drop=ALL",
                              "--security-opt=no-new-privileges", "--pids-limit"):
                 self.assertIn(required, args)
@@ -91,16 +93,16 @@ class EdgeTriageTests(unittest.TestCase):
     def test_public_colo_is_minimized_to_three_letters_without_extra_probes(self):
         fake = FakeDocker()
         full_ray = "1234abcdef987654-FCO"
-        fake.external_status = "200\n" + full_ray
+        fake.external_status = "200\nFCO"
         _, output = self.evaluate(fake)
         self.assertIn("public API from Pi connector network namespace: HTTP 200 (colo: FCO)", output)
         self.assertNotIn(full_ray, output)
         runs = [args for args in fake.calls if args[:2] == ["docker", "run"]]
         self.assertEqual(len(runs), 2)
         public = next(args for args in runs if args[-1] == triage.PUBLIC_HEALTH)
-        self.assertIn("%header{cf-ray}", public[public.index("--write-out") + 1])
+        self.assertEqual(public[-2], "/app/health/Vuxo.HealthProbe.dll")
         internal = next(args for args in runs if args[-1] == "http://api:8080/health")
-        self.assertNotIn("%header{cf-ray}", internal[internal.index("--write-out") + 1])
+        self.assertEqual(internal[-2], "/app/health/Vuxo.HealthProbe.dll")
 
         fake = FakeDocker()
         fake.external_status = "502\n" + full_ray + " PRIVATE-HEADER"
@@ -180,7 +182,7 @@ class EdgeTriageTests(unittest.TestCase):
         fake = FakeDocker()
         fake.internal_sequence = [(28, "PRIVATE_TIMEOUT"), (0, "200")]
         _, output = self.evaluate(fake)
-        self.assertIn("probe: curl request timeout", output)
+        self.assertIn("probe: HTTP request timeout", output)
         self.assertIn("one bounded internal origin recheck: HTTP 200", output)
         self.assertNotIn("PRIVATE_TIMEOUT", output)
         runs = [args[-1] for args in fake.calls if args[:2] == ["docker", "run"]]
@@ -205,7 +207,7 @@ class EdgeTriageTests(unittest.TestCase):
     def test_public_dns_and_docker_probe_failures_are_redacted(self):
         fake = FakeDocker()
         for code, label in [(6, "DNS resolution failure"),
-                            (28, "curl request timeout"),
+                            (28, "HTTP request timeout"),
                             (125, "Docker container launch failure")]:
             fake.external_exit, fake.external_status = code, "PRIVATE_DOCKER_SECRET"
             with self.subTest(code=code):

@@ -108,7 +108,8 @@ assert "def classify_http_result(" in origin_probe, "Origin probe must distingui
 assert "DOCKER_METADATA_TIMEOUT_SECONDS = 15" in origin_probe
 assert "DOCKER_PROBE_TIMEOUT_SECONDS = 45" in origin_probe
 assert 'argv[:2] == ["docker", "run"]' in origin_probe, "Only Docker ephemeral run may use longer budget"
-assert "--max-time" in origin_probe and "--connect-timeout" in origin_probe, "Curl request timeout remains independent"
+assert "max_time != (8 if url" in origin_probe, "Internal/public probe timeout budget must remain fixed"
+assert '"--entrypoint", "dotnet"' in origin_probe and "/app/health/Vuxo.HealthProbe.dll" in origin_probe, "Must use included .NET probe, not removed curl"
 
 assert "def probe_http(" in origin_probe, "Shared allowlisted safe HTTP probe required"
 for flag in ["--pull=never", "--read-only", "--cap-drop=ALL",

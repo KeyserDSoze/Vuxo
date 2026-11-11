@@ -55,7 +55,9 @@ class OriginTests(unittest.TestCase):
         self.assertEqual(len(runs), 1)
         args = runs[0]
         self.assertEqual(args[args.index("--network") + 1], "container:" + CONNECTOR)
-        self.assertEqual(args[args.index("--entrypoint") + 1], "curl")
+        self.assertEqual(args[args.index("--entrypoint") + 1], "dotnet")
+        self.assertEqual(args[-2], "/app/health/Vuxo.HealthProbe.dll")
+        self.assertNotIn("--write-out", args)
         self.assertEqual(args[-1], "http://api:8080/health")
         for flag in ("--rm", "--pull=never", "--read-only", "--cap-drop=ALL",
                      "--security-opt=no-new-privileges", "--pids-limit"):
@@ -131,7 +133,7 @@ class OriginTests(unittest.TestCase):
 
 
     def test_pi3_probe_has_bounded_daemon_startup_budget(self):
-        # Metadata checks must remain short; ephemeral curl containers need a
+        # Metadata checks must remain short; ephemeral .NET containers need a
         # separate fixed allowance to cover Docker startup on a 1 GiB Pi 3.
         self.assertGreater(probe.DOCKER_PROBE_TIMEOUT_SECONDS,
                            probe.DOCKER_METADATA_TIMEOUT_SECONDS)
@@ -168,7 +170,7 @@ class OriginTests(unittest.TestCase):
         self.assertEqual(probe.classify_http_result(-2, "SECRET"),
                          "Docker subprocess timeout")
 
-    def test_fixed_categories_for_curl_docker_and_invalid_output(self):
+    def test_fixed_categories_for_dotnet_docker_and_invalid_output(self):
         cases = [
             (0, "502", "HTTP 502"),
             (0, "200", "HTTP 200"),
@@ -176,7 +178,7 @@ class OriginTests(unittest.TestCase):
             (0, "999", "invalid HTTP status"),
             (6, "private DNS server", "DNS resolution failure"),
             (7, "private IP", "TCP connection failure"),
-            (28, "private token", "curl request timeout"),
+            (28, "private token", "HTTP request timeout"),
             (35, "private certificate", "TLS handshake failure"),
             (60, "private certificate", "TLS certificate validation failure"),
             (52, "private body", "empty upstream reply"),
@@ -197,18 +199,18 @@ class OriginTests(unittest.TestCase):
     def test_cloudflare_colo_classifier_does_not_expose_raw_ray_or_private_values(self):
         classify = probe.classify_http_with_colo
         full_ray = "1234abcd5678ef90-FCO"
-        self.assertEqual(classify(0, "200\n" + full_ray), "HTTP 200 (colo: FCO)")
-        self.assertEqual(classify(0, "502\nABCD1234-LAX"), "HTTP 502 (colo: LAX)")
+        self.assertEqual(classify(0, "200\nFCO"), "HTTP 200 (colo: FCO)")
+        self.assertEqual(classify(0, "502\nLAX"), "HTTP 502 (colo: LAX)")
         for header in ("PRIVATE-TOKEN", "1234abcd5678ef90-FCO\nPRIVATE",
-                       "1234abcd5678ef90-fco", "ffff-XYZ",
+                       "1234abcd5678ef90-FCO", "1234abcd5678ef90-fco", "fco", "ffff-XYZ",
                        "1234abcd5678ef90-FCO PRIVATE"):
             with self.subTest(header=header):
                 outcome = classify(0, "502\n" + header)
                 self.assertEqual(outcome, "HTTP 502")
                 self.assertNotIn(header, outcome)
-        self.assertEqual(classify(28, "PRIVATE-DATA"), "curl request timeout")
+        self.assertEqual(classify(28, "PRIVATE-DATA"), "HTTP request timeout")
         self.assertEqual(classify(0, "200"), "HTTP 200")
-        self.assertEqual(classify(0, "200 PRIVATE\n" + full_ray),
+        self.assertEqual(classify(0, "200 PRIVATE\nFCO"),
                          "invalid HTTP status")
 
     def test_safe_probe_rejects_invalid_target_before_docker(self):
@@ -230,7 +232,7 @@ class OriginTests(unittest.TestCase):
     def test_dns_timeout_and_docker_launch_are_not_misreported_as_http(self):
         fake = FakeDocker()
         for code, message in [(6, "DNS resolution failure"),
-                              (28, "curl request timeout"),
+                              (28, "HTTP request timeout"),
                               (125, "Docker container launch failure")]:
             fake.exit_code, fake.http_code = code, "502 PRIVATE_SECRET"
             with self.subTest(code=code):

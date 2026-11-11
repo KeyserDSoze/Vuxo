@@ -10,7 +10,7 @@ NETWORKS = "{{json .NetworkSettings.Networks}}"
 HEALTH = "{{if .State.Health}}{{.State.Health.Status}}{{else}}unknown{{end}}"
 
 # Docker starts a short-lived API-image container for each HTTP probe. On a
-# busy Pi 3 its daemon startup can exceed curl's 6-8 second request budget.
+# busy Pi 3 its daemon startup can exceed probe's 6-8 second request budget.
 # Keep metadata commands fast, but allow bounded extra startup/cleanup time.
 DOCKER_METADATA_TIMEOUT_SECONDS = 15
 DOCKER_PROBE_TIMEOUT_SECONDS = 45
@@ -19,7 +19,7 @@ DOCKER_PROBE_TIMEOUT_SECONDS = 45
 def run_command(argv):
     """Return only status/stdout; never relay errors or timeout exception text.
 
-    A 45-second Docker CLI bound is independent of the short curl request
+    A 45-second Docker CLI bound is independent of the short .NET request
     bound. It prevents a slow daemon startup from being mistaken for an HTTP
     timeout, while retaining an absolute deadline on each ephemeral probe.
     """
@@ -76,14 +76,14 @@ def classify_http_result(exit_code, output):
         if isinstance(output, str) and re.fullmatch(r"[1-5][0-9]{2}", output):
             return "HTTP " + output
         return "invalid HTTP status"
-    # docker run forwards curl's exit code. 125-127 are Docker/exec failures,
+    # docker run forwards .NET probe's fixed exit code. 125-127 are Docker/exec failures,
     # not HTTP responses. Unknown codes and raw stderr are deliberately hidden.
     errors = {
         -2: "Docker subprocess timeout",
         -1: "Docker subprocess unavailable",
         6: "DNS resolution failure",
         7: "TCP connection failure",
-        28: "curl request timeout",
+        28: "HTTP request timeout",
         35: "TLS handshake failure",
         60: "TLS certificate validation failure",
         52: "empty upstream reply",
@@ -109,20 +109,22 @@ def classify_http_with_colo(exit_code, output):
     result = classify_http_result(exit_code, code)
     if result == "invalid HTTP status" or not separator:
         return result
-    match = re.fullmatch(r"[a-fA-F0-9]{8,32}-([A-Z]{3})", cf_ray.strip())
-    return result + " (colo: " + match.group(1) + ")" if match else result
+    # The .NET probe already strips the full CF-Ray request identifier.
+    match = re.fullmatch(r"[A-Z]{3}", cf_ray.strip())
+    return result + " (colo: " + match.group(0) + ")" if match else result
 
 
 def probe_http(run, connector, image, url, *, max_time=6, include_colo=False):
     """Probe only two fixed health URLs from an existing connector namespace.
 
-    Use the locally available API image as an ephemeral curl runner. Never
+    Use the locally available API image as an ephemeral .NET health probe. Never
     mount a socket, inject credentials, pull an image or publish any port.
     """
     if (not isinstance(connector, str) or not CONTAINER_ID.fullmatch(connector)
         or not isinstance(image, str) or not IMAGE_ID.fullmatch(image)
         or url not in ("http://api:8080/health", "https://api.vuxoapi.xyz/health")
         or max_time not in (6, 8)
+        or max_time != (8 if url == "https://api.vuxoapi.xyz/health" else 6)
         or not isinstance(include_colo, bool)
         or (include_colo and url != "https://api.vuxoapi.xyz/health")):
         return "probe input rejected"
@@ -130,11 +132,8 @@ def probe_http(run, connector, image, url, *, max_time=6, include_colo=False):
         "docker", "run", "--rm", "--pull=never",
         "--network", f"container:{connector}",
         "--read-only", "--cap-drop=ALL", "--security-opt=no-new-privileges",
-        "--pids-limit", "32", "--entrypoint", "curl", image,
-        "--silent", "--output", "/dev/null", "--connect-timeout", "3",
-        "--max-time", str(max_time), "--write-out",
-        "%{http_code}\\n%header{cf-ray}" if include_colo else "%{http_code}",
-        url,
+        "--pids-limit", "32", "--entrypoint", "dotnet", image,
+        "/app/health/Vuxo.HealthProbe.dll", url,
     ])
     return (classify_http_with_colo(exit_code, output) if include_colo
             else classify_http_result(exit_code, output))
