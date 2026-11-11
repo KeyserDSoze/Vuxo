@@ -525,8 +525,14 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
                 {t('journalProgress', { shown: journalPage.visible.length, total: displayedItems.length })}
               </Typography>
               <Button variant="outlined" size="small" data-testid="inventory-journal-more"
-                aria-controls="inventory-journal-list" disabled={journalPage.remaining === 0}
-                onClick={() => setJournalVisibleCount(current => current + INVENTORY_JOURNAL_PAGE_SIZE)}>
+                aria-controls="inventory-journal-list" aria-disabled={journalPage.remaining === 0}
+                sx={journalPage.remaining === 0 ? { opacity: 0.6, cursor: 'default' } : undefined}
+                onClick={() => {
+                  // Unlike native disabled, aria-disabled keeps keyboard focus
+                  // on the completion control after the last journal batch.
+                  if (journalPage.remaining > 0)
+                    setJournalVisibleCount(current => current + INVENTORY_JOURNAL_PAGE_SIZE);
+                }}>
                 {journalPage.remaining > 0
                   ? t('journalMore', { count: Math.min(journalPage.remaining, INVENTORY_JOURNAL_PAGE_SIZE) })
                   : t('journalComplete')}

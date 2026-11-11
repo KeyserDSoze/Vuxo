@@ -77,7 +77,11 @@ test('long owner inventory history is progressively shown without losing entries
   await expect(page.getByTestId('inventory-item')).toHaveCount(29);
   await expect(page.getByTestId('inventory-journal-progress')).toHaveText('History displayed: 29 of 29');
   await expect(next).toBeDisabled();
+  await expect(next).toHaveAttribute('aria-disabled', 'true');
+  await expect(next).toBeFocused();
   await expect(next).toHaveText('Full history displayed');
+  await next.press('Enter');
+  await expect(page.getByTestId('inventory-item')).toHaveCount(29);
   await expect(page.getByTestId('inventory-item').last()).toContainText('Rune Shard');
   expect(historyReads).toBe(initialReads);
 
