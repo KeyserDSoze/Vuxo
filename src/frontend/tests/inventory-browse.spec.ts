@@ -74,7 +74,7 @@ test('long owner inventory history is progressively shown without losing entries
   await expect(page.getByTestId('inventory-journal-progress')).toHaveText('History displayed: 29 of 29');
   await expect(next).toBeDisabled();
   await expect(next).toHaveText('Full history displayed');
-  await expect(page.getByTestId('inventory-item').last()).toContainText('Grove Seed');
+  await expect(page.getByTestId('inventory-item').last()).toContainText('Rune Shard');
   expect(historyReads).toBe(1);
 
   // Navigating back to the journal resets the visual batch, not the
