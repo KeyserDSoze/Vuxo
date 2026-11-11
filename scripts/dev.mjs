@@ -166,13 +166,20 @@ async function main(args) {
     throw new Error('Unknown command or unsupported options; run: node scripts/dev.mjs help')
   }
   const config = checkedEnv()
-  await docker(composeArguments(envFile, composeFile, 'check', undefined, appComposeFile), config)
+  // --ollama is the explicit user opt-in: start the model service AND enable
+  // the API's LLM adapter for this invocation. The private file is unchanged.
+  const withOllama = ['infra', 'up', 'debug'].includes(command) && options[0] === '--ollama'
+  const runtimeConfig = withOllama ? { ...config, VUXO_LLM_ENABLED: 'true' } : config
+  await docker(composeArguments(envFile, composeFile, 'check', undefined, appComposeFile), runtimeConfig)
   if (command === 'debug' || command === 'test') {
     // Wait for actual PostgreSQL and Redis health, rather than simply the
     // process start. test runs use unique PostgreSQL databases per xUnit fact.
-    await docker(composeArguments(envFile, composeFile, 'ready', undefined, appComposeFile), config)
-    const safeEnvironment = localProcessEnvironment(process.env, config)
-    const host = hostRuntimeEnvironment(config)
+    await docker(composeArguments(envFile, composeFile, 'ready', undefined, appComposeFile), runtimeConfig)
+    if (withOllama) {
+      await docker(composeArguments(envFile, composeFile, 'infra', 'ollama', appComposeFile), runtimeConfig)
+    }
+    const safeEnvironment = localProcessEnvironment(process.env, runtimeConfig)
+    const host = hostRuntimeEnvironment(runtimeConfig)
     if (command === 'debug') {
       await runHostCommand('npm install', 'npm', hostCommandArguments(config, 'npm-install'),
         frontendDir, safeEnvironment)
@@ -200,7 +207,7 @@ async function main(args) {
     return
   }
   const extra = ['infra', 'up'].includes(command) ? (options[0] === '--ollama' ? 'ollama' : undefined) : options[0]
-  await docker(composeArguments(envFile, composeFile, command, extra, appComposeFile), config)
+  await docker(composeArguments(envFile, composeFile, command, extra, appComposeFile), runtimeConfig)
 }
 
 main(process.argv.slice(2)).catch(error => {

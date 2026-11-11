@@ -162,3 +162,13 @@ test('LLM model is validated before optional Compose shell interpolation', () =>
   env.VUXO_LLM_ENABLED = 'false'
   assert.deepEqual(validateLocalEnv(env), [])
 })
+
+test('explicit Ollama opt-in uses the configured model but never changes persistent local settings', () => {
+  const env = create()
+  assert.equal(hostRuntimeEnvironment(env).api.Llm__Enabled, 'false')
+  const optedIn = { ...env, VUXO_LLM_ENABLED: 'true' }
+  assert.equal(hostRuntimeEnvironment(optedIn).api.Llm__Enabled, 'true')
+  assert.equal(env.VUXO_LLM_ENABLED, 'false')
+  assert.deepEqual(composeArguments('env', 'base', 'infra', 'ollama', 'overlay').slice(-4),
+    ['postgres', 'redis', 'ollama', 'ollama-model-init'])
+})
