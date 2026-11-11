@@ -10,6 +10,7 @@ import type { WorldPortalMarker } from '../features/portals/portalApi'
 const RANGE_TILES = 12
 const CENTER = 72
 const DRAW_RADIUS = 50
+export const MAX_RADAR_PEERS = 24
 
 type WorldPoint = { x: number; y: number }
 export type RadarProjection = {
@@ -37,6 +38,28 @@ export function projectRadarPoint(
   }
 }
 
+type RadarPeer = WorldPoint & { playerId: string }
+
+/**
+ * The HUD does not own world state. When the server already exposed more
+ * nearby peers than fit in the radar, display the nearest 24, not the first
+ * 24 names in GameCanvas' alphabetical presence list. Tie-break by ID to
+ * prevent peer-order changes from reshuffling equal-distance markers.
+ */
+export function selectRadarPeers<T extends RadarPeer>(
+  self: RadarPeer,
+  players: readonly T[],
+): Array<{ player: T; point: RadarProjection }> {
+  return players
+    .filter(player => player.playerId !== self.playerId)
+    .map(player => ({ player, point: projectRadarPoint(self, player) }))
+    .filter((entry): entry is { player: T; point: RadarProjection } =>
+      entry.point !== null && !entry.point.atEdge)
+    .sort((a, b) => a.point.distance - b.point.distance
+      || (a.player.playerId < b.player.playerId ? -1 : a.player.playerId > b.player.playerId ? 1 : 0))
+    .slice(0, MAX_RADAR_PEERS)
+}
+
 export function WorldRadar({
   status, self, players, portals,
 }: {
@@ -56,12 +79,7 @@ export function WorldRadar({
 
   // Nearby players are already visible through the realtime world/presence.
   // Keep the radar bounded even in crowded scenes; do not invent remote peers.
-  const peers = players
-    .filter(player => player.playerId !== self.playerId)
-    .map(player => ({ player, point: projectRadarPoint(self, player) }))
-    .filter((entry): entry is { player: WorldPlayerSnapshot; point: RadarProjection } =>
-      entry.point !== null && !entry.point.atEdge)
-    .slice(0, 24)
+  const peers = selectRadarPeers(self, players)
 
   // Portals are fetched only from the authenticated, owner-only list. A
   // distant granted portal gets an edge marker, not a fake nearby position.

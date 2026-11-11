@@ -125,6 +125,11 @@ test('two illustrated wanderers coexist in the authoritative world at mobile siz
       })).toBe(true)
     }
 
+    // Browser smoke: the radar still renders the already-authorized peer
+    // on desktop, without an extra API call or an invented position.
+    await expect(pageB.getByTestId('world-radar-peer')).toHaveCount(1)
+    await expect(pageB.getByTestId('world-radar-chart')).toBeVisible()
+
     // Two different viewports render the same macro-cell scenery anchors.
     const readBackdrop = async (page: Page) => page.getByTestId('game-canvas').evaluate(element => {
       const serialized = element.getAttribute('data-e2e-woodland-landmarks')
