@@ -54,6 +54,12 @@ export function validateLocalEnv(values) {
       !/^[a-zA-Z0-9_]+$/.test(values.VUXO_POSTGRES_USER ?? '')) {
     errors.push('PostgreSQL local database/user name invalid')
   }
+  if (!['true', 'false'].includes(values.VUXO_LLM_ENABLED)) {
+    errors.push('VUXO_LLM_ENABLED: expected true or false')
+  }
+  if (!/^[a-zA-Z0-9][a-zA-Z0-9._/-]*:[a-zA-Z0-9._-]+$/.test(values.VUXO_LLM_MODEL ?? '')) {
+    errors.push('VUXO_LLM_MODEL: expected safe model:tag without whitespace or shell characters')
+  }
   const ports = new Set()
   for (const name of REQUIRED_PORTS) {
     const raw = values[name]
@@ -67,6 +73,51 @@ export function validateLocalEnv(values) {
     }
   }
   return errors
+}
+
+
+/** Host-only API/Vite configuration: no production endpoints or trusted client positions. */
+export function hostRuntimeEnvironment(config) {
+  const pgHost = '127.0.0.1'
+  const db = `Host=${pgHost};Port=${config.VUXO_POSTGRES_DEV_PORT};Database=${config.VUXO_POSTGRES_DB};Username=${config.VUXO_POSTGRES_USER};Password=${config.VUXO_POSTGRES_PASSWORD};Pooling=false`
+  return {
+    api: {
+      ASPNETCORE_ENVIRONMENT: 'Development',
+      ASPNETCORE_URLS: `http://127.0.0.1:${config.VUXO_API_DEV_PORT}`,
+      ConnectionStrings__GameDb: db,
+      Redis__ConnectionString: `127.0.0.1:${config.VUXO_REDIS_DEV_PORT}`,
+      Auth__Jwt__Issuer: 'Vuxo',
+      Auth__Jwt__Audience: 'Vuxo.Web',
+      Auth__Jwt__SigningKey: config.VUXO_JWT_SIGNING_KEY,
+      Auth__EnableMockLogin: 'true',
+      Cors__AllowedOrigins__0: config.VUXO_ALLOWED_ORIGIN,
+      Database__ApplyMigrationsOnStartup: 'true',
+      Observability__Enabled: 'false',
+      Llm__Enabled: config.VUXO_LLM_ENABLED,
+      Llm__BaseUrl: `http://127.0.0.1:${config.VUXO_OLLAMA_DEV_PORT}/v1`,
+      Llm__Model: config.VUXO_LLM_MODEL,
+    },
+    frontend: {
+      VITE_BASE_PATH: '/Vuxo/',
+      VITE_API_BASE_URL: `http://127.0.0.1:${config.VUXO_API_DEV_PORT}`,
+    },
+    tests: {
+      VUXO_TEST_POSTGRES_CONNECTION_STRING:
+        `Host=127.0.0.1;Port=${config.VUXO_POSTGRES_DEV_PORT};Database=postgres;Username=${config.VUXO_POSTGRES_USER};Password=${config.VUXO_POSTGRES_PASSWORD};Pooling=false;Include Error Detail=true`,
+    },
+  }
+}
+
+export function hostCommandArguments(config, operation) {
+  if (operation === 'api') return ['watch', '--project',
+    'src/backend/applications/Vuxo.Api/Vuxo.Api.csproj', 'run', '--no-launch-profile']
+  if (operation === 'frontend') return ['run', 'dev', '--',
+    '--host', '127.0.0.1', '--port', config.VUXO_FRONTEND_DEV_PORT, '--strictPort']
+  if (operation === 'dotnet-test') return ['test', 'Vuxo.sln', '-c', 'Release']
+  if (operation === 'npm-install') return ['install', '--no-audit', '--no-fund']
+  if (operation === 'chromium') return ['playwright', 'install', 'chromium']
+  if (operation === 'playwright') return ['run', 'test:e2e']
+  throw new Error('Unsupported host workflow')
 }
 
 const ALLOWED_LOG_SERVICES = new Set(['postgres', 'redis', 'ollama', 'ollama-model-init', 'api', 'frontend'])
@@ -85,6 +136,7 @@ export function composeArguments(envFile, composeFile, operation, option = undef
   const prefix = ['compose', '--project-name', 'vuxo-dev', '--env-file', envFile, '-f', composeFile,
     ...(appComposeFile ? ['-f', appComposeFile] : [])]
   if (operation === 'check') return [...prefix, 'config', '--quiet']
+  if (operation === 'ready') return [...prefix, 'up', '-d', '--wait', 'postgres', 'redis']
   if (operation === 'infra') return [...prefix, 'up', '-d', 'postgres', 'redis',
     ...(option === 'ollama' ? ['ollama', 'ollama-model-init'] : [])]
   if (operation === 'up') return [...prefix, 'up', '-d', 'postgres', 'redis', 'api', 'frontend',

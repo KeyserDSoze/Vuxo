@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import { strict as assert } from 'node:assert'
 import { readFileSync } from 'node:fs'
-import { composeArguments, localProcessEnvironment, parseLocalEnv, renderLocalEnv, validateLocalEnv } from './dev-lib.mjs'
+import { composeArguments, localProcessEnvironment, parseLocalEnv, renderLocalEnv, validateLocalEnv, hostRuntimeEnvironment, hostCommandArguments } from './dev-lib.mjs'
 
 const template = readFileSync(new URL('../docker/local.env.example', import.meta.url), 'utf8')
 const mockEntropy = bytes => Buffer.alloc(bytes, 0xaf)
@@ -100,4 +100,65 @@ test('process environment cannot silently override local secrets/ports via produ
   assert.equal(merged.VUXO_FRONTEND_DEV_PORT, '5173')
   assert.equal(merged.VUXO_CLOUDFLARE_TUNNEL_TOKEN, undefined)
   assert.equal(merged.PATH, '/safe')
+})
+
+test('local debug and test use real Docker health readiness and fixed, shell-free command plans', () => {
+  const env = create()
+  const root = ['/tmp/docker/.env.local', '/tmp/docker/compose.dev.yml']
+  const app = '/tmp/docker/compose.dev-app.yml'
+  assert.deepEqual(composeArguments(...root, 'ready', undefined, app).slice(-5),
+    ['up', '-d', '--wait', 'postgres', 'redis'])
+  assert.deepEqual(hostCommandArguments(env, 'api'), [
+    'watch', '--project', 'src/backend/applications/Vuxo.Api/Vuxo.Api.csproj', 'run', '--no-launch-profile',
+  ])
+  assert.deepEqual(hostCommandArguments(env, 'frontend'), [
+    'run', 'dev', '--', '--host', '127.0.0.1', '--port', '5173', '--strictPort',
+  ])
+  assert.deepEqual(hostCommandArguments(env, 'dotnet-test'), ['test', 'Vuxo.sln', '-c', 'Release'])
+  assert.deepEqual(hostCommandArguments(env, 'npm-install'), ['install', '--no-audit', '--no-fund'])
+  assert.deepEqual(hostCommandArguments(env, 'chromium'), ['playwright', 'install', 'chromium'])
+  assert.deepEqual(hostCommandArguments(env, 'playwright'), ['run', 'test:e2e'])
+  assert.throws(() => hostCommandArguments(env, 'drop-db'), /Unsupported/)
+})
+
+test('host debug is loopback only and uses local DB, JWT, Redis, matching CORS and LLM off', () => {
+  const env = create()
+  const host = hostRuntimeEnvironment(env)
+  assert.equal(host.api.ASPNETCORE_ENVIRONMENT, 'Development')
+  assert.equal(host.api.ASPNETCORE_URLS, 'http://127.0.0.1:8080')
+  assert.equal(host.api.Auth__EnableMockLogin, 'true')
+  assert.equal(host.api.Auth__Jwt__SigningKey, env.VUXO_JWT_SIGNING_KEY)
+  assert.equal(host.api.Cors__AllowedOrigins__0, env.VUXO_ALLOWED_ORIGIN)
+  assert.equal(host.api.Observability__Enabled, 'false')
+  assert.equal(host.api.Llm__Enabled, 'false')
+  assert.equal(host.api.Redis__ConnectionString, '127.0.0.1:56379')
+  assert.match(host.api.ConnectionStrings__GameDb, /Host=127\.0\.0\.1;Port=55432;Database=vuxo/)
+  assert.equal(host.frontend.VITE_BASE_PATH, '/Vuxo/')
+  assert.equal(host.frontend.VITE_API_BASE_URL, 'http://127.0.0.1:8080')
+  assert.match(host.tests.VUXO_TEST_POSTGRES_CONNECTION_STRING, /Database=postgres/)
+  assert.match(host.tests.VUXO_TEST_POSTGRES_CONNECTION_STRING, /Pooling=false/)
+  assert.equal(host.tests.VUXO_TEST_POSTGRES_CONNECTION_STRING.includes(env.VUXO_POSTGRES_PASSWORD), true)
+  assert.equal(JSON.stringify(host).includes('api.vuxoapi.xyz'), false)
+  assert.equal(JSON.stringify(host).includes('https://vuxo.quest'), false)
+  env.VUXO_API_DEV_PORT = '9008'
+  env.VUXO_POSTGRES_DEV_PORT = '55440'
+  env.VUXO_FRONTEND_DEV_PORT = '5199'
+  env.VUXO_ALLOWED_ORIGIN = 'http://localhost:5199'
+  assert.deepEqual(validateLocalEnv(env), [])
+  const custom = hostRuntimeEnvironment(env)
+  assert.equal(custom.api.ASPNETCORE_URLS, 'http://127.0.0.1:9008')
+  assert.equal(custom.frontend.VITE_API_BASE_URL, 'http://127.0.0.1:9008')
+  assert.equal(custom.api.Cors__AllowedOrigins__0, 'http://localhost:5199')
+  assert.match(custom.tests.VUXO_TEST_POSTGRES_CONNECTION_STRING, /Port=55440/)
+})
+
+test('LLM model is validated before optional Compose shell interpolation', () => {
+  const env = create()
+  env.VUXO_LLM_MODEL = 'qwen3:1.7b;rm -rf /'
+  assert.match(validateLocalEnv(env).join(' '), /VUXO_LLM_MODEL/)
+  env.VUXO_LLM_MODEL = 'qwen3:1.7b'
+  env.VUXO_LLM_ENABLED = 'yes'
+  assert.match(validateLocalEnv(env).join(' '), /VUXO_LLM_ENABLED/)
+  env.VUXO_LLM_ENABLED = 'false'
+  assert.deepEqual(validateLocalEnv(env), [])
 })

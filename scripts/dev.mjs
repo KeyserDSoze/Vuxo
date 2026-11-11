@@ -2,23 +2,27 @@
 import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { parseLocalEnv, renderLocalEnv, validateLocalEnv, composeArguments, localProcessEnvironment } from './dev-lib.mjs'
+import { parseLocalEnv, renderLocalEnv, validateLocalEnv, composeArguments, localProcessEnvironment, hostRuntimeEnvironment, hostCommandArguments } from './dev-lib.mjs'
 
 const templateFile = fileURLToPath(new URL('../docker/local.env.example', import.meta.url))
 const envFile = fileURLToPath(new URL('../docker/.env.local', import.meta.url))
 const composeFile = fileURLToPath(new URL('../docker/compose.dev.yml', import.meta.url))
 const appComposeFile = fileURLToPath(new URL('../docker/compose.dev-app.yml', import.meta.url))
+const rootDir = fileURLToPath(new URL('../', import.meta.url))
+const frontendDir = fileURLToPath(new URL('../src/frontend/', import.meta.url))
 
 const help = () => console.log(`VUXO local development (0.0.1)
   node scripts/dev.mjs init              Create docker/.env.local, never overwrite
   node scripts/dev.mjs doctor            Validate local config and installed tools
   node scripts/dev.mjs infra [--ollama]  Start loopback PostgreSQL/Redis (Ollama opt-in)
   node scripts/dev.mjs up [--ollama]     Docker .NET API + Vite hot reload (Ollama opt-in)
+  node scripts/dev.mjs debug [--ollama]  Host .NET/Vite watch after ready local DB/Redis
+  node scripts/dev.mjs test              Run xUnit/PostgreSQL and Chromium Playwright
   node scripts/dev.mjs status            Show local Compose container status
   node scripts/dev.mjs logs [service]    Show last 100 lines of local service logs
   node scripts/dev.mjs down              Stop local services; keep data volumes
 
-Host IDE 'debug' and coordinated 'test' are planned in #45.
+Windows/Linux smoke and optional observability integration remain open in #45.
 No command changes production or deletes database volumes.`)
 
 function checkedEnv() {
@@ -47,6 +51,68 @@ async function docker(args, localConfig) {
     })
     child.once('error', () => reject(new Error('Cannot start Docker CLI. Run doctor and check Docker Desktop/Engine.')))
     child.once('close', code => code === 0 ? resolve() : reject(new Error('Docker command failed (exit ' + code + ')')))
+  })
+}
+
+
+function createHostProcess(binary, args, cwd, environment) {
+  const batch = process.platform === 'win32' && (binary === 'npm' || binary === 'npx')
+  // Only fixed, internal npm/npx arguments pass through Windows cmd.exe.
+  return spawn(batch ? binary + '.cmd' : binary, args, {
+    cwd,
+    env: environment,
+    shell: batch,
+    stdio: 'inherit',
+    windowsHide: true,
+  })
+}
+
+async function runHostCommand(label, binary, args, cwd, environment) {
+  await new Promise((resolve, reject) => {
+    const child = createHostProcess(binary, args, cwd, environment)
+    child.once('error', () => reject(new Error(label + ': unable to start executable')))
+    child.once('close', code => code === 0 ? resolve()
+      : reject(new Error(label + ': failed (exit ' + code + ')')))
+  })
+}
+
+function stopHostChild(child) {
+  if (!child.pid) return
+  if (process.platform === 'win32') {
+    // npm.cmd spawns descendants on Windows. Terminate the process tree.
+    spawn('taskkill', ['/PID', String(child.pid), '/T', '/F'], {
+      stdio: 'ignore', windowsHide: true, shell: false,
+    }).once('error', () => {})
+  } else {
+    child.kill('SIGTERM')
+  }
+}
+
+async function runHostDebug(steps) {
+  await new Promise((resolve, reject) => {
+    const children = []
+    let completed = false
+    const cleanup = () => {
+      process.off('SIGINT', interrupted)
+      process.off('SIGTERM', interrupted)
+    }
+    const finish = error => {
+      if (completed) return
+      completed = true
+      cleanup()
+      for (const child of children) stopHostChild(child)
+      if (error) reject(error)
+      else resolve()
+    }
+    const interrupted = () => finish(null)
+    process.on('SIGINT', interrupted)
+    process.on('SIGTERM', interrupted)
+    for (const step of steps) {
+      const child = createHostProcess(step.binary, step.args, step.cwd, step.env)
+      children.push(child)
+      child.once('error', () => finish(new Error(step.label + ': could not start; check doctor')))
+      child.once('close', code => finish(new Error(step.label + ': exited (' + code + '); stopped the other host process')))
+    }
   })
 }
 
@@ -94,13 +160,45 @@ async function main(args) {
     console.log('Local development configuration valid (secrets redacted).')
     return
   }
-  const optionsValid = ['infra', 'up'].includes(command) ? (options.length === 0 || (options.length === 1 && options[0] === '--ollama'))
+  const optionsValid = ['infra', 'up', 'debug'].includes(command) ? (options.length === 0 || (options.length === 1 && options[0] === '--ollama'))
     : command === 'logs' ? options.length <= 1 : options.length === 0
-  if (!['infra', 'up', 'status', 'logs', 'down'].includes(command) || !optionsValid) {
+  if (!['infra', 'up', 'debug', 'test', 'status', 'logs', 'down'].includes(command) || !optionsValid) {
     throw new Error('Unknown command or unsupported options; run: node scripts/dev.mjs help')
   }
   const config = checkedEnv()
   await docker(composeArguments(envFile, composeFile, 'check', undefined, appComposeFile), config)
+  if (command === 'debug' || command === 'test') {
+    // Wait for actual PostgreSQL and Redis health, rather than simply the
+    // process start. test runs use unique PostgreSQL databases per xUnit fact.
+    await docker(composeArguments(envFile, composeFile, 'ready', undefined, appComposeFile), config)
+    const safeEnvironment = localProcessEnvironment(process.env, config)
+    const host = hostRuntimeEnvironment(config)
+    if (command === 'debug') {
+      await runHostCommand('npm install', 'npm', hostCommandArguments(config, 'npm-install'),
+        frontendDir, safeEnvironment)
+      console.log('Local IDE debug: API and Vite on 127.0.0.1; stop both with Ctrl+C.')
+      const withApi = { ...safeEnvironment, ...host.api }
+      const withFrontend = { ...safeEnvironment, ...host.frontend }
+      await runHostDebug([
+        { label: 'dotnet watch', binary: 'dotnet',
+          args: hostCommandArguments(config, 'api'), cwd: rootDir, env: withApi },
+        { label: 'vite', binary: 'npm',
+          args: hostCommandArguments(config, 'frontend'), cwd: frontendDir, env: withFrontend },
+      ])
+    } else {
+      // Never skip the real PostgreSQL integration tests when running locally.
+      await runHostCommand('xUnit/PostgreSQL', 'dotnet', hostCommandArguments(config, 'dotnet-test'),
+        rootDir, { ...safeEnvironment, ...host.tests, Observability__Enabled: 'false' })
+      await runHostCommand('npm install', 'npm', hostCommandArguments(config, 'npm-install'),
+        frontendDir, safeEnvironment)
+      await runHostCommand('Chromium install', 'npx', hostCommandArguments(config, 'chromium'),
+        frontendDir, safeEnvironment)
+      await runHostCommand('Playwright', 'npm', hostCommandArguments(config, 'playwright'),
+        frontendDir, { ...safeEnvironment, ...host.frontend })
+      console.log('Local xUnit/PostgreSQL and Playwright checks passed.')
+    }
+    return
+  }
   const extra = ['infra', 'up'].includes(command) ? (options[0] === '--ollama' ? 'ollama' : undefined) : options[0]
   await docker(composeArguments(envFile, composeFile, command, extra, appComposeFile), config)
 }
