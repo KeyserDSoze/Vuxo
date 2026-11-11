@@ -292,7 +292,8 @@ test('failed social provider configuration is recoverable without reloading on m
   await page.route('**/api/auth/providers', async route => {
     attempts += 1;
     if (attempts <= 3) {
-      await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({
+      // Reproduce the actual intermittently failing Cloudflare response.
+      await route.fulfill({ status: 502, contentType: 'application/json', body: JSON.stringify({
         code: 'social_provider_configuration_unavailable',
       }) });
     } else {
