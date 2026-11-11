@@ -226,6 +226,7 @@ test('host npm/Vite/Playwright never inherit private VUXO_* values or production
     Auth__Jwt__SigningKey: 'prod-jwt',
     Cors__AllowedOrigins__0: 'https://vuxo.quest',
     Llm__BaseUrl: 'https://production',
+    Observability__Enabled: 'false',
   }
   const frontend = localHostEnvironment(inherited, hostRuntimeEnvironment(config).frontend)
   const npm = localHostEnvironment(inherited)
@@ -246,6 +247,11 @@ test('host npm/Vite/Playwright never inherit private VUXO_* values or production
   assert.equal(backend.Auth__Jwt__SigningKey, config.VUXO_JWT_SIGNING_KEY)
   assert.equal(xunit.VUXO_TEST_POSTGRES_CONNECTION_STRING.includes(config.VUXO_POSTGRES_PASSWORD), true)
   assert.equal(Object.hasOwn(xunit, 'Auth__Jwt__SigningKey'), false)
+  // xUnit must see the checked-in default Observability:Enabled=true: its
+  // metadata API tests assert that contract. Do not override it via CLI.
+  assert.equal(Object.hasOwn(xunit, 'Observability__Enabled'), false)
+  const cli = readFileSync(new URL('./dev.mjs', import.meta.url), 'utf8')
+  assert.match(cli, /rootDir, localHostEnvironment\(process\.env, host\.tests\)\)/)
 })
 
 test('host CLI diagnostic classification never echoes private child stdout/stderr', () => {

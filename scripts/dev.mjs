@@ -203,7 +203,7 @@ async function main(args) {
     } else {
       // Never skip the real PostgreSQL integration tests when running locally.
       await runHostCommand('xUnit/PostgreSQL', 'dotnet', hostCommandArguments(config, 'dotnet-test'),
-        rootDir, localHostEnvironment(process.env, { ...host.tests, Observability__Enabled: 'false' }))
+        rootDir, localHostEnvironment(process.env, host.tests))
       await runHostCommand('npm install', 'npm', hostCommandArguments(config, 'npm-install'),
         frontendDir, npmEnvironment)
       await runHostCommand('Chromium install', 'npx', hostCommandArguments(config, 'chromium'),
