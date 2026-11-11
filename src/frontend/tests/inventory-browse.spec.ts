@@ -44,6 +44,67 @@ async function mockInventory(page: Page) {
   }));
 }
 
+test('long owner inventory history is progressively shown without losing entries or making extra API calls', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await signIn(page, 'owner-a', 'en');
+  await mockInventory(page);
+  const history = Array.from({ length: 29 }, (_, index) => ({
+    grantId: 'history-' + String(index).padStart(3, '0'),
+    itemKey: index % 2 ? 'item.grove_seed.v1' : 'item.rune_shard.v1',
+    quantity: 1, consumed: index % 3 === 0,
+    awardedAtUtc: new Date(Date.UTC(2026, 10, 3, 12, index)).toISOString(),
+  }));
+  let historyReads = 0;
+  await page.route('**/api/inventory', route => {
+    historyReads++;
+    return route.fulfill({ contentType: 'application/json', body: JSON.stringify(history) });
+  });
+  await page.goto('./#/inventory');
+  await expect(page.getByTestId('inventory-browse-controls')).toBeVisible();
+  await page.getByTestId('inventory-view-journal').click();
+  await expect(page.getByTestId('inventory-item')).toHaveCount(12);
+  await expect(page.getByTestId('inventory-journal-progress')).toHaveText('History displayed: 12 of 29');
+  const next = page.getByTestId('inventory-journal-more');
+  await expect(next).toHaveText('Show 12 more events');
+  await next.click();
+  await expect(page.getByTestId('inventory-item')).toHaveCount(24);
+  await expect(next).toHaveText('Show 5 more events');
+  await next.click();
+  await expect(page.getByTestId('inventory-item')).toHaveCount(29);
+  await expect(page.getByTestId('inventory-journal-progress')).toHaveText('History displayed: 29 of 29');
+  await expect(next).toBeDisabled();
+  await expect(next).toHaveText('Full history displayed');
+  await expect(page.getByTestId('inventory-item').last()).toContainText('Grove Seed');
+  expect(historyReads).toBe(1);
+
+  // Navigating back to the journal resets the visual batch, not the
+  // owner API snapshot, while leaving all events accessible again.
+  await page.getByTestId('inventory-view-gear').click();
+  await expect(page.getByTestId('inventory-items')).toHaveCount(0);
+  await page.getByTestId('inventory-view-journal').click();
+  await expect(page.getByTestId('inventory-item')).toHaveCount(12);
+  await expect(next).toBeEnabled();
+  expect(historyReads).toBe(1);
+  await expect.poll(() => page.evaluate(() => {
+    const root = document.documentElement;
+    return root.scrollWidth <= root.clientWidth + 1 &&
+      root.scrollHeight <= window.innerHeight + 1;
+  })).toBe(true);
+});
+
+test('small histories render completely and retain the translated inventory view', async ({ page }) => {
+  await signIn(page, 'owner-a', 'it');
+  await mockInventory(page);
+  await page.goto('./#/inventory');
+  await page.getByTestId('inventory-view-journal').click();
+  await expect(page.getByTestId('inventory-item')).toHaveCount(4);
+  await expect(page.getByTestId('inventory-journal-more')).toHaveCount(0);
+  await expect(page.getByTestId('inventory-journal-progress')).toHaveCount(0);
+  await page.getByTestId('language-toggle').click();
+  await expect(page.getByTestId('inventory-view-journal')).toContainText('History');
+  await expect(page.getByTestId('inventory-item')).toHaveCount(4);
+});
+
 test('browse controls require authentication and issue no anonymous owner requests', async ({ page }) => {
   await page.addInitScript(() => { localStorage.clear(); localStorage.setItem('vuxo.language', 'it'); });
   const calls: string[] = [];

@@ -6,6 +6,7 @@ import { Link as RouterLink } from 'react-router-dom';
 import { useStoredSession } from '../features/auth/useStoredSession';
 import type { VuxoSession } from '../features/auth/authSession';
 import { browseInventory, equipmentSlotFor, type InventoryBrowseFilter, type InventoryBrowseSlot, type InventoryBrowseSort } from '../features/inventory/inventoryBrowse';
+import { INVENTORY_JOURNAL_PAGE_SIZE, pageInventoryJournal } from '../features/inventory/inventoryJournal';
 import { InventoryLoadoutPanel } from '../features/inventory/InventoryLoadoutPanel';
 import { HealingItemAction } from '../features/inventory/HealingItemAction';
 import type { CharacterItemHealResult } from '../features/inventory/consumableApi';
@@ -60,6 +61,7 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
   const [healingResult, setHealingResult] = useState<CharacterItemHealResult | null>(null);
   const [healingRefreshError, setHealingRefreshError] = useState(false);
   const [viewMode, setViewMode] = useState<InventoryViewMode>('all');
+  const [journalVisibleCount, setJournalVisibleCount] = useState(INVENTORY_JOURNAL_PAGE_SIZE);
   const [browseQuery, setBrowseQuery] = useState('');
   const [browseFilter, setBrowseFilter] = useState<InventoryBrowseFilter>('all');
   const [browseSlot, setBrowseSlot] = useState<InventoryBrowseSlot>('all');
@@ -79,6 +81,7 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
     setHealingRefreshError(false);
     setInspectedItemKey(null);
     setViewMode('all');
+    setJournalVisibleCount(INVENTORY_JOURNAL_PAGE_SIZE);
     setLoading(Boolean(session));
   }, [session?.accessToken]);
 
@@ -149,6 +152,12 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
     ? viewMode === 'journal' ? items : view.awards
     : items;
   const noMatches = canBrowse && displayedStacks.length === 0 && displayedItems.length === 0;
+  const journalPage = pageInventoryJournal(displayedItems, journalVisibleCount);
+  // The owner-scoped API snapshot remains complete; progressive rendering
+  // limits only the visible Paper entries inside the existing game-deck scroll.
+  useEffect(() => {
+    setJournalVisibleCount(INVENTORY_JOURNAL_PAGE_SIZE);
+  }, [browseQuery, browseFilter, browseSlot, browseSort, viewMode, inventoryRevision]);
   const showGear = viewMode === 'all' || viewMode === 'gear';
   const showBag = viewMode === 'all' || viewMode === 'bag';
   const showJournal = viewMode === 'all' || viewMode === 'journal';
@@ -156,6 +165,7 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
     // A hidden item's inspection must never remain open over a different
     // mode. No network request is made by these presentation-only buttons.
     setInspectedItemKey(null);
+    setJournalVisibleCount(INVENTORY_JOURNAL_PAGE_SIZE);
     setViewMode(mode);
   };
 
@@ -479,9 +489,9 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
       )}
 
       {showJournal && displayedItems.length > 0 && (
-        <Stack spacing={1.5} data-testid="inventory-items">
+        <Stack spacing={1.5} id="inventory-journal-list" data-testid="inventory-items">
           <Typography variant="h5">{t('owned', { count: displayedItems.length })}</Typography>
-          {displayedItems.map(award => {
+          {journalPage.visible.map(award => {
             const labelKey = inventoryItemLabelKeys[award.itemKey];
             return (
               <Paper key={award.grantId} variant="outlined" sx={{ p: { xs: 2, md: 3 } }}
@@ -506,6 +516,23 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
               </Paper>
             );
           })}
+          {displayedItems.length > INVENTORY_JOURNAL_PAGE_SIZE && (
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}
+              sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between',
+                p: 1.25, border: 1, borderColor: 'divider', borderRadius: 2, bgcolor: 'action.hover' }}>
+              <Typography variant="body2" color="text.secondary" data-testid="inventory-journal-progress"
+                role="status" aria-live="polite">
+                {t('journalProgress', { shown: journalPage.visible.length, total: displayedItems.length })}
+              </Typography>
+              <Button variant="outlined" size="small" data-testid="inventory-journal-more"
+                aria-controls="inventory-journal-list" disabled={journalPage.remaining === 0}
+                onClick={() => setJournalVisibleCount(current => current + INVENTORY_JOURNAL_PAGE_SIZE)}>
+                {journalPage.remaining > 0
+                  ? t('journalMore', { count: Math.min(journalPage.remaining, INVENTORY_JOURNAL_PAGE_SIZE) })
+                  : t('journalComplete')}
+              </Button>
+            </Stack>
+          )}
         </Stack>
       )}
       <Dialog open={Boolean(inspectedStack)} onClose={() => setInspectedItemKey(null)}
