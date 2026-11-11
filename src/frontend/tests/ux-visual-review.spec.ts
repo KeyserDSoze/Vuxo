@@ -245,6 +245,17 @@ if (process.env.VUXO_VISUAL_REVIEW === '1') {
                 const file = info.outputPath('portal-preview.png');
                 await page.screenshot({ path: file, animations: 'disabled' });
                 await info.attach('portal-preview', { path: file, contentType: 'image/png' });
+                // Capture the playable keyboard state without making a real
+                // submission or using any user-owned credentials.
+                await expect(page.getByTestId('portal-preview')).toHaveCount(0, { timeout: 7000 });
+                const arena = page.getByTestId('portal-challenge');
+                await expect(arena).toBeFocused();
+                await expect(page.getByTestId('portal-keyboard-hint')).toBeVisible();
+                await page.keyboard.press('1');
+                await expect(page.getByTestId('portal-progress')).toBeVisible();
+                const answerFile = info.outputPath('portal-keyboard-answer.png');
+                await page.screenshot({ path: answerFile, animations: 'disabled' });
+                await info.attach('portal-keyboard-answer', { path: answerFile, contentType: 'image/png' });
               }
             });
         }

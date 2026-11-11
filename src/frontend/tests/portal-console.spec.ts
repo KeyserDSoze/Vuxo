@@ -123,6 +123,76 @@ test('English mobile rune pad and answer slots stay usable with dark theme and k
   )).toBe(true);
 });
 
+test('portal keyboard enters runes 1–4, Backspace undo and Enter submits once after preview', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await login(page);
+  const attempts = await mockPortal(page);
+  await page.goto('./#/portals');
+  // Key presses outside the arena cannot enter or submit anything.
+  await page.keyboard.press('1');
+  expect(attempts).toEqual([]);
+  await page.getByTestId('portal-start').click();
+  const arena = page.getByTestId('portal-challenge');
+  await expect(page.getByTestId('portal-preview')).toBeVisible();
+  await arena.focus();
+  await page.keyboard.press('1');
+  await page.keyboard.press('Enter');
+  expect(attempts).toEqual([]);
+  await expect(page.getByTestId('portal-preview')).toHaveCount(0, { timeout: 7000 });
+  await expect(arena).toBeFocused();
+  await expect(page.getByTestId('portal-keyboard-hint')).toContainText('Backspace');
+  await page.keyboard.press('1');
+  await page.keyboard.press('2');
+  await expect(page.getByTestId('portal-answer-slot-0')).toContainText('Sole');
+  await expect(page.getByTestId('portal-answer-slot-1')).toContainText('Luna');
+  await page.keyboard.press('Backspace');
+  await expect(page.getByTestId('portal-progress')).toContainText('1 / 4');
+  await page.keyboard.press('2');
+  await page.keyboard.press('3');
+  await page.keyboard.press('4');
+  await expect(page.getByTestId('portal-progress')).toContainText('4 / 4');
+  expect(attempts).toEqual([]);
+  await page.keyboard.press('Enter');
+  await expect(page.getByTestId('portal-complete')).toBeVisible();
+  expect(attempts).toEqual([secret]);
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('1');
+  expect(attempts).toEqual([secret]);
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollHeight <= innerHeight + 1
+    && document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+});
+
+test('rune hotkeys never steal native buttons, modifiers, other page focus or preview controls', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 568 });
+  await login(page, 'en');
+  const attempts = await mockPortal(page);
+  await page.goto('./#/portals');
+  await page.getByTestId('portal-start').click();
+  await expect(page.getByTestId('portal-preview')).toHaveCount(0, { timeout: 7000 });
+  const arena = page.getByTestId('portal-challenge');
+  await expect(arena).toBeFocused();
+  await expect(page.getByTestId('portal-keyboard-hint')).toContainText('1 Sun');
+  await page.keyboard.press('Control+1');
+  await page.keyboard.press('Alt+2');
+  await page.keyboard.press('Backspace');
+  await expect(page.getByTestId('portal-progress')).toContainText('0 / 4');
+
+  const moon = page.getByTestId('portal-rune-moon');
+  await moon.focus();
+  await page.keyboard.press('1');
+  await expect(page.getByTestId('portal-progress')).toContainText('0 / 4');
+  await page.keyboard.press('Enter');
+  await expect(page.getByTestId('portal-answer-slot-0')).toContainText('Moon');
+  await arena.focus();
+  await page.keyboard.press('3');
+  await expect(page.getByTestId('portal-progress')).toContainText('2 / 4');
+  await page.keyboard.press('Backspace');
+  await expect(page.getByTestId('portal-progress')).toContainText('1 / 4');
+  expect(attempts).toEqual([]);
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1
+    && document.documentElement.scrollHeight <= innerHeight + 1)).toBe(true);
+});
+
 test('guest sees no server grant count or challenge controls', async ({ page }) => {
   await page.addInitScript(() => localStorage.clear());
   const calls: string[] = [];

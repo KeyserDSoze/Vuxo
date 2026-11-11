@@ -1,6 +1,6 @@
 import { Alert, Box, Button, Chip, CircularProgress, Grid, LinearProgress, Paper, Stack, Typography } from '@mui/material';
 import { AutoAwesome } from '@mui/icons-material';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link as RouterLink } from 'react-router-dom';
 import { readStoredSession } from '../features/auth/authSession';
@@ -35,6 +35,10 @@ export function PortalChallengesPage({
   const { t } = useTranslation('portals');
   const { t: inventoryText } = useTranslation('inventory');
   const autoStarted = useRef(false);
+  const arenaRef = useRef<HTMLDivElement | null>(null);
+  // The UI must never issue two POST attempts from rapid Enter/click events.
+  // Server challenge validation and any damage/reward remain authoritative.
+  const submittingRef = useRef(false);
   const [grants, setGrants] = useState<PortalGrant[]>([]);
   const [selected, setSelected] = useState<PortalGrant | null>(null);
   const [challenge, setChallenge] = useState<PortalChallenge | null>(null);
@@ -107,7 +111,9 @@ export function PortalChallengesPage({
   }, [initialGrantId, loading, grants]);
 
   const submit = async () => {
-    if (!selected || !challenge || answer.length !== challenge.sequence.length) return;
+    if (submittingRef.current || busy || showing || completed || !selected || !challenge
+      || answer.length !== challenge.sequence.length) return;
+    submittingRef.current = true;
     setBusy(true);
     setErrorCode(null);
     setMistakeDamage(null);
@@ -122,9 +128,47 @@ export function PortalChallengesPage({
       setErrorCode(error instanceof PortalApiError ? error.code : 'portal_request_failed');
       setMistakeDamage(error instanceof PortalApiError ? error.mistakeDamage : null);
     } finally {
+      submittingRef.current = false;
       setBusy(false);
     }
   };
+
+  // Local to the focused arena: do not intercept typing, native buttons,
+  // the preview, disabled actions or a completed/failed challenge.
+  const handleRuneKeyboard = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (!challenge || !selected || showing || completed || busy || errorCode
+      || event.repeat || event.ctrlKey || event.altKey || event.metaKey) return;
+    const target = event.target;
+    if (target instanceof HTMLElement
+      && target.closest('button, a, input, textarea, select, [contenteditable="true"], [role="button"]')) return;
+
+    if (/^[1-4]$/.test(event.key)) {
+      event.preventDefault();
+      event.stopPropagation();
+      const rune = runes[Number(event.key) - 1];
+      setAnswer(current => current.length < challenge.sequence.length ? [...current, rune] : current);
+      return;
+    }
+    if (event.key === 'Backspace') {
+      event.preventDefault();
+      event.stopPropagation();
+      setAnswer(current => current.slice(0, -1));
+      return;
+    }
+    if (event.key === 'Enter' && answer.length === challenge.sequence.length) {
+      event.preventDefault();
+      event.stopPropagation();
+      void submit();
+    }
+  };
+
+  // The preview is observation-only. When it ends, the arena becomes
+  // directly operable via keyboard without trapping focus in a removed button.
+  useEffect(() => {
+    if (challenge && selected && !showing && !completed && !errorCode) {
+      arenaRef.current?.focus({ preventScroll: true });
+    }
+  }, [challenge, selected, showing, completed, errorCode]);
 
   const previewAgain = () => {
     setAnswer([]);
@@ -217,6 +261,8 @@ export function PortalChallengesPage({
 
       {challenge && selected ? (
         <Paper variant="outlined" sx={{ p: { xs: 1.5, sm: 3 } }}
+          ref={arenaRef} tabIndex={0} role="region" aria-label={t('console.keyboardArena')}
+          onKeyDown={handleRuneKeyboard}
           className="vuxo-portal-console__arena" data-testid="portal-challenge">
           <Stack spacing={2}>
             <Stack direction="row" sx={{ gap: 1.5, flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -253,6 +299,9 @@ export function PortalChallengesPage({
             ) : (
               <>
                 <Typography>{t('repeat')}</Typography>
+                <Typography variant="caption" color="text.secondary" data-testid="portal-keyboard-hint">
+                  {t('console.keyboardHint')}
+                </Typography>
                 <Typography data-testid="portal-progress">
                   {t('progress', { current: answer.length, total: challenge.sequence.length })}
                 </Typography>

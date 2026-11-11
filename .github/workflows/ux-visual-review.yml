@@ -23,6 +23,8 @@ on:
       - src/frontend/tests/world-camera.spec.ts
       - src/frontend/tests/world-portals.spec.ts
       - src/frontend/tests/world-art.spec.ts
+      - src/frontend/src/pages/PortalChallengesPage.tsx
+      - src/frontend/tests/portal-console.spec.ts
       - src/frontend/src/pages/InventoryPage.tsx
       - src/frontend/tests/inventory-browse.spec.ts
       - src/frontend/src/pages/CharacterEditorPage.tsx
