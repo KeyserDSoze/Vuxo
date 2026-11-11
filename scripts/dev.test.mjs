@@ -15,7 +15,7 @@ test('superseded main/PR workflows are cancelled only within each gate, not prod
   ]
   const groups = new Set()
   for (const [filename, group] of workflows) {
-    const source = readFileSync(new URL('../.github/workflows/' + filename, import.meta.url), 'utf8')
+    const source = readFileSync(new URL('../.github/workflows/' + filename, import.meta.url), 'utf8').replace(/\r\n/g, '\n')
     assert.match(source, /(^|\n)concurrency:\n  group: /)
     assert.ok(source.includes('  group: ' + group + '${{ github.ref }}'))
     assert.match(source, /\n  cancel-in-progress: true\n/)
@@ -24,9 +24,9 @@ test('superseded main/PR workflows are cancelled only within each gate, not prod
     assert.ok(source.indexOf('\nconcurrency:\n') < source.indexOf('\njobs:\n'),
       'workflow-level concurrency must apply to every job')
   }
-  const pages = readFileSync(new URL('../.github/workflows/deploy-pages.yml', import.meta.url), 'utf8')
+  const pages = readFileSync(new URL('../.github/workflows/deploy-pages.yml', import.meta.url), 'utf8').replace(/\r\n/g, '\n')
   assert.match(pages, /group: pages\n  cancel-in-progress: true/)
-  const pi = readFileSync(new URL('../.github/workflows/deploy-pi3.yml', import.meta.url), 'utf8')
+  const pi = readFileSync(new URL('../.github/workflows/deploy-pi3.yml', import.meta.url), 'utf8').replace(/\r\n/g, '\n')
   assert.match(pi, /group: vuxo-pi3-production\n  cancel-in-progress: false/)
   assert.doesNotMatch(pi, /cancel-in-progress: true/)
   // The ARM64 build follows a completed *successful* CI; a superseded or
