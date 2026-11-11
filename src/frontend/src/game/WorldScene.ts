@@ -1,7 +1,7 @@
 import Phaser from 'phaser'
 import type { WorldPlayerSnapshot, WorldRealtimeClient, WorldRealtimeState } from '../features/world/worldRealtime'
 import type { WorldPortalMarker } from '../features/portals/portalApi'
-import { WORLD_ART_VERSION, createIllustratedWanderer, paintWoodlandTile, readIllustratedWandererFacing, setIllustratedWandererFacing, setIllustratedWandererStride, type WandererFacing } from './WorldArtwork'
+import { WORLD_ART_VERSION, createIllustratedWanderer, paintWoodlandLandmarks, paintWoodlandTile, readIllustratedWandererFacing, setIllustratedWandererFacing, setIllustratedWandererStride, type WandererFacing } from './WorldArtwork'
 import { readWorldAppearance, worldAppearanceKey } from './WorldAppearance'
 import { computeWorldCameraZoom } from './WorldCamera'
 import { createIllustratedPortal, destroyIllustratedPortal, updateIllustratedPortal, type IllustratedPortal } from './WorldPortalArtwork'
@@ -89,6 +89,7 @@ export class WorldScene extends Phaser.Scene {
         host?.removeAttribute('data-e2e-name-label-bounds')
         host?.removeAttribute('data-e2e-camera-zoom')
         host?.removeAttribute('data-e2e-world-coverage')
+        host?.removeAttribute('data-e2e-woodland-landmarks')
         host?.removeAttribute('data-e2e-portal-art')
       }
       this.realtime.setMovementIntent(0, 0)
@@ -455,6 +456,13 @@ export class WorldScene extends Phaser.Scene {
       for (let tileY = top; tileY <= bottom; tileY++) {
         paintWoodlandTile(graphics, tileX, tileY)
       }
+    }
+    // Large scenic elements are drawn after the tile fills to prevent seams.
+    // Only E2E builds expose positions; no authoritative world data is added.
+    const scenery = paintWoodlandLandmarks(graphics, left, top, right, bottom)
+    if (import.meta.env.VITE_E2E_REALTIME === 'true') {
+      document.querySelector('[data-testid="game-canvas"]')
+        ?.setAttribute('data-e2e-woodland-landmarks', JSON.stringify(scenery))
     }
   }
 }

@@ -5,7 +5,7 @@ import { PREVIEW_COLORS } from '../features/character/appearance'
 // VUXO's first original procedural world art. These graphics are presentation
 // only: no asset licence, gameplay collision, coordinates, economy or
 // server-owned data are introduced. When provided, cosmetics are server-sourced.
-export const WORLD_ART_VERSION = 'vuxo-world-art-v2'
+export const WORLD_ART_VERSION = 'vuxo-world-art-v3'
 export type WandererFacing = 'north' | 'south' | 'east' | 'west'
 const TILE = 32
 
@@ -267,6 +267,120 @@ function cellNoise(x: number, y: number): number {
   const b = Math.imul(y ^ 0x119de1f3, 0x165667b1)
   const hash = a ^ b
   return (hash ^ (hash >>> 16)) >>> 0
+}
+
+
+// A macro-tile woodland backdrop. Fixed cell coordinates are the only seed:
+// all browsers see the same scenery even with different zoom or join order.
+// Everything is drawn on terrain Graphics (depth -10), behind players/portals.
+export type WoodlandLandmark = {
+  key: string
+  kind: 'fallen-log' | 'fern-thicket' | 'moss-glade'
+  x: number
+  y: number
+}
+
+const GROVE_WIDTH = 9
+const GROVE_HEIGHT = 8
+const GROVE_MARGIN = 4 // tiles: scenery extends beyond the anchor tile
+
+export function woodlandLandmarksInBounds(
+  left: number,
+  top: number,
+  right: number,
+  bottom: number,
+): WoodlandLandmark[] {
+  const landmarks: WoodlandLandmark[] = []
+  for (let cellX = Math.floor((left - GROVE_MARGIN) / GROVE_WIDTH);
+    cellX <= Math.floor((right + GROVE_MARGIN) / GROVE_WIDTH); cellX++) {
+    for (let cellY = Math.floor((top - GROVE_MARGIN) / GROVE_HEIGHT);
+      cellY <= Math.floor((bottom + GROVE_MARGIN) / GROVE_HEIGHT); cellY++) {
+      const seed = cellNoise(cellX, cellY)
+      const kind: WoodlandLandmark['kind'] =
+        seed % 3 === 0 ? 'fallen-log' : seed % 3 === 1 ? 'fern-thicket' : 'moss-glade'
+      landmarks.push({
+        key: `${cellX}:${cellY}`,
+        kind,
+        x: (cellX * GROVE_WIDTH + 3 + (seed % 3)) * TILE,
+        y: (cellY * GROVE_HEIGHT + 2 + ((seed >>> 3) % 3)) * TILE,
+      })
+    }
+  }
+  return landmarks
+}
+
+/**
+ * Paint after all tile rectangles so large objects are not cut by adjacent
+ * fillRect calls. There are no GameObjects, input surfaces, physics, tweens
+ * or per-frame allocations: WorldScene redraws only on tile-bound changes.
+ */
+export function paintWoodlandLandmarks(
+  graphics: Phaser.GameObjects.Graphics,
+  left: number,
+  top: number,
+  right: number,
+  bottom: number,
+): WoodlandLandmark[] {
+  const landmarks = woodlandLandmarksInBounds(left, top, right, bottom)
+  for (const landmark of landmarks) {
+    const { x, y } = landmark
+    if (landmark.kind === 'fallen-log') {
+      // A weathered trunk, broken bark, moss and tiny fungi.
+      graphics.fillStyle(0x071f28, 0.52)
+      graphics.fillEllipse(x, y + 20, 120, 34)
+      graphics.fillStyle(0x385346, 0.92)
+      graphics.fillRoundedRect(x - 49, y - 12, 102, 28, 10)
+      graphics.fillStyle(0x715d4c, 1)
+      graphics.fillRoundedRect(x - 46, y - 16, 96, 24, 9)
+      graphics.lineStyle(2, 0xa18a69, 0.8)
+      graphics.lineBetween(x - 33, y - 9, x + 31, y - 9)
+      graphics.lineBetween(x - 18, y + 1, x + 25, y + 1)
+      graphics.fillStyle(0x9d8a68, 1)
+      graphics.fillEllipse(x + 46, y - 3, 15, 23)
+      graphics.lineStyle(2, 0x4f392f, 0.85)
+      graphics.strokeEllipse(x + 46, y - 3, 9, 15)
+      graphics.fillStyle(0x5b9c76, 0.9)
+      graphics.fillEllipse(x - 22, y - 17, 35, 9)
+      graphics.fillEllipse(x + 12, y - 17, 24, 8)
+      graphics.fillStyle(0xf1d5a3, 0.9)
+      graphics.fillCircle(x - 37, y + 13, 3)
+      graphics.fillCircle(x - 31, y + 16, 2)
+    } else if (landmark.kind === 'fern-thicket') {
+      // Three overlapping fronds share a deep forest shadow.
+      graphics.fillStyle(0x08282f, 0.58)
+      graphics.fillEllipse(x, y + 16, 125, 43)
+      for (const offset of [-35, 0, 35]) {
+        const tipY = y - (offset === 0 ? 41 : 28)
+        const rootX = x + offset
+        graphics.lineStyle(3, 0x376f5c, 0.95)
+        graphics.lineBetween(rootX, y + 15, rootX + 7, tipY)
+        graphics.fillStyle(offset === 0 ? 0x579876 : 0x47806a, 0.96)
+        graphics.fillEllipse(rootX - 9, y - 7, 28, 10)
+        graphics.fillEllipse(rootX + 13, y - 19, 31, 10)
+        graphics.fillEllipse(rootX - 5, tipY + 7, 22, 9)
+      }
+      graphics.fillStyle(0xaad7a5, 0.85)
+      graphics.fillCircle(x - 41, y + 2, 2.5)
+      graphics.fillCircle(x + 42, y - 6, 2)
+    } else {
+      // Wide soft clearing, leafy islands and bright petals, not a portal.
+      graphics.fillStyle(0x132f35, 0.68)
+      graphics.fillEllipse(x, y, 146, 78)
+      graphics.fillStyle(0x315e51, 0.88)
+      graphics.fillEllipse(x, y - 2, 133, 65)
+      graphics.fillStyle(0x447663, 0.62)
+      graphics.fillEllipse(x - 18, y - 10, 82, 39)
+      graphics.fillStyle(0x68a181, 0.72)
+      graphics.fillEllipse(x + 30, y + 13, 42, 18)
+      for (const [dx, dy] of [[-38, -5], [-4, 14], [29, -15], [49, 7]]) {
+        graphics.fillStyle(0xe7c7a1, 0.88)
+        graphics.fillCircle(x + dx, y + dy, 2)
+        graphics.fillStyle(0x8bbfa2, 0.9)
+        graphics.fillCircle(x + dx + 3, y + dy + 2, 1.5)
+      }
+    }
+  }
+  return landmarks
 }
 
 /**

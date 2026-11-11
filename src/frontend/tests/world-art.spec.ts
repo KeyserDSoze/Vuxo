@@ -11,6 +11,7 @@ const duoScope = 'world-art-duo'
 const resizeScope = 'world-art-resize'
 const strideScope = 'world-art-stride'
 const facingScope = 'world-art-facing'
+const landmarkScope = 'world-art-landmarks'
 
 async function resetRoom(request: import('@playwright/test').APIRequestContext, scope: string) {
   const result = await request.post(origin + '/__vuxo_e2e/world/reset?scope=' + scope)
@@ -123,6 +124,18 @@ test('two illustrated wanderers coexist in the authoritative world at mobile siz
           && document.documentElement.scrollHeight <= window.innerHeight + 1
       })).toBe(true)
     }
+
+    // Two different viewports render the same macro-cell scenery anchors.
+    const readBackdrop = async (page: Page) => page.getByTestId('game-canvas').evaluate(element => {
+      const serialized = element.getAttribute('data-e2e-woodland-landmarks')
+      return serialized ? JSON.parse(serialized) as Array<{ key: string; kind: string; x: number; y: number }> : []
+    })
+    const mobileScenery = await readBackdrop(pageA)
+    const desktopScenery = await readBackdrop(pageB)
+    const desktopByKey = new Map(desktopScenery.map(landmark => [landmark.key, landmark]))
+    const shared = mobileScenery.filter(landmark => desktopByKey.has(landmark.key))
+    expect(shared.length).toBeGreaterThan(0)
+    for (const landmark of shared) expect(desktopByKey.get(landmark.key)).toEqual(landmark)
 
     // Player coordinates still change only when acknowledged by world authority.
     const self = pageA.locator('[data-player-id="art-player-a"]')
@@ -298,6 +311,71 @@ test('canonical server target turns avatars north, east, south and west with act
     document.documentElement.scrollWidth <= innerWidth + 1 &&
     document.documentElement.scrollHeight <= innerHeight + 1
   )).toBe(true)
+})
+
+test('woodland landmarks persist at canonical coordinates across viewport resize and reload', async ({ page, request }, info) => {
+  test.setTimeout(90_000)
+  await resetRoom(request, landmarkScope)
+  await demoPlayer(page, 'woodland-player', 'Woodland Guest', landmarkScope)
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await page.setViewportSize({ width: 320, height: 568 })
+  await page.goto(gameUrl)
+
+  const host = page.getByTestId('game-canvas')
+  const self = page.locator('[data-player-id="woodland-player"]')
+  await expect(page.getByTestId('world-connection-status')).toHaveAttribute('data-status', 'connected')
+  await expect(host).toHaveAttribute('data-e2e-world-art-version', 'vuxo-world-art-v3')
+  const landmarks = async () => host.evaluate(element => {
+    const serialized = element.getAttribute('data-e2e-woodland-landmarks')
+    return serialized ? JSON.parse(serialized) as Array<{
+      key: string; kind: string; x: number; y: number
+    }> : []
+  })
+  const anchors = new Map<string, string>()
+  const initialX = Number(await self.getAttribute('data-player-x'))
+  const initialY = Number(await self.getAttribute('data-player-y'))
+  for (const viewport of [
+    { width: 320, height: 568 },
+    { width: 390, height: 844 },
+    { width: 768, height: 1024 },
+    { width: 1280, height: 720 },
+    { width: 1920, height: 1080 },
+    { width: 3440, height: 1440 },
+  ]) {
+    await page.setViewportSize(viewport)
+    await expect.poll(async () => (await landmarks()).length).toBeGreaterThan(1)
+    const current = await landmarks()
+    expect(current.length).toBeLessThan(100)
+    expect(new Set(current.map(item => item.key)).size).toBe(current.length)
+    for (const item of current) {
+      expect(['fallen-log', 'fern-thicket', 'moss-glade']).toContain(item.kind)
+      expect(item.x % 32).toBe(0)
+      expect(item.y % 32).toBe(0)
+      const signature = JSON.stringify({ kind: item.kind, x: item.x, y: item.y })
+      expect(anchors.get(item.key) ?? signature).toBe(signature)
+      anchors.set(item.key, signature)
+    }
+    await expect.poll(() => page.evaluate(() =>
+      document.documentElement.scrollWidth <= window.innerWidth + 1 &&
+      document.documentElement.scrollHeight <= window.innerHeight + 1
+    )).toBe(true)
+    expect(Number(await self.getAttribute('data-player-x'))).toBe(initialX)
+    expect(Number(await self.getAttribute('data-player-y'))).toBe(initialY)
+    if (viewport.width === 390 || viewport.width === 1280 || viewport.width === 3440) {
+      await info.attach('woodland-landmarks-' + viewport.width, {
+        body: await page.screenshot({ animations: 'disabled' }),
+        contentType: 'image/png',
+      })
+    }
+  }
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.reload()
+  await expect(page.getByTestId('world-connection-status')).toHaveAttribute('data-status', 'connected')
+  await expect.poll(async () => (await landmarks()).length).toBeGreaterThan(1)
+  for (const item of await landmarks()) {
+    const before = anchors.get(item.key)
+    if (before) expect(JSON.stringify({ kind: item.kind, x: item.x, y: item.y })).toBe(before)
+  }
 })
 
 test('illustrated world keeps the canvas responsive on a portrait-to-ultrawide resize', async ({ page, request }, info) => {

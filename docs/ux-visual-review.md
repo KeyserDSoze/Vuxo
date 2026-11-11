@@ -6,6 +6,10 @@ La matrice screenshot serve alla review di **#154**, dei pannelli **#158** e del
 
 L'art v2 (`vuxo-world-art-v2`) usa viste originali frontale, posteriore e di profilo specchiato e orientamento dai soli delta di posizione target ricevuti dal server, non da input locale. Confrontare gli allegati Playwright `server-faced-north-390px`, `server-faced-west-390px` e i PNG dei due browser a 390/1280; controllare occhi/volto nascosti nella vista di schiena, silhouette laterale, ancoraggio piedi, nome/portale e leggibilità rispetto al terreno. La [CI #43017357691](https://github.com/KeyserDSoZe/Vuxo/actions/runs/43017357691) ha passato **317 test Playwright**, inclusa la prova delle quattro direzioni e del facing riflesso sul peer; la [Visual #43017357812](https://github.com/KeyserDSoZe/Vuxo/actions/runs/43017357812) ha passato **116/116**. Questi dati dimostrano il contratto/rendering nei browser test, **non** la revisione umana artistica o un test fullscreen fisico: #165/#167/#155 restano aperte.
 
+## Sottobosco deterministico e landmark decorativi (#193 — in verifica)
+
+World art v3 (`vuxo-world-art-v3`) aggiunge tronchi/felci/radure macro-tile sul solo Graphics del suolo. Il Playwright `world-art.spec.ts` confronta coordinate e forme dei landmark fra 320, 390, 768, 1280, 1920, 3440 px e reload, più la sovrapposizione con due browser di dimensioni diverse. Le immagini `woodland-landmarks-390`, `woodland-landmarks-1280`, `woodland-landmarks-3440` consentono la revisione delle differenze di densità e contrasto, non certificano la qualità artistica. Verificare che nessun oggetto ambientale sembri un portale o ostacolo vero; il gameplay non ha collisioni per questi disegni. La revisione su hardware resta #165/#167.
+
 ## Esecuzione
 
 1. In GitHub: **Actions → UX visual review → Run workflow**, selezionare **main**. In caso di modifica di workflow o suite, il job parte anche con push su main.
