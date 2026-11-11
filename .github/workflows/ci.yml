@@ -143,14 +143,17 @@ jobs:
           docker rm -f vuxo-otel-smoke || true
 
   devex-linux-runtime:
-    name: DevEx Linux live Docker stack (#45)
+    name: DevEx Linux Docker + host CLI (#45)
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 24
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
       - name: Create safe ephemeral local configuration
         run: node scripts/dev.mjs init
       - name: Boot real ASP.NET + PostgreSQL + Redis + Vite through cross-platform CLI
@@ -159,6 +162,14 @@ jobs:
       - name: Check ASP.NET health, CORS discovery and Vite HTML over loopback
         timeout-minutes: 2
         run: node scripts/dev-smoke.mjs
+      - name: Stop Docker application before testing host IDE debug
+        run: node scripts/dev.mjs down
+      - name: Smoke real host .NET watch, Vite and PostgreSQL via debug
+        timeout-minutes: 10
+        run: node scripts/dev-host-smoke.mjs debug
+      - name: Run coordinated CLI test with real PostgreSQL xUnit + Playwright
+        timeout-minutes: 19
+        run: node scripts/dev.mjs test
       - name: Inspect local container status on failure (no secrets)
         if: failure()
         shell: bash
@@ -170,9 +181,9 @@ jobs:
         run: node scripts/dev.mjs down
 
   devex-windows-contract:
-    name: DevEx Windows Node and private init (#45)
+    name: DevEx Windows CLI + native Vite (#45)
     runs-on: windows-2025
-    timeout-minutes: 12
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -192,6 +203,12 @@ jobs:
           if ($LASTEXITCODE -eq 0) { throw 'CLI init overwrote existing private env' }
           node scripts/dev.mjs help
           if ($LASTEXITCODE -ne 0) { throw 'CLI help failed' }
+      - name: Install real frontend dependencies natively on Windows
+        working-directory: src/frontend
+        run: npm install --no-audit --no-fund
+      - name: Smoke native Windows npm.cmd/Vite and loopback HTML
+        timeout-minutes: 8
+        run: node scripts/dev-host-smoke.mjs frontend
 
   docker-runtime:
     runs-on: ubuntu-latest

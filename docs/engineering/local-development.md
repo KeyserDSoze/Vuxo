@@ -1,4 +1,4 @@
-# Avvio locale cross-platform (issue #45, incremento 3)
+# Avvio locale cross-platform (issue #45, incremento 4)
 
 Versione: **0.0.1**. Il CLI usa Node.js 24+, Docker con Compose plugin e .NET 10 SDK; funziona senza shell Bash su Windows, Linux e macOS. La prima tranche gestisce PostgreSQL/Redis e la configurazione privata; la seconda introduce **`up` con .NET API + Vite live/hot reload in container**. I comandi `debug` e `test` sono ora implementati anche per Windows senza Bash; i test di esecuzione su Windows/Linux reali e l'observability opzionale restano da completare e la #45 resta aperta.
 
@@ -38,7 +38,9 @@ node scripts/dev.mjs infra --ollama
 
 La CI ora contiene due gate distinti sulla #45: il job **DevEx Linux live Docker stack** esegue realmente `node scripts/dev.mjs init` e `up` su Ubuntu 24.04 con Docker Engine, attende `/health` ASP.NET e il frontend Vite, e verifica `/api/auth/providers` con origine CORS locale e markup HTML. `down` è eseguito sempre senza `-v`; nessuna password viene stampata e il job non usa il tunnel/production. Il job **DevEx Windows Node and private init** esegue i contratti Node su Windows e prova `init`, presenza di `.env.local`, rispetto di `.gitignore`, rifiuto della sovrascrittura e `help` sul vero runner Windows.
 
-Le verifiche CI su Linux **non provano** che il Docker Desktop dell'utente sia configurato né che il debugger IDE sia agganciabile; il job Windows **non avvia** Docker Linux containers e non esegue ancora `debug` o `test` sul dispositivo Windows. Restano quindi necessari smoke manuali Windows/Linux e verifica IDE/observability prima di chiudere la #45.
+Il job Linux ora ferma lo stack Docker dopo lo smoke di `up`, avvia **realmente** `node scripts/dev.mjs debug` sull'host con .NET 10 SDK, Node 24 e PostgreSQL/Redis Docker, verifica HTTP 200/CORS/HTML e termina i processi via Ctrl+C. Poi esegue anche `node scripts/dev.mjs test` completo: xUnit con PostgreSQL reale e Playwright Chromium, non un test statico del solo piano di comandi. Il job Windows esegue npm/Vite **nativamente** via `npm.cmd` sul runner Windows e richiede la pagina HTML locale; prova perciò anche il lancio reale di una parte del workflow host.
+
+Queste verifiche **non provano** la configurazione Docker Desktop del computer dell'utente, l'attach concreto di un debugger IDE o un'esecuzione `debug/test` completa su Windows con PostgreSQL locale: questi ultimi criteri restano aperti nella #45. Restano quindi necessari smoke manuali Windows/Linux e verifica IDE/observability prima di chiudere la #45.
 
 ## Test del CLI
 
@@ -46,4 +48,4 @@ Le verifiche CI su Linux **non provano** che il Docker Desktop dell'utente sia c
 node --test scripts/dev.test.mjs
 ```
 
-La CI esegue i test di generazione dei segreti, parsing/validazione, restrizioni origine e porte, comandi Compose, isolamento environment e conservazione volumi; valida anche la sintassi dell'overlay Docker completo usando segreti effimeri. La verifica manuale su Windows/Linux per Docker `up`, attach debugger `debug` e l'intera suite `test` resta nella #45, insieme a eventuale observability locale e ottimizzazioni DevEx. I test offline non equivalgono a prove sul sistema operativo dell'utente. Non dichiarare il workflow DevEx completo da questa tranche.
+La CI esegue i test di generazione dei segreti, parsing/validazione, restrizioni origine e porte, comandi Compose, isolamento environment e conservazione volumi; valida anche la sintassi dell'overlay Docker completo usando segreti effimeri. La verifica manuale Windows (Docker Desktop Linux containers, attach debugger IDE, `debug/test` end-to-end) e quella sull'hardware target resta nella #45, insieme a eventuale observability locale e ottimizzazioni DevEx. I test offline non equivalgono a prove sul sistema operativo dell'utente. Non dichiarare il workflow DevEx completo da questa tranche.
