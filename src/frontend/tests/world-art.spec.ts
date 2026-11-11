@@ -638,9 +638,16 @@ test('offscreen peers stop animating and disappear from art only, then return on
   await expect.poll(async () => host.getAttribute('data-e2e-visible-avatar-ids'))
     .toBe(JSON.stringify(['visibility-self']))
   await expect(host).toHaveAttribute('data-e2e-visible-avatar-count', '1')
-  // Owner-authoritative presence and radar must NOT be culled.
+  // The peer remains in server-owned presence, but not in the radar:
+  // the radar intentionally caps peer markers at 12 tiles and starts
+  // collapsed on a phone. Camera culling must not alter either rule.
   await expect(page.locator('[data-player-id="visibility-peer"]')).toBeVisible()
-  await expect(page.getByTestId('world-radar-peer')).toHaveCount(1)
+  const radar = page.getByTestId('world-radar')
+  await expect(radar).toHaveAttribute('data-expanded', 'false')
+  await page.getByTestId('world-radar-toggle').click()
+  await expect(radar).toHaveAttribute('data-expanded', 'true')
+  await expect(page.getByTestId('world-radar-chart')).toBeVisible()
+  await expect(page.getByTestId('world-radar-peer')).toHaveCount(0)
   await expect.poll(() => host.evaluate(element => {
     const motion = element.getAttribute('data-e2e-avatar-motion')
     if (!motion) return false
@@ -656,11 +663,16 @@ test('offscreen peers stop animating and disappear from art only, then return on
   await expect.poll(() => host.evaluate(element =>
     JSON.parse(element.getAttribute('data-e2e-name-label-bounds') ?? '[]').length,
   )).toBe(2)
+  // Camera widening makes the peer visible on canvas, not nearer in world
+  // coordinates: the radar stays limited to the same 12-tile range.
+  await expect(page.getByTestId('world-radar-chart')).toBeVisible()
+  await expect(page.getByTestId('world-radar-peer')).toHaveCount(0)
   await page.setViewportSize({ width: 390, height: 844 })
   await expect.poll(async () => host.getAttribute('data-e2e-visible-avatar-ids'))
     .toBe(JSON.stringify(['visibility-self']))
   await expect(host).toHaveAttribute('data-e2e-illustrated-player-count', '2')
-  await expect(page.getByTestId('world-radar-peer')).toHaveCount(1)
+  await expect(page.locator('[data-player-id="visibility-peer"]')).toBeVisible()
+  await expect(page.getByTestId('world-radar-peer')).toHaveCount(0)
 })
 
 const terrainScope = 'world-art-terrain-buffer'
