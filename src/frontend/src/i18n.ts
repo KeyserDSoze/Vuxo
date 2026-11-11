@@ -697,6 +697,8 @@ const initialization = i18n.use(initReactI18next).init({
             eyebrow: 'Creazione personaggio',
             studio: {
               navigation: 'Sezioni editor personaggio',
+              focusView: 'Vista a schede',
+              fullView: 'Vista completa',
               identity: 'Identità e punti',
               appearance: 'Aspetto e colori',
               portrait: 'Anteprima del tuo Vuxian',
@@ -1471,6 +1473,8 @@ const initialization = i18n.use(initReactI18next).init({
             eyebrow: 'Character creation',
             studio: {
               navigation: 'Character editor sections',
+              focusView: 'Chamber view',
+              fullView: 'Full overview',
               identity: 'Identity and points',
               appearance: 'Appearance and colors',
               portrait: 'Your Vuxian preview',

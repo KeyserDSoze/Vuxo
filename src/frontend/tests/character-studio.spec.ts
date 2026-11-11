@@ -116,6 +116,98 @@ test('English dark mobile navigation has keyboard focus and localized copy', asy
   await expect(page.getByTestId('character-studio-appearance')).toBeFocused();
 });
 
+test('chamber view keeps portrait and saved draft when switching identity and appearance without POST', async ({ page }, info) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const writes: string[] = [];
+  const reads: string[] = [];
+  page.on('request', request => {
+    const path = new URL(request.url()).pathname;
+    if (path.includes('/api/')) {
+      if (request.method() === 'GET') reads.push(path);
+      else if (request.method() !== 'OPTIONS') writes.push(request.method() + ':' + path);
+    }
+  });
+  await page.goto('./#/character');
+  await expect(page.getByTestId('character-studio-portrait')).toBeVisible();
+  await expect(page.getByTestId('character-point-budget')).toContainText('10 / 10');
+  await page.getByRole('textbox', { name: 'Nome', exact: true }).fill('Rune Vuxian');
+  const readsBefore = reads.length;
+  await page.getByTestId('character-focus-toggle').click();
+  await expect(page.getByTestId('character-focus-toggle')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByTestId('character-studio-hero')).toBeHidden();
+  await expect(page.getByTestId('character-step-identity')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByTestId('character-studio-identity')).toBeFocused();
+  await expect(page.getByTestId('character-studio-appearance')).toBeHidden();
+  await expect(page.getByTestId('character-studio-portrait')).toBeVisible();
+
+  await page.getByTestId('character-step-appearance').click();
+  await expect(page.getByTestId('character-studio-appearance')).toBeFocused();
+  await expect(page.getByTestId('character-step-appearance')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByTestId('character-studio-identity')).toBeHidden();
+  await expect(page.getByTestId('character-try-look')).toBeVisible();
+  await page.getByTestId('hairStyle-select').getByRole('combobox').click();
+  await page.getByRole('option', { name: 'Lunghi' }).click();
+  await page.getByTestId('character-step-identity').click();
+  await expect(page.getByTestId('character-studio-identity')).toBeFocused();
+  await expect(page.getByRole('textbox', { name: 'Nome', exact: true })).toHaveValue('Rune Vuxian');
+  await expect(page.getByTestId('character-point-budget')).toContainText('10 / 10');
+  await page.getByTestId('character-step-appearance').click();
+  await expect(page.getByTestId('hairStyle-select').getByRole('combobox')).toHaveText('Lunghi');
+  expect(reads.length).toBe(readsBefore);
+  expect(writes).toEqual([]);
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1
+    && document.documentElement.scrollHeight <= innerHeight + 1
+    && document.scrollingElement!.scrollTop === 0)).toBe(true);
+  await info.attach('character-focused-appearance-390', { body: await page.screenshot({ animations: 'disabled' }),
+    contentType: 'image/png' });
+  await page.getByTestId('character-focus-toggle').click();
+  await expect(page.getByTestId('character-focus-toggle')).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.getByTestId('character-studio-hero')).toBeVisible();
+  await expect(page.getByTestId('character-studio-identity')).toBeVisible();
+  await expect(page.getByTestId('character-studio-appearance')).toBeVisible();
+  expect(writes).toEqual([]);
+});
+
+test('English dark chamber keyboard controls and reduced motion fit 320px viewport', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 568 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('./#/character');
+  await page.getByTestId('language-toggle').click();
+  await page.getByTestId('theme-toggle').click();
+  await page.getByTestId('theme-toggle').click();
+  await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme)).toBe('dark');
+  const toggle = page.getByTestId('character-focus-toggle');
+  await expect(toggle).toHaveText('Chamber view');
+  await toggle.focus();
+  await page.keyboard.press('Enter');
+  await expect(toggle).toHaveText('Full overview');
+  const appearance = page.getByTestId('character-step-appearance');
+  await appearance.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByTestId('character-studio-appearance')).toBeFocused();
+  await expect(appearance).toHaveAttribute('aria-pressed', 'true');
+  await expect(appearance).toHaveCSS('transition-duration', '0s');
+  await expect(page.getByTestId('character-studio-portrait')).toBeVisible();
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1
+    && document.documentElement.scrollHeight <= innerHeight + 1)).toBe(true);
+});
+
+test('chamber view retains authoritative attribute validity and never submits a disabled invalid draft', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.goto('./#/character');
+  await page.getByTestId('character-focus-toggle').click();
+  await expect(page.getByTestId('character-studio-identity')).toBeFocused();
+  await page.getByRole('spinbutton', { name: 'Forza' }).fill('10');
+  await expect(page.getByTestId('character-point-budget')).toContainText('18 / 10');
+  await expect(page.getByTestId('create-character')).toBeDisabled();
+  await page.getByTestId('character-step-appearance').click();
+  await expect(page.getByTestId('character-studio-identity')).toBeHidden();
+  await expect(page.getByTestId('create-character')).toBeDisabled();
+  await page.getByTestId('character-step-identity').click();
+  await expect(page.getByTestId('character-point-budget')).toContainText('18 / 10');
+  await expect(page.getByTestId('create-character')).toBeDisabled();
+});
+
 test('reduced-motion character studio keeps controls without hover animation', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.setViewportSize({ width: 390, height: 844 });

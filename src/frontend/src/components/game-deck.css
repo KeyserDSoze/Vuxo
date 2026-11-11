@@ -456,6 +456,16 @@
 .vuxo-character-studio__nav .MuiButton-root:hover {
   background: color-mix(in srgb, var(--deck-glow) 11%, transparent);
 }
+/* #189: chamber selection keeps the live preview, budget and draft in-place.
+   Distinguish the active chamber even without color or pointer hover. */
+.vuxo-character-studio__nav .MuiButton-root[aria-pressed="true"] {
+  border: 1px solid var(--deck-glow);
+  box-shadow: inset 0 -3px var(--deck-glow);
+}
+.vuxo-character-studio__nav .MuiButton-root:focus-visible {
+  outline: 3px solid var(--deck-glow);
+  outline-offset: 2px;
+}
 .vuxo-character-studio__portrait {
   border-color: color-mix(in srgb, var(--deck-glow) 39%, transparent) !important;
   overflow: hidden;
@@ -526,7 +536,8 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .vuxo-character-studio__portrait,
-  .vuxo-character-studio__try-look { transition: none; }
+  .vuxo-character-studio__try-look,
+  .vuxo-character-studio__nav .MuiButton-root { transition: none; }
 }
 
 

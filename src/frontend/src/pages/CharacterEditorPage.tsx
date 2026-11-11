@@ -84,6 +84,17 @@ export function CharacterEditorPage() {
   const [loadingSaved, setLoadingSaved] = useState(false)
   const [savedReadError, setSavedReadError] = useState(false)
   const [result, setResult] = useState<{ kind: 'success' | 'error'; key: string } | null>(null)
+  // UI-only chamber navigation: both form cards remain mounted so a draft and
+  // the server-backed appearance catalog cannot be discarded by view changes.
+  const [focusedSection, setFocusedSection] = useState<'identity' | 'appearance' | null>(null)
+  const focusedView = focusedSection !== null
+
+  useEffect(() => {
+    if (!focusedSection) return
+    const target = document.getElementById('character-' + focusedSection)
+    target?.scrollIntoView({ behavior: 'auto', block: 'start' })
+    target?.focus({ preventScroll: true })
+  }, [focusedSection])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -143,6 +154,11 @@ export function CharacterEditorPage() {
   }), [draft.attributes.constitution, draft.attributes.dexterity])
 
   const jumpTo = (id: string) => {
+    const section = id === 'character-identity' ? 'identity' : 'appearance'
+    if (focusedView && focusedSection !== section) {
+      setFocusedSection(section)
+      return
+    }
     const target = document.getElementById(id)
     target?.scrollIntoView({ behavior: 'auto', block: 'start' })
     target?.focus({ preventScroll: true })
@@ -263,7 +279,8 @@ export function CharacterEditorPage() {
 
   return (
     <Stack spacing={2} data-testid="character-editor-page" className="vuxo-character-studio">
-      <Box className="vuxo-character-studio__hero" data-testid="character-studio-hero" sx={{ borderColor: 'divider' }}>
+      <Box className="vuxo-character-studio__hero" data-testid="character-studio-hero"
+        sx={{ borderColor: 'divider', display: focusedView ? 'none' : undefined }}>
         <Typography variant="overline" color="primary.main">{t('character.editor.eyebrow')}</Typography>
         <Typography variant="h3" component="h1" sx={{ fontWeight: 900, letterSpacing: '-0.04em' }}>
           {t('character.editor.title')}
@@ -275,11 +292,18 @@ export function CharacterEditorPage() {
       <Box component="nav" className="vuxo-character-studio__nav" data-testid="character-studio-nav"
         aria-label={t('character.editor.studio.navigation')}
         sx={{ bgcolor: 'background.paper', borderColor: 'divider' }}>
+        <Button data-testid="character-focus-toggle" size="small" aria-pressed={focusedView}
+          variant={focusedView ? 'contained' : 'outlined'}
+          onClick={() => setFocusedSection(section => section === null ? 'identity' : null)}>
+          {t(focusedView ? 'character.editor.studio.fullView' : 'character.editor.studio.focusView')}
+        </Button>
         <Button data-testid="character-step-identity" startIcon={<PersonOutlined />}
+          aria-pressed={focusedView ? focusedSection === 'identity' : undefined}
           onClick={() => jumpTo('character-identity')} size="small">
           {t('character.editor.studio.identity')}
         </Button>
         <Button data-testid="character-step-appearance" startIcon={<AutoAwesome />}
+          aria-pressed={focusedView ? focusedSection === 'appearance' : undefined}
           onClick={() => jumpTo('character-appearance')} size="small">
           {t('character.editor.studio.appearance')}
         </Button>
@@ -329,7 +353,8 @@ export function CharacterEditorPage() {
         <Grid size={{ xs: 12, md: 7, lg: 8 }}>
           <Stack spacing={2} className="vuxo-character-studio__form">
             <Card id="character-identity" tabIndex={-1} data-testid="character-studio-identity"
-              className="vuxo-character-studio__section" variant="outlined">
+              className="vuxo-character-studio__section" variant="outlined"
+              sx={{ display: focusedView && focusedSection !== 'identity' ? 'none' : undefined }}>
               <CardContent>
                 <Stack spacing={2.5}>
                   <Typography variant="h5" sx={{ fontWeight: 800 }}>{t('character.editor.identity')}</Typography>
@@ -385,7 +410,8 @@ export function CharacterEditorPage() {
             </Card>
 
             <Card id="character-appearance" tabIndex={-1} data-testid="character-studio-appearance"
-              className="vuxo-character-studio__section" variant="outlined">
+              className="vuxo-character-studio__section" variant="outlined"
+              sx={{ display: focusedView && focusedSection !== 'appearance' ? 'none' : undefined }}>
               <CardContent>
                 <Stack spacing={2.5}>
                   <Box>

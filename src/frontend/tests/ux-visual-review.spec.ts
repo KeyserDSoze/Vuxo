@@ -216,6 +216,20 @@ if (process.env.VUXO_VISUAL_REVIEW === '1') {
                 await page.screenshot({ path: focusFile, animations: 'disabled' });
                 await info.attach('refuge-focused-preparation', { path: focusFile, contentType: 'image/png' });
               }
+              if ((width === 390 || width === 1280) && screen.name === 'character') {
+                await page.getByTestId('character-focus-toggle').click();
+                await expect(page.getByTestId('character-focus-toggle')).toHaveAttribute('aria-pressed', 'true');
+                await page.getByTestId('character-step-appearance').click();
+                await expect(page.getByTestId('character-studio-appearance')).toBeFocused();
+                await expect(page.getByTestId('character-studio-hero')).toBeHidden();
+                await expect(page.getByTestId('character-studio-portrait')).toBeVisible();
+                await expect.poll(() => page.evaluate(() =>
+                  document.documentElement.scrollHeight <= innerHeight + 1
+                  && document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+                const focusFile = info.outputPath('character-focused-appearance.png');
+                await page.screenshot({ path: focusFile, animations: 'disabled' });
+                await info.attach('character-focused-appearance', { path: focusFile, contentType: 'image/png' });
+              }
               if ((width === 390 || width === 1280) && screen.name === 'inventory') {
                 await page.getByTestId('inventory-inspect').first().click();
                 await expect(page.getByRole('dialog')).toBeVisible();
