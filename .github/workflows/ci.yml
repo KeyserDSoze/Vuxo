@@ -163,6 +163,8 @@ jobs:
         run: npm install
       - name: Test public auth, history isolation and CORS (offline)
         run: node --test ../../scripts/verify-public-auth.test.mjs
+      - name: Test repeatable public edge sampling and redaction (offline)
+        run: node --test ../../scripts/sample-public-edge.test.mjs
       - name: Test GitHub Pages release contracts (offline)
         run: node --test ../../scripts/verify-pages-artifact.test.mjs
       - name: Test definitive production domain contracts (offline)

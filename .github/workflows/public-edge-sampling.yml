@@ -1,0 +1,42 @@
+name: Public API edge sampling (read-only)
+
+on:
+  workflow_dispatch:
+  # Capture evidence when this diagnostic changes; never run on a timer:
+  # Actions quota/billing #168 is unresolved and daily builds are not required.
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/public-edge-sampling.yml
+      - scripts/sample-public-edge.mjs
+      - scripts/sample-public-edge.test.mjs
+      - scripts/verify-public-auth.mjs
+
+permissions:
+  contents: read
+
+jobs:
+  sample-public-api:
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Validate offline sampling redaction and strict status expectations
+        run: node --test scripts/verify-public-auth.test.mjs scripts/sample-public-edge.test.mjs
+      - name: Read-only sample: three separated public edge route sets
+        env:
+          VUXO_EDGE_SAMPLE_OUTPUT: ${{ runner.temp }}/vuxo-public-edge-samples.json
+        run: node scripts/sample-public-edge.mjs
+      - name: Retain only sanitized route status and POP observations
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vuxo-public-edge-evidence
+          path: ${{ runner.temp }}/vuxo-public-edge-samples.json
+          retention-days: 7
+          if-no-files-found: warn

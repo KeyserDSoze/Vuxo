@@ -179,6 +179,7 @@ function safeTransportCategory(error) {
   return 'network or timeout failure';
 }
 export async function diagnosePublicRoutes({ fetcher = fetch, log = console.log } = {}) {
+  const observations = [];
   const endpoints = [
     ['health', API + '/health', {}],
     ['version', API + '/api/meta/version', {}],
@@ -214,12 +215,20 @@ export async function diagnosePublicRoutes({ fetcher = fetch, log = console.log 
         ? 'cloudflare' : 'other';
       const colo = server === 'cloudflare'
         ? safeCloudflareColo(response.headers?.get('cf-ray')) : null;
+      const status = Number.isInteger(response.status) && response.status >= 100
+        && response.status <= 599 ? response.status : null;
+      // Strict allowlist for downstream multi-sample diagnostics. Only safe
+      // status/POP/server categories; never raw headers, bodies or CF-Ray IDs.
+      observations.push({ label, status, server, colo, transport: null });
       log(label + ': HTTP ' + safeStatus(response.status) + ' (server: ' + server
         + (colo ? ', colo: ' + colo : '') + ')');
     } catch (error) {
-      log(label + ': ' + safeTransportCategory(error));
+      const transport = safeTransportCategory(error);
+      observations.push({ label, status: null, server: 'other', colo: null, transport });
+      log(label + ': ' + transport);
     }
   }
+  return observations;
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   if (process.env.VUXO_PUBLIC_AUTH_DIAGNOSTICS === 'true') {

@@ -305,3 +305,26 @@ test('diagnostics probe both anonymous Journal routes and preflight without send
   assert.deepEqual(history.map(item => item.method), ['GET', 'OPTIONS', 'GET', 'OPTIONS']);
   assert.ok(history.every(item => item.authorization === null && item.cookie === null));
 });
+
+test('public route diagnostics return only allowlisted transport details and colo, never CF-Ray or bodies', async () => {
+  const secret = 'SENSITIVE-UPSTREAM-TOKEN';
+  const { fetcher } = fixture({
+    '/health': res(secret, 502, {
+      Server: 'cloudflare', 'CF-Ray': '1234567890abcdef-DFW', Location: 'https://x.invalid/' + secret,
+    }),
+    '/api/meta/version': () => { throw new Error(secret); },
+  });
+  const logs = [];
+  const observations = await diagnosePublicRoutes({ fetcher, log: s => logs.push(s) });
+  assert.equal(observations.length, 9);
+  assert.deepEqual(observations[0], {
+    label: 'health', status: 502, server: 'cloudflare', colo: 'DFW', transport: null,
+  });
+  assert.deepEqual(observations[1], {
+    label: 'version', status: null, server: 'other', colo: null,
+    transport: 'network or timeout failure',
+  });
+  assert.ok(!JSON.stringify(observations).includes(secret));
+  assert.ok(!JSON.stringify(observations).includes('1234567890abcdef'));
+  assert.ok(!logs.join(' ').includes(secret));
+});
