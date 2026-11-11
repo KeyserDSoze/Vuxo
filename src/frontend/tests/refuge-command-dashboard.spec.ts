@@ -164,6 +164,108 @@ test('English dark Refuge section commands stay translated and keyboard reachabl
   await expect(page.getByTestId('refuge-care')).toBeInViewport({ ratio: 0.25 });
 });
 
+test('guest Refuge chamber mode switches panels without outer scrolling or owner API reads', async ({ page }, info) => {
+  await page.setViewportSize({ width: 320, height: 568 });
+  let privateRequests = 0;
+  page.on('request', request => {
+    if (/\/api\/(characters\/me|equipment|inventory)/.test(new URL(request.url()).pathname)) {
+      privateRequests++;
+    }
+  });
+  await page.goto('./#/refuge');
+  await page.getByTestId('refuge-focus-toggle').click();
+  await expect(page.getByTestId('refuge-focus-toggle')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByTestId('refuge-jump-activities')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByTestId('refuge-command-hero')).toBeHidden();
+  await expect(page.getByTestId('refuge-activities-section')).toBeVisible();
+  await expect(page.getByTestId('refuge-care')).toBeHidden();
+  await expect(page.getByTestId('refuge-jump-health')).toHaveCount(0);
+  await expect(page.getByTestId('refuge-jump-preparation')).toHaveCount(0);
+
+  await page.getByTestId('refuge-jump-care').focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByTestId('refuge-care')).toBeFocused();
+  await expect(page.getByTestId('refuge-care')).toBeInViewport({ ratio: .25 });
+  await expect(page.getByTestId('refuge-jump-care')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByTestId('refuge-activities-section')).toBeHidden();
+  await expect.poll(() => page.evaluate(() =>
+    document.documentElement.scrollHeight <= innerHeight + 1
+    && document.documentElement.scrollWidth <= innerWidth + 1
+    && document.scrollingElement!.scrollTop === 0)).toBe(true);
+  expect(privateRequests).toBe(0);
+  await info.attach('refuge-focused-care-320', {
+    body: await page.screenshot({ animations: 'disabled' }), contentType: 'image/png',
+  });
+
+  await page.getByTestId('refuge-focus-toggle').click();
+  await expect(page.getByTestId('refuge-focus-toggle')).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.getByTestId('refuge-command-hero')).toBeVisible();
+  await expect(page.getByTestId('refuge-activities-section')).toBeVisible();
+  await expect(page.getByTestId('refuge-care')).toBeVisible();
+});
+
+test('authenticated chamber mode keeps confirmed HP and cached preparation when switching panels', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  let healthReads = 0, equipmentReads = 0;
+  await page.route('**/api/characters/me/health', route => {
+    healthReads++;
+    return route.fulfill({ json: { name: 'Vuxian', currentHealth: 11, maxHealth: 20,
+      rulesVersion: 'character-health-v1' } });
+  });
+  await page.route('**/api/equipment', route => {
+    equipmentReads++;
+    return route.fulfill({ json: { items: [], stats: null, ruleVersion: 'equipment-v1' } });
+  });
+  await page.goto('./#/refuge');
+  await login(page);
+  await expect(page.getByTestId('refuge-health-count')).toHaveText('11 / 20 HP');
+  await expect(page.getByTestId('refuge-preparation')).toBeVisible();
+  await expect(page.getByTestId('refuge-preparation-hp-count')).toHaveText('11 / 20 HP');
+  const before = { healthReads, equipmentReads };
+  await page.getByTestId('refuge-focus-toggle').click();
+  await expect(page.getByTestId('refuge-health')).toBeFocused();
+  await expect(page.getByTestId('refuge-activities-section')).toBeHidden();
+  await page.getByTestId('refuge-jump-preparation').click();
+  await expect(page.getByTestId('refuge-preparation')).toBeFocused();
+  await expect(page.getByTestId('refuge-preparation-hp-count')).toHaveText('11 / 20 HP');
+  await page.getByTestId('refuge-jump-health').click();
+  await expect(page.getByTestId('refuge-health-count')).toHaveText('11 / 20 HP');
+  expect({ healthReads, equipmentReads }).toEqual(before);
+  await page.evaluate(() => {
+    localStorage.removeItem('vuxo.accessToken');
+    localStorage.removeItem('vuxo.auth.expiresAtUtc');
+    localStorage.removeItem('vuxo.auth.user');
+    window.dispatchEvent(new Event('vuxo:session-changed'));
+  });
+  await expect(page.getByTestId('refuge-command-guest')).toBeVisible();
+  await expect(page.getByTestId('refuge-focus-toggle')).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.getByTestId('refuge-health')).toHaveCount(0);
+  await expect(page.getByTestId('refuge-preparation')).toHaveCount(0);
+});
+
+test('English dark keyboard chamber navigation remains localized at narrow width and respects reduced motion', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('./#/refuge');
+  await page.getByTestId('language-toggle').click();
+  await page.getByTestId('theme-toggle').click();
+  await page.getByTestId('theme-toggle').click();
+  const toggle = page.getByTestId('refuge-focus-toggle');
+  await expect(toggle).toHaveText('Chamber view');
+  await toggle.focus();
+  await page.keyboard.press('Enter');
+  await expect(toggle).toHaveText('Full overview');
+  const care = page.getByTestId('refuge-jump-care');
+  await care.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByTestId('refuge-care')).toBeFocused();
+  await expect(care).toHaveAttribute('aria-pressed', 'true');
+  await expect(care).toHaveCSS('transition-duration', '0s');
+  await expect.poll(() => page.evaluate(() =>
+    document.documentElement.scrollHeight <= innerHeight + 1
+    && document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+});
+
 test('prefers reduced motion disables hover animation in Refuge activity tiles', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('./#/refuge');

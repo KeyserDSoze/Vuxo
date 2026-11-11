@@ -348,6 +348,17 @@
 .vuxo-refuge-sections .MuiButton-root:hover {
   background: color-mix(in srgb, var(--deck-glow) 10%, transparent);
 }
+/* #186: a selected refuge chamber replaces the long overview without
+   leaving the game viewport; focus and owner data still belong to the panel. */
+.vuxo-refuge-sections .MuiButton-root[aria-pressed="true"] {
+  color: var(--deck-glow);
+  border: 1px solid var(--deck-glow);
+  box-shadow: inset 0 -3px var(--deck-glow), 0 0 15px color-mix(in srgb, var(--deck-glow) 13%, transparent);
+}
+.vuxo-refuge-sections .MuiButton-root:focus-visible {
+  outline: 3px solid var(--deck-glow);
+  outline-offset: 2px;
+}
 .vuxo-refuge-dashboard #refuge-health,
 .vuxo-refuge-dashboard #refuge-preparation,
 .vuxo-refuge-dashboard #refuge-activities-section,

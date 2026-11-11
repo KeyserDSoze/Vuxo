@@ -19,6 +19,15 @@ const activities = [
   { key: 'path', to: '/refuge/path', icon: RouteOutlined, authenticated: false },
 ] as const;
 
+type RefugeFocusSection = 'activities' | 'health' | 'preparation' | 'care';
+
+const refugeFocusIds: Record<RefugeFocusSection, string> = {
+  activities: 'refuge-activities-section',
+  health: 'refuge-health',
+  preparation: 'refuge-preparation',
+  care: 'refuge-care-section',
+};
+
 export function RefugePage() {
   const { t } = useTranslation();
   const session = useStoredSession();
@@ -30,6 +39,22 @@ export function RefugePage() {
     health: CharacterHealth | null;
   } | null>(null);
   const [healthRetry, setHealthRetry] = useState(0);
+  // Presentation state only: panels stay mounted, preserving owner-scoped snapshots.
+  const [focusSection, setFocusSection] = useState<RefugeFocusSection | null>(null);
+  const focusMode = focusSection !== null;
+
+  useEffect(() => {
+    // Never preserve a previous owner's chosen panel across account changes.
+    setFocusSection(null);
+  }, [session?.accessToken]);
+
+  useEffect(() => {
+    if (!focusSection) return;
+    // Keep the document stationary and reset only the GameDeck's content scroll.
+    const deckScroll = document.querySelector<HTMLElement>('[data-testid="game-deck-scroll"]');
+    if (deckScroll) deckScroll.scrollTop = 0;
+    document.getElementById(refugeFocusIds[focusSection])?.focus({ preventScroll: true });
+  }, [focusSection]);
   const currentRecord = session && healthRecord?.token === session.accessToken ? healthRecord : null;
   const health = currentRecord?.status === 'ready' ? currentRecord.health : null;
   const healthLoading = Boolean(session && (!currentRecord || currentRecord.status === 'loading'));
@@ -65,9 +90,17 @@ export function RefugePage() {
   }, [session?.accessToken, healthRetry]);
 
   function openSection(sectionId: string) {
-    const section = document.getElementById(sectionId);
-    section?.scrollIntoView({ behavior: 'auto', block: 'start' });
-    section?.focus({ preventScroll: true });
+    if (focusMode) {
+      const section = (Object.keys(refugeFocusIds) as RefugeFocusSection[])
+        .find(key => refugeFocusIds[key] === sectionId);
+      if (section) {
+        setFocusSection(section);
+        return;
+      }
+    }
+    const target = document.getElementById(sectionId);
+    target?.scrollIntoView({ behavior: 'auto', block: 'start' });
+    target?.focus({ preventScroll: true });
   }
 
   function reviewHealth() {
@@ -86,30 +119,40 @@ export function RefugePage() {
     <Stack spacing={2} data-testid="refuge-page" className="vuxo-refuge-dashboard">
       <Box component="nav" className="vuxo-refuge-sections" data-testid="refuge-section-nav"
         aria-label={t('refuge.dashboard.navigation')} sx={{ bgcolor: 'background.paper', borderColor: 'divider' }}>
+        <Button data-testid="refuge-focus-toggle" size="small"
+          variant={focusMode ? 'contained' : 'outlined'}
+          aria-pressed={focusMode}
+          onClick={() => setFocusSection(current => current ? null : session ? 'health' : 'activities')}>
+          {t(focusMode ? 'refuge.dashboard.fullView' : 'refuge.dashboard.focusView')}
+        </Button>
         <Button data-testid="refuge-jump-activities" size="small"
+          aria-pressed={focusMode ? focusSection === 'activities' : undefined}
           startIcon={<SportsEsportsOutlined />} onClick={() => openSection('refuge-activities-section')}>
           {t('refuge.dashboard.activities')}
         </Button>
         {session && (
           <Button data-testid="refuge-jump-health" size="small"
+            aria-pressed={focusMode ? focusSection === 'health' : undefined}
             startIcon={<FavoriteBorder />} onClick={() => openSection('refuge-health')}>
             {t('refuge.dashboard.health')}
           </Button>
         )}
         {health && (
           <Button data-testid="refuge-jump-preparation" size="small"
+            aria-pressed={focusMode ? focusSection === 'preparation' : undefined}
             startIcon={<BackpackOutlined />} onClick={() => openSection('refuge-preparation')}>
             {t('refuge.dashboard.preparation')}
           </Button>
         )}
         <Button data-testid="refuge-jump-care" size="small"
+            aria-pressed={focusMode ? focusSection === 'care' : undefined}
           startIcon={<AutoAwesome />} onClick={() => openSection('refuge-care-section')}>
           {t('refuge.dashboard.care')}
         </Button>
       </Box>
 
       <Paper component="header" className="vuxo-refuge-hero" data-testid="refuge-command-hero"
-        variant="outlined" sx={{ p: { xs: 1.5, sm: 2.25, md: 3 } }}>
+        variant="outlined" sx={{ p: { xs: 1.5, sm: 2.25, md: 3 }, display: focusMode ? 'none' : undefined }}>
         <Box className="vuxo-refuge-hero__grid">
           <Stack spacing={1.2} sx={{ alignItems: 'flex-start', minWidth: 0 }}>
             <Typography variant="overline" color="primary.main">{t('refuge.eyebrow')}</Typography>
@@ -173,7 +216,8 @@ export function RefugePage() {
       </Paper>
 
       {session && (
-        <Paper id="refuge-health" tabIndex={-1} data-testid="refuge-health" variant="outlined" sx={{ p: { xs: 2.5, sm: 3 } }}>
+        <Paper id="refuge-health" tabIndex={-1} data-testid="refuge-health" variant="outlined"
+          sx={{ p: { xs: 2.5, sm: 3 }, display: focusMode && focusSection !== 'health' ? 'none' : undefined }}>
           <Stack spacing={2}>
             <Typography variant="h6" component="h2">{t('refuge.health.title')}</Typography>
             <Typography color="text.secondary">{t('refuge.health.description')}</Typography>
@@ -223,17 +267,20 @@ export function RefugePage() {
       )}
 
       {session && health && (
-        <RefugePreparationBoard
-          key={session.accessToken}
-          accessToken={session.accessToken}
-          health={health}
-          onRefresh={refreshPreparation}
-          onReviewHealth={reviewHealth}
-        />
+        <Box sx={{ display: focusMode && focusSection !== 'preparation' ? 'none' : undefined }}>
+          <RefugePreparationBoard
+            key={session.accessToken}
+            accessToken={session.accessToken}
+            health={health}
+            onRefresh={refreshPreparation}
+            onReviewHealth={reviewHealth}
+          />
+        </Box>
       )}
 
       <Box component="section" id="refuge-activities-section" tabIndex={-1}
-        aria-labelledby="refuge-activities-title" data-testid="refuge-activities-section">
+        aria-labelledby="refuge-activities-title" data-testid="refuge-activities-section"
+        sx={{ display: focusMode && focusSection !== 'activities' ? 'none' : undefined }}>
         <Stack spacing={1.5}>
           <Box>
             <Typography id="refuge-activities-title" component="h2" variant="h5" sx={{ fontWeight: 850 }}>
@@ -270,7 +317,8 @@ export function RefugePage() {
         </Stack>
       </Box>
 
-      <Paper id="refuge-care-section" tabIndex={-1} data-testid="refuge-care" variant="outlined" sx={{ p: { xs: 2.5, sm: 3 } }}>
+      <Paper id="refuge-care-section" tabIndex={-1} data-testid="refuge-care" variant="outlined"
+        sx={{ p: { xs: 2.5, sm: 3 }, display: focusMode && focusSection !== 'care' ? 'none' : undefined }}>
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ alignItems: { sm: 'flex-start' } }}>
           <FavoriteBorder color="primary" fontSize="large" aria-hidden="true" />
           <Stack spacing={1} sx={{ flexGrow: 1 }}>

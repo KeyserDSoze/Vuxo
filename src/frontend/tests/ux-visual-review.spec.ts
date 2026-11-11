@@ -202,6 +202,20 @@ if (process.env.VUXO_VISUAL_REVIEW === '1') {
               });
 
               // Additional visual states: client-only actions, no server mutations.
+              if ((width === 390 || width === 1280) && screen.name === 'refuge') {
+                const focused = page.getByTestId('refuge-focus-toggle');
+                await focused.click();
+                await expect(focused).toHaveAttribute('aria-pressed', 'true');
+                await page.getByTestId('refuge-jump-preparation').click();
+                await expect(page.getByTestId('refuge-preparation')).toBeFocused();
+                await expect(page.getByTestId('refuge-command-hero')).toBeHidden();
+                await expect.poll(() => page.evaluate(() =>
+                  document.documentElement.scrollHeight <= innerHeight + 1
+                  && document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+                const focusFile = info.outputPath('refuge-focused-preparation.png');
+                await page.screenshot({ path: focusFile, animations: 'disabled' });
+                await info.attach('refuge-focused-preparation', { path: focusFile, contentType: 'image/png' });
+              }
               if ((width === 390 || width === 1280) && screen.name === 'inventory') {
                 await page.getByTestId('inventory-inspect').first().click();
                 await expect(page.getByRole('dialog')).toBeVisible();

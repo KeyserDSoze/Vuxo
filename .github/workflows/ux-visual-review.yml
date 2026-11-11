@@ -9,6 +9,8 @@ on:
       - .github/workflows/ux-visual-review.yml
       - src/frontend/tests/ux-visual-review.spec.ts
       - src/frontend/tests/auth.spec.ts
+      - src/frontend/src/pages/RefugePage.tsx
+      - src/frontend/tests/refuge-command-dashboard.spec.ts
       - src/frontend/src/features/auth/authApi.ts
       - src/frontend/src/pages/AuthPage.tsx
       - src/frontend/src/components/game-deck.css
