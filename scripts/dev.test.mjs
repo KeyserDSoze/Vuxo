@@ -3,7 +3,7 @@ import { strict as assert } from 'node:assert'
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { composeArguments, developmentFlags, localOtelHealthEndpoint, localProcessEnvironment, localDockerIdentity, prepareHostDependencyMount, localHostEnvironment, classifyHostDebugFailure, classifyHostDebugStage, parseLocalEnv, renderLocalEnv, validateLocalEnv, hostRuntimeEnvironment, hostCommandArguments, localHttpEndpoints, waitForLocalHttp } from './dev-lib.mjs'
+import { composeArguments, developmentFlags, isLocalDockerEndpoint, localOtelHealthEndpoint, localProcessEnvironment, localDockerIdentity, prepareHostDependencyMount, localHostEnvironment, classifyHostDebugFailure, classifyHostDebugStage, parseLocalEnv, renderLocalEnv, validateLocalEnv, hostRuntimeEnvironment, hostCommandArguments, localHttpEndpoints, waitForLocalHttp } from './dev-lib.mjs'
 
 const template = readFileSync(new URL('../docker/local.env.example', import.meta.url), 'utf8')
 const mockEntropy = bytes => Buffer.alloc(bytes, 0xaf)
@@ -132,6 +132,45 @@ test('local OpenTelemetry opt-in preserves no-observability default and supports
   assert.doesNotMatch(compose, /https?:\/\/[^\s]*vuxo\.quest/)
   assert.match(collector, /verbosity: basic/)
   assert.doesNotMatch(collector, /tempo:4317|loki:3100|https?:\/\//)
+})
+
+test('local Docker CLI rejects inherited remote daemon and remote Docker context endpoints', () => {
+  for (const endpoint of [
+    'unix:///var/run/docker.sock',
+    'unix:///home/dev/.docker/desktop/docker.sock',
+    'unix:///Users/dev/.docker/run/docker.sock',
+  ]) assert.equal(isLocalDockerEndpoint(endpoint, 'linux'), true)
+  assert.equal(isLocalDockerEndpoint('unix:///var/run/docker.sock', 'darwin'), true)
+  for (const endpoint of [
+    'npipe:////./pipe/docker_engine',
+    'npipe:////./pipe/dockerDesktopLinuxEngine',
+  ]) assert.equal(isLocalDockerEndpoint(endpoint, 'win32'), true)
+  for (const platform of ['linux', 'win32', 'darwin']) {
+    for (const endpoint of [
+      'tcp://127.0.0.1:2375',
+      'tcp://localhost:2375',
+      'tcp://[::1]:2375',
+    ]) assert.equal(isLocalDockerEndpoint(endpoint, platform), true)
+    for (const endpoint of [
+      'ssh://deploy@production-host',
+      'tcp://192.168.1.51:2375',
+      'tcp://docker.remote.example:2376',
+      'https://remote.example:2376',
+      'tcp://127.0.0.2:2375',
+      'http://localhost:2375/path',
+      'tcp://localhost',
+      'not-a-docker-endpoint',
+      '',
+    ]) assert.equal(isLocalDockerEndpoint(endpoint, platform), false, platform + ' must reject remote/invalid endpoint')
+  }
+  assert.equal(isLocalDockerEndpoint('npipe:////./pipe/docker_engine', 'linux'), false)
+  assert.equal(isLocalDockerEndpoint('unix:///var/run/docker.sock', 'win32'), false)
+  // No endpoint is interpolated into public diagnostics or thrown errors.
+  const cli = readFileSync(new URL('./dev.mjs', import.meta.url), 'utf8')
+  assert.match(cli, /assertLocalDockerEngine\(\)/)
+  assert.match(cli, /context', 'inspect', '--format'/)
+  assert.match(cli, /remote daemon endpoints are refused/)
+  assert.doesNotMatch(cli, /new Error\(.*DOCKER_HOST\)/)
 })
 
 test('process environment cannot silently override local secrets/ports via production VUXO_* values', () => {

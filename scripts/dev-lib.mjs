@@ -241,6 +241,30 @@ export function prepareHostDependencyMount(path) {
   }
 }
 
+/**
+ * A local Docker stack must never silently run on a remote daemon selected by
+ * DOCKER_HOST or a non-default Docker context. Publishing 127.0.0.1 from a
+ * remote engine binds the REMOTE machine, not the developer's loopback.
+ * Accept Unix sockets (Linux/macOS), local Windows named pipes, and TCP
+ * explicitly bound to localhost. Never echo untrusted endpoint strings.
+ */
+export function isLocalDockerEndpoint(endpoint, platform = process.platform) {
+  if (typeof endpoint !== 'string') return false
+  const raw = endpoint.trim()
+  if (platform !== 'win32' && /^unix:\/\/\/[^\s?#]+$/.test(raw)) return true
+  if (platform === 'win32' && /^npipe:\/\/\/\/\.\/pipe\/[A-Za-z0-9._-]+$/i.test(raw)) return true
+  try {
+    const address = new URL(raw)
+    return ['tcp:', 'http:', 'https:'].includes(address.protocol) &&
+      ['localhost', '127.0.0.1', '[::1]'].includes(address.hostname.toLowerCase()) &&
+      Boolean(address.port) && !address.username && !address.password &&
+      (address.pathname === '' || address.pathname === '/') &&
+      !address.search && !address.hash
+  } catch {
+    return false
+  }
+}
+
 /** Do not allow inherited production VUXO_* shell variables to override the private dev env-file. */
 export function localProcessEnvironment(processEnvironment, localConfig) {
   return {

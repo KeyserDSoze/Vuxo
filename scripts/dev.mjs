@@ -3,7 +3,7 @@ import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { signalLocalProcessTree } from './dev-process-tree.mjs'
-import { parseLocalEnv, renderLocalEnv, validateLocalEnv, composeArguments, developmentFlags, localProcessEnvironment, localDockerIdentity, prepareHostDependencyMount, localHostEnvironment, hostRuntimeEnvironment, hostCommandArguments, localHttpEndpoints, localOtelHealthEndpoint, waitForLocalHttp } from './dev-lib.mjs'
+import { parseLocalEnv, renderLocalEnv, validateLocalEnv, composeArguments, developmentFlags, isLocalDockerEndpoint, localProcessEnvironment, localDockerIdentity, prepareHostDependencyMount, localHostEnvironment, hostRuntimeEnvironment, hostCommandArguments, localHttpEndpoints, localOtelHealthEndpoint, waitForLocalHttp } from './dev-lib.mjs'
 
 const templateFile = fileURLToPath(new URL('../docker/local.env.example', import.meta.url))
 const envFile = fileURLToPath(new URL('../docker/.env.local', import.meta.url))
@@ -43,6 +43,22 @@ function installedVersion(binary, args) {
   })
   if (result.error || result.status !== 0) return null
   return String(result.stdout || result.stderr).trim().split('\n')[0]
+}
+
+const localDockerContextError = 'Local Docker Engine required: select a local Docker Desktop/Engine context; remote daemon endpoints are refused.'
+
+function assertLocalDockerEngine() {
+  // A Docker context can be switched without DOCKER_HOST being present;
+  // inspect the *selected* context as well as any inherited host override.
+  if (process.env.DOCKER_HOST && !isLocalDockerEndpoint(process.env.DOCKER_HOST)) {
+    throw new Error(localDockerContextError)
+  }
+  const inspected = spawnSync('docker',
+    ['context', 'inspect', '--format', '{{.Endpoints.docker.Host}}'],
+    { encoding: 'utf8', windowsHide: true, env: localProcessEnvironment(process.env, {}) })
+  if (inspected.error || inspected.status !== 0 || !isLocalDockerEndpoint(inspected.stdout)) {
+    throw new Error(localDockerContextError)
+  }
 }
 
 async function docker(args, localConfig) {
@@ -152,7 +168,8 @@ async function main(args) {
       valid &&= good
     }
     if (!valid) throw new Error('Install the missing local tools (Node 24+, .NET 10, Docker Compose, npm)')
-    console.log('Local development configuration valid (secrets redacted).')
+    assertLocalDockerEngine()
+    console.log('Local development configuration valid (local Docker context; secrets redacted).')
     return
   }
   const optionalCommands = ['infra', 'up', 'debug'].includes(command)
@@ -162,6 +179,7 @@ async function main(args) {
     throw new Error('Unknown command or unsupported options; run: node scripts/dev.mjs help')
   }
   const config = checkedEnv()
+  assertLocalDockerEngine()
   // Nested named volumes can make a missing bind-mount child root-owned even
   // with UID-matched containers. Host creates this non-destructively first.
   if (['up', 'debug', 'test'].includes(command)) {
