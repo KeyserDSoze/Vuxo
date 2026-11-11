@@ -105,6 +105,61 @@ test('switching paths and closing the portal reset the local challenge', async (
   await expect(page.getByTestId('home-rune-preview-item')).toHaveCount(3);
 });
 
+test('home sigil numeric shortcuts stay in the focused arena with undo and native button input', async ({ page }) => {
+  await page.getByTestId('home-portal').click();
+  await page.keyboard.press('1');
+  await expect(page.getByTestId('home-rune-preview')).toBeVisible();
+
+  await page.getByTestId('home-rune-start').click();
+  const arena = page.getByTestId('home-rune-answer');
+  const progress = page.getByTestId('home-rune-progress');
+  await expect(arena).toBeFocused();
+  await expect(page.getByTestId('home-rune-keyboard-hint')).toContainText('1–4');
+  await arena.dispatchEvent('keydown', { key: '1', ctrlKey: true, bubbles: true });
+  await arena.dispatchEvent('keydown', { key: '1', altKey: true, bubbles: true });
+  await arena.dispatchEvent('keydown', { key: '1', metaKey: true, bubbles: true });
+  await expect(progress).toContainText('0 di 3');
+
+  await page.keyboard.press('1');
+  await page.keyboard.press('2');
+  await expect(progress).toContainText('2 di 3');
+  await page.keyboard.press('Backspace');
+  await expect(progress).toContainText('1 di 3');
+  await expect(page.getByTestId('home-rune-slot').nth(1)).toHaveAttribute('data-filled', 'false');
+
+  await page.getByTestId('home-rune-choice-sun').focus();
+  await page.keyboard.press('4');
+  await expect(progress).toContainText('1 di 3');
+  await page.getByTestId('home-rune-undo').focus();
+  await page.keyboard.press('4');
+  await expect(progress).toContainText('1 di 3');
+
+  await arena.focus();
+  await page.keyboard.press('3');
+  await page.keyboard.press('4');
+  await expect(page.getByTestId('home-rune-success')).toBeVisible();
+  await expect(page.getByTestId('home-rune-success').getByRole('status')).toBeFocused();
+  await page.keyboard.press('1');
+  await expect(page.getByTestId('home-rune-success')).toBeVisible();
+});
+
+test('English dark mobile sigil shortcuts do not require mouse or external scroll', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 760 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.getByTestId('language-toggle').click();
+  await page.getByTestId('theme-toggle').click();
+  await page.getByTestId('theme-toggle').click();
+  await page.getByTestId('home-portal').click();
+  await page.getByTestId('home-rune-start').click();
+  await expect(page.getByTestId('home-rune-keyboard-hint')).toContainText('Backspace to undo');
+  await expect(page.getByTestId('home-rune-answer')).toBeFocused();
+  await page.keyboard.press('1');
+  await page.keyboard.press('3');
+  await page.keyboard.press('4');
+  await expect(page.getByTestId('home-rune-success')).toBeVisible();
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
+});
+
 test('sigil is playable using keyboard alone', async ({ page }) => {
   await page.getByTestId('home-portal').focus();
   await page.keyboard.press('Enter');

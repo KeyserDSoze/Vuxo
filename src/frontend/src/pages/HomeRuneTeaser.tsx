@@ -1,7 +1,7 @@
 import { ArrowForward, AutoAwesome, Replay } from '@mui/icons-material';
 import { Alert, Box, Button, Chip, Paper, Stack, Typography } from '@mui/material';
 import { alpha } from '@mui/material/styles';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link as RouterLink } from 'react-router-dom';
 
@@ -33,11 +33,11 @@ export function HomeRuneTeaser({ realm, destination, onPhaseChange }: Props) {
   const sequence = sigils[realm];
   const [phase, setPhase] = useState<Phase>('preview');
   const [answer, setAnswer] = useState<Rune[]>([]);
-  const firstChoiceRef = useRef<HTMLButtonElement | null>(null);
+  const arenaRef = useRef<HTMLDivElement | null>(null);
   const resultRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    if (phase === 'answer') firstChoiceRef.current?.focus();
+    if (phase === 'answer') arenaRef.current?.focus();
     if (phase === 'success' || phase === 'failure') resultRef.current?.focus();
   }, [phase]);
 
@@ -67,6 +67,22 @@ export function HomeRuneTeaser({ realm, destination, onPhaseChange }: Props) {
   function undo() {
     if (phase !== 'answer') return;
     setAnswer(current => current.slice(0, -1));
+  }
+
+  function handleArenaKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    // Keyboard shortcuts belong only to the focused arena, never to nested buttons
+    // or unrelated page controls. Native Tab/Enter activation remains unchanged.
+    if (phase !== 'answer' || event.target !== event.currentTarget ||
+        event.ctrlKey || event.altKey || event.metaKey) return;
+
+    const rune = /^[1-4]$/.test(event.key) ? runes[Number(event.key) - 1] : undefined;
+    if (rune) {
+      event.preventDefault();
+      selectRune(rune);
+    } else if (event.key === 'Backspace') {
+      event.preventDefault();
+      undo();
+    }
   }
 
   return (
@@ -122,8 +138,21 @@ export function HomeRuneTeaser({ realm, destination, onPhaseChange }: Props) {
         )}
 
         {phase === 'answer' && (
-          <Stack spacing={2} data-testid="home-rune-answer">
+          <Stack
+            spacing={2}
+            ref={arenaRef}
+            role="group"
+            aria-label={t('home.teaser.runeChoices')}
+            aria-describedby="home-rune-keyboard-hint"
+            tabIndex={0}
+            onKeyDown={handleArenaKeyDown}
+            data-testid="home-rune-answer"
+            sx={{ '&:focus-visible': { outline: '2px solid', outlineColor: 'primary.main', outlineOffset: 4, borderRadius: 1 } }}
+          >
             <Typography sx={{ fontWeight: 700 }}>{t('home.teaser.repeat')}</Typography>
+            <Typography id="home-rune-keyboard-hint" data-testid="home-rune-keyboard-hint" variant="caption" color="text.secondary">
+              {t('home.teaser.keyboardHint')}
+            </Typography>
             <Box component="p" aria-live="polite" data-testid="home-rune-progress" sx={{ m: 0, color: 'text.secondary' }}>
               {t('home.teaser.progress', { count: answer.length, total: sequence.length })}
             </Box>
@@ -145,11 +174,10 @@ export function HomeRuneTeaser({ realm, destination, onPhaseChange }: Props) {
                 </Box>
               ))}
             </Box>
-            <Box role="group" aria-label={t('home.teaser.runeChoices')} sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2,minmax(0,1fr))', sm: 'repeat(4,minmax(0,1fr))' }, gap: 1.5, maxWidth: 630 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2,minmax(0,1fr))', sm: 'repeat(4,minmax(0,1fr))' }, gap: 1.5, maxWidth: 630 }}>
               {runes.map(rune => (
                 <Button
                   key={rune}
-                  ref={rune === 'sun' ? firstChoiceRef : undefined}
                   data-testid={'home-rune-choice-' + rune}
                   variant="outlined"
                   size="large"
