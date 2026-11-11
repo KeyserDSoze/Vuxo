@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import { strict as assert } from 'node:assert'
 import { readFileSync } from 'node:fs'
-import { composeArguments, localProcessEnvironment, localHostEnvironment, parseLocalEnv, renderLocalEnv, validateLocalEnv, hostRuntimeEnvironment, hostCommandArguments, localHttpEndpoints, waitForLocalHttp } from './dev-lib.mjs'
+import { composeArguments, localProcessEnvironment, localHostEnvironment, classifyHostDebugFailure, parseLocalEnv, renderLocalEnv, validateLocalEnv, hostRuntimeEnvironment, hostCommandArguments, localHttpEndpoints, waitForLocalHttp } from './dev-lib.mjs'
 
 const template = readFileSync(new URL('../docker/local.env.example', import.meta.url), 'utf8')
 const mockEntropy = bytes => Buffer.alloc(bytes, 0xaf)
@@ -244,4 +244,21 @@ test('host npm/Vite/Playwright never inherit private VUXO_* values or production
   assert.equal(backend.Auth__Jwt__SigningKey, config.VUXO_JWT_SIGNING_KEY)
   assert.equal(xunit.VUXO_TEST_POSTGRES_CONNECTION_STRING.includes(config.VUXO_POSTGRES_PASSWORD), true)
   assert.equal(Object.hasOwn(xunit, 'Auth__Jwt__SigningKey'), false)
+})
+
+test('host CLI diagnostic classification never echoes private child stdout/stderr', () => {
+  const secret = 'POSTGRES_PASSWORD_SECRETVALUE JWT_SECRET_TOKEN'
+  const cases = [
+    ['VUXO dev: npm install: failed (exit 1)', 'npm install failure'],
+    ['VUXO dev: dotnet watch: exited (1)', '.NET watch failure'],
+    ['VUXO dev: vite: exited (127)', 'Vite subprocess failure'],
+    ['VUXO dev: Docker command failed (exit 1)', 'Docker Compose subprocess failure'],
+    ['Local IDE debug: API and Vite on 127.0.0.1', 'host processes exited after startup'],
+  ]
+  for (const [message, category] of cases) {
+    const output = classifyHostDebugFailure(message + '\\n' + secret)
+    assert.equal(output, category)
+    assert.doesNotMatch(output, /SECRETVALUE|SECRET_TOKEN/)
+  }
+  assert.doesNotMatch(classifyHostDebugFailure(secret), /SECRETVALUE|SECRET_TOKEN/)
 })

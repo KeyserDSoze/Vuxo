@@ -136,6 +136,27 @@ export function localHostEnvironment(processEnvironment, explicitValues = {}) {
   }
 }
 
+/**
+ * Classify CLI exits without ever echoing captured stdout/stderr. Those streams
+ * may contain connection strings, JWTs or data emitted by a child process.
+ */
+export function classifyHostDebugFailure(log) {
+  const patterns = [
+    ['VUXO dev: npm install', 'npm install failure'],
+    ['VUXO dev: dotnet watch', '.NET watch failure'],
+    ['VUXO dev: vite', 'Vite subprocess failure'],
+    ['VUXO dev: Docker command failed', 'Docker Compose subprocess failure'],
+    ['VUXO dev: Cannot start Docker', 'Docker executable unavailable'],
+    ['VUXO dev: Local', 'local configuration validation failure'],
+    ['VUXO dev: npm', 'npm executable or command failure'],
+    ['Local IDE debug: API and Vite', 'host processes exited after startup'],
+  ]
+  for (const [pattern, category] of patterns) {
+    if (typeof log === 'string' && log.includes(pattern)) return category
+  }
+  return 'host CLI exited unexpectedly; inspect local development commands'
+}
+
 /** Readiness is checked from the developer's host, not merely Docker container state. */
 export function localHttpEndpoints(config) {
   return [

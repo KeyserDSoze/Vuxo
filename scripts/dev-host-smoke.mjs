@@ -10,7 +10,7 @@ import { setTimeout as delay } from 'node:timers/promises'
 import { fileURLToPath } from 'node:url'
 import {
   hostCommandArguments, hostRuntimeEnvironment, localHostEnvironment,
-  localHttpEndpoints, parseLocalEnv, validateLocalEnv,
+  localHttpEndpoints, parseLocalEnv, validateLocalEnv, classifyHostDebugFailure,
 } from './dev-lib.mjs'
 
 const mode = process.argv[2]
@@ -31,8 +31,17 @@ const args = mode === 'debug'
 const processChild = spawn(command, args, {
   cwd: mode === 'debug' ? root : frontend,
   env: mode === 'debug' ? process.env : localHostEnvironment(process.env, host.frontend),
-  shell: windowsNpm, windowsHide: true, stdio: 'ignore',
+  shell: windowsNpm, windowsHide: true,
+  // Collect bounded private logs ONLY in memory, classify by fixed patterns;
+  // never print subprocess output to CI artifacts or terminal.
+  stdio: ['ignore', 'pipe', 'pipe'],
 })
+let privateDiagnostic = ''
+for (const stream of [processChild.stdout, processChild.stderr]) {
+  stream.on('data', chunk => {
+    privateDiagnostic = (privateDiagnostic + String(chunk)).slice(-8192)
+  })
+}
 let exited = false
 let startupFailed = false
 processChild.once('error', () => { exited = true; startupFailed = true })
@@ -83,7 +92,8 @@ try {
   let ready = false
   // Cold .NET restore and initial npm installs can take several minutes.
   for (let attempt = 0; attempt < 150; attempt += 1) {
-    if (exited) throw new Error('Local ' + mode + ' process exited before readiness')
+    if (exited) throw new Error('Local ' + mode + ' process exited before readiness: ' +
+      (startupFailed ? 'cannot spawn host subprocess' : classifyHostDebugFailure(privateDiagnostic)))
     const checks = await Promise.all(required.map(entry => checkHttp(entry.url)))
     if (checks.every(Boolean)) { ready = true; break }
     if (attempt < 149) await delay(2000)
