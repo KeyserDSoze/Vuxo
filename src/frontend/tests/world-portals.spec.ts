@@ -430,8 +430,8 @@ test('crowded portal action HUD is compact on mobile and can reveal every owner 
   // Playwright's hasText uses substring matching: "Enter portal 1"
   // also matches "Enter portal 11". Assert the canonical API number and
   // complete label to distinguish both grants after expanding the HUD.
-  const portalOne = actions.locator('[data-portal-number="1"]');
-  const portalEleven = actions.locator('[data-portal-number="11"]');
+  const portalOne = page.locator('[data-testid="world-portal-enter"][data-portal-number="1"]');
+  const portalEleven = page.locator('[data-testid="world-portal-enter"][data-portal-number="11"]');
   await expect(portalOne).toHaveCount(1);
   await expect(portalEleven).toHaveCount(1);
   await expect(portalOne).toHaveText('Enter portal 1');
