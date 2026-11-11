@@ -40,7 +40,8 @@ permissions:
 
 jobs:
   screenshots:
-    runs-on: ubuntu-latest
+    # Avoid ubuntu-latest 26.04 migration and apt DNS during screenshot setup.
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
     defaults:
       run:
@@ -53,7 +54,7 @@ jobs:
       - name: Install frontend dependencies
         run: npm install
       - name: Install Chromium for Playwright
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install chromium
       - name: Capture viewport screenshot matrix (fixture data only)
         env:
           CI: "true"

@@ -11,7 +11,8 @@ permissions:
 jobs:
   portal-live:
     name: Portal browser + API + PostgreSQL
-    runs-on: ubuntu-latest
+    # Keep hosted browser dependencies stable during Ubuntu 26 migration.
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
@@ -71,7 +72,7 @@ jobs:
         working-directory: src/frontend
         run: |
           npm install --no-audit --no-fund
-          npx playwright install --with-deps chromium
+          npx playwright install chromium
       - name: Build frontend with real API origin
         working-directory: src/frontend
         env:

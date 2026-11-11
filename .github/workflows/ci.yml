@@ -144,7 +144,9 @@ jobs:
         run: bash scripts/test-docker-runtime.sh
 
   frontend:
-    runs-on: ubuntu-latest
+    # Ubuntu 26 migration can pull apt fonts over flaky DNS before any browser test.
+    # Pin 24.04 and verify the real Chromium browser without apt provisioning.
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: src/frontend
@@ -161,6 +163,8 @@ jobs:
         run: node ../../scripts/verify-governance.mjs
       - name: Test .NET security dependency and container baseline (offline)
         run: node --test ../../scripts/test-dotnet-security-baseline.test.mjs
+      - name: Test browser runner and Chromium install contracts (offline)
+        run: node --test ../../scripts/test-browser-runner-contract.test.mjs
       - name: Install dependencies
         run: npm install
       - name: Test public auth, history isolation and CORS (offline)
@@ -182,7 +186,7 @@ jobs:
       - name: Verify built frontend metadata
         run: node ../../scripts/verify-built-version.mjs
       - name: Install Playwright Chromium
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install chromium
       - name: Playwright
         env:
           VITE_BASE_PATH: /Vuxo/
