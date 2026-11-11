@@ -79,6 +79,92 @@ test.beforeEach(async ({ request }) => {
   expect(response.ok()).toBeTruthy();
 });
 
+test('slow portal entry is single-flight across HUD and Phaser, and freezes movement until response', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await initializePlayer(page, 'en');
+  const api = await mockPrivatePortals(page);
+  let release!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve });
+  let intercepted = 0;
+  // This last-registered handler delays the request then delegates to the
+  // existing authoritative owner-only mock. It never simulates entry success.
+  await page.route('**/api/personal-content/world-portals/' + grantId + '/enter', async route => {
+    intercepted++;
+    await gate;
+    await route.fallback();
+  });
+  await page.goto(origin + '/Vuxo/#/game');
+  await expect(page.getByTestId('world-connection-status')).toHaveAttribute('data-status', 'connected');
+  const button = page.getByTestId('world-portal-enter');
+  const host = page.getByTestId('game-canvas');
+  const canvas = host.locator('canvas');
+  await expect(button).toBeEnabled();
+  await expect(host).toHaveAttribute('data-rendered-portals', '1');
+  try {
+    await button.click();
+    await expect.poll(() => intercepted).toBe(1);
+    await expect(button).toBeDisabled();
+    await expect(page.getByTestId('world-portal-action-list')).toHaveAttribute('aria-busy', 'true');
+    await expect(page.getByTestId('world-portal-entering')).toHaveText('Entering portal…');
+    await expect(page.getByTestId('touch-right')).toBeDisabled();
+    await expect(page.getByTestId('world-portal-dialog')).toHaveCount(0);
+    // Click the actual Phaser marker while the HUD POST is awaiting the
+    // server: a separate scene event must not dispatch a second POST.
+    const marker = await host.evaluate(element => ({
+      x: Number(element.dataset.portalScreenX),
+      y: Number(element.dataset.portalScreenY),
+    }));
+    const size = await canvas.evaluate(element => ({
+      width: (element as HTMLCanvasElement).width,
+      height: (element as HTMLCanvasElement).height,
+    }));
+    const box = await canvas.boundingBox();
+    if (!box) throw new Error('World canvas is not mounted');
+    expect(Number.isFinite(marker.x) && Number.isFinite(marker.y)).toBe(true);
+    await canvas.click({ position: {
+      x: marker.x * box.width / size.width,
+      y: marker.y * box.height / size.height,
+    } });
+    await page.waitForTimeout(120);
+    expect(intercepted).toBe(1);
+  } finally {
+    release();
+  }
+  await expect(page.getByTestId('world-portal-dialog')).toBeVisible();
+  await expect(page.getByTestId('world-portal-entering')).toHaveCount(0);
+  expect(api.getEntryCalls()).toBe(1);
+});
+
+test('rejected portal entry unlocks input and permits an explicit retry', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await initializePlayer(page, 'en');
+  const api = await mockPrivatePortals(page);
+  let requests = 0;
+  await page.route('**/api/personal-content/world-portals/' + grantId + '/enter', async route => {
+    requests++;
+    if (requests === 1) {
+      await route.fulfill({ status: 503, headers: cors, contentType: 'application/json',
+        body: JSON.stringify({ code: 'portal_request_failed' }) });
+    } else {
+      await route.fallback();
+    }
+  });
+  await page.goto(origin + '/Vuxo/#/game');
+  await expect(page.getByTestId('world-connection-status')).toHaveAttribute('data-status', 'connected');
+  const action = page.getByTestId('world-portal-enter');
+  await expect(action).toBeEnabled();
+  await action.click();
+  await expect(page.getByTestId('world-portal-error')).toBeVisible();
+  await expect(action).toBeEnabled();
+  await expect(page.getByTestId('touch-right')).toBeEnabled();
+  await expect(page.getByTestId('world-portal-entering')).toHaveCount(0);
+  expect(api.getEntryCalls()).toBe(0);
+  await action.click();
+  await expect(page.getByTestId('world-portal-dialog')).toBeVisible();
+  expect(requests).toBe(2);
+  expect(api.getEntryCalls()).toBe(1);
+});
+
 test('personal marker opens existing challenge in-world, then disappears on success', async ({ page }) => {
   await initializePlayer(page);
   const api = await mockPrivatePortals(page);

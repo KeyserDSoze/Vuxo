@@ -484,6 +484,7 @@ const initialization = i18n.use(initReactI18next).init({
           portal: {
             available: 'Portali personali nel mondo: {{count}}',
             enter: 'Entra nel portale {{number}}',
+            entering: 'Ingresso nel portale…',
             showMore: 'Mostra altri {{count}} portali',
             showLess: 'Mostra meno portali',
             moveCloser: 'Avvicinati a un portale per entrare. Puoi anche selezionare il suo simbolo sulla mappa.',
@@ -1265,6 +1266,7 @@ const initialization = i18n.use(initReactI18next).init({
           portal: {
             available: 'Personal portals in the world: {{count}}',
             enter: 'Enter portal {{number}}',
+            entering: 'Entering portal…',
             showMore: 'Show {{count}} more portals',
             showLess: 'Show fewer portals',
             moveCloser: 'Move closer to a portal to enter. You can also select its marker on the map.',

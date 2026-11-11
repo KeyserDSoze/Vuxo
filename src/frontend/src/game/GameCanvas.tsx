@@ -40,6 +40,11 @@ export function GameCanvas() {
   const [portals, setPortals] = useState<WorldPortalMarker[]>([])
   const [portalErrorCode, setPortalErrorCode] = useState<string | null>(null)
   const [activePortal, setActivePortal] = useState<WorldPortalMarker | null>(null)
+  const [portalEntering, setPortalEntering] = useState(false)
+  // One synchronous in-flight guard for both Phaser hit areas and HUD buttons.
+  // Ref is checked before the next React paint, so rapid clicks cannot race.
+  const portalEntryInFlight = useRef(false)
+  const enterPortalFromScene = useRef<(grantId: string) => void>(() => {})
   const [allPortalActionsVisible, setAllPortalActionsVisible] = useState(false)
 
   useEffect(() => {
@@ -54,17 +59,10 @@ export function GameCanvas() {
       setSelfPlayerId(state.selfPlayerId)
     })
 
+    // The ref is replaced on every React render so Phaser cannot retain
+    // a stale callback. Both UI surfaces share one request and one lock.
     const scene = new WorldScene(client, grantId => {
-      client.setMovementIntent(0, 0)
-      void enterWorldPortal(grantId)
-        .then(marker => {
-          setPortalErrorCode(null)
-          setActivePortal(marker)
-        })
-        .catch(error => {
-          setPortalErrorCode(error instanceof PortalApiError
-            ? error.code : 'portal_request_failed')
-        })
+      enterPortalFromScene.current(grantId)
     }, count => {
       // The Playwright-only readiness signal is emitted after Phaser installs
       // the portal hit areas, not merely after the API returns portal data.
@@ -223,11 +221,18 @@ export function GameCanvas() {
   }, [portals])
 
   useEffect(() => {
-    worldScene.current?.setInputLocked(activePortal !== null)
-    if (activePortal) realtime.current?.setMovementIntent(0, 0)
-  }, [activePortal])
+    worldScene.current?.setInputLocked(activePortal !== null || portalEntering)
+    if (activePortal || portalEntering) realtime.current?.setMovementIntent(0, 0)
+  }, [activePortal, portalEntering])
 
   const enter = async (grantId: string) => {
+    // The server is authoritative about proximity and the grant. Client-side
+    // gating only prevents accidental duplicate POSTs while one is pending.
+    if (portalEntryInFlight.current || activePortal ||
+        realtime.current?.getState().status !== 'connected') return
+    portalEntryInFlight.current = true
+    setPortalEntering(true)
+    worldScene.current?.setInputLocked(true)
     realtime.current?.setMovementIntent(0, 0)
     setPortalErrorCode(null)
     try {
@@ -235,8 +240,12 @@ export function GameCanvas() {
       setActivePortal(marker)
     } catch (error) {
       setPortalErrorCode(error instanceof PortalApiError ? error.code : 'portal_request_failed')
+    } finally {
+      portalEntryInFlight.current = false
+      setPortalEntering(false)
     }
   }
+  enterPortalFromScene.current = grantId => { void enter(grantId) }
 
   const self = players.find(player => player.playerId === selfPlayerId)
   const presence = selectWorldPresence(players, selfPlayerId)
@@ -247,11 +256,13 @@ export function GameCanvas() {
   const nearby = (portal: WorldPortalMarker) => Boolean(self)
     && Math.hypot(self!.x - portal.x, self!.y - portal.y) <= 1.5
 
-  const touchLocked = status !== 'connected' || activePortal !== null || !windowInputActive
+  const touchLocked = status !== 'connected' || activePortal !== null ||
+    portalEntering || !windowInputActive
   const touch = (horizontal: number, vertical: number) => {
     // Unlike Phaser's keyboard update, pointer handlers bypass WorldScene.
     // Enforce the same modal/focus/connection lock at the input boundary.
-    if (touchLocked || !windowInputActiveRef.current || document.hidden ||
+    if (touchLocked || portalEntryInFlight.current ||
+        !windowInputActiveRef.current || document.hidden ||
         realtime.current?.getState().status !== 'connected') return
     realtime.current.setMovementIntent(horizontal, vertical)
   }
@@ -360,6 +371,7 @@ export function GameCanvas() {
           </Typography>
           {status === 'connected' && <PortalCompass self={self} portals={portals} />}
           <Stack id="world-portal-action-list" direction="row" spacing={0.75}
+            aria-busy={portalEntering}
             className="vuxo-game-portal-actions" data-testid="world-portal-action-list">
             {portalPreview.visible.map(({ portal, number }) => (
               <Button
@@ -370,13 +382,20 @@ export function GameCanvas() {
                 variant="outlined"
                 size="small"
                 className="vuxo-game-button"
-                disabled={status !== 'connected' || !nearby(portal) || Boolean(activePortal)}
+                disabled={status !== 'connected' || !nearby(portal) ||
+                  Boolean(activePortal) || portalEntering}
                 onClick={() => void enter(portal.id)}
               >
                 {t('game.portal.enter', { number })}
               </Button>
             ))}
           </Stack>
+          {portalEntering && (
+            <Typography component="p" role="status" data-testid="world-portal-entering"
+              variant="caption" sx={{ color: 'var(--vuxo-game-hud-text)' }}>
+              {t('game.portal.entering')}
+            </Typography>
+          )}
           {portalActions.length > 6 && (
             <Button
               data-testid="world-portal-more"
