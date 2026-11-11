@@ -617,7 +617,7 @@ test('offscreen peers stop animating and disappear from art only, then return on
   // Only the deterministic E2E fixture's server STATE is altered. Join
   // identity stays canonical; the production SignalR transport is untouched.
   // The far player is outside a phone view but inside an ultrawide view.
-  await page.route(/\\/__vuxo_e2e\\/world\\/state\\?scope=world-art-visibility-resize$/, async route => {
+  await page.route(/\/__vuxo_e2e\/world\/state\?scope=world-art-visibility-resize$/, async route => {
     const response = await route.fetch()
     const payload = await response.json() as {
       players: Array<{ playerId: string; x: number; y: number }>
