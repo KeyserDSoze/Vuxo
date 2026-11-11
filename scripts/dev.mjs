@@ -2,7 +2,7 @@
 import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { parseLocalEnv, renderLocalEnv, validateLocalEnv, composeArguments, localProcessEnvironment, localDockerIdentity, localHostEnvironment, hostRuntimeEnvironment, hostCommandArguments, localHttpEndpoints, waitForLocalHttp } from './dev-lib.mjs'
+import { parseLocalEnv, renderLocalEnv, validateLocalEnv, composeArguments, localProcessEnvironment, localDockerIdentity, prepareHostDependencyMount, localHostEnvironment, hostRuntimeEnvironment, hostCommandArguments, localHttpEndpoints, waitForLocalHttp } from './dev-lib.mjs'
 
 const templateFile = fileURLToPath(new URL('../docker/local.env.example', import.meta.url))
 const envFile = fileURLToPath(new URL('../docker/.env.local', import.meta.url))
@@ -10,6 +10,7 @@ const composeFile = fileURLToPath(new URL('../docker/compose.dev.yml', import.me
 const appComposeFile = fileURLToPath(new URL('../docker/compose.dev-app.yml', import.meta.url))
 const rootDir = fileURLToPath(new URL('../', import.meta.url))
 const frontendDir = fileURLToPath(new URL('../src/frontend/', import.meta.url))
+const frontendNodeModulesDir = fileURLToPath(new URL('../src/frontend/node_modules/', import.meta.url))
 
 const help = () => console.log(`VUXO local development (0.0.1)
   node scripts/dev.mjs init              Create docker/.env.local, never overwrite
@@ -166,6 +167,11 @@ async function main(args) {
     throw new Error('Unknown command or unsupported options; run: node scripts/dev.mjs help')
   }
   const config = checkedEnv()
+  // Nested named volumes can make a missing bind-mount child root-owned even
+  // with UID-matched containers. Host creates this non-destructively first.
+  if (['up', 'debug', 'test'].includes(command)) {
+    prepareHostDependencyMount(frontendNodeModulesDir)
+  }
   // --ollama is the explicit user opt-in: start the model service AND enable
   // the API's LLM adapter for this invocation. The private file is unchanged.
   const withOllama = ['infra', 'up', 'debug'].includes(command) && options[0] === '--ollama'

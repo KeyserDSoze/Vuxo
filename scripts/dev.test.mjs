@@ -1,7 +1,9 @@
 import { test } from 'node:test'
 import { strict as assert } from 'node:assert'
-import { readFileSync } from 'node:fs'
-import { composeArguments, localProcessEnvironment, localDockerIdentity, localHostEnvironment, classifyHostDebugFailure, parseLocalEnv, renderLocalEnv, validateLocalEnv, hostRuntimeEnvironment, hostCommandArguments, localHttpEndpoints, waitForLocalHttp } from './dev-lib.mjs'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { composeArguments, localProcessEnvironment, localDockerIdentity, prepareHostDependencyMount, localHostEnvironment, classifyHostDebugFailure, parseLocalEnv, renderLocalEnv, validateLocalEnv, hostRuntimeEnvironment, hostCommandArguments, localHttpEndpoints, waitForLocalHttp } from './dev-lib.mjs'
 
 const template = readFileSync(new URL('../docker/local.env.example', import.meta.url), 'utf8')
 const mockEntropy = bytes => Buffer.alloc(bytes, 0xaf)
@@ -284,4 +286,21 @@ test('development Docker uses host ownership, isolated caches and no checkout ch
   assert.match(compose, /--package-lock=false/)
   assert.doesNotMatch(compose, /privileged:|--privileged|chown.*\/workspace/)
   assert.match(compose, /127\.0\.0\.1:/)
+})
+
+test('nested Docker volume mountpoint is precreated by host non-destructively', () => {
+  const root = mkdtempSync(join(tmpdir(), 'vuxo-dev-mount-'))
+  try {
+    const mount = join(root, 'src', 'frontend', 'node_modules')
+    prepareHostDependencyMount(mount)
+    writeFileSync(join(mount, 'existing.txt'), 'unchanged')
+    prepareHostDependencyMount(mount)
+    assert.equal(readFileSync(join(mount, 'existing.txt'), 'utf8'), 'unchanged')
+    const notDirectory = join(root, 'not-a-directory')
+    writeFileSync(notDirectory, 'keep')
+    assert.throws(() => prepareHostDependencyMount(notDirectory), /mountpoint is not writable/)
+    assert.equal(readFileSync(notDirectory, 'utf8'), 'keep')
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
 })

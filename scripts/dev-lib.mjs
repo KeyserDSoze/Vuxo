@@ -1,4 +1,5 @@
 import { randomBytes } from 'node:crypto'
+import { accessSync, constants, mkdirSync, statSync } from 'node:fs'
 import { setTimeout as delay } from 'node:timers/promises'
 
 const REQUIRED_PORTS = [
@@ -192,6 +193,21 @@ export function localDockerIdentity(platform = process.platform,
   return {
     VUXO_DEV_UID: platform === 'win32' ? '1000' : safe(uid),
     VUXO_DEV_GID: platform === 'win32' ? '1000' : safe(gid),
+  }
+}
+
+/**
+ * Docker creates missing nested named-volume mount points as root, even when
+ * the container's USER is non-root. Create the frontend mount point as the
+ * *host* user before 'docker compose up'; never chmod/chown existing data.
+ */
+export function prepareHostDependencyMount(path) {
+  try {
+    mkdirSync(path, { recursive: true })
+    if (!statSync(path).isDirectory()) throw new Error('not a directory')
+    accessSync(path, constants.W_OK | constants.X_OK)
+  } catch {
+    throw new Error('Local node_modules mountpoint is not writable; check generated file ownership')
   }
 }
 
