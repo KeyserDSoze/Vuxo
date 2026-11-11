@@ -427,7 +427,17 @@ test('crowded portal action HUD is compact on mobile and can reveal every owner 
   await toggle.click();
   await expect(toggle).toHaveAttribute('aria-expanded', 'true');
   await expect(actions).toHaveCount(11);
-  await expect(actions.filter({ hasText: 'Enter portal 1' })).toHaveCount(1);
+  // Playwright's hasText uses substring matching: "Enter portal 1"
+  // also matches "Enter portal 11". Assert the canonical API number and
+  // complete label to distinguish both grants after expanding the HUD.
+  const portalOne = actions.locator('[data-portal-number="1"]');
+  const portalEleven = actions.locator('[data-portal-number="11"]');
+  await expect(portalOne).toHaveCount(1);
+  await expect(portalEleven).toHaveCount(1);
+  await expect(portalOne).toHaveText('Enter portal 1');
+  await expect(portalEleven).toHaveText('Enter portal 11');
+  await expect(portalOne).toBeDisabled();
+  await expect(portalEleven).toBeEnabled();
   await toggle.click();
   await expect(actions).toHaveCount(6);
   await expect(toggle).toHaveAttribute('aria-expanded', 'false');
