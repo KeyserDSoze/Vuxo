@@ -29,6 +29,10 @@ This is an **observation tool**, not the deployment gate. The strict `scripts/ve
 
 Earlier public deploy runs include [#43003860875](https://github.com/KeyserDSoZe/Vuxo/actions/runs/43003860875) with eventual green hosted gate, and red/green observations from `DFW`, `IAD`, `SJC`, `SEA`, and `MXP` in #147. This run provides strong evidence of a failing **IAD runner vantage during those timestamps**, **not** a proven permanent outage or causality within Cloudflare. One hosted runner is **not multi-region**.
 
+### Follow-up comparison: release gate #43007879412 (same SHA `d53668b`)
+
+The [Raspberry release run](https://github.com/KeyserDSoZe/Vuxo/actions/runs/43007879412) passed ARM64/deploy/backup. Its first hosted strict gate failed; same-round independent route probes from **`MSP`** were **health 200, version 502, providers 200, social OPTIONS 502, private history GET 401 and OPTIONS 204, Pages redirect 200**. The Pi connector network reached origin **HTTP 200** and public API **HTTP 200 from `MXP`**, with healthy containers and no OOM/restart. **A single rerun of only the failed public gate, same SHA without deploying, passed** (workflow attempt 2 green). This further distinguishes an intermittent request-path failure from a consistently dead origin or POP; the evidence does **not** establish a precise Cloudflare root cause.
+
 ## Follow-up for the Cloudflare domain/tunnel owner (out of repo)
 
 1. Check the exact public hostname `api.vuxoapi.xyz`, its Cloudflare DNS/tunnel mapping and Zero Trust **Public Hostname** ingress for the expected internal `http://api:8080` service. Verify the route has not drifted; do not paste tunnel tokens or client secrets into issues.
