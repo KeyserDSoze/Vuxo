@@ -142,6 +142,57 @@ jobs:
           docker rm -f vuxo-postgres-integration || true
           docker rm -f vuxo-otel-smoke || true
 
+  devex-linux-runtime:
+    name: DevEx Linux live Docker stack (#45)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Create safe ephemeral local configuration
+        run: node scripts/dev.mjs init
+      - name: Boot real ASP.NET + PostgreSQL + Redis + Vite through cross-platform CLI
+        timeout-minutes: 19
+        run: node scripts/dev.mjs up
+      - name: Check ASP.NET health, CORS discovery and Vite HTML over loopback
+        timeout-minutes: 2
+        run: node scripts/dev-smoke.mjs
+      - name: Inspect local container status on failure (no secrets)
+        if: failure()
+        shell: bash
+        run: |
+          docker compose --project-name vuxo-dev --env-file docker/.env.local \
+            -f docker/compose.dev.yml -f docker/compose.dev-app.yml ps || true
+      - name: Stop local stack without deleting volumes
+        if: always()
+        run: node scripts/dev.mjs down
+
+  devex-windows-contract:
+    name: DevEx Windows Node and private init (#45)
+    runs-on: windows-2025
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Test cross-platform CLI contracts on Windows Node
+        run: node --test scripts/dev.test.mjs
+      - name: Run genuine private bootstrap on Windows and reject overwrite
+        shell: pwsh
+        run: |
+          node scripts/dev.mjs init
+          if ($LASTEXITCODE -ne 0) { throw 'CLI init failed' }
+          if (-not (Test-Path 'docker/.env.local')) { throw 'No private env generated' }
+          git check-ignore -q docker/.env.local
+          if ($LASTEXITCODE -ne 0) { throw 'Private env is not gitignored' }
+          node scripts/dev.mjs init
+          if ($LASTEXITCODE -eq 0) { throw 'CLI init overwrote existing private env' }
+          node scripts/dev.mjs help
+          if ($LASTEXITCODE -ne 0) { throw 'CLI help failed' }
+
   docker-runtime:
     runs-on: ubuntu-latest
     steps:

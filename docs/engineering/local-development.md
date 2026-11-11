@@ -34,6 +34,12 @@ node scripts/dev.mjs infra --ollama
 
 `node scripts/dev.mjs test` attende PostgreSQL/Redis healthy, lancia `dotnet test Vuxo.sln -c Release` con `VUXO_TEST_POSTGRES_CONNECTION_STRING` per eseguire **davvero** anche gli integration test PostgreSQL (database di test temporanei creati/chiusi dal test harness), poi installa npm/Chromium e lancia `npm run test:e2e` (Playwright con fixture E2E locale). Ogni comando propaga l'exit code; non viene ignorato un test fallito. I volumi locali non vengono cancellati. Per Chromium servono le dipendenze di sistema Playwright supportate dal sistema operativo.
 
+## Verifica runtime CI Linux e bootstrap Windows
+
+La CI ora contiene due gate distinti sulla #45: il job **DevEx Linux live Docker stack** esegue realmente `node scripts/dev.mjs init` e `up` su Ubuntu 24.04 con Docker Engine, attende `/health` ASP.NET e il frontend Vite, e verifica `/api/auth/providers` con origine CORS locale e markup HTML. `down` è eseguito sempre senza `-v`; nessuna password viene stampata e il job non usa il tunnel/production. Il job **DevEx Windows Node and private init** esegue i contratti Node su Windows e prova `init`, presenza di `.env.local`, rispetto di `.gitignore`, rifiuto della sovrascrittura e `help` sul vero runner Windows.
+
+Le verifiche CI su Linux **non provano** che il Docker Desktop dell'utente sia configurato né che il debugger IDE sia agganciabile; il job Windows **non avvia** Docker Linux containers e non esegue ancora `debug` o `test` sul dispositivo Windows. Restano quindi necessari smoke manuali Windows/Linux e verifica IDE/observability prima di chiudere la #45.
+
 ## Test del CLI
 
 ```text
