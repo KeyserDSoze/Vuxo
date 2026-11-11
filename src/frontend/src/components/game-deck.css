@@ -406,7 +406,8 @@
   .vuxo-refuge-dashboard .vuxo-refuge-activity__icon { padding: 4px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .vuxo-refuge-dashboard .vuxo-refuge-activity { transition: none; }
+  .vuxo-refuge-dashboard .vuxo-refuge-activity,
+  .vuxo-refuge-sections .MuiButton-root { transition: none; }
   .vuxo-refuge-dashboard .vuxo-refuge-activity:hover { transform: none; }
 }
 
