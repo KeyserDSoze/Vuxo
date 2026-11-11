@@ -99,6 +99,7 @@ echo "==> Verifying final image contains runtime only"
 docker run --rm --entrypoint sh "$VUXO_API_IMAGE" -c '
   test ! -d /usr/share/dotnet/sdk
   test -z "$(dotnet --list-sdks)"
+  test -r /app/health/Vuxo.HealthProbe.dll
   dotnet --list-runtimes | grep -q "Microsoft.AspNetCore.App 10\."
 '
 
@@ -115,6 +116,11 @@ wait_for_api
 postgres_id="$("${PROD[@]}" ps -q postgres)"
 redis_id="$("${PROD[@]}" ps -q redis)"
 api_id="$("${PROD[@]}" ps -q api)"
+api_health="$(docker inspect "$api_id" --format '{{.State.Health.Status}}')"
+if [[ "$api_health" != "healthy" ]]; then
+  echo "API native .NET HTTP healthcheck did not pass: $api_health" >&2
+  exit 1
+fi
 
 if [[ -n "$(docker port "$postgres_id" 2>/dev/null || true)" ]]; then
   echo "PostgreSQL unexpectedly exposes a host port" >&2

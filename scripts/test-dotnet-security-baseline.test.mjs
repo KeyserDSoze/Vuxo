@@ -41,3 +41,18 @@ test('backend does not suppress NuGet audits or warnings-as-errors', () => {
   assert.match(source('Directory.Build.props'), /<TreatWarningsAsErrors>true<\/TreatWarningsAsErrors>/)
   assert.doesNotMatch(source('Directory.Build.props'), /NuGetAudit\s*>\s*false/i)
 })
+
+test('runtime healthcheck uses bounded .NET loopback HTTP without apt or curl', () => {
+  const dockerfile = source('docker/Dockerfile.api')
+  const project = source('src/backend/applications/Vuxo.HealthProbe/Vuxo.HealthProbe.csproj')
+  const program = source('src/backend/applications/Vuxo.HealthProbe/Program.cs')
+  assert.doesNotMatch(dockerfile, /apt-get|curl --fail/)
+  assert.match(dockerfile, /COPY --from=build \/app\/health \.\/health/)
+  assert.match(dockerfile, /CMD \["dotnet", "\/app\/health\/Vuxo\.HealthProbe\.dll"\]/)
+  assert.match(project, /<OutputType>Exe<\/OutputType>/)
+  assert.match(program, /http:\/\/127\.0\.0\.1:8080\/health/)
+  assert.match(program, /HttpStatusCode\.OK/)
+  assert.match(program, /TimeSpan\.FromSeconds\(2\)/)
+  assert.match(program, /catch \(HttpRequestException\)/)
+  assert.match(program, /catch \(TaskCanceledException\)/)
+})
