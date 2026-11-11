@@ -598,6 +598,66 @@ test('adaptive camera keeps two canonical outfits, viewport HUD and movement sta
     .toBeGreaterThan(originalX)
 })
 
+
+const ownLabelScope = 'world-art-self-name-priority'
+
+test('self name keeps its avatar anchor when a nearby peer label overlaps on mobile and ultrawide', async ({ page, request }, info) => {
+  await resetRoom(request, ownLabelScope)
+  // The mock world assigns X by authoritative join order. The peer joins
+  // first, left of self, so previous y/x ordering placed the peer label
+  // first and pushed the local label one lane above its own avatar.
+  for (const [playerId, characterName] of [
+    ['a-nearby-peer', 'Ranger of the Evergreen Forest'],
+    ['z-local-vuxian', 'Wanderer of the Midnight Grove'],
+  ]) {
+    const joined = await request.post(origin + '/__vuxo_e2e/world/join?scope=' + ownLabelScope, {
+      data: { playerId, characterName },
+    })
+    expect(joined.ok()).toBeTruthy()
+  }
+  await demoPlayer(page, 'z-local-vuxian', 'Wanderer of the Midnight Grove', ownLabelScope)
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto(gameUrl)
+  const host = page.getByTestId('game-canvas')
+  await expect(page.getByTestId('world-connection-status')).toHaveAttribute('data-status', 'connected')
+  await expect(page.locator('[data-player-id="a-nearby-peer"]')).toBeVisible()
+  await expect(page.getByTestId('world-presence-self')).toHaveAttribute('data-player-id', 'z-local-vuxian')
+
+  const namePriorityIsCorrect = async () => host.evaluate(element => {
+    const raw = element.getAttribute('data-e2e-name-label-bounds')
+    if (!raw) return false
+    const labels = JSON.parse(raw) as Array<{
+      playerId: string; left: number; right: number; top: number; bottom: number
+    }>
+    const self = labels.find(label => label.playerId === 'z-local-vuxian')
+    const peer = labels.find(label => label.playerId === 'a-nearby-peer')
+    if (!self || !peer || labels.length !== 2) return false
+    // Self is the first reserved lane; server's y=4.5 tile means
+    // name baseline y=4.5*32 - 54 = 90, irrespective of camera zoom.
+    const horizontallyOverlapping = self.left < peer.right + 6 && self.right > peer.left - 6
+    return labels[0].playerId === 'z-local-vuxian'
+      && Math.abs(self.bottom - 90) <= 1
+      && horizontallyOverlapping
+      && peer.bottom + 6 <= self.top
+  })
+
+  for (const viewport of [{ width: 390, height: 844 }, { width: 3440, height: 1440 }]) {
+    await page.setViewportSize(viewport)
+    await expect.poll(namePriorityIsCorrect).toBe(true)
+    await expect(host).toHaveAttribute('data-e2e-visible-avatar-count', '2')
+    await expect(host).toHaveAttribute('data-e2e-illustrated-player-count', '2')
+    await expect(page.getByTestId('world-connection-status')).toHaveAttribute('data-status', 'connected')
+    await expect.poll(() => page.evaluate(() =>
+      document.documentElement.scrollWidth <= window.innerWidth + 1
+      && document.documentElement.scrollHeight <= window.innerHeight + 1
+    )).toBe(true)
+    await info.attach('self-label-priority-' + viewport.width, {
+      body: await page.screenshot({ animations: 'disabled' }),
+      contentType: 'image/png',
+    })
+  }
+})
+
 const cullingScope = 'world-art-visibility-resize'
 
 test('offscreen peers stop animating and disappear from art only, then return on ultrawide without a new join', async ({ page, request }) => {

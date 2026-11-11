@@ -309,7 +309,12 @@ export class WorldScene extends Phaser.Scene {
       visual.name.setVisible(visible)
       if (visible) onscreen.push([playerId, visual])
     }
+    // Place the local Vuxian's name first so nearby peers never push the
+    // camera owner's label away from the avatar. This changes text lanes
+    // only; all peer containers, coordinates and server snapshots survive.
+    // Peers keep their deterministic y/x/id order after self priority.
     onscreen.sort(([idA, a], [idB, b]) =>
+      (idA === this.selfPlayerId ? -1 : idB === this.selfPlayerId ? 1 : 0) ||
       a.body.y - b.body.y || a.body.x - b.body.x || idA.localeCompare(idB))
 
     for (const [playerId, visual] of onscreen) {
