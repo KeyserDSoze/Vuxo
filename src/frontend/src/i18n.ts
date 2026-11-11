@@ -469,6 +469,7 @@ const initialization = i18n.use(initReactI18next).init({
           title: 'Mondo condiviso',
           description: 'Il movimento è autoritativo lato server. Usa WASD, le frecce o i controlli touch per inviare i tuoi intenti.',
           playersOnline: 'Giocatori online: {{count}}',
+          playersHidden: '{{count}} esploratori aggiuntivi nella mappa',
           radar: {
             title: 'Radar',
             show: 'Apri radar',
@@ -1246,6 +1247,7 @@ const initialization = i18n.use(initReactI18next).init({
           title: 'Shared world',
           description: 'Movement is server-authoritative. Use WASD, arrow keys or touch controls to send your movement intent.',
           playersOnline: 'Players online: {{count}}',
+          playersHidden: '{{count}} more explorers in the world',
           radar: {
             title: 'Radar',
             show: 'Open radar',

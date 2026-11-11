@@ -60,6 +60,8 @@
   scrollbar-width: thin;
 }
 .vuxo-game-presence .MuiChip-root { flex-shrink: 0; }
+/* Limit presence DOM in crowds; the one-line scroller remains inside the HUD. */
+.vuxo-game-presence [data-testid="world-presence-overflow"] { font-variant-numeric: tabular-nums; }
 .vuxo-game-actions {
   position: absolute;
   z-index: 7;

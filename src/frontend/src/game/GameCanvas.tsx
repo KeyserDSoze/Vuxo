@@ -14,6 +14,7 @@ import type {
 import { WorldScene } from './WorldScene'
 import { PortalCompass } from './PortalCompass'
 import { WorldRadar } from './WorldRadar'
+import { selectWorldPresence } from './WorldPresence'
 import { readStoredSession } from '../features/auth/authSession'
 import { enterWorldPortal, fetchWorldPortals, PortalApiError, type WorldPortalMarker } from '../features/portals/portalApi'
 import { PortalChallengesPage } from '../pages/PortalChallengesPage'
@@ -236,6 +237,7 @@ export function GameCanvas() {
   }
 
   const self = players.find(player => player.playerId === selfPlayerId)
+  const presence = selectWorldPresence(players, selfPlayerId)
   // Client proximity is ONLY an affordance. The API always checks server state.
   const nearby = (portal: WorldPortalMarker) => Boolean(self)
     && Math.hypot(self!.x - portal.x, self!.y - portal.y) <= 1.5
@@ -272,7 +274,7 @@ export function GameCanvas() {
           </Typography>
         </Stack>
         <Stack data-testid="world-presence" direction="row" spacing={0.5} className="vuxo-game-presence">
-          {players.map(player => (
+          {presence.visible.map(player => (
             <Chip
               key={player.playerId}
               size="small"
@@ -287,6 +289,17 @@ export function GameCanvas() {
               sx={{ color: 'var(--vuxo-game-hud-text)', borderColor: 'var(--vuxo-game-hud-border)' }}
             />
           ))}
+          {presence.hiddenCount > 0 && (
+            <Chip
+              size="small"
+              variant="outlined"
+              data-testid="world-presence-overflow"
+              label={'+' + presence.hiddenCount}
+              aria-label={t('game.playersHidden', { count: presence.hiddenCount })}
+              title={t('game.playersOnline', { count: players.length })}
+              sx={{ color: 'var(--vuxo-game-hud-accent)', borderColor: 'var(--vuxo-game-hud-border)' }}
+            />
+          )}
         </Stack>
       </Stack>
 
