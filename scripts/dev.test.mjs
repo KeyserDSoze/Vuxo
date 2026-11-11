@@ -128,8 +128,8 @@ test('local OpenTelemetry opt-in preserves no-observability default and supports
   assert.match(compose, /127\.0\.0\.1:\$\{VUXO_OTEL_DEV_PORT:-54317\}/)
   assert.match(compose, /127\.0\.0\.1:\$\{VUXO_OTEL_HEALTH_DEV_PORT:-53133\}/)
   // Match real production services or URLs, not explanatory comments.
-  assert.doesNotMatch(compose, /^\\s{2}cloudflared\\s*:/m)
-  assert.doesNotMatch(compose, /https?:\\/\\/[^\\s]*vuxo\\.quest/)
+  assert.doesNotMatch(compose, /^\s{2}cloudflared\s*:/m)
+  assert.doesNotMatch(compose, /https?:\/\/[^\s]*vuxo\.quest/)
   assert.match(collector, /verbosity: basic/)
   assert.doesNotMatch(collector, /tempo:4317|loki:3100|https?:\/\//)
 })
