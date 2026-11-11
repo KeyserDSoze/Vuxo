@@ -170,9 +170,9 @@ jobs:
           node scripts/dev-otel-smoke.mjs
       - name: Stop Docker application before testing host IDE debug
         run: node scripts/dev.mjs down
-      - name: Smoke real host .NET watch, Vite and PostgreSQL via debug
+      - name: Smoke native .NET/Vite debug with local OTLP collector and PostgreSQL
         timeout-minutes: 10
-        run: node scripts/dev-host-smoke.mjs debug
+        run: node scripts/dev-host-smoke.mjs debug-observability
       - name: Run coordinated CLI test with real PostgreSQL xUnit + Playwright
         timeout-minutes: 19
         run: node scripts/dev.mjs test

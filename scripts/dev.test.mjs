@@ -344,6 +344,17 @@ test('host CLI diagnostic classification never echoes private child stdout/stder
   assert.doesNotMatch(classifyHostDebugFailure(secret), /SECRETVALUE|SECRET_TOKEN/)
 })
 
+test('native debug observability smoke exercises real local collector and admin metadata', () => {
+  const smoke = readFileSync(new URL('./dev-host-smoke.mjs', import.meta.url), 'utf8')
+  assert.match(smoke, /'debug-observability'/)
+  assert.match(smoke, /\.\.\.\(observability \? \['--observability'\] : \[\]\)/)
+  assert.match(smoke, /await import\('\.\/dev-smoke\.mjs'\)/)
+  assert.match(smoke, /if \(observability\) await import\('\.\/dev-otel-smoke\.mjs'\)/)
+  const workflow = readFileSync(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8')
+  assert.match(workflow, /node scripts\/dev-host-smoke\.mjs debug-observability/)
+  assert.doesNotMatch(workflow, /node scripts\/dev-host-smoke\.mjs debug\s*\n/)
+})
+
 test('host smoke uses an absolute deadline and reports only static phases', () => {
   const secret = 'local-private-jwt-and-postgres-password'
   assert.equal(classifyHostDebugStage('VUXO_DEV_STAGE:npm-install' + secret),

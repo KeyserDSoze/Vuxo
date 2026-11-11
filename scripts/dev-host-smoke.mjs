@@ -16,23 +16,25 @@ import {
 } from './dev-lib.mjs'
 
 const mode = process.argv[2]
-if (!['debug', 'frontend'].includes(mode) || process.argv.length !== 3) {
-  throw new Error('Usage: node scripts/dev-host-smoke.mjs debug|frontend')
+if (!['debug', 'debug-observability', 'frontend'].includes(mode) || process.argv.length !== 3) {
+  throw new Error('Usage: node scripts/dev-host-smoke.mjs debug|debug-observability|frontend')
 }
+const nativeDebug = mode !== 'frontend'
+const observability = mode === 'debug-observability'
 const config = parseLocalEnv(readFileSync(new URL('../docker/.env.local', import.meta.url), 'utf8'))
 assert.deepEqual(validateLocalEnv(config), [])
 const root = fileURLToPath(new URL('../', import.meta.url))
 const frontend = fileURLToPath(new URL('../src/frontend/', import.meta.url))
 const host = hostRuntimeEnvironment(config)
 const windowsNpm = process.platform === 'win32' && mode === 'frontend'
-const command = mode === 'debug' ? process.execPath : (windowsNpm ? 'npm.cmd' : 'npm')
-const args = mode === 'debug'
-  ? ['scripts/dev.mjs', 'debug']
+const command = nativeDebug ? process.execPath : (windowsNpm ? 'npm.cmd' : 'npm')
+const args = nativeDebug
+  ? ['scripts/dev.mjs', 'debug', ...(observability ? ['--observability'] : [])]
   : hostCommandArguments(config, 'frontend')
 
 const processChild = spawn(command, args, {
-  cwd: mode === 'debug' ? root : frontend,
-  env: mode === 'debug' ? process.env : localHostEnvironment(process.env, host.frontend),
+  cwd: nativeDebug ? root : frontend,
+  env: nativeDebug ? process.env : localHostEnvironment(process.env, host.frontend),
   shell: windowsNpm, windowsHide: true,
   detached: process.platform !== 'win32',
   // Collect bounded private logs ONLY in memory, classify by fixed patterns;
@@ -77,7 +79,7 @@ async function terminate() {
 
 try {
   const endpointList = localHttpEndpoints(config)
-  const required = mode === 'debug' ? endpointList : endpointList.filter(e => e.name === 'Vite')
+  const required = nativeDebug ? endpointList : endpointList.filter(e => e.name === 'Vite')
   let ready = false
   let pending = required.map(entry => entry.name)
   // A fixed attempt count can overrun the CI step timeout when each HTTP
@@ -94,12 +96,15 @@ try {
   assert.ok(ready, mode + ': HTTP readiness timeout; unavailable: ' + pending.join(', ') +
     '; phase: ' + classifyHostDebugStage(privateDiagnostic))
   assert.equal(startupFailed, false)
-  if (mode === 'debug') {
-    // Reuse the same real API/CORS/frontend HTML smoke as Docker up.
+  if (nativeDebug) {
+    // Reuse the real API/CORS/frontend HTML smoke; the opt-in variant also
+    // verifies collector health and authenticated admin exporter metadata.
     await import('./dev-smoke.mjs')
+    if (observability) await import('./dev-otel-smoke.mjs')
   }
-  console.log('DevEx host smoke PASS: ' + (mode === 'debug'
-    ? 'native .NET watch + Vite, real PostgreSQL/Redis, API/CORS health'
+  console.log('DevEx host smoke PASS: ' + (nativeDebug
+    ? 'native .NET watch + Vite, real PostgreSQL/Redis, API/CORS health' +
+      (observability ? ', local OTLP collector and admin exporter' : '')
     : 'native Windows npm/Vite subprocess + real loopback HTML'))
 } finally {
   await terminate()
