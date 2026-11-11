@@ -2,21 +2,23 @@
 import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { parseLocalEnv, renderLocalEnv, validateLocalEnv, composeArguments } from './dev-lib.mjs'
+import { parseLocalEnv, renderLocalEnv, validateLocalEnv, composeArguments, localProcessEnvironment } from './dev-lib.mjs'
 
 const templateFile = fileURLToPath(new URL('../docker/local.env.example', import.meta.url))
 const envFile = fileURLToPath(new URL('../docker/.env.local', import.meta.url))
 const composeFile = fileURLToPath(new URL('../docker/compose.dev.yml', import.meta.url))
+const appComposeFile = fileURLToPath(new URL('../docker/compose.dev-app.yml', import.meta.url))
 
 const help = () => console.log(`VUXO local development (0.0.1)
   node scripts/dev.mjs init              Create docker/.env.local, never overwrite
   node scripts/dev.mjs doctor            Validate local config and installed tools
   node scripts/dev.mjs infra [--ollama]  Start loopback PostgreSQL/Redis (Ollama opt-in)
+  node scripts/dev.mjs up [--ollama]     Docker .NET API + Vite hot reload (Ollama opt-in)
   node scripts/dev.mjs status            Show local Compose container status
   node scripts/dev.mjs logs [service]    Show last 100 lines of local service logs
   node scripts/dev.mjs down              Stop local services; keep data volumes
 
-API/Vite Docker 'up', host IDE 'debug' and coordinated 'test' are planned in #45.
+Host IDE 'debug' and coordinated 'test' are planned in #45.
 No command changes production or deletes database volumes.`)
 
 function checkedEnv() {
@@ -37,9 +39,12 @@ function installedVersion(binary, args) {
   return String(result.stdout || result.stderr).trim().split('\n')[0]
 }
 
-async function docker(args) {
+async function docker(args, localConfig) {
   await new Promise((resolve, reject) => {
-    const child = spawn('docker', args, { stdio: 'inherit', shell: false, windowsHide: true })
+    const child = spawn('docker', args, {
+      stdio: 'inherit', shell: false, windowsHide: true,
+      env: localProcessEnvironment(process.env, localConfig),
+    })
     child.once('error', () => reject(new Error('Cannot start Docker CLI. Run doctor and check Docker Desktop/Engine.')))
     child.once('close', code => code === 0 ? resolve() : reject(new Error('Docker command failed (exit ' + code + ')')))
   })
@@ -89,15 +94,15 @@ async function main(args) {
     console.log('Local development configuration valid (secrets redacted).')
     return
   }
-  const optionsValid = command === 'infra' ? (options.length === 0 || (options.length === 1 && options[0] === '--ollama'))
+  const optionsValid = ['infra', 'up'].includes(command) ? (options.length === 0 || (options.length === 1 && options[0] === '--ollama'))
     : command === 'logs' ? options.length <= 1 : options.length === 0
-  if (!['infra', 'status', 'logs', 'down'].includes(command) || !optionsValid) {
+  if (!['infra', 'up', 'status', 'logs', 'down'].includes(command) || !optionsValid) {
     throw new Error('Unknown command or unsupported options; run: node scripts/dev.mjs help')
   }
-  checkedEnv()
-  await docker(composeArguments(envFile, composeFile, 'check'))
-  const extra = command === 'infra' ? (options[0] === '--ollama' ? 'ollama' : undefined) : options[0]
-  await docker(composeArguments(envFile, composeFile, command, extra))
+  const config = checkedEnv()
+  await docker(composeArguments(envFile, composeFile, 'check', undefined, appComposeFile), config)
+  const extra = ['infra', 'up'].includes(command) ? (options[0] === '--ollama' ? 'ollama' : undefined) : options[0]
+  await docker(composeArguments(envFile, composeFile, command, extra, appComposeFile), config)
 }
 
 main(process.argv.slice(2)).catch(error => {

@@ -18,6 +18,12 @@ jobs:
           dotnet-version: 10.0.x
       - name: Validate Raspberry Pi 3 ARM64 Compose and deploy contracts
         run: bash scripts/test-pi3-compose.sh
+      - name: Validate private local Docker development Compose overlay
+        shell: bash
+        run: |
+          node scripts/dev.mjs init
+          docker compose --project-name vuxo-dev --env-file docker/.env.local \
+            -f docker/compose.dev.yml -f docker/compose.dev-app.yml config --quiet
       - name: Validate observability compose overlay
         shell: bash
         run: |

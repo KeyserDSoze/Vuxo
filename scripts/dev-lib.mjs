@@ -69,14 +69,25 @@ export function validateLocalEnv(values) {
   return errors
 }
 
-const ALLOWED_LOG_SERVICES = new Set(['postgres', 'redis', 'ollama', 'ollama-model-init'])
+const ALLOWED_LOG_SERVICES = new Set(['postgres', 'redis', 'ollama', 'ollama-model-init', 'api', 'frontend'])
 
-export function composeArguments(envFile, composeFile, operation, option = undefined) {
+/** Do not allow inherited production VUXO_* shell variables to override the private dev env-file. */
+export function localProcessEnvironment(processEnvironment, localConfig) {
+  return {
+    ...Object.fromEntries(Object.entries(processEnvironment).filter(([key]) => !key.startsWith('VUXO_'))),
+    ...localConfig,
+  }
+}
+
+export function composeArguments(envFile, composeFile, operation, option = undefined, appComposeFile = undefined) {
   // Shell-free argument arrays prevent command injection or accidental use of
   // the production Compose stack. Compose project names also isolate volumes.
-  const prefix = ['compose', '--project-name', 'vuxo-dev', '--env-file', envFile, '-f', composeFile]
+  const prefix = ['compose', '--project-name', 'vuxo-dev', '--env-file', envFile, '-f', composeFile,
+    ...(appComposeFile ? ['-f', appComposeFile] : [])]
   if (operation === 'check') return [...prefix, 'config', '--quiet']
   if (operation === 'infra') return [...prefix, 'up', '-d', 'postgres', 'redis',
+    ...(option === 'ollama' ? ['ollama', 'ollama-model-init'] : [])]
+  if (operation === 'up') return [...prefix, 'up', '-d', 'postgres', 'redis', 'api', 'frontend',
     ...(option === 'ollama' ? ['ollama', 'ollama-model-init'] : [])]
   if (operation === 'status') return [...prefix, 'ps']
   if (operation === 'down') return [...prefix, 'down'] // Never use -v: preserve local databases.

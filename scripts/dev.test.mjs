@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import { strict as assert } from 'node:assert'
 import { readFileSync } from 'node:fs'
-import { composeArguments, parseLocalEnv, renderLocalEnv, validateLocalEnv } from './dev-lib.mjs'
+import { composeArguments, localProcessEnvironment, parseLocalEnv, renderLocalEnv, validateLocalEnv } from './dev-lib.mjs'
 
 const template = readFileSync(new URL('../docker/local.env.example', import.meta.url), 'utf8')
 const mockEntropy = bytes => Buffer.alloc(bytes, 0xaf)
@@ -66,4 +66,38 @@ test('Compose always uses isolated local project and env file; down preserves vo
   assert.equal(down.includes('-v'), false)
   assert.throws(() => composeArguments(...root, 'logs', '../secret'), /Unknown development service/)
   assert.throws(() => composeArguments(...root, 'deploy'), /Unsupported/)
+})
+
+test('Docker full app stack is explicitly selected and remains local/non-destructive', () => {
+  const root = ['/tmp/docker/.env.local', '/tmp/docker/compose.dev.yml']
+  const app = '/tmp/docker/compose.dev-app.yml'
+  const prefix = ['compose', '--project-name', 'vuxo-dev', '--env-file', root[0],
+    '-f', root[1], '-f', app]
+  assert.deepEqual(composeArguments(...root, 'check', undefined, app), [...prefix, 'config', '--quiet'])
+  assert.deepEqual(composeArguments(...root, 'infra', undefined, app),
+    [...prefix, 'up', '-d', 'postgres', 'redis'])
+  assert.deepEqual(composeArguments(...root, 'up', undefined, app),
+    [...prefix, 'up', '-d', 'postgres', 'redis', 'api', 'frontend'])
+  assert.deepEqual(composeArguments(...root, 'up', 'ollama', app),
+    [...prefix, 'up', '-d', 'postgres', 'redis', 'api', 'frontend', 'ollama', 'ollama-model-init'])
+  assert.deepEqual(composeArguments(...root, 'logs', 'frontend', app),
+    [...prefix, 'logs', '--tail', '100', 'frontend'])
+  assert.deepEqual(composeArguments(...root, 'down', undefined, app), [...prefix, 'down'])
+  assert.equal(composeArguments(...root, 'down', undefined, app).includes('-v'), false)
+})
+
+test('process environment cannot silently override local secrets/ports via production VUXO_* values', () => {
+  const local = create()
+  const merged = localProcessEnvironment({
+    PATH: '/safe', DOCKER_HOST: 'unix:///local/docker.sock',
+    VUXO_POSTGRES_PASSWORD: 'production-private-secret',
+    VUXO_ALLOWED_ORIGIN: 'https://vuxo.quest',
+    VUXO_FRONTEND_DEV_PORT: '443',
+    VUXO_CLOUDFLARE_TUNNEL_TOKEN: 'production-token',
+  }, local)
+  assert.equal(merged.VUXO_POSTGRES_PASSWORD, local.VUXO_POSTGRES_PASSWORD)
+  assert.equal(merged.VUXO_ALLOWED_ORIGIN, local.VUXO_ALLOWED_ORIGIN)
+  assert.equal(merged.VUXO_FRONTEND_DEV_PORT, '5173')
+  assert.equal(merged.VUXO_CLOUDFLARE_TUNNEL_TOKEN, undefined)
+  assert.equal(merged.PATH, '/safe')
 })

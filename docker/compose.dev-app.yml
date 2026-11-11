@@ -1,0 +1,65 @@
+# Local app only. Combine with compose.dev.yml through scripts/dev.mjs up.
+# Never include this file in any production deployment or use cloudflared here.
+services:
+  api:
+    image: mcr.microsoft.com/dotnet/sdk:10.0
+    init: true
+    working_dir: /workspace
+    volumes:
+      - ../:/workspace
+      - vuxo-dev-nuget:/root/.nuget/packages
+    command:
+      - dotnet
+      - watch
+      - --project
+      - src/backend/applications/Vuxo.Api/Vuxo.Api.csproj
+      - run
+      - --no-launch-profile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://0.0.0.0:8080
+      DOTNET_USE_POLLING_FILE_WATCHER: "true"
+      DOTNET_WATCH_SUPPRESS_LAUNCH_BROWSER: "true"
+      ConnectionStrings__GameDb: Host=postgres;Port=5432;Database=${VUXO_POSTGRES_DB:-vuxo};Username=${VUXO_POSTGRES_USER:-vuxo};Password=${VUXO_POSTGRES_PASSWORD:?VUXO_POSTGRES_PASSWORD is required}
+      Redis__ConnectionString: redis:6379
+      Auth__Jwt__Issuer: Vuxo
+      Auth__Jwt__Audience: Vuxo.Web
+      Auth__Jwt__SigningKey: ${VUXO_JWT_SIGNING_KEY:?VUXO_JWT_SIGNING_KEY is required}
+      Auth__EnableMockLogin: "true"
+      Database__ApplyMigrationsOnStartup: "true"
+      Cors__AllowedOrigins__0: ${VUXO_ALLOWED_ORIGIN:-http://127.0.0.1:5173}
+      Observability__Enabled: "false"
+      Llm__Enabled: ${VUXO_LLM_ENABLED:-false}
+      Llm__BaseUrl: http://ollama:11434/v1
+      Llm__Model: ${VUXO_LLM_MODEL:-qwen3:1.7b}
+    ports:
+      - "127.0.0.1:${VUXO_API_DEV_PORT:-8080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+  frontend:
+    image: node:24-bookworm-slim
+    working_dir: /workspace
+    volumes:
+      # Do not mount docker/.env.local or the backend into the Node container.
+      - ../src/frontend:/workspace
+      - vuxo-dev-node-modules:/workspace/node_modules
+    environment:
+      VITE_BASE_PATH: /Vuxo/
+      VITE_API_BASE_URL: http://127.0.0.1:${VUXO_API_DEV_PORT:-8080}
+      CHOKIDAR_USEPOLLING: "true"
+    command:
+      - sh
+      - -c
+      - npm install --no-audit --no-fund && npm run dev -- --host 0.0.0.0 --port 5173 --strictPort
+    ports:
+      - "127.0.0.1:${VUXO_FRONTEND_DEV_PORT:-5173}:5173"
+    depends_on:
+      api:
+        condition: service_started
+
+volumes:
+  vuxo-dev-nuget:
+  vuxo-dev-node-modules:
