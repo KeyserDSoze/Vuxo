@@ -19,6 +19,8 @@ on:
       - src/frontend/src/game/WorldArtwork.ts
       - src/frontend/src/game/WorldPortalArtwork.ts
       - src/frontend/src/game/WorldScene.ts
+      - src/frontend/src/game/WorldTerrainWindow.ts
+      - src/frontend/tests/world-terrain-window.spec.ts
       - src/frontend/src/game/WorldCamera.ts
       - src/frontend/tests/world-camera.spec.ts
       - src/frontend/tests/world-portals.spec.ts
