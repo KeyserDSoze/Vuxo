@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import { strict as assert } from 'node:assert'
 import { readFileSync } from 'node:fs'
-import { composeArguments, localProcessEnvironment, localHostEnvironment, classifyHostDebugFailure, parseLocalEnv, renderLocalEnv, validateLocalEnv, hostRuntimeEnvironment, hostCommandArguments, localHttpEndpoints, waitForLocalHttp } from './dev-lib.mjs'
+import { composeArguments, localProcessEnvironment, localDockerIdentity, localHostEnvironment, classifyHostDebugFailure, parseLocalEnv, renderLocalEnv, validateLocalEnv, hostRuntimeEnvironment, hostCommandArguments, localHttpEndpoints, waitForLocalHttp } from './dev-lib.mjs'
 
 const template = readFileSync(new URL('../docker/local.env.example', import.meta.url), 'utf8')
 const mockEntropy = bytes => Buffer.alloc(bytes, 0xaf)
@@ -261,4 +261,27 @@ test('host CLI diagnostic classification never echoes private child stdout/stder
     assert.doesNotMatch(output, /SECRETVALUE|SECRET_TOKEN/)
   }
   assert.doesNotMatch(classifyHostDebugFailure(secret), /SECRETVALUE|SECRET_TOKEN/)
+})
+
+test('development Docker uses host ownership, isolated caches and no checkout chown', () => {
+  assert.deepEqual(localDockerIdentity('linux', 1001, 1100),
+    { VUXO_DEV_UID: '1001', VUXO_DEV_GID: '1100' })
+  assert.deepEqual(localDockerIdentity('win32'),
+    { VUXO_DEV_UID: '1000', VUXO_DEV_GID: '1000' })
+  assert.deepEqual(localDockerIdentity('linux', -1, Number.NaN),
+    { VUXO_DEV_UID: '1000', VUXO_DEV_GID: '1000' })
+  const inherited = { VUXO_DEV_UID: '0', VUXO_DEV_GID: '0', PATH: '/usr/bin' }
+  const safe = localProcessEnvironment(inherited, {
+    ...create(), ...localDockerIdentity('linux', 1001, 1100),
+  })
+  assert.equal(safe.VUXO_DEV_UID, '1001')
+  assert.equal(safe.VUXO_DEV_GID, '1100')
+  const compose = readFileSync(new URL('../docker/compose.dev-app.yml', import.meta.url), 'utf8')
+  assert.equal(compose.split('user: "').length - 1, 3)
+  assert.equal(compose.split('service_completed_successfully').length - 1, 2)
+  assert.match(compose, /NUGET_PACKAGES: \/nuget/)
+  assert.match(compose, /NPM_CONFIG_CACHE: \/tmp\/.npm-cache/)
+  assert.match(compose, /--package-lock=false/)
+  assert.doesNotMatch(compose, /privileged:|--privileged|chown.*\/workspace/)
+  assert.match(compose, /127\.0\.0\.1:/)
 })
