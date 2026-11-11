@@ -28,7 +28,7 @@ jobs:
           node-version: 24
       - name: Validate offline sampling redaction and strict status expectations
         run: node --test scripts/verify-public-auth.test.mjs scripts/sample-public-edge.test.mjs
-      - name: Read-only sample: three separated public edge route sets
+      - name: Read-only public edge route sample (three rounds)
         env:
           VUXO_EDGE_SAMPLE_OUTPUT: vuxo-public-edge-samples.json
         run: node scripts/sample-public-edge.mjs
