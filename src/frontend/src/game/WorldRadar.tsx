@@ -11,6 +11,7 @@ const RANGE_TILES = 12
 const CENTER = 72
 const DRAW_RADIUS = 50
 export const MAX_RADAR_PEERS = 24
+export const MAX_RADAR_PORTALS = 24
 
 type WorldPoint = { x: number; y: number }
 export type RadarProjection = {
@@ -60,6 +61,27 @@ export function selectRadarPeers<T extends RadarPeer>(
     .slice(0, MAX_RADAR_PEERS)
 }
 
+/**
+ * Prioritize the closest owner-granted portals when the API returns more than
+ * the radar can display. The index (and thus the portal's number in the HUD)
+ * remains the original API-list index, not its distance ranking.
+ * No local data grants permission to enter a portal.
+ */
+export function selectRadarPortals<T extends WorldPoint & { id: string }>(
+  self: WorldPoint,
+  portals: readonly T[],
+): Array<{ portal: T; number: number; point: RadarProjection }> {
+  return portals
+    .map((portal, index) => ({
+      portal, number: index + 1, point: portal && projectRadarPoint(self, portal),
+    }))
+    .filter((entry): entry is { portal: T; number: number; point: RadarProjection } =>
+      entry.point !== null && typeof entry.portal?.id === 'string' && entry.portal.id.length > 0)
+    .sort((a, b) => a.point.distance - b.point.distance
+      || (a.portal.id < b.portal.id ? -1 : a.portal.id > b.portal.id ? 1 : 0))
+    .slice(0, MAX_RADAR_PORTALS)
+}
+
 export function WorldRadar({
   status, self, players, portals,
 }: {
@@ -81,13 +103,9 @@ export function WorldRadar({
   // Keep the radar bounded even in crowded scenes; do not invent remote peers.
   const peers = selectRadarPeers(self, players)
 
-  // Portals are fetched only from the authenticated, owner-only list. A
-  // distant granted portal gets an edge marker, not a fake nearby position.
-  const grants = portals
-    .map((portal, index) => ({ portal, number: index + 1, point: projectRadarPoint(self, portal) }))
-    .filter((entry): entry is { portal: WorldPortalMarker; number: number; point: RadarProjection } =>
-      entry.point !== null && typeof entry.portal.id === 'string' && !!entry.portal.id)
-    .slice(0, 24)
+  // Only owner-granted API portals are eligible; when >24 exist, prefer near
+  // markers to distant edge markers and preserve each API-list number.
+  const grants = selectRadarPortals(self, portals)
 
   return (
     <Box

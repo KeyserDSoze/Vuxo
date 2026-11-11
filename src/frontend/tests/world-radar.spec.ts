@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { MAX_RADAR_PEERS, projectRadarPoint, selectRadarPeers } from '../src/game/WorldRadar'
+import { MAX_RADAR_PEERS, MAX_RADAR_PORTALS, projectRadarPoint, selectRadarPeers, selectRadarPortals } from '../src/game/WorldRadar'
 
 const self = { playerId: 'self', x: 0, y: 0 }
 
@@ -48,4 +48,59 @@ test('radar excludes self, invalid coordinates and off-range peers without inven
   expect(projectRadarPoint(self, { x: Infinity, y: 0 })).toBeNull()
   expect(selectRadarPeers({ playerId: 'bad', x: NaN, y: 0 }, peers)).toEqual([])
   expect(selectRadarPeers(self, [])).toEqual([])
+})
+
+test('crowded portal radar selects the nearest 24 instead of the first distant grants', () => {
+  const portals = [
+    ...Array.from({ length: 30 }, (_, index) => ({
+      id: 'far-' + String(index).padStart(2, '0'),
+      contentKey: 'portal.grove',
+      x: 100 + index,
+      y: 0,
+    })),
+    ...Array.from({ length: 10 }, (_, index) => ({
+      id: 'near-' + String(index).padStart(2, '0'),
+      contentKey: 'portal.grove',
+      x: index + 1,
+      y: 0,
+    })),
+  ]
+  const selected = selectRadarPortals(self, portals)
+  expect(selected).toHaveLength(MAX_RADAR_PORTALS)
+  expect(selected.slice(0, 10).map(x => x.portal.id)).toEqual(
+    Array.from({ length: 10 }, (_, index) => 'near-' + String(index).padStart(2, '0')))
+  expect(selected.slice(0, 10).map(x => x.number)).toEqual(
+    Array.from({ length: 10 }, (_, index) => index + 31))
+  expect(selected.slice(0, 10).every(x => !x.point.atEdge)).toBe(true)
+  expect(selected.slice(10).every(x => x.point.atEdge)).toBe(true)
+  expect(selected.every(x => portals[x.number - 1] === x.portal)).toBe(true)
+})
+
+test('portal radar uses grant IDs for stable ties and rejects invalid projected positions', () => {
+  const portals = [
+    { id: 'zeta', contentKey: 'portal.grove', x: -2, y: 0 },
+    { id: 'alpha', contentKey: 'portal.grove', x: 2, y: 0 },
+    { id: 'invalid-nan', contentKey: 'portal.grove', x: NaN, y: 0 },
+    { id: '', contentKey: 'portal.grove', x: 1, y: 0 },
+    { id: 'invalid-infinite', contentKey: 'portal.grove', x: Infinity, y: 0 },
+  ]
+  const result = selectRadarPortals(self, portals)
+  expect(result.map(x => x.portal.id)).toEqual(['alpha', 'zeta'])
+  expect(result.map(x => x.number)).toEqual([2, 1])
+  expect(selectRadarPortals(self, [portals[1], portals[0]]).map(x => x.portal.id))
+    .toEqual(result.map(x => x.portal.id))
+  expect(selectRadarPortals({ x: NaN, y: 0 }, portals)).toEqual([])
+  expect(selectRadarPortals(self, [])).toEqual([])
+})
+
+test('small portal lists keep original marker number and correct world projection', () => {
+  const portals = [
+    { id: 'distant', contentKey: 'portal.grove', x: -50, y: 0 },
+    { id: 'nearby', contentKey: 'portal.grove', x: 1, y: -1 },
+  ]
+  const selected = selectRadarPortals(self, portals)
+  expect(selected.map(x => [x.portal.id, x.number])).toEqual([['nearby', 2], ['distant', 1]])
+  expect(selected[0].point.atEdge).toBe(false)
+  expect(selected[1].point.atEdge).toBe(true)
+  expect(selected[0].point.y).toBeLessThan(72) // World Y grows south.
 })
