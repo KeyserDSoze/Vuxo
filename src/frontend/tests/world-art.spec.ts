@@ -150,8 +150,11 @@ test('two illustrated wanderers coexist in the authoritative world at mobile siz
       const encoded = document.querySelector('[data-testid="game-canvas"]')
         ?.getAttribute('data-e2e-avatar-facing')
       if (!encoded) return false
-      const facing = JSON.parse(encoded) as Array<{ playerId: string; facing: string; profileVisible: boolean }>
-      return facing.some(item => item.playerId === 'art-player-a' && item.facing === 'east' && item.profileVisible)
+      const facing = JSON.parse(encoded) as Array<{
+        playerId: string; facing: string; frontVisible: boolean; profileVisible: boolean
+      }>
+      return facing.some(item => item.playerId === 'art-player-a'
+        && item.facing === 'east' && item.profileVisible && !item.frontVisible)
     })).toBe(true)
     // The local renderer must agree with the peer's server-owned facing.
     await expect.poll(() => pageA.evaluate(() => {
@@ -159,10 +162,12 @@ test('two illustrated wanderers coexist in the authoritative world at mobile siz
         ?.getAttribute('data-e2e-avatar-facing')
       if (!encoded) return false
       const facing = JSON.parse(encoded) as Array<{
-        playerId: string; facing: string; profileVisible: boolean; scaleX: number
+        playerId: string; facing: string; frontVisible: boolean
+        profileVisible: boolean; scaleX: number
       }>
       return facing.some(item => item.playerId === 'art-player-a'
-        && item.facing === 'east' && item.profileVisible && item.scaleX === 1)
+        && item.facing === 'east' && !item.frontVisible
+        && item.profileVisible && item.scaleX === 1)
     })).toBe(true)
 
     await pageA.evaluate(() => window.dispatchEvent(new Event('vuxo:e2e-reconnect')))
@@ -262,24 +267,27 @@ test('canonical server target turns avatars north, east, south and west with act
   const host = page.getByTestId('game-canvas')
   const self = page.locator('[data-player-id="facing-player"]')
   await expect(page.getByTestId('world-connection-status')).toHaveAttribute('data-status', 'connected')
-  await expect(host).toHaveAttribute('data-e2e-world-art-version', 'vuxo-world-art-v3')
+  await expect(host).toHaveAttribute('data-e2e-world-art-version', 'vuxo-world-art-v4')
   const facing = async () => host.evaluate(element => {
     const encoded = element.getAttribute('data-e2e-avatar-facing')
     if (!encoded) return null
     const snapshots = JSON.parse(encoded) as Array<{
-      playerId: string; facing: string; rearVisible: boolean
-      profileVisible: boolean; scaleX: number
+      playerId: string; facing: string; frontVisible: boolean
+      rearVisible: boolean; profileVisible: boolean; scaleX: number
     }>
     return snapshots.find(item => item.playerId === 'facing-player') ?? null
   })
 
   await expect.poll(async () => (await facing())?.facing).toBe('south')
+  expect((await facing())?.frontVisible).toBe(true)
+  expect((await facing())?.rearVisible).toBe(false)
+  expect((await facing())?.profileVisible).toBe(false)
   await host.locator('canvas').click()
   const turns = [
-    { key: 'ArrowUp', coordinate: 'y', toward: 'less', direction: 'north', rear: true, side: false, scaleX: 1 },
-    { key: 'ArrowRight', coordinate: 'x', toward: 'more', direction: 'east', rear: false, side: true, scaleX: 1 },
-    { key: 'ArrowDown', coordinate: 'y', toward: 'more', direction: 'south', rear: false, side: false, scaleX: 1 },
-    { key: 'ArrowLeft', coordinate: 'x', toward: 'less', direction: 'west', rear: false, side: true, scaleX: -1 },
+    { key: 'ArrowUp', coordinate: 'y', toward: 'less', direction: 'north', front: false, rear: true, side: false, scaleX: 1 },
+    { key: 'ArrowRight', coordinate: 'x', toward: 'more', direction: 'east', front: false, rear: false, side: true, scaleX: 1 },
+    { key: 'ArrowDown', coordinate: 'y', toward: 'more', direction: 'south', front: true, rear: false, side: false, scaleX: 1 },
+    { key: 'ArrowLeft', coordinate: 'x', toward: 'less', direction: 'west', front: false, rear: false, side: true, scaleX: -1 },
   ] as const
   for (const turn of turns) {
     const coordinateAttribute = turn.coordinate === 'x' ? 'data-player-x' : 'data-player-y'
@@ -292,20 +300,25 @@ test('canonical server target turns avatars north, east, south and west with act
     await expect.poll(async () => (await facing())?.facing).toBe(turn.direction)
     await page.keyboard.up(turn.key)
     const pose = await facing()
+    expect(pose?.frontVisible).toBe(turn.front)
     expect(pose?.rearVisible).toBe(turn.rear)
     expect(pose?.profileVisible).toBe(turn.side)
     expect(pose?.scaleX).toBe(turn.scaleX)
-    if (turn.direction === 'north' || turn.direction === 'west') {
-      await info.attach('server-faced-' + turn.direction + '-390px', {
-        body: await page.screenshot({ animations: 'disabled' }), contentType: 'image/png',
-      })
-    }
+    // Attach all four directions, not only the rear/left examples, so the
+    // visual QA can compare that the south face is absent elsewhere.
+    await info.attach('server-faced-' + turn.direction + '-390px', {
+      body: await page.screenshot({ animations: 'disabled' }), contentType: 'image/png',
+    })
   }
   const directionAfterMoving = (await facing())?.facing
   await page.setViewportSize({ width: 1280, height: 720 })
   await expect.poll(async () => (await facing())?.facing).toBe(directionAfterMoving)
   await page.emulateMedia({ reducedMotion: 'no-preference' })
   await expect.poll(async () => (await facing())?.facing).toBe(directionAfterMoving)
+  expect((await facing())?.frontVisible).toBe(false)
+  await info.attach('server-faced-west-1280px', {
+    body: await page.screenshot({ animations: 'disabled' }), contentType: 'image/png',
+  })
   await expect(host.locator('canvas')).toBeVisible()
   await expect.poll(() => page.evaluate(() =>
     document.documentElement.scrollWidth <= innerWidth + 1 &&
@@ -324,7 +337,7 @@ test('woodland landmarks persist at canonical coordinates across viewport resize
   const host = page.getByTestId('game-canvas')
   const self = page.locator('[data-player-id="woodland-player"]')
   await expect(page.getByTestId('world-connection-status')).toHaveAttribute('data-status', 'connected')
-  await expect(host).toHaveAttribute('data-e2e-world-art-version', 'vuxo-world-art-v3')
+  await expect(host).toHaveAttribute('data-e2e-world-art-version', 'vuxo-world-art-v4')
   const landmarks = async () => host.evaluate(element => {
     const serialized = element.getAttribute('data-e2e-woodland-landmarks')
     return serialized ? JSON.parse(serialized) as Array<{

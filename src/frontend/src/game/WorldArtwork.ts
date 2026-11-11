@@ -5,7 +5,7 @@ import { PREVIEW_COLORS } from '../features/character/appearance'
 // VUXO's first original procedural world art. These graphics are presentation
 // only: no asset licence, gameplay collision, coordinates, economy or
 // server-owned data are introduced. When provided, cosmetics are server-sourced.
-export const WORLD_ART_VERSION = 'vuxo-world-art-v3'
+export const WORLD_ART_VERSION = 'vuxo-world-art-v4'
 export type WandererFacing = 'north' | 'south' | 'east' | 'west'
 const TILE = 32
 
@@ -22,6 +22,7 @@ type CloakPalette = {
 const wandererMotion = new WeakMap<Phaser.GameObjects.Container, {
   gait: Phaser.GameObjects.Container
   trail: Phaser.GameObjects.Ellipse
+  front: Phaser.GameObjects.Graphics
   profile: Phaser.GameObjects.Graphics
   rear: Phaser.GameObjects.Graphics
   facing: WandererFacing
@@ -32,6 +33,7 @@ export function setIllustratedWandererFacing(avatar: Phaser.GameObjects.Containe
   const layer = wandererMotion.get(avatar)
   if (!layer) return
   layer.facing = facing
+  layer.front.visible = facing === 'south'
   layer.rear.visible = facing === 'north'
   layer.profile.visible = facing === 'east' || facing === 'west'
   // Both profiles are drawn once; the west profile is a mirror of east.
@@ -41,12 +43,14 @@ export function setIllustratedWandererFacing(avatar: Phaser.GameObjects.Containe
 /** Test-only scene diagnostics can verify that drawing layers agree with the facing. */
 export function readIllustratedWandererFacing(avatar: Phaser.GameObjects.Container): {
   facing: WandererFacing
+  frontVisible: boolean
   rearVisible: boolean
   profileVisible: boolean
 } | null {
   const layer = wandererMotion.get(avatar)
   return layer ? {
     facing: layer.facing,
+    frontVisible: layer.front.visible,
     rearVisible: layer.rear.visible,
     profileVisible: layer.profile.visible,
   } : null
@@ -188,38 +192,42 @@ export function createIllustratedWanderer(
   painting.fillStyle(palette.trim, 1)
   painting.fillCircle(leftAccessory ? -11 : 10, -12, 1.1)
 
+  // Keep the frontal face in its own view layer. Otherwise its eyes and
+  // hairstyle can leak around the narrower profile/rear head silhouettes.
+  // Both cosmetics and the shared body stay anchored to the same feet.
+  const front = scene.add.graphics()
   // Large face and expressive eyes read better on portrait mobile screens.
-  painting.fillStyle(0x122334, 1)
-  painting.fillEllipse(0, -36, 25, 24)
-  painting.fillStyle(skin, 1)
-  painting.fillEllipse(0, -35, appearance?.face === 'face-2' ? 24 : appearance?.face === 'face-3' ? 19 : 21, 20)
-  painting.fillStyle(palette.hair, 1)
-  painting.fillEllipse(0, -42, 23, 12)
+  front.fillStyle(0x122334, 1)
+  front.fillEllipse(0, -36, 25, 24)
+  front.fillStyle(skin, 1)
+  front.fillEllipse(0, -35, appearance?.face === 'face-2' ? 24 : appearance?.face === 'face-3' ? 19 : 21, 20)
+  front.fillStyle(palette.hair, 1)
+  front.fillEllipse(0, -42, 23, 12)
   if (appearance?.hairStyle === 'hair-2' || appearance?.hairStyle === 'hair-3') {
-    painting.fillRoundedRect(-12, -42, 5, appearance.hairStyle === 'hair-3' ? 20 : 13, 2)
-    painting.fillRoundedRect(7, -42, 5, appearance.hairStyle === 'hair-3' ? 20 : 13, 2)
+    front.fillRoundedRect(-12, -42, 5, appearance.hairStyle === 'hair-3' ? 20 : 13, 2)
+    front.fillRoundedRect(7, -42, 5, appearance.hairStyle === 'hair-3' ? 20 : 13, 2)
   } else if (appearance?.hairStyle === 'hair-4') {
-    painting.fillTriangle(-12, -44, -4, -33, 3, -42)
-    painting.fillTriangle(0, -45, 8, -33, 12, -43)
+    front.fillTriangle(-12, -44, -4, -33, 3, -42)
+    front.fillTriangle(0, -45, 8, -33, 12, -43)
   } else {
-    painting.fillTriangle(-11, -42, -8, -32, -3, -42)
-    painting.fillTriangle(5, -43, 9, -32, 11, -42)
+    front.fillTriangle(-11, -42, -8, -32, -3, -42)
+    front.fillTriangle(5, -43, 9, -32, 11, -42)
   }
-  painting.fillStyle(0x202a3d, 1)
-  painting.fillCircle(-5, appearance?.face === 'face-3' ? -36 : -35, 1.4)
-  painting.fillCircle(5, appearance?.face === 'face-3' ? -36 : -35, 1.4)
-  painting.lineStyle(1, 0x704b35, 0.9)
-  if (appearance?.face === 'face-2') painting.lineBetween(-2, -29, 2, -29)
-  else painting.strokeEllipse(0, -30, 4, appearance?.face === 'face-3' ? 1 : 2)
+  front.fillStyle(0x202a3d, 1)
+  front.fillCircle(-5, appearance?.face === 'face-3' ? -36 : -35, 1.4)
+  front.fillCircle(5, appearance?.face === 'face-3' ? -36 : -35, 1.4)
+  front.lineStyle(1, 0x704b35, 0.9)
+  if (appearance?.face === 'face-2') front.lineBetween(-2, -29, 2, -29)
+  else front.strokeEllipse(0, -30, 4, appearance?.face === 'face-3' ? 1 : 2)
   // A bright clasp and a subtle rune distinguish the player's avatar.
-  painting.fillStyle(isSelf ? 0xffec91 : palette.trim, 1)
-  painting.fillCircle(0, -22, 3)
-  painting.fillStyle(0xffffff, 0.85)
-  painting.fillCircle(-1, -23, 0.8)
+  front.fillStyle(isSelf ? 0xffec91 : palette.trim, 1)
+  front.fillCircle(0, -22, 3)
+  front.fillStyle(0xffffff, 0.85)
+  front.fillCircle(-1, -23, 0.8)
 
-  // Alternate original views cover the frontal face only when the *server*
-  // changes the movement target. Both shapes are built once per avatar, then
-  // switched by visibility; they never touch position, collision or input.
+  // The frontal face, profile and rear are mutually exclusive. Each view is
+  // built once per avatar; server-owned turns only toggle Graphics visibility.
+  // No per-frame redraw, additional input surface or new world coordinates.
   const profile = scene.add.graphics()
   profile.fillStyle(palette.mantle, 1)
   profile.fillRoundedRect(-10, -27, 18, 16, 4)
@@ -254,9 +262,9 @@ export function createIllustratedWanderer(
   // A single low-opacity ground flash is drawn once and reused every frame.
   const trail = scene.add.ellipse(0, -1, 30, 8, palette.trim, 0.38)
   trail.alpha = 0
-  const gait = scene.add.container(0, 0, [painting, profile, rear])
+  const gait = scene.add.container(0, 0, [painting, front, profile, rear])
   const body = scene.add.container(0, 0, [glow, shadow, trail, gait])
-  wandererMotion.set(body, { gait, trail, profile, rear, facing: 'south' })
+  wandererMotion.set(body, { gait, trail, front, profile, rear, facing: 'south' })
   body.setDepth(10)
   body.setSize(34, 50)
   return body
