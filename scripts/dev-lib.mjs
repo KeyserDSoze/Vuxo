@@ -1,4 +1,5 @@
 import { randomBytes } from 'node:crypto'
+import { setTimeout as delay } from 'node:timers/promises'
 
 const REQUIRED_PORTS = [
   'VUXO_API_DEV_PORT',
@@ -118,6 +119,32 @@ export function hostCommandArguments(config, operation) {
   if (operation === 'chromium') return ['playwright', 'install', 'chromium']
   if (operation === 'playwright') return ['run', 'test:e2e']
   throw new Error('Unsupported host workflow')
+}
+
+
+/** Readiness is checked from the developer's host, not merely Docker container state. */
+export function localHttpEndpoints(config) {
+  return [
+    { name: 'API', url: `http://127.0.0.1:${config.VUXO_API_DEV_PORT}/health` },
+    { name: 'Vite', url: `http://127.0.0.1:${config.VUXO_FRONTEND_DEV_PORT}/Vuxo/` },
+  ]
+}
+
+export async function waitForLocalHttp(url, {
+  request = fetch, pause = delay, attempts = 150, intervalMs = 2000,
+} = {}) {
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      const response = await request(url, { cache: 'no-store', signal: AbortSignal.timeout(2500) })
+      await response.body?.cancel()
+      if (response.status === 200) return true
+    } catch {
+      // Cold .NET restore/npm installs and early connection refusals are
+      // expected during boot; timeout still produces a non-zero CLI exit.
+    }
+    if (attempt + 1 < attempts) await pause(intervalMs)
+  }
+  return false
 }
 
 const ALLOWED_LOG_SERVICES = new Set(['postgres', 'redis', 'ollama', 'ollama-model-init', 'api', 'frontend'])

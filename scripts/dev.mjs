@@ -2,7 +2,7 @@
 import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { parseLocalEnv, renderLocalEnv, validateLocalEnv, composeArguments, localProcessEnvironment, hostRuntimeEnvironment, hostCommandArguments } from './dev-lib.mjs'
+import { parseLocalEnv, renderLocalEnv, validateLocalEnv, composeArguments, localProcessEnvironment, hostRuntimeEnvironment, hostCommandArguments, localHttpEndpoints, waitForLocalHttp } from './dev-lib.mjs'
 
 const templateFile = fileURLToPath(new URL('../docker/local.env.example', import.meta.url))
 const envFile = fileURLToPath(new URL('../docker/.env.local', import.meta.url))
@@ -208,6 +208,19 @@ async function main(args) {
   }
   const extra = ['infra', 'up'].includes(command) ? (options[0] === '--ollama' ? 'ollama' : undefined) : options[0]
   await docker(composeArguments(envFile, composeFile, command, extra, appComposeFile), runtimeConfig)
+  if (command === 'up') {
+    const endpoints = localHttpEndpoints(config)
+    const checks = await Promise.all(endpoints.map(async endpoint => ({
+      ...endpoint, healthy: await waitForLocalHttp(endpoint.url),
+    })))
+    const failed = checks.filter(check => !check.healthy)
+    if (failed.length) {
+      throw new Error('Local ' + failed.map(check => check.name).join('/') +
+        ' never returned HTTP 200; inspect node scripts/dev.mjs logs api|frontend')
+    }
+    console.log('Local development stack ready:')
+    for (const endpoint of endpoints) console.log('  ' + endpoint.name + ': ' + endpoint.url)
+  }
 }
 
 main(process.argv.slice(2)).catch(error => {

@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import { strict as assert } from 'node:assert'
 import { readFileSync } from 'node:fs'
-import { composeArguments, localProcessEnvironment, parseLocalEnv, renderLocalEnv, validateLocalEnv, hostRuntimeEnvironment, hostCommandArguments } from './dev-lib.mjs'
+import { composeArguments, localProcessEnvironment, parseLocalEnv, renderLocalEnv, validateLocalEnv, hostRuntimeEnvironment, hostCommandArguments, localHttpEndpoints, waitForLocalHttp } from './dev-lib.mjs'
 
 const template = readFileSync(new URL('../docker/local.env.example', import.meta.url), 'utf8')
 const mockEntropy = bytes => Buffer.alloc(bytes, 0xaf)
@@ -171,4 +171,42 @@ test('explicit Ollama opt-in uses the configured model but never changes persist
   assert.equal(env.VUXO_LLM_ENABLED, 'false')
   assert.deepEqual(composeArguments('env', 'base', 'infra', 'ollama', 'overlay').slice(-4),
     ['postgres', 'redis', 'ollama', 'ollama-model-init'])
+})
+
+test('up readiness checks actual loopback HTTP 200 for API and Vite, including custom ports', async () => {
+  const env = create()
+  const endpoints = localHttpEndpoints(env)
+  assert.deepEqual(endpoints, [
+    { name: 'API', url: 'http://127.0.0.1:8080/health' },
+    { name: 'Vite', url: 'http://127.0.0.1:5173/Vuxo/' },
+  ])
+  env.VUXO_API_DEV_PORT = '9008'
+  env.VUXO_FRONTEND_DEV_PORT = '5199'
+  env.VUXO_ALLOWED_ORIGIN = 'http://127.0.0.1:5199'
+  assert.deepEqual(localHttpEndpoints(env).map(e => e.url), [
+    'http://127.0.0.1:9008/health', 'http://127.0.0.1:5199/Vuxo/',
+  ])
+  let attempts = 0
+  let sleeps = 0
+  assert.equal(await waitForLocalHttp('http://127.0.0.1:9008/health', {
+    request: async () => ({ status: ++attempts === 3 ? 200 : 503 }),
+    pause: async () => { sleeps++ },
+    attempts: 4,
+    intervalMs: 0,
+  }), true)
+  assert.equal(attempts, 3)
+  assert.equal(sleeps, 2)
+  let refused = 0
+  assert.equal(await waitForLocalHttp('http://127.0.0.1:5199/Vuxo/', {
+    request: async () => { refused++; throw new Error('ECONNREFUSED') },
+    pause: async () => {},
+    attempts: 3,
+    intervalMs: 0,
+  }), false)
+  assert.equal(refused, 3)
+  assert.equal(await waitForLocalHttp('http://127.0.0.1:5199/Vuxo/', {
+    request: async () => ({ status: 500 }),
+    pause: async () => {},
+    attempts: 1,
+  }), false)
 })
