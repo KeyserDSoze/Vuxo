@@ -29,6 +29,8 @@ async function mockPrivatePortals(
   extraMarkers: Array<{ id: string; contentKey: string; x: number; y: number }> = [],
 ) {
   let consumed = false;
+  let currentX = x;
+  let currentY = y;
   let entryCalls = 0;
   let listCalls = 0;
   let attempts = 0;
@@ -43,10 +45,10 @@ async function mockPrivatePortals(
     let body: unknown;
     if (pathname === '/api/personal-content/world-portals' && req.method() === 'GET') {
       listCalls++;
-      body = consumed ? [] : [{ id: grantId, contentKey: 'portal.grove', x, y }, ...extraMarkers];
+      body = consumed ? [] : [{ id: grantId, contentKey: 'portal.grove', x: currentX, y: currentY }, ...extraMarkers];
     } else if (pathname.endsWith('/world-portals/' + grantId + '/enter')) {
       entryCalls++;
-      body = { id: grantId, contentKey: 'portal.grove', x, y };
+      body = { id: grantId, contentKey: 'portal.grove', x: currentX, y: currentY };
     } else if (pathname === '/api/personal-content') {
       body = consumed ? [] : [{
         id: grantId, contentKey: 'portal.grove', portalKey: 'challenge.sequence.v1',
@@ -71,7 +73,12 @@ async function mockPrivatePortals(
     await route.fulfill({ status, contentType: 'application/json', headers: cors,
       body: JSON.stringify(body) });
   });
-  return { getEntryCalls: () => entryCalls, getAttempts: () => attempts, getListCalls: () => listCalls };
+  return {
+    getEntryCalls: () => entryCalls,
+    getAttempts: () => attempts,
+    getListCalls: () => listCalls,
+    relocate: (nextX: number, nextY: number) => { currentX = nextX; currentY = nextY; },
+  };
 }
 
 test.beforeEach(async ({ request }) => {
@@ -362,6 +369,81 @@ test('runic portal hover responds to real mouse input, preserves the 19px target
   });
   await page.mouse.down();
   await page.mouse.up();
+  await expect(page.getByTestId('world-portal-dialog')).toBeVisible();
+  expect(api.getEntryCalls()).toBe(1);
+});
+
+
+test('same owner grant relocates its Phaser art and 19px click target after a fresh API poll', async ({ page }, info) => {
+  test.setTimeout(75_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await initializePlayer(page);
+  const api = await mockPrivatePortals(page);
+  await page.goto(origin + '/Vuxo/#/game');
+
+  const host = page.getByTestId('game-canvas');
+  const canvas = host.locator('canvas');
+  await expect(page.getByTestId('world-connection-status')).toHaveAttribute('data-status', 'connected');
+  await expect(host).toHaveAttribute('data-rendered-portals', '1');
+  type PortalArt = {
+    count: number; builds: number; hitCenters: number[][];
+    hitRadii: number[]; hitScales: number[][];
+  };
+  const art = async () => JSON.parse(
+    (await host.getAttribute('data-e2e-portal-art')) ?? '{}'
+  ) as PortalArt;
+  await expect.poll(async () => (await art()).hitCenters).toEqual([[4.5 * 32, 4.5 * 32]]);
+  expect((await art()).builds).toBe(1);
+  const pollsBeforeRelocation = api.getListCalls();
+  expect(pollsBeforeRelocation).toBeGreaterThan(0);
+
+  // Only the Playwright private-API fixture changes the owner marker. The
+  // normal 15s production refresh must notice the same grant with a new
+  // position; no fake Phaser scene event, client position write or rejoin.
+  api.relocate(8.5, 4.5);
+  await expect.poll(() => api.getListCalls(), { timeout: 24_000 })
+    .toBeGreaterThan(pollsBeforeRelocation);
+  await expect.poll(async () => (await art()).hitCenters).toEqual([[8.5 * 32, 4.5 * 32]]);
+  const rebuilt = await art();
+  expect(rebuilt.count).toBe(1);
+  expect(rebuilt.builds).toBe(2);
+  expect(rebuilt.hitRadii).toEqual([19]);
+  expect(rebuilt.hitScales).toEqual([[1, 1]]);
+  // No repaint/rebuild each animation frame when the owner snapshot stays
+  // identical. Both ring and absolute-coordinate Graphics were replaced.
+  await page.waitForTimeout(180);
+  expect((await art()).builds).toBe(2);
+
+  const screen = await host.evaluate(element => ({
+    x: Number(element.dataset.portalScreenX),
+    y: Number(element.dataset.portalScreenY),
+    zoom: Number(element.getAttribute('data-e2e-camera-zoom')),
+  }));
+  expect(Number.isFinite(screen.x) && Number.isFinite(screen.y)).toBe(true);
+  const bounds = await canvas.boundingBox();
+  if (!bounds) throw new Error('World canvas missing');
+  const dimensions = await canvas.evaluate(element => ({
+    width: (element as HTMLCanvasElement).width,
+    height: (element as HTMLCanvasElement).height,
+  }));
+  const toCanvas = (x: number, y: number) => ({
+    x: x * bounds.width / dimensions.width,
+    y: y * bounds.height / dimensions.height,
+  });
+  const previousX = screen.x - 4 * 32 * screen.zoom;
+  expect(previousX).toBeGreaterThan(19);
+  expect(screen.x).toBeLessThan(dimensions.width - 19);
+  // Old owner's marker was destroyed: the former interactive ring must not
+  // silently enter a grant after the API relocates it.
+  await canvas.click({ position: toCanvas(previousX, screen.y) });
+  await expect(page.getByTestId('world-portal-dialog')).toHaveCount(0);
+  expect(api.getEntryCalls()).toBe(0);
+
+  await info.attach('relocated-owner-portal-390px', {
+    body: await page.screenshot({ animations: 'disabled' }),
+    contentType: 'image/png',
+  });
+  await canvas.click({ position: toCanvas(screen.x, screen.y) });
   await expect(page.getByTestId('world-portal-dialog')).toBeVisible();
   expect(api.getEntryCalls()).toBe(1);
 });

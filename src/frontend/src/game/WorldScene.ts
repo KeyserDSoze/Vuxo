@@ -28,6 +28,7 @@ type PlayerVisual = {
 export class WorldScene extends Phaser.Scene {
   private readonly players = new Map<string, PlayerVisual>()
   private readonly portalVisuals = new Map<string, IllustratedPortal>()
+  private portalBuilds = 0
   private terrainGraphics: Phaser.GameObjects.Graphics | null = null
   private terrainWindow: WorldTerrainWindow | null = null
   private terrainRedraws = 0
@@ -84,6 +85,7 @@ export class WorldScene extends Phaser.Scene {
       this.terrainRedraws = 0
       for (const visual of this.portalVisuals.values()) destroyIllustratedPortal(visual)
       this.portalVisuals.clear()
+      this.portalBuilds = 0
       if (import.meta.env.VITE_E2E_REALTIME === 'true') {
         const host = document.querySelector('[data-testid="game-canvas"]')
         host?.removeAttribute('data-e2e-illustrated-player-count')
@@ -174,13 +176,23 @@ export class WorldScene extends Phaser.Scene {
     }
 
     for (const portal of this.portals) {
-      if (this.portalVisuals.has(portal.id)) continue
       const x = portal.x * TILE_SIZE
       const y = portal.y * TILE_SIZE
+      const old = this.portalVisuals.get(portal.id)
+      // The owner-only API can return the same grant ID at new server-owned
+      // coordinates on a later poll. Its Phaser Graphics are painted at
+      // absolute world coordinates, so moving only the ring would leave
+      // the arch and hit area out of sync. Rebuild *only* on relocation.
+      if (old && old.ring.x === x && old.ring.y === y) continue
+      if (old) {
+        destroyIllustratedPortal(old)
+        this.portalVisuals.delete(portal.id)
+      }
       // The API grants marker ownership; this decor never creates a portal.
       this.portalVisuals.set(portal.id, createIllustratedPortal(
         this, x, y, () => this.onPortalClick?.(portal.id),
       ))
+      this.portalBuilds++
     }
     this.onPortalsRendered?.(this.portalVisuals.size)
   }
@@ -214,6 +226,8 @@ export class WorldScene extends Phaser.Scene {
         ?.setAttribute('data-e2e-portal-art', JSON.stringify({
           count: visuals.length,
           reducedMotion: this.reducedMotion,
+          builds: this.portalBuilds,
+          hitCenters: visuals.map(visual => [visual.ring.x, visual.ring.y]),
           hitScales: visuals.map(visual => [visual.ring.scaleX, visual.ring.scaleY]),
           hitRadii: visuals.map(visual => visual.ring.radius),
           hovered: visuals.map(visual => visual.hovered),
