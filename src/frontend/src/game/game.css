@@ -45,6 +45,21 @@
   box-shadow: 0 20px 50px -32px var(--vuxo-game-hud-bg);
   backdrop-filter: blur(16px);
 }
+/* Fold the non-essential world info without removing status or player count. */
+.vuxo-game-hud[data-expanded="false"] { padding-block: 8px; }
+.vuxo-game-hud-status { min-width: 0; }
+.vuxo-game-hud-toggle.MuiIconButton-root {
+  flex-shrink: 0;
+  margin-left: auto;
+  width: 30px;
+  height: 30px;
+  color: var(--vuxo-game-hud-accent);
+  border: 1px solid var(--vuxo-game-hud-border);
+}
+.vuxo-game-hud-toggle.MuiIconButton-root:focus-visible {
+  outline: 2px solid var(--vuxo-game-hud-accent);
+  outline-offset: 2px;
+}
 .vuxo-game-eyebrow.MuiTypography-root {
   color: var(--vuxo-game-hud-accent);
   letter-spacing: .22em;

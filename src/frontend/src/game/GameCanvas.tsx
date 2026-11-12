@@ -1,4 +1,4 @@
-import { Fullscreen, FullscreenExit, KeyboardArrowDown, KeyboardArrowLeft, KeyboardArrowRight, KeyboardArrowUp } from '@mui/icons-material'
+import { ExpandLess, ExpandMore, Fullscreen, FullscreenExit, KeyboardArrowDown, KeyboardArrowLeft, KeyboardArrowRight, KeyboardArrowUp } from '@mui/icons-material'
 import { Alert, Box, Button, Chip, Dialog, DialogContent, DialogTitle, IconButton, Stack, Typography } from '@mui/material'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -28,6 +28,7 @@ export function GameCanvas() {
   const host = useRef<HTMLDivElement>(null)
   const screen = useRef<HTMLDivElement>(null)
   const [isFullscreen, setIsFullscreen] = useState(false)
+  const [hudExpanded, setHudExpanded] = useState(true)
   // Keep an immediate guard as well as accessible disabled button state.
   // Blur and visibilitychange can arrive before React re-renders the HUD.
   const [windowInputActive, setWindowInputActive] = useState(() => !document.hidden)
@@ -347,10 +348,10 @@ export function GameCanvas() {
       />
       <Box className="vuxo-game-vignette" aria-hidden="true" />
 
-      <Stack className="vuxo-game-hud vuxo-game-hud--left" spacing={0.5}>
-        <Typography component="p" className="vuxo-game-eyebrow">{t('game.screen.chapter')}</Typography>
-        <Typography component="h1" variant="h6" className="vuxo-game-title">{t('game.title')}</Typography>
-        <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+      <Stack className="vuxo-game-hud vuxo-game-hud--left" spacing={0.5}
+        data-testid="world-hud" data-expanded={String(hudExpanded)}>
+        <Stack direction="row" className="vuxo-game-hud-status"
+          sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 0.75 }}>
           <Chip
             data-testid="world-connection-status"
             data-status={status}
@@ -361,7 +362,23 @@ export function GameCanvas() {
           <Typography variant="caption" sx={{ color: 'var(--vuxo-game-hud-text)' }}>
             {t('game.playersOnline', { count: players.length })}
           </Typography>
+          <IconButton
+            data-testid="world-hud-toggle"
+            className="vuxo-game-hud-toggle"
+            size="small"
+            aria-expanded={hudExpanded}
+            aria-controls="world-hud-details"
+            aria-label={t(hudExpanded ? 'game.screen.collapseHud' : 'game.screen.expandHud')}
+            title={t(hudExpanded ? 'game.screen.collapseHud' : 'game.screen.expandHud')}
+            onClick={() => setHudExpanded(expanded => !expanded)}
+          >
+            {hudExpanded ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
+          </IconButton>
         </Stack>
+        <Box id="world-hud-details" data-testid="world-hud-details"
+          sx={{ display: hudExpanded ? 'block' : 'none' }}>
+          <Typography component="p" className="vuxo-game-eyebrow">{t('game.screen.chapter')}</Typography>
+          <Typography component="h1" variant="h6" className="vuxo-game-title">{t('game.title')}</Typography>
         <Stack data-testid="world-presence" direction="row" spacing={0.5} className="vuxo-game-presence">
           {presence.visible.map(player => (
             <Chip
@@ -394,6 +411,7 @@ export function GameCanvas() {
             />
           )}
         </Stack>
+        </Box>
       </Stack>
 
       <WorldRadar status={status} self={self} players={players} portals={portals} />

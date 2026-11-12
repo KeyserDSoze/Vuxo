@@ -73,6 +73,70 @@ for (const [width, height] of [[390, 844], [1280, 720]] as const) {
     });
 }
 
+
+for (const [width, height] of [[320, 568], [390, 844], [1280, 720]] as const) {
+  test('world HUD folds while preserving connection and world at ' + width + 'x' + height,
+    async ({ page }, info) => {
+      await page.setViewportSize({ width, height });
+      await page.goto('./#/game');
+      const hud = page.getByTestId('world-hud');
+      const details = page.getByTestId('world-hud-details');
+      const toggle = page.getByTestId('world-hud-toggle');
+      const canvas = page.getByTestId('game-canvas').locator('canvas');
+      await expect(canvas).toBeVisible();
+      await expect(hud).toHaveAttribute('data-expanded', 'true');
+      await expect(toggle).toHaveAttribute('aria-controls', 'world-hud-details');
+      await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+      await expect(toggle).toHaveAttribute('aria-label', 'Comprimi informazioni del mondo');
+      await expect(details).toBeVisible();
+      await expect(page.getByTestId('world-connection-status')).toBeVisible();
+      await expect(hud).toContainText(/Giocatori online: \d+/);
+      const expandedHeight = await hud.evaluate(element => element.getBoundingClientRect().height);
+      await toggle.click();
+      await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+      await expect(toggle).toHaveAttribute('aria-label', 'Espandi informazioni del mondo');
+      await expect(details).toBeHidden();
+      await expect(page.getByTestId('world-connection-status')).toBeVisible();
+      await expect(hud).toContainText(/Giocatori online: \d+/);
+      await expect(canvas).toBeVisible();
+      await expect(page.getByTestId('game-fullscreen-toggle')).toBeVisible();
+      const collapsedHeight = await hud.evaluate(element => element.getBoundingClientRect().height);
+      expect(collapsedHeight).toBeLessThan(expandedHeight);
+      await expect.poll(() => page.evaluate(() =>
+        document.documentElement.scrollHeight <= innerHeight + 1
+        && document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,
+      )).toBe(true);
+      if (width === 390 || width === 1280) {
+        await info.attach('world-hud-collapsed-' + width, {
+          body: await page.screenshot({ animations: 'disabled' }), contentType: 'image/png',
+        });
+      }
+      await toggle.focus();
+      await expect(toggle).toBeFocused();
+      await page.keyboard.press('Enter');
+      await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+      await expect(details).toBeVisible();
+      await expect(page.getByTestId('world-connection-status')).toBeVisible();
+      if (width === 390) {
+        await toggle.click();
+        await page.getByTestId('language-toggle').click();
+        await expect(toggle).toHaveAttribute('aria-label', 'Expand world HUD');
+        await expect(hud).toContainText(/Players online: \d+/);
+        await page.getByTestId('theme-toggle').click();
+        await page.getByTestId('theme-toggle').click();
+        await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme)).toBe('dark');
+        await toggle.click();
+        await expect(toggle).toHaveAttribute('aria-label', 'Collapse world HUD');
+        await expect(details).toBeVisible();
+      }
+      if (width === 390 || width === 1280) {
+        await info.attach('world-hud-expanded-' + width, {
+          body: await page.screenshot({ animations: 'disabled' }), contentType: 'image/png',
+        });
+      }
+    });
+}
+
 test('resizing the browser reveals a different amount of world without a 16:9 letterbox', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 720 });
   await page.goto('./#/game');
