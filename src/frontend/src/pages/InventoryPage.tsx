@@ -690,7 +690,7 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
           )}
         </DialogContent>
         <DialogActions sx={{ flexWrap: 'wrap', gap: 1, justifyContent: 'space-between' }}>
-          <Stack direction="row" alignItems="center" spacing={1}
+          <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}
             data-testid="inventory-inspection-navigation">
             <Button data-testid="inventory-inspection-prev" size="small" variant="outlined"
               disabled={inspectedIndex <= 0}
