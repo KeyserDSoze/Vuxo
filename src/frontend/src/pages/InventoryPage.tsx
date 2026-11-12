@@ -1,5 +1,5 @@
-import { Alert, Box, Button, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, Grid, InputLabel, MenuItem, Paper, Select, Stack, TextField, Typography } from '@mui/material';
-import { AutoAwesome, BackpackOutlined, ExploreOutlined, FavoriteBorder, HistoryOutlined, ViewModuleOutlined, VisibilityOutlined } from '@mui/icons-material';
+import { Alert, Box, Button, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, Grid, IconButton, InputLabel, MenuItem, Paper, Select, Stack, TextField, Typography } from '@mui/material';
+import { AutoAwesome, BackpackOutlined, ExploreOutlined, FavoriteBorder, HistoryOutlined, SearchOutlined, ViewModuleOutlined, VisibilityOutlined } from '@mui/icons-material';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link as RouterLink } from 'react-router-dom';
@@ -221,6 +221,18 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
     focusQuickFind();
   }, [canBrowse, viewMode, focusQuickFind]);
 
+  const openQuickFind = useCallback(() => {
+    if (!canBrowse) return;
+    if (viewMode === 'gear' || viewMode === 'journal') {
+      pendingQuickFind.current = true;
+      setInspectedItemKey(null);
+      setJournalVisibleCount(INVENTORY_JOURNAL_PAGE_SIZE);
+      setViewMode('bag');
+    } else {
+      focusQuickFind();
+    }
+  }, [canBrowse, viewMode, focusQuickFind]);
+
   useEffect(() => {
     if (!canBrowse) return;
     const onQuickFind = (event: KeyboardEvent) => {
@@ -232,18 +244,11 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
       if (editing(event.target) || editing(document.activeElement) ||
           document.querySelector('[role="dialog"], [role="listbox"], [role="menu"]')) return;
       event.preventDefault();
-      if (viewMode === 'gear' || viewMode === 'journal') {
-        pendingQuickFind.current = true;
-        setInspectedItemKey(null);
-        setJournalVisibleCount(INVENTORY_JOURNAL_PAGE_SIZE);
-        setViewMode('bag');
-      } else {
-        focusQuickFind();
-      }
+      openQuickFind();
     };
     document.addEventListener('keydown', onQuickFind);
     return () => document.removeEventListener('keydown', onQuickFind);
-  }, [canBrowse, viewMode, focusQuickFind]);
+  }, [canBrowse, openQuickFind]);
 
 
   const refreshEquipment = () => {
@@ -329,15 +334,27 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
       {browseReady && (
         <Box component="nav" data-testid="inventory-views" aria-label={t('views.navigation')}
           className="vuxo-inventory-views" sx={{ bgcolor: 'background.paper', borderColor: 'divider' }}>
-          <Stack direction="row" spacing={0.75} className="vuxo-inventory-views__options">
-            {inventoryViews.map(({ key, icon: Icon }) => (
-              <Button key={key} data-testid={'inventory-view-' + key}
-                aria-pressed={viewMode === key} variant={viewMode === key ? 'contained' : 'outlined'}
-                startIcon={<Icon fontSize="small" aria-hidden="true" />}
-                onClick={() => chooseView(key)} className="vuxo-inventory-views__button">
-                {t('views.' + key)}
-              </Button>
-            ))}
+          <Stack direction="row" className="vuxo-inventory-views__bar"
+            sx={{ alignItems: 'center', gap: .75, minWidth: 0 }}>
+            <Stack direction="row" spacing={0.75} className="vuxo-inventory-views__options">
+              {inventoryViews.map(({ key, icon: Icon }) => (
+                <Button key={key} data-testid={'inventory-view-' + key}
+                  aria-pressed={viewMode === key} variant={viewMode === key ? 'contained' : 'outlined'}
+                  startIcon={<Icon fontSize="small" aria-hidden="true" />}
+                  onClick={() => chooseView(key)} className="vuxo-inventory-views__button">
+                  {t('views.' + key)}
+                </Button>
+              ))}
+            </Stack>
+            <IconButton className="vuxo-inventory-quick-find" color="primary"
+              data-testid="inventory-quick-find-action"
+              aria-label={t('browse.search')}
+              aria-keyshortcuts="Control+K Meta+K"
+              title={t('browse.search')}
+              disabled={!canBrowse}
+              onClick={openQuickFind}>
+              <SearchOutlined fontSize="small" aria-hidden="true" />
+            </IconButton>
           </Stack>
           <Typography variant="caption" component="p" color="text.secondary"
             data-testid="inventory-quick-find-hint" sx={{ px: 1, pt: .5, pb: .25 }}>

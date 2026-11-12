@@ -232,6 +232,7 @@
 }
 .vuxo-inventory-views__options {
   width: 100%;
+  flex: 1 1 auto;
   min-width: 0;
   overflow-x: auto;
   overflow-y: hidden;
@@ -247,6 +248,19 @@
   border-radius: 11px;
   white-space: nowrap;
   box-shadow: none;
+}
+/* #218: a touch-friendly search action stays outside the scrollable
+   view tabs at narrow widths and does not create document overflow. */
+.vuxo-inventory-quick-find.MuiIconButton-root {
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--vuxo-focus-ring);
+  border-radius: 11px;
+}
+.vuxo-inventory-quick-find.MuiIconButton-root:focus-visible {
+  outline: 3px solid var(--vuxo-focus-ring);
+  outline-offset: 2px;
 }
 .vuxo-inventory-views__button.MuiButton-root:focus-visible {
   outline: 3px solid var(--vuxo-focus-ring);

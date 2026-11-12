@@ -522,3 +522,76 @@ test('quick find leaves editors, dialogs, modified keys and guests in control on
   expect(guestHandled).toBe(false);
   await expect(page.getByTestId('inventory-auth-required')).toBeVisible();
 });
+
+
+test('touch quick-find remains pinned on narrow screens and reveals backpack search without APIs', async ({ page }, info) => {
+  await page.setViewportSize({ width: 320, height: 568 });
+  await signIn(page, 'owner-a', 'it');
+  await mockInventory(page);
+  await page.goto('./#/inventory');
+  const action = page.getByTestId('inventory-quick-find-action');
+  const search = page.getByTestId('inventory-browse-search');
+  await expect(action).toBeVisible();
+  await expect(action).toHaveAttribute('aria-label', 'Cerca oggetti');
+  await expect(action).toHaveAttribute('aria-keyshortcuts', 'Control+K Meta+K');
+  const ownerCalls: string[] = [];
+  page.on('request', request => {
+    const path = new URL(request.url()).pathname;
+    if (/^\/api\/(inventory|equipment)(\/|$)/.test(path)) ownerCalls.push(request.method() + ' ' + path);
+  });
+  await page.getByTestId('inventory-view-journal').click();
+  await expect(search).toHaveCount(0);
+  await expect(action).toBeInViewport();
+  await action.click();
+  await expect(page.getByTestId('inventory-view-bag')).toHaveAttribute('aria-pressed', 'true');
+  await expect(search).toBeFocused();
+  await expect(search).toBeInViewport();
+  await search.fill('Seme');
+  await expect(page.getByTestId('inventory-stack')).toHaveCount(1);
+  await expect(page.getByTestId('inventory-stack')).toContainText('Seme del bosco');
+  await info.attach('inventory-touch-find-320', {
+    body: await page.screenshot({ animations: 'disabled' }), contentType: 'image/png',
+  });
+  await page.getByTestId('inventory-view-gear').click();
+  await expect(search).toHaveCount(0);
+  await action.click();
+  await expect(search).toBeFocused();
+  await expect(search).toHaveValue('Seme');
+  await expect(page.getByTestId('inventory-view-bag')).toHaveAttribute('aria-pressed', 'true');
+  await expect.poll(() => page.evaluate(() => {
+    const root = document.documentElement;
+    const action = document.querySelector<HTMLElement>('[data-testid="inventory-quick-find-action"]')!;
+    const nav = document.querySelector<HTMLElement>('[data-testid="inventory-views"]')!;
+    const a = action.getBoundingClientRect(), n = nav.getBoundingClientRect();
+    return root.scrollWidth <= root.clientWidth + 1 && root.scrollHeight <= innerHeight + 1 &&
+      document.scrollingElement!.scrollTop === 0 && a.right <= n.right + 1 && a.width >= 40;
+  })).toBe(true);
+  expect(ownerCalls).toEqual([]);
+});
+
+test('desktop quick-find responds to Enter without changing All view and follows locale', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await signIn(page, 'owner-a', 'en');
+  await mockInventory(page);
+  await page.goto('./#/inventory');
+  const button = page.getByTestId('inventory-quick-find-action');
+  const search = page.getByTestId('inventory-browse-search');
+  await expect(button).toHaveAttribute('aria-label', 'Search items');
+  await button.focus();
+  await expect(button).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page.getByTestId('inventory-view-all')).toHaveAttribute('aria-pressed', 'true');
+  await expect(search).toBeFocused();
+  await expect(search).toBeInViewport();
+  await page.getByTestId('language-toggle').click();
+  await expect(button).toHaveAttribute('aria-label', 'Cerca oggetti');
+  await page.evaluate(() => {
+    localStorage.removeItem('vuxo.accessToken');
+    localStorage.removeItem('vuxo.auth.user');
+    localStorage.removeItem('vuxo.auth.expiresAtUtc');
+    window.dispatchEvent(new Event('vuxo:session-changed'));
+  });
+  await expect(button).toHaveCount(0);
+  await expect(page.getByTestId('inventory-auth-required')).toBeVisible();
+});
+
