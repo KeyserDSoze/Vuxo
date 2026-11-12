@@ -447,6 +447,10 @@ test('Ctrl/Meta+K finds the owner backpack from gear and history without owner A
   await expect(page.getByTestId('inventory-view-bag')).toHaveAttribute('aria-pressed', 'true');
   await expect(search).toBeFocused();
   await expect(search).toHaveValue('Seme');
+  // The shortcut belongs to the inventory surface, not an actively edited
+  // text field; restore focus to a non-editing control before testing Meta+K.
+  await page.getByTestId('inventory-view-bag').focus();
+  await expect(page.getByTestId('inventory-view-bag')).toBeFocused();
   const handledMeta = await page.evaluate(() => {
     const e = new KeyboardEvent('keydown', { key: 'k', code: 'KeyK',
       metaKey: true, bubbles: true, cancelable: true });
