@@ -658,6 +658,20 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
       )}
       <Dialog open={Boolean(inspectedStack)} onClose={() => setInspectedItemKey(null)}
         aria-labelledby="inventory-inspection-title" data-testid="inventory-inspection"
+        onKeyDown={event => {
+          // Local modal-only item traversal, never a document/world shortcut.
+          // Keep native cursor/selection controls in form fields and editors.
+          if (!inspectedStack || event.defaultPrevented || event.nativeEvent.isComposing ||
+              event.repeat || event.shiftKey || event.ctrlKey || event.altKey || event.metaKey ||
+              (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight')) return;
+          if (event.target instanceof Element && event.target.closest(
+            'input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"], [role="combobox"]'
+          )) return;
+          const direction = event.key === 'ArrowLeft' ? -1 : 1;
+          if (inspectedIndex + direction < 0 || inspectedIndex + direction >= displayedStacks.length) return;
+          event.preventDefault();
+          inspectNeighbor(direction);
+        }}
         fullWidth maxWidth="xs">
         <DialogTitle id="inventory-inspection-title" sx={{ fontWeight: 850 }}>{t('inspect.title')}</DialogTitle>
         <DialogContent dividers>
@@ -693,6 +707,7 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
           <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}
             data-testid="inventory-inspection-navigation">
             <Button data-testid="inventory-inspection-prev" size="small" variant="outlined"
+              aria-keyshortcuts="ArrowLeft" title={t('inspect.previousKeyHint')}
               disabled={inspectedIndex <= 0}
               onClick={() => inspectNeighbor(-1)}>
               {t('inspect.previous')}
@@ -704,11 +719,17 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
               })}
             </Typography>
             <Button data-testid="inventory-inspection-next" size="small" variant="outlined"
+              aria-keyshortcuts="ArrowRight" title={t('inspect.nextKeyHint')}
               disabled={inspectedIndex < 0 || inspectedIndex >= displayedStacks.length - 1}
               onClick={() => inspectNeighbor(1)}>
               {t('inspect.next')}
             </Button>
           </Stack>
+          <Typography component="span" variant="caption" color="text.secondary"
+            data-testid="inventory-inspection-keyboard-hint"
+            sx={{ fontSize: '.68rem', overflowWrap: 'anywhere' }}>
+            {t('inspect.arrowHint')}
+          </Typography>
           <Button data-testid="inventory-inspection-close"
             onClick={() => setInspectedItemKey(null)}>{t('inspect.close')}</Button>
         </DialogActions>

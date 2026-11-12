@@ -371,7 +371,10 @@ for (const [width, height, language] of [
       await expect(key).toHaveText(availableKeys[1]);
       await expect(position).toHaveText(expectedPosition(2, 2));
       await expect(next).toBeDisabled();
-      await dialog.press('Escape');
+      // At the final item, the Next button becomes natively disabled and may
+      // lose focus. Escape must originate from an enabled modal control.
+      await previous.focus();
+      await page.keyboard.press('Escape');
       await expect(dialog).toHaveCount(0);
       if (language === 'it') {
         // Translation reorders the *same owner-visible* stacks, never refetching.
@@ -380,10 +383,134 @@ for (const [width, height, language] of [
         await inspect.first().click();
         await expect(key).toHaveText('item.grove_seed.v1');
         await expect(position).toHaveText('Item 1 of 2');
-        await dialog.press('Escape');
+        await next.focus();
+        await page.keyboard.press('Escape');
         await expect(dialog).toHaveCount(0);
       }
       expect(reads).toBe(initialReads);
+    });
+}
+
+for (const [width, height, language] of [
+  [320, 568, 'it'], [390, 844, 'en'], [1280, 720, 'it'],
+] as const) {
+  test('inspection keyboard arrows browse only the owner-visible filtered list at ' + width,
+    async ({ page }, info) => {
+      await page.setViewportSize({ width, height });
+      await signIn(page, 'inspection-keyboard-owner', language);
+      let apiReads = 0;
+      page.on('request', request => {
+        if (/\/api\/(inventory|equipment)(\/|$)/.test(new URL(request.url()).pathname)) apiReads++;
+      });
+      await mockInventory(page);
+      await page.goto('./#/inventory');
+      const inspect = page.getByTestId('inventory-inspect');
+      const dialog = page.getByTestId('inventory-inspection');
+      const item = page.getByTestId('inventory-inspection-key');
+      const previous = page.getByTestId('inventory-inspection-prev');
+      const next = page.getByTestId('inventory-inspection-next');
+      const hint = page.getByTestId('inventory-inspection-keyboard-hint');
+      const position = page.getByTestId('inventory-inspection-position');
+      const sorted = language === 'it'
+        ? ['item.rune_shard.v1', 'item.tidal_pearl.v1', 'item.grove_seed.v1']
+        : ['item.grove_seed.v1', 'item.rune_shard.v1', 'item.tidal_pearl.v1'];
+      await expect(inspect).toHaveCount(3);
+      const initialReads = apiReads;
+      expect(initialReads).toBeGreaterThan(0);
+      const opener = inspect.first();
+      await opener.click();
+      await expect(dialog).toBeVisible();
+      await expect(hint).toContainText('← / →');
+      await expect(previous).toHaveAttribute('aria-keyshortcuts', 'ArrowLeft');
+      await expect(next).toHaveAttribute('aria-keyshortcuts', 'ArrowRight');
+      await expect(previous).toHaveAttribute('title', language === 'it'
+        ? 'Freccia sinistra: oggetto precedente' : 'Left arrow: previous item');
+      await expect(next).toHaveAttribute('title', language === 'it'
+        ? 'Freccia destra: oggetto successivo' : 'Right arrow: next item');
+      await expect(item).toHaveText(sorted[0]);
+      await expect(previous).toBeDisabled();
+      await next.focus();
+
+      await page.keyboard.press('ArrowLeft');
+      await expect(item).toHaveText(sorted[0]);
+      await page.keyboard.press('ArrowRight');
+      await expect(item).toHaveText(sorted[1]);
+      await expect(position).toContainText('2');
+      await page.keyboard.press('ArrowRight');
+      await expect(item).toHaveText(sorted[2]);
+      await expect(next).toBeDisabled();
+      await previous.focus();
+      await page.keyboard.press('ArrowRight');
+      await expect(item).toHaveText(sorted[2]);
+      await page.keyboard.press('ArrowLeft');
+      await expect(item).toHaveText(sorted[1]);
+
+      // A live editor inserted into the dialog owns arrow-key selection.
+      await dialog.evaluate(node => {
+        const editor = document.createElement('input');
+        editor.setAttribute('data-testid', 'inventory-inspection-editor-fixture');
+        editor.setAttribute('aria-label', 'Synthetic item editor');
+        editor.value = 'abc';
+        node.querySelector('[data-testid="inventory-inspection-content"]')?.appendChild(editor);
+        editor.focus();
+      });
+      const editor = page.getByTestId('inventory-inspection-editor-fixture');
+      await expect(editor).toBeFocused();
+      await page.keyboard.press('ArrowRight');
+      await expect(item).toHaveText(sorted[1]);
+      await editor.evaluate(node => node.remove());
+      await previous.focus();
+      const blocked = await previous.evaluate(node => [
+        { ctrlKey: true }, { altKey: true }, { metaKey: true }, { shiftKey: true },
+        { repeat: true }, { isComposing: true },
+      ].map(flags => {
+        const key = new KeyboardEvent('keydown', {
+          key: 'ArrowRight', code: 'ArrowRight', bubbles: true, cancelable: true, ...flags,
+        });
+        node.dispatchEvent(key);
+        return key.defaultPrevented;
+      }));
+      expect(blocked).toEqual([false, false, false, false, false, false]);
+      await previous.evaluate(node => {
+        const event = new KeyboardEvent('keydown', {
+          key: 'ArrowRight', code: 'ArrowRight', bubbles: true, cancelable: true,
+        });
+        event.preventDefault();
+        node.dispatchEvent(event);
+      });
+      await expect(item).toHaveText(sorted[1]);
+
+      await info.attach('inventory-inspection-keyboard-' + width, {
+        body: await page.screenshot({ animations: 'disabled' }), contentType: 'image/png',
+      });
+      await expect.poll(() => page.evaluate(() =>
+        document.documentElement.scrollWidth <= innerWidth + 1 &&
+        document.documentElement.scrollHeight <= innerHeight + 1 &&
+        document.scrollingElement!.scrollTop === 0,
+      )).toBe(true);
+      await previous.focus();
+      await page.keyboard.press('Escape');
+      await expect(dialog).toHaveCount(0);
+      await expect(opener).toBeFocused();
+      await page.keyboard.press('ArrowRight');
+      await expect(dialog).toHaveCount(0);
+
+      // Filtering changes the keyboard deck, not the owner API snapshot.
+      await page.getByTestId('inventory-browse-filter').click();
+      await page.getByRole('option', { name: language === 'it' ? 'Disponibili' : 'Available' }).click();
+      await expect(inspect).toHaveCount(2);
+      await inspect.first().click();
+      const visibleFirst = language === 'it' ? 'item.tidal_pearl.v1' : 'item.grove_seed.v1';
+      const visibleSecond = language === 'it' ? 'item.grove_seed.v1' : 'item.tidal_pearl.v1';
+      await expect(item).toHaveText(visibleFirst);
+      await next.focus();
+      await page.keyboard.press('ArrowRight');
+      await expect(item).toHaveText(visibleSecond);
+      await expect(next).toBeDisabled();
+      await previous.focus();
+      await page.keyboard.press('Escape');
+      await expect(dialog).toHaveCount(0);
+      expect(apiReads).toBe(initialReads);
     });
 }
 
