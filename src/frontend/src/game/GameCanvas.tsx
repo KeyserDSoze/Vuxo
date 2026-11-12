@@ -12,7 +12,7 @@ import type {
   WorldRealtimeClient,
 } from '../features/world/worldRealtime'
 import { WorldScene } from './WorldScene'
-import { isWorldInteractiveFocus } from './WorldInputFocus'
+import { isUnmodifiedWorldShortcut } from './WorldInputFocus'
 import { HeldWorldTouchDirections } from './WorldTouchInput'
 import { PortalCompass } from './PortalCompass'
 import { WorldRadar } from './WorldRadar'
@@ -200,11 +200,8 @@ export function GameCanvas() {
     const onShortcut = (event: KeyboardEvent) => {
       // The same interactive-focus boundary protects Phaser movement.
       // The focused control keeps its native text/keyboard behavior.
-      if (event.defaultPrevented ||
-          (event.code !== 'KeyF' && event.code !== 'KeyH') ||
-          event.repeat || event.isComposing ||
-          event.shiftKey || event.altKey || event.ctrlKey || event.metaKey ||
-          isWorldInteractiveFocus(event.target)) return
+      if ((event.code !== 'KeyF' && event.code !== 'KeyH') ||
+          !isUnmodifiedWorldShortcut(event)) return
       event.preventDefault()
       if (event.code === 'KeyH') setHudExpanded(expanded => !expanded)
       else void toggleFullscreen()

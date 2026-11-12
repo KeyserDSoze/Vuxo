@@ -29,6 +29,86 @@ async function demoPlayer(page: Page, id: string, name: string, scope: string) {
   }, { id, name, scope })
 }
 
+
+for (const [width, height] of [[390, 844], [1280, 720]] as const) {
+  test('R toggles the world radar only from exploration focus at ' + width + 'x' + height,
+    async ({ page, request }, info) => {
+      const scope = 'world-radar-key-' + width
+      await resetRoom(request, scope)
+      await demoPlayer(page, 'radar-key-player-' + width, 'Radar Vuxian', scope)
+      await page.setViewportSize({ width, height })
+      await page.goto(gameUrl)
+      await expect(page.getByTestId('world-connection-status')).toHaveAttribute('data-status', 'connected')
+      const world = page.getByTestId('game-canvas')
+      const radar = page.getByTestId('world-radar')
+      const toggle = page.getByTestId('world-radar-toggle')
+      const chart = page.getByTestId('world-radar-chart')
+      const initiallyVisible = width === 1280
+      await expect(radar).toHaveAttribute('data-expanded', String(initiallyVisible))
+      await expect(toggle).toHaveAttribute('aria-expanded', String(initiallyVisible))
+      await expect(toggle).toHaveAttribute('aria-controls', 'world-radar-details')
+      await expect(toggle).toHaveAttribute('title', 'Tasto R: apri o chiudi radar')
+
+      await world.locator('canvas').click()
+      await expect(world).toBeFocused()
+      await page.keyboard.press('r')
+      await expect(radar).toHaveAttribute('data-expanded', String(!initiallyVisible))
+      await expect(toggle).toHaveAttribute('aria-expanded', String(!initiallyVisible))
+      if (initiallyVisible) await expect(chart).toBeHidden()
+      else await expect(chart).toBeVisible()
+      await info.attach('world-radar-R-' + width, {
+        body: await page.screenshot({ animations: 'disabled' }), contentType: 'image/png',
+      })
+      await page.keyboard.press('Shift+r')
+      await expect(radar).toHaveAttribute('data-expanded', String(!initiallyVisible))
+
+      const ignored = await world.evaluate(element =>
+        [
+          { ctrlKey: true }, { metaKey: true }, { altKey: true },
+          { repeat: true }, { isComposing: true },
+        ].map(modifiers => {
+          const event = new KeyboardEvent('keydown', {
+            key: 'r', code: 'KeyR', ...modifiers, bubbles: true, cancelable: true,
+          })
+          element.dispatchEvent(event)
+          return event.defaultPrevented
+        }),
+      )
+      expect(ignored).toEqual([false, false, false, false, false])
+      await expect(radar).toHaveAttribute('data-expanded', String(!initiallyVisible))
+      await world.evaluate(element => {
+        const event = new KeyboardEvent('keydown', {
+          key: 'r', code: 'KeyR', bubbles: true, cancelable: true,
+        })
+        event.preventDefault()
+        element.dispatchEvent(event)
+      })
+      await expect(radar).toHaveAttribute('data-expanded', String(!initiallyVisible))
+      await toggle.focus()
+      await expect(toggle).toBeFocused()
+      await page.keyboard.press('r')
+      await expect(radar).toHaveAttribute('data-expanded', String(!initiallyVisible))
+      const refuge = page.getByTestId('game-refuge-link')
+      await refuge.focus()
+      await page.keyboard.press('r')
+      await expect(radar).toHaveAttribute('data-expanded', String(!initiallyVisible))
+
+      await world.locator('canvas').click()
+      await expect(world).toBeFocused()
+      await page.keyboard.press('r')
+      await expect(radar).toHaveAttribute('data-expanded', String(initiallyVisible))
+      await page.getByTestId('language-toggle').click()
+      await expect(toggle).toHaveAttribute('title', 'Press R to open or close the radar')
+      await expect(toggle).toHaveAttribute('aria-label',
+        initiallyVisible ? 'Close radar' : 'Open radar')
+      await expect.poll(() => page.evaluate(() =>
+        document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1
+        && document.documentElement.scrollHeight <= innerHeight + 1
+        && document.scrollingElement!.scrollTop === 0,
+      )).toBe(true)
+    })
+}
+
 test('two illustrated wanderers coexist in the authoritative world at mobile size', async ({ browser, request }, info) => {
   await resetRoom(request, duoScope)
   // Preview server holds the cosmetic fixture; browsers send only playerId/name.

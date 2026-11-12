@@ -11,3 +11,10 @@ const INTERACTIVE_WORLD_UI = [
 export function isWorldInteractiveFocus(target: EventTarget | null): boolean {
   return target instanceof Element && target.closest(INTERACTIVE_WORLD_UI) !== null
 }
+
+/** One focus and modifier policy for non-gameplay display shortcuts. */
+export function isUnmodifiedWorldShortcut(event: KeyboardEvent): boolean {
+  return !event.defaultPrevented && !event.repeat && !event.isComposing
+    && !event.shiftKey && !event.altKey && !event.ctrlKey && !event.metaKey
+    && !isWorldInteractiveFocus(event.target)
+}

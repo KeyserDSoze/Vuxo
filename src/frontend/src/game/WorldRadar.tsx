@@ -1,9 +1,10 @@
 import { MapOutlined } from '@mui/icons-material'
 import { Box, IconButton, Typography, useMediaQuery } from '@mui/material'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { WorldPlayerSnapshot, WorldConnectionStatus } from '../features/world/worldRealtime'
 import type { WorldPortalMarker } from '../features/portals/portalApi'
+import { isUnmodifiedWorldShortcut } from './WorldInputFocus'
 
 // This is a local *display* of server-owned snapshot coordinates, not a world
 // authority, navigation endpoint, hit area or alternative portal-entry path.
@@ -98,6 +99,19 @@ export function WorldRadar({
   const [expandedOverride, setExpandedOverride] = useState<boolean | null>(null)
   const visible = expandedOverride ?? !compact
 
+  useEffect(() => {
+    // Like H/F, R belongs to world exploration rather than focused MUI
+    // controls. Only the rendered, connected radar can receive it.
+    if (status !== 'connected') return
+    const onShortcut = (event: KeyboardEvent) => {
+      if (event.code !== 'KeyR' || !isUnmodifiedWorldShortcut(event)) return
+      event.preventDefault()
+      setExpandedOverride(previous => !(previous ?? !compact))
+    }
+    document.addEventListener('keydown', onShortcut)
+    return () => document.removeEventListener('keydown', onShortcut)
+  }, [compact, status])
+
   // Never render invented coordinates or markers from an absent session.
   if (status !== 'connected' || !self ||
       !Number.isFinite(self.x) || !Number.isFinite(self.y)) return null
@@ -136,6 +150,7 @@ export function WorldRadar({
           aria-expanded={visible}
           aria-controls="world-radar-details"
           aria-label={t(visible ? 'game.radar.hide' : 'game.radar.show')}
+          title={t('game.radar.shortcutHint')}
         >
           {visible ? '−' : '+'}
         </IconButton>
