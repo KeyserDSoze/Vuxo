@@ -116,7 +116,7 @@ test('world fullscreen F ignores interactive HUD focus, text entry and modified 
   await refugeLink.focus();
   await expect(refugeLink).toBeFocused();
   await page.keyboard.press('f');
-  await expect(page).toHaveURL(/#\\/game$/);
+  await expect.poll(() => page.evaluate(() => window.location.hash)).toBe('#/game');
 
   const editorValue = await page.evaluate(() => {
     const input = document.createElement('input');
