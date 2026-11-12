@@ -170,7 +170,20 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
     setViewMode(mode);
   };
 
-  const inspectedStack = browseReady ? stacks.find(stack => stack.itemKey === inspectedItemKey) : undefined;
+  // The inspection deck is bounded by the visible owner-scoped Backpack query,
+  // not by the underlying unfiltered API snapshot (or consumed awards).
+  const inspectedIndex = showBag && browseReady
+    ? displayedStacks.findIndex(stack => stack.itemKey === inspectedItemKey) : -1;
+  const inspectedStack = inspectedIndex >= 0 ? displayedStacks[inspectedIndex] : undefined;
+  const inspectNeighbor = (direction: -1 | 1) => {
+    const next = displayedStacks[inspectedIndex + direction];
+    if (inspectedIndex >= 0 && next) setInspectedItemKey(next.itemKey);
+  };
+  useEffect(() => {
+    // Changed filters, account, or refreshed grants must never redisplay an
+    // inspection for an item that is no longer in the visible owner view.
+    if (inspectedItemKey && !inspectedStack) setInspectedItemKey(null);
+  }, [inspectedItemKey, inspectedStack]);
   const inspectedIcon = inspectedStack ? iconForInventoryItem(inspectedStack.itemKey) : BackpackOutlined;
   const InspectedIcon = inspectedIcon;
   const inspectedSlot = inspectedStack ? equipmentSlotFor(inspectedStack.itemKey) : null;
@@ -676,8 +689,28 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
             </Stack>
           )}
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setInspectedItemKey(null)}>{t('inspect.close')}</Button>
+        <DialogActions sx={{ flexWrap: 'wrap', gap: 1, justifyContent: 'space-between' }}>
+          <Stack direction="row" alignItems="center" spacing={1}
+            data-testid="inventory-inspection-navigation">
+            <Button data-testid="inventory-inspection-prev" size="small" variant="outlined"
+              disabled={inspectedIndex <= 0}
+              onClick={() => inspectNeighbor(-1)}>
+              {t('inspect.previous')}
+            </Button>
+            <Typography component="span" variant="caption" color="text.secondary"
+              data-testid="inventory-inspection-position" aria-live="polite">
+              {inspectedStack && t('inspect.position', {
+                current: inspectedIndex + 1, total: displayedStacks.length,
+              })}
+            </Typography>
+            <Button data-testid="inventory-inspection-next" size="small" variant="outlined"
+              disabled={inspectedIndex < 0 || inspectedIndex >= displayedStacks.length - 1}
+              onClick={() => inspectNeighbor(1)}>
+              {t('inspect.next')}
+            </Button>
+          </Stack>
+          <Button data-testid="inventory-inspection-close"
+            onClick={() => setInspectedItemKey(null)}>{t('inspect.close')}</Button>
         </DialogActions>
       </Dialog>
     </Stack>

@@ -297,6 +297,96 @@ test('owner switch remounts inventory so previous items and filters are not flas
   await expect(page.getByTestId('inventory-item')).toHaveCount(0);
 });
 
+
+for (const [width, height, language] of [
+  [320, 568, 'it'], [390, 844, 'en'], [1280, 720, 'it'],
+] as const) {
+  test('owner inspection deck follows the visible sorted Backpack without API calls at ' + width,
+    async ({ page }, info) => {
+      await page.setViewportSize({ width, height });
+      await signIn(page, 'inspection-owner', language);
+      let reads = 0;
+      page.on('request', request => {
+        if (/\/api\/(inventory|equipment)(\/|$)/.test(new URL(request.url()).pathname)) reads++;
+      });
+      await mockInventory(page);
+      await page.goto('./#/inventory');
+      const stack = page.getByTestId('inventory-stack');
+      const inspect = page.getByTestId('inventory-inspect');
+      const dialog = page.getByTestId('inventory-inspection');
+      const key = page.getByTestId('inventory-inspection-key');
+      const previous = page.getByTestId('inventory-inspection-prev');
+      const next = page.getByTestId('inventory-inspection-next');
+      const position = page.getByTestId('inventory-inspection-position');
+      const expectedPosition = (n: number, total: number) => language === 'it'
+        ? 'Oggetto ' + n + ' di ' + total : 'Item ' + n + ' of ' + total;
+      // The owner's canonical keys stay fixed, but name sort is localized.
+      const orderedKeys = language === 'it'
+        ? ['item.rune_shard.v1', 'item.tidal_pearl.v1', 'item.grove_seed.v1']
+        : ['item.grove_seed.v1', 'item.rune_shard.v1', 'item.tidal_pearl.v1'];
+      const availableKeys = language === 'it'
+        ? ['item.tidal_pearl.v1', 'item.grove_seed.v1']
+        : ['item.grove_seed.v1', 'item.tidal_pearl.v1'];
+      await expect(stack).toHaveCount(3);
+      const initialReads = reads;
+      expect(initialReads).toBeGreaterThan(0);
+      const opener = inspect.first();
+      await opener.click();
+      await expect(dialog).toBeVisible();
+      await expect(key).toHaveText(orderedKeys[0]);
+      await expect(position).toHaveText(expectedPosition(1, 3));
+      await expect(previous).toBeDisabled();
+      await expect(next).toBeEnabled();
+      await next.click();
+      await expect(key).toHaveText(orderedKeys[1]);
+      await expect(position).toHaveText(expectedPosition(2, 3));
+      await previous.click();
+      await expect(key).toHaveText(orderedKeys[0]);
+      await next.click();
+      await next.click();
+      await expect(key).toHaveText(orderedKeys[2]);
+      await expect(position).toHaveText(expectedPosition(3, 3));
+      await expect(next).toBeDisabled();
+      await expect(previous).toBeEnabled();
+      await info.attach('inventory-inspection-deck-' + width, {
+        body: await page.screenshot({ animations: 'disabled' }), contentType: 'image/png',
+      });
+      await expect.poll(() => page.evaluate(() =>
+        document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1
+          && document.documentElement.scrollHeight <= innerHeight + 1
+          && document.scrollingElement!.scrollTop === 0,
+      )).toBe(true);
+      await page.getByTestId('inventory-inspection-close').click();
+      await expect(dialog).toHaveCount(0);
+      await expect(opener).toBeFocused();
+
+      // A server-grant-preserving filter narrows the inspection deck.
+      await page.getByTestId('inventory-browse-filter').click();
+      await page.getByRole('option', { name: language === 'it' ? 'Disponibili' : 'Available' }).click();
+      await expect(stack).toHaveCount(2);
+      await inspect.first().click();
+      await expect(position).toHaveText(expectedPosition(1, 2));
+      await expect(key).toHaveText(availableKeys[0]);
+      await next.click();
+      await expect(key).toHaveText(availableKeys[1]);
+      await expect(position).toHaveText(expectedPosition(2, 2));
+      await expect(next).toBeDisabled();
+      await dialog.press('Escape');
+      await expect(dialog).toHaveCount(0);
+      if (language === 'it') {
+        // Translation reorders the *same owner-visible* stacks, never refetching.
+        await page.getByTestId('language-toggle').click();
+        await expect(stack.first()).toContainText('Grove Seed');
+        await inspect.first().click();
+        await expect(key).toHaveText('item.grove_seed.v1');
+        await expect(position).toHaveText('Item 1 of 2');
+        await dialog.press('Escape');
+        await expect(dialog).toHaveCount(0);
+      }
+      expect(reads).toBe(initialReads);
+    });
+}
+
 test('game-first inventory views separate gear, backpack and history without changing server data', async ({ page }) => {
   await signIn(page);
   await mockInventory(page);
