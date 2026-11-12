@@ -1,6 +1,6 @@
 import { AutoAwesome, BackpackOutlined, ExploreOutlined, FavoriteBorder, PersonOutlined, SportsEsportsOutlined, TouchAppOutlined, RouteOutlined, HistoryEduOutlined } from '@mui/icons-material';
 import { Alert, Box, Button, Chip, CircularProgress, Grid, LinearProgress, Paper, Stack, Typography } from '@mui/material';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link as RouterLink } from 'react-router-dom';
 import { useStoredSession } from '../features/auth/useStoredSession';
@@ -8,6 +8,7 @@ import { fetchCharacterHealth, type CharacterHealth, type CharacterHealthApiErro
 import { CharacterRestAction } from '../features/health/CharacterRestAction';
 import { RefugePreparationBoard } from './RefugePreparationBoard';
 import { RefugeActivityCatalog } from './RefugeActivityCatalog';
+import { moveRovingRailFocus } from '../components/rovingRailFocus';
 
 const activities = [
   { key: 'character', to: '/character', icon: PersonOutlined, authenticated: false },
@@ -103,6 +104,18 @@ export function RefugePage() {
     target?.focus({ preventScroll: true });
   }
 
+  // Only move focus among visible section commands, never activate a chamber.
+  // This mirrors the GameDeck directional rail without intercepting form keys.
+  const sectionKeyboardProps = {
+    'data-refuge-section-control': 'true',
+    'aria-keyshortcuts': 'ArrowLeft ArrowRight Home End',
+    title: t('refuge.dashboard.keyboardHint'),
+  };
+
+  const onSectionRailKeyDown = (event: KeyboardEvent<HTMLElement>) => {
+    moveRovingRailFocus(event, 'button[data-refuge-section-control]:not(:disabled)', true, true);
+  };
+
   function reviewHealth() {
     openSection('refuge-health');
   }
@@ -118,33 +131,34 @@ export function RefugePage() {
   return (
     <Stack spacing={2} data-testid="refuge-page" className="vuxo-refuge-dashboard">
       <Box component="nav" className="vuxo-refuge-sections" data-testid="refuge-section-nav"
-        aria-label={t('refuge.dashboard.navigation')} sx={{ bgcolor: 'background.paper', borderColor: 'divider' }}>
-        <Button data-testid="refuge-focus-toggle" size="small"
+        aria-label={t('refuge.dashboard.navigation')} onKeyDown={onSectionRailKeyDown}
+        sx={{ bgcolor: 'background.paper', borderColor: 'divider' }}>
+        <Button data-testid="refuge-focus-toggle" {...sectionKeyboardProps} size="small"
           variant={focusMode ? 'contained' : 'outlined'}
           aria-pressed={focusMode}
           onClick={() => setFocusSection(current => current ? null : session ? 'health' : 'activities')}>
           {t(focusMode ? 'refuge.dashboard.fullView' : 'refuge.dashboard.focusView')}
         </Button>
-        <Button data-testid="refuge-jump-activities" size="small"
+        <Button data-testid="refuge-jump-activities" {...sectionKeyboardProps} size="small"
           aria-pressed={focusMode ? focusSection === 'activities' : undefined}
           startIcon={<SportsEsportsOutlined />} onClick={() => openSection('refuge-activities-section')}>
           {t('refuge.dashboard.activities')}
         </Button>
         {session && (
-          <Button data-testid="refuge-jump-health" size="small"
+          <Button data-testid="refuge-jump-health" {...sectionKeyboardProps} size="small"
             aria-pressed={focusMode ? focusSection === 'health' : undefined}
             startIcon={<FavoriteBorder />} onClick={() => openSection('refuge-health')}>
             {t('refuge.dashboard.health')}
           </Button>
         )}
         {health && (
-          <Button data-testid="refuge-jump-preparation" size="small"
+          <Button data-testid="refuge-jump-preparation" {...sectionKeyboardProps} size="small"
             aria-pressed={focusMode ? focusSection === 'preparation' : undefined}
             startIcon={<BackpackOutlined />} onClick={() => openSection('refuge-preparation')}>
             {t('refuge.dashboard.preparation')}
           </Button>
         )}
-        <Button data-testid="refuge-jump-care" size="small"
+        <Button data-testid="refuge-jump-care" {...sectionKeyboardProps} size="small"
             aria-pressed={focusMode ? focusSection === 'care' : undefined}
           startIcon={<AutoAwesome />} onClick={() => openSection('refuge-care-section')}>
           {t('refuge.dashboard.care')}

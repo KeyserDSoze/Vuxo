@@ -266,6 +266,137 @@ test('English dark keyboard chamber navigation remains localized at narrow width
     && document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
 });
 
+for (const [width, height] of [[320, 568], [390, 844], [1280, 720]] as const) {
+  test('Refuge section rail moves focus without activating panels at ' + width, async ({ page }, info) => {
+    await page.setViewportSize({ width, height });
+    const ownerReads: string[] = [];
+    page.on('request', request => {
+      const path = new URL(request.url()).pathname;
+      if (/\/api\/(characters\/me|equipment|inventory)/.test(path)) ownerReads.push(path);
+    });
+    await page.goto('./#/refuge');
+    const nav = page.getByTestId('refuge-section-nav');
+    const toggle = page.getByTestId('refuge-focus-toggle');
+    const activities = page.getByTestId('refuge-jump-activities');
+    const care = page.getByTestId('refuge-jump-care');
+    await expect(nav.locator('button[data-refuge-section-control]')).toHaveCount(3);
+    await expect(nav.locator('button[aria-keyshortcuts="ArrowLeft ArrowRight Home End"]')).toHaveCount(3);
+    await expect(toggle).toHaveAttribute('title',
+      '←/→ sposta il focus, Home/End primo/ultimo, Invio apre');
+    await expect(page.getByTestId('refuge-jump-health')).toHaveCount(0);
+    await expect(page.getByTestId('refuge-jump-preparation')).toHaveCount(0);
+    await toggle.focus();
+    await page.keyboard.press('ArrowRight');
+    await expect(activities).toBeFocused();
+    await page.keyboard.press('ArrowRight');
+    await expect(care).toBeFocused();
+    await page.keyboard.press('ArrowRight');
+    await expect(toggle).toBeFocused();
+    await page.keyboard.press('ArrowLeft');
+    await expect(care).toBeFocused();
+    await page.keyboard.press('Home');
+    await expect(toggle).toBeFocused();
+    await page.keyboard.press('End');
+    await expect(care).toBeFocused();
+    const ignored = await care.evaluate(button => [
+      { ctrlKey: true }, { altKey: true }, { metaKey: true },
+      { shiftKey: true }, { isComposing: true }, { repeat: true },
+    ].map(flags => {
+      const e = new KeyboardEvent('keydown', {
+        key: 'ArrowLeft', bubbles: true, cancelable: true, ...flags,
+      });
+      button.dispatchEvent(e);
+      return e.defaultPrevented;
+    }));
+    expect(ignored).toEqual([false, false, false, false, false, false]);
+    await care.evaluate(button => {
+      const e = new KeyboardEvent('keydown', {
+        key: 'ArrowLeft', bubbles: true, cancelable: true,
+      });
+      e.preventDefault();
+      button.dispatchEvent(e);
+    });
+    await expect(care).toBeFocused();
+    await page.keyboard.press('ArrowDown');
+    await expect(care).toBeFocused();
+    await expect(page.getByTestId('refuge-command-hero')).toBeVisible();
+    await expect(page.getByTestId('refuge-activities-section')).toBeVisible();
+    await expect(page.getByTestId('refuge-care')).toBeVisible();
+    await info.attach('refuge-chamber-rail-arrows-' + width, {
+      body: await page.screenshot({ animations: 'disabled' }), contentType: 'image/png',
+    });
+    await page.keyboard.press('Enter');
+    await expect(page.getByTestId('refuge-care')).toBeFocused();
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByTestId('refuge-activities-section')).toBeFocused();
+    await expect(page.getByTestId('refuge-care')).toBeHidden();
+    await care.focus();
+    await page.keyboard.press('Enter');
+    await expect(page.getByTestId('refuge-care')).toBeFocused();
+    await expect(page.getByTestId('refuge-activities-section')).toBeHidden();
+    await expect.poll(() => page.evaluate(() =>
+      document.documentElement.scrollWidth <= innerWidth + 1 &&
+      document.documentElement.scrollHeight <= innerHeight + 1 &&
+      document.scrollingElement!.scrollTop === 0,
+    )).toBe(true);
+    expect(ownerReads).toEqual([]);
+  });
+}
+
+test('Refuge section rail focuses only available owner panels and preserves cached HP', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  let healthReads = 0, equipmentReads = 0;
+  await page.route('**/api/characters/me/health', route => {
+    healthReads++;
+    return route.fulfill({ json: { name: 'Vuxian', currentHealth: 11, maxHealth: 20,
+      rulesVersion: 'character-health-v1' } });
+  });
+  await page.route('**/api/equipment', route => {
+    equipmentReads++;
+    return route.fulfill({ json: { items: [], stats: null, ruleVersion: 'equipment-v1' } });
+  });
+  await page.goto('./#/refuge');
+  await login(page);
+  await expect(page.getByTestId('refuge-preparation-hp-count')).toHaveText('11 / 20 HP');
+  const snapshot = { healthReads, equipmentReads };
+  const nav = page.getByTestId('refuge-section-nav');
+  const toggle = page.getByTestId('refuge-focus-toggle');
+  const health = page.getByTestId('refuge-jump-health');
+  const prep = page.getByTestId('refuge-jump-preparation');
+  const care = page.getByTestId('refuge-jump-care');
+  await expect(nav.locator('button[data-refuge-section-control]')).toHaveCount(5);
+  await toggle.focus();
+  await page.keyboard.press('ArrowLeft');
+  await expect(care).toBeFocused();
+  await page.keyboard.press('Home');
+  await expect(toggle).toBeFocused();
+  await page.keyboard.press('ArrowRight');
+  await expect(page.getByTestId('refuge-jump-activities')).toBeFocused();
+  await page.keyboard.press('ArrowRight');
+  await expect(health).toBeFocused();
+  await page.keyboard.press('ArrowRight');
+  await expect(prep).toBeFocused();
+  await expect(page.getByTestId('refuge-command-hero')).toBeVisible();
+  await toggle.click();
+  await expect(page.getByTestId('refuge-health')).toBeFocused();
+  await prep.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByTestId('refuge-preparation')).toBeFocused();
+  await expect(page.getByTestId('refuge-preparation-hp-count')).toHaveText('11 / 20 HP');
+  expect({ healthReads, equipmentReads }).toEqual(snapshot);
+  await page.evaluate(() => {
+    localStorage.removeItem('vuxo.accessToken');
+    localStorage.removeItem('vuxo.auth.expiresAtUtc');
+    localStorage.removeItem('vuxo.auth.user');
+    window.dispatchEvent(new Event('vuxo:session-changed'));
+  });
+  await expect(page.getByTestId('refuge-jump-health')).toHaveCount(0);
+  await expect(page.getByTestId('refuge-jump-preparation')).toHaveCount(0);
+  await expect(nav.locator('button[data-refuge-section-control]')).toHaveCount(3);
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+});
+
 test('prefers reduced motion disables hover animation in Refuge activity tiles', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('./#/refuge');

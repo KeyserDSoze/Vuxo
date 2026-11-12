@@ -5,6 +5,7 @@ import { useEffect, useRef, type KeyboardEvent, type PropsWithChildren } from 'r
 import { useTranslation } from 'react-i18next';
 import { Link as RouterLink, useLocation } from 'react-router-dom';
 import './game-deck.css';
+import { moveRovingRailFocus } from './rovingRailFocus';
 
 const routes = [
   { to: '/refuge', label: 'nav.refuge', icon: CottageOutlined, name: 'refuge' },
@@ -36,23 +37,11 @@ export function GameDeck({ children }: PropsWithChildren) {
   // actual rail orientation: a resized page changes from row to column
   // without an extra JS breakpoint that might disagree with the CSS.
   const onRailKeyDown = (event: KeyboardEvent<HTMLElement>) => {
-    if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
-    const target = event.target;
-    if (!(target instanceof HTMLAnchorElement) || !target.classList.contains('vuxo-deck__route')) return;
-    const links = Array.from(event.currentTarget.querySelectorAll<HTMLAnchorElement>('.vuxo-deck__route'));
-    const current = links.indexOf(target);
-    const routesContainer = event.currentTarget.querySelector<HTMLElement>('.vuxo-deck__routes');
-    if (current < 0 || !routesContainer || links.length === 0) return;
-    const horizontal = getComputedStyle(routesContainer).flexDirection.startsWith('row');
-    let next: number | null = null;
-    if (event.key === 'Home') next = 0;
-    else if (event.key === 'End') next = links.length - 1;
-    else if (event.key === (horizontal ? 'ArrowRight' : 'ArrowDown')) next = (current + 1) % links.length;
-    else if (event.key === (horizontal ? 'ArrowLeft' : 'ArrowUp')) next = (current - 1 + links.length) % links.length;
-    if (next === null) return;
-
-    event.preventDefault();
-    links[next]?.focus();
+    const routes = event.currentTarget.querySelector<HTMLElement>('.vuxo-deck__routes');
+    if (!routes) return;
+    // Use the actual CSS axis after responsive layout transitions.
+    moveRovingRailFocus(event, '.vuxo-deck__route',
+      getComputedStyle(routes).flexDirection.startsWith('row'));
   };
 
   return (
