@@ -1,5 +1,5 @@
-import { Alert, Box, Button, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, Grid, IconButton, InputLabel, MenuItem, Paper, Select, Stack, TextField, Typography } from '@mui/material';
-import { AutoAwesome, BackpackOutlined, ExploreOutlined, FavoriteBorder, HistoryOutlined, SearchOutlined, ViewModuleOutlined, VisibilityOutlined } from '@mui/icons-material';
+import { Alert, Box, Button, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, Grid, IconButton, InputAdornment, InputLabel, MenuItem, Paper, Select, Stack, TextField, Typography } from '@mui/material';
+import { AutoAwesome, BackpackOutlined, CloseRounded, ExploreOutlined, FavoriteBorder, HistoryOutlined, SearchOutlined, ViewModuleOutlined, VisibilityOutlined } from '@mui/icons-material';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link as RouterLink } from 'react-router-dom';
@@ -391,9 +391,40 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
               <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                 <TextField inputRef={searchRef} fullWidth label={t('browse.search')} value={browseQuery}
                   onChange={event => setBrowseQuery(event.target.value)}
+                  onKeyDown={event => {
+                    // Esc is a query-only reset when typing into inventory search:
+                    // native Esc elsewhere must still reach dialogs/browser controls.
+                    if (event.target === searchRef.current && event.key === 'Escape' &&
+                        browseQuery && !event.nativeEvent.isComposing) {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      setBrowseQuery('');
+                    }
+                  }}
                   placeholder={t('browse.searchHint')}
-                  slotProps={{ htmlInput: { 'data-testid': 'inventory-browse-search',
-                    'aria-keyshortcuts': 'Control+K Meta+K' } }}
+                  slotProps={{
+                    htmlInput: { 'data-testid': 'inventory-browse-search',
+                      'aria-keyshortcuts': 'Control+K Meta+K Escape' },
+                    input: {
+                      endAdornment: browseQuery ? (
+                        <InputAdornment position="end">
+                          <IconButton data-testid="inventory-browse-clear-query"
+                            size="small" aria-label={t('browse.clearQuery')}
+                            title={t('browse.clearQuery')}
+                            onMouseDown={event => event.preventDefault()}
+                            onClick={() => {
+                              // Only clear the query: leave availability/slot/sort
+                              // and the server-authoritative owner snapshot intact.
+                              setBrowseQuery('');
+                              searchRef.current?.focus({ preventScroll: true });
+                            }}
+                            sx={{ minWidth: 40, minHeight: 40 }}>
+                            <CloseRounded fontSize="small" aria-hidden="true" />
+                          </IconButton>
+                        </InputAdornment>
+                      ) : null,
+                    },
+                  }}
                 />
               </Grid>
               <Grid size={{ xs: 12, sm: 6, md: 3 }}>

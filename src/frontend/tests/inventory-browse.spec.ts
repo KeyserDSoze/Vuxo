@@ -595,3 +595,96 @@ test('desktop quick-find responds to Enter without changing All view and follows
   await expect(page.getByTestId('inventory-auth-required')).toBeVisible();
 });
 
+
+test('clear-search adornment preserves owner inventory filters and input focus at 320px', async ({ page }, info) => {
+  await page.setViewportSize({ width: 320, height: 568 });
+  await signIn(page, 'owner-a', 'it');
+  await mockInventory(page);
+  await page.goto('./#/inventory');
+  const search = page.getByTestId('inventory-browse-search');
+  const clearQuery = page.getByTestId('inventory-browse-clear-query');
+  await expect(clearQuery).toHaveCount(0);
+  await page.getByTestId('inventory-view-bag').click();
+  await page.getByTestId('inventory-browse-filter').click();
+  await page.getByRole('option', { name: 'Disponibili' }).click();
+  await page.getByTestId('inventory-browse-slot').click();
+  await page.getByRole('option', { name: 'Amuleto' }).click();
+  await page.getByTestId('inventory-browse-sort').click();
+  await page.getByRole('option', { name: 'Quantità (decrescente)' }).click();
+  const ownerCalls: string[] = [];
+  page.on('request', request => {
+    const pathname = new URL(request.url()).pathname;
+    if (/^\/api\/(inventory|equipment)(\/|$)/.test(pathname))
+      ownerCalls.push(request.method() + ' ' + pathname);
+  });
+
+  await search.fill('does-not-exist');
+  await expect(page.getByTestId('inventory-browse-empty')).toBeVisible();
+  await expect(clearQuery).toHaveAttribute('aria-label', 'Cancella ricerca');
+  await expect(clearQuery).toBeVisible();
+  await info.attach('inventory-inline-clear-search-320', {
+    body: await page.screenshot({ animations: 'disabled' }), contentType: 'image/png',
+  });
+  await clearQuery.click();
+  await expect(search).toHaveValue('');
+  await expect(search).toBeFocused();
+  await expect(clearQuery).toHaveCount(0);
+  await expect(page.getByTestId('inventory-browse-filter')).toContainText('Disponibili');
+  await expect(page.getByTestId('inventory-browse-slot')).toContainText('Amuleto');
+  await expect(page.getByTestId('inventory-browse-sort')).toContainText('Quantità (decrescente)');
+  await expect(page.getByTestId('inventory-stack')).toHaveCount(1);
+  await expect(page.getByTestId('inventory-stack')).toContainText('Seme del bosco');
+  await expect(page.getByTestId('inventory-browse-clear')).toBeVisible();
+  expect(ownerCalls).toEqual([]);
+  await expect.poll(() => page.evaluate(() =>
+    document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1 &&
+    document.documentElement.scrollHeight <= innerHeight + 1 &&
+    document.scrollingElement!.scrollTop === 0)).toBe(true);
+});
+
+test('Escape clears only search text, keeps IME/native Escape, and localizes clear button', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await signIn(page, 'owner-a', 'en');
+  await mockInventory(page);
+  await page.goto('./#/inventory');
+  await page.getByTestId('theme-toggle').click();
+  await page.getByTestId('theme-toggle').click();
+  await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme)).toBe('dark');
+  const search = page.getByTestId('inventory-browse-search');
+  const clearQuery = page.getByTestId('inventory-browse-clear-query');
+  await search.fill('tidal');
+  await expect(clearQuery).toHaveAttribute('aria-label', 'Clear search');
+  await expect(search).toHaveAttribute('aria-keyshortcuts', 'Control+K Meta+K Escape');
+  await expect(page.getByTestId('inventory-stack')).toHaveCount(1);
+  const composingPrevented = await search.evaluate(element => {
+    const event = new KeyboardEvent('keydown', { key: 'Escape', isComposing: true,
+      bubbles: true, cancelable: true });
+    element.dispatchEvent(event);
+    return event.defaultPrevented;
+  });
+  expect(composingPrevented).toBe(false);
+  await expect(search).toHaveValue('tidal');
+  await search.press('Escape');
+  await expect(search).toHaveValue('');
+  await expect(search).toBeFocused();
+  await expect(clearQuery).toHaveCount(0);
+  await expect(page.getByTestId('inventory-stack')).toHaveCount(3);
+  const emptyPrevented = await search.evaluate(element => {
+    const event = new KeyboardEvent('keydown', { key: 'Escape',
+      bubbles: true, cancelable: true });
+    element.dispatchEvent(event);
+    return event.defaultPrevented;
+  });
+  expect(emptyPrevented).toBe(false);
+
+  await search.fill('Grove');
+  await page.getByTestId('language-toggle').click();
+  await expect(clearQuery).toHaveAttribute('aria-label', 'Cancella ricerca');
+  await clearQuery.focus();
+  await expect(clearQuery).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(search).toHaveValue('');
+  await expect(search).toBeFocused();
+  await expect(clearQuery).toHaveCount(0);
+});
+
