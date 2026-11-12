@@ -428,12 +428,14 @@ test('Ctrl/Meta+K finds the owner backpack from gear and history without owner A
   await page.getByTestId('inventory-view-all').focus();
   await page.keyboard.press('Control+k');
   await expect(search).toBeFocused();
+  await expect(search).toBeInViewport();
   await expect(page.getByTestId('inventory-view-all')).toHaveAttribute('aria-pressed', 'true');
   await page.getByTestId('inventory-view-gear').click();
   await expect(search).toHaveCount(0);
   await page.keyboard.press('Control+k');
   await expect(page.getByTestId('inventory-view-bag')).toHaveAttribute('aria-pressed', 'true');
   await expect(search).toBeFocused();
+  await expect(search).toBeInViewport();
   await search.fill('Seme');
   await expect(page.getByTestId('inventory-stack')).toHaveCount(1);
   await expect(page.getByTestId('inventory-stack')).toContainText('Seme del bosco');
@@ -446,6 +448,7 @@ test('Ctrl/Meta+K finds the owner backpack from gear and history without owner A
   await page.keyboard.press('Control+k');
   await expect(page.getByTestId('inventory-view-bag')).toHaveAttribute('aria-pressed', 'true');
   await expect(search).toBeFocused();
+  await expect(search).toBeInViewport();
   await expect(search).toHaveValue('Seme');
   // The shortcut belongs to the inventory surface, not an actively edited
   // text field; restore focus to a non-editing control before testing Meta+K.

@@ -199,11 +199,22 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
   }, [viewMode, browseFilter, browseSlot]);
 
   const focusQuickFind = useCallback(() => {
-    // GameDeck owns scroll; searching from an offscreen card must never scroll
-    // the outer document or produce a new inventory request.
+    // Reveal the search input inside the GameDeck scroller, not the document:
+    // in "All" mode the equipment board can push search below the viewport.
+    const field = searchRef.current;
+    if (!field) return;
     const deck = document.querySelector<HTMLElement>('[data-testid="game-deck-scroll"]');
-    if (deck) deck.scrollTop = 0;
-    searchRef.current?.focus({ preventScroll: true });
+    if (deck) {
+      const area = deck.getBoundingClientRect();
+      const target = field.getBoundingClientRect();
+      const navigation = deck.querySelector<HTMLElement>('[data-testid="inventory-views"]');
+      const stickyHeight = navigation?.getBoundingClientRect().height ?? 0;
+      const visibleTop = area.top + stickyHeight + 12;
+      const visibleBottom = area.bottom - 12;
+      if (target.top < visibleTop) deck.scrollTop += target.top - visibleTop;
+      else if (target.bottom > visibleBottom) deck.scrollTop += target.bottom - visibleBottom;
+    }
+    field.focus({ preventScroll: true });
   }, []);
 
   useEffect(() => {
