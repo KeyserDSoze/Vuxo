@@ -658,6 +658,45 @@ test('self name keeps its avatar anchor when a nearby peer label overlaps on mob
   }
 })
 
+
+const dualTouchScope = 'world-art-mobile-dual-touch'
+
+test('two-finger D-pad movement keeps the world in viewport and server positions on mobile', async ({ page, request }, info) => {
+  await resetRoom(request, dualTouchScope)
+  await demoPlayer(page, 'art-dual-touch', 'Mobile Grove Scout', dualTouchScope)
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto(gameUrl)
+  await expect(page.getByTestId('world-connection-status')).toHaveAttribute('data-status', 'connected')
+  const self = page.locator('[data-player-id="art-dual-touch"]')
+  const startX = Number(await self.getAttribute('data-player-x'))
+  const startY = Number(await self.getAttribute('data-player-y'))
+  const emit = async (direction: string, type: 'pointerdown' | 'pointerup', pointerId: number) =>
+    page.getByTestId('touch-' + direction).evaluate((element, data) => {
+      element.dispatchEvent(new PointerEvent(data.type, {
+        bubbles: true, pointerId: data.pointerId, pointerType: 'touch',
+      }))
+    }, { type, pointerId })
+
+  await emit('right', 'pointerdown', 31)
+  await emit('up', 'pointerdown', 32)
+  // The fixture moves only when it receives the combined intent. The client
+  // has no write access to player x/y, camera position or movement speed.
+  await expect.poll(async () => Number(await self.getAttribute('data-player-x'))).toBeGreaterThan(startX)
+  await expect.poll(async () => Number(await self.getAttribute('data-player-y'))).toBeLessThan(startY)
+  await expect(page.getByTestId('game-canvas').locator('canvas')).toBeVisible()
+  await expect.poll(() => page.evaluate(() =>
+    document.documentElement.scrollWidth <= innerWidth + 1
+    && document.documentElement.scrollHeight <= innerHeight + 1
+  )).toBe(true)
+  await info.attach('dual-finger-world-390x844', {
+    body: await page.screenshot({ animations: 'disabled' }),
+    contentType: 'image/png',
+  })
+  await emit('right', 'pointerup', 31)
+  await emit('up', 'pointerup', 32)
+  await expect(page.getByTestId('world-connection-status')).toHaveAttribute('data-status', 'connected')
+})
+
 const cullingScope = 'world-art-visibility-resize'
 
 test('offscreen peers stop animating and disappear from art only, then return on ultrawide without a new join', async ({ page, request }) => {
