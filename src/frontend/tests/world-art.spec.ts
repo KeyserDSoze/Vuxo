@@ -775,23 +775,22 @@ test('offscreen peers stop animating and disappear from art only, then return on
   await demoPlayer(page, 'visibility-self', 'Grove Scout', cullingScope)
   await page.emulateMedia({ reducedMotion: 'no-preference' })
   await page.setViewportSize({ width: 390, height: 844 })
-  // Only the deterministic E2E fixture's server STATE is altered. Join
-  // identity stays canonical; the production SignalR transport is untouched.
-  // The far player is outside a phone view but inside an ultrawide view.
-  await page.route(/\/__vuxo_e2e\/world\/state\?scope=world-art-visibility-resize$/, async route => {
-    const response = await route.fetch()
-    const payload = await response.json() as {
-      players: Array<{ playerId: string; x: number; y: number }>
-    }
-    await route.fulfill({
-      response,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        players: payload.players.map(player => player.playerId === 'visibility-peer'
-          ? { ...player, x: 28, y: 4.5 } : player),
-      }),
-    })
+  // Freeze a snapshot from the isolated E2E server before browser polling.
+  // The distant peer is a server-shaped fixture, not a client-owned position.
+  // Avoid route.fetch() on every poll: a response in flight when the browser
+  // closes could otherwise be disposed during async route handling.
+  const stateResponse = await request.get(origin + '/__vuxo_e2e/world/state?scope=' + cullingScope)
+  expect(stateResponse.ok()).toBeTruthy()
+  const { players } = await stateResponse.json() as {
+    players: Array<{ playerId: string; x: number; y: number }>
+  }
+  expect(players.map(player => player.playerId).sort()).toEqual(['visibility-peer', 'visibility-self'])
+  const distantPeerState = JSON.stringify({
+    players: players.map(player => player.playerId === 'visibility-peer'
+      ? { ...player, x: 28, y: 4.5 } : player),
   })
+  await page.route(/\/__vuxo_e2e\/world\/state\?scope=world-art-visibility-resize$/, route =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: distantPeerState }))
   await page.goto(gameUrl)
   const host = page.getByTestId('game-canvas')
   await expect(page.getByTestId('world-connection-status')).toHaveAttribute('data-status', 'connected')
