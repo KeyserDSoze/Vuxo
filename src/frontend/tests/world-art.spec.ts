@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { computeWorldCameraZoom } from '../src/game/WorldCamera'
 
 const origin = 'http://127.0.0.1:4173'
 const gameUrl = origin + '/Vuxo/#/game'
@@ -598,6 +599,67 @@ test('adaptive camera keeps two canonical outfits, viewport HUD and movement sta
     .toBeGreaterThan(originalX)
 })
 
+
+
+const zoomSeamScope = 'world-art-zoom-breakpoint-seams'
+
+test('camera resize crosses the 600 and 1024 pixel seams without sudden scale jumps or blank terrain', async ({ page, request }, info) => {
+  await resetRoom(request, zoomSeamScope)
+  await demoPlayer(page, 'zoom-seam-self', 'Grove Scout', zoomSeamScope)
+  await page.setViewportSize({ width: 390, height: 800 })
+  await page.goto(gameUrl)
+  const host = page.getByTestId('game-canvas')
+  const self = page.getByTestId('world-presence-self')
+  await expect(page.getByTestId('world-connection-status'))
+    .toHaveAttribute('data-status', 'connected')
+  await expect(host.locator('canvas')).toBeVisible()
+  const initialX = await self.getAttribute('data-player-x')
+
+  const zoomAt = async (width: number) => {
+    await page.setViewportSize({ width, height: 800 })
+    const dims = await host.evaluate(el => ({ width: el.clientWidth, height: el.clientHeight }))
+    const expected = computeWorldCameraZoom(dims.width, dims.height)
+    await expect.poll(async () => Number(await host.getAttribute('data-e2e-camera-zoom')))
+      .toBe(expected)
+    await expect.poll(() => host.evaluate(el => {
+      const canvas = el.querySelector('canvas') as HTMLCanvasElement | null
+      const raw = el.getAttribute('data-e2e-world-coverage')
+      if (!canvas || !raw) return false
+      const coverage = JSON.parse(raw) as {
+        drawnLeft: number; drawnRight: number; drawnTop: number; drawnBottom: number
+        visibleLeft: number; visibleRight: number; visibleTop: number; visibleBottom: number
+      }
+      return coverage.drawnLeft <= coverage.visibleLeft
+        && coverage.drawnRight >= coverage.visibleRight
+        && coverage.drawnTop <= coverage.visibleTop
+        && coverage.drawnBottom >= coverage.visibleBottom
+        && Math.abs(canvas.width - el.clientWidth) < 2
+        && Math.abs(canvas.height - el.clientHeight) < 2
+    })).toBe(true)
+    await expect(self).toHaveAttribute('data-player-x', initialX!)
+    await expect.poll(() => page.evaluate(() =>
+      document.documentElement.scrollWidth <= innerWidth + 1
+      && document.documentElement.scrollHeight <= innerHeight + 1
+    )).toBe(true)
+    return expected
+  }
+
+  const mobileBefore = await zoomAt(599)
+  const mobileAfter = await zoomAt(600)
+  const desktopBefore = await zoomAt(1023)
+  await info.attach('camera-before-1024px-seam', {
+    body: await page.screenshot({ animations: 'disabled' }), contentType: 'image/png',
+  })
+  const desktopAfter = await zoomAt(1024)
+  await info.attach('camera-after-1024px-seam', {
+    body: await page.screenshot({ animations: 'disabled' }), contentType: 'image/png',
+  })
+  expect(Math.abs(mobileAfter - mobileBefore)).toBeLessThanOrEqual(0.050001)
+  expect(Math.abs(desktopAfter - desktopBefore)).toBeLessThanOrEqual(0.050001)
+  await zoomAt(1280)
+  await zoomAt(390)
+  await expect(host).toHaveAttribute('data-e2e-camera-zoom', '1')
+})
 
 const ownLabelScope = 'world-art-self-name-priority'
 
