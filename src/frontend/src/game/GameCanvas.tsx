@@ -16,6 +16,7 @@ import { isUnmodifiedWorldShortcut, isWorldHelpShortcut } from './WorldInputFocu
 import { HeldWorldTouchDirections } from './WorldTouchInput'
 import { PortalCompass } from './PortalCompass'
 import { WorldRadar } from './WorldRadar'
+import { WorldControlsGuide } from './WorldControlsGuide'
 import { previewWorldPortalActions, rankWorldPortalActions } from './WorldPortalActions'
 import { selectWorldPresence } from './WorldPresence'
 import { readStoredSession } from '../features/auth/authSession'
@@ -606,24 +607,14 @@ export function GameCanvas() {
         open={controlsOpen}
         onClose={() => setControlsOpen(false)}
         fullWidth
-        maxWidth="xs"
+        maxWidth="sm"
         scroll="paper"
         aria-labelledby="world-controls-guide-title"
         data-testid="world-controls-dialog"
       >
         <DialogTitle id="world-controls-guide-title">{t('game.help.title')}</DialogTitle>
         <DialogContent dividers>
-          <Stack spacing={1.25}>
-            <Typography variant="body2">{t('game.help.intro')}</Typography>
-            <Box component="ul" sx={{ m: 0, pl: 2.5, display: 'grid', gap: 1 }}>
-              <Typography component="li" variant="body2">{t('game.help.move')}</Typography>
-              <Typography component="li" variant="body2">{t('game.help.touch')}</Typography>
-              <Typography component="li" variant="body2">{t('game.help.hud')}</Typography>
-              <Typography component="li" variant="body2">{t('game.help.radar')}</Typography>
-              <Typography component="li" variant="body2">{t('game.help.fullscreen')}</Typography>
-              <Typography component="li" variant="body2">{t('game.help.portals')}</Typography>
-            </Box>
-          </Stack>
+          <WorldControlsGuide />
         </DialogContent>
         <DialogActions>
           <Button data-testid="world-controls-close" onClick={() => setControlsOpen(false)}>

@@ -48,6 +48,20 @@ for (const [width, height] of [[320, 568], [390, 844], [1280, 720]] as const) {
       await expect(dialog).toBeVisible();
       await expect(help).toHaveAttribute('aria-expanded', 'true');
       await expect(dialog).toContainText('Comandi del mondo');
+      const console = page.getByTestId('world-controls-console');
+      const movement = page.getByTestId('world-controls-movement');
+      const interfacePanel = page.getByTestId('world-controls-interface');
+      const portals = page.getByTestId('world-controls-portals');
+      await expect(console).toBeVisible();
+      await expect(movement).toHaveAttribute('aria-label', 'MOVIMENTO');
+      await expect(interfacePanel).toHaveAttribute('aria-label', 'INTERFACCIA');
+      await expect(portals).toHaveAttribute('aria-label', 'PORTALI');
+      await expect(movement.locator('kbd')).toHaveText(['W', 'A', 'S', 'D', '↑', '←', '↓', '→', '↑', '←', '↓', '→']);
+      await expect(interfacePanel.locator('kbd')).toHaveText(['F', 'H', 'R', '?']);
+      await expect(portals.locator('kbd')).toHaveText(['✦']);
+      await expect.poll(() => console.evaluate(node => node.scrollWidth <= node.clientWidth + 1 &&
+        Array.from(node.querySelectorAll('.vuxo-controls-panel')).every(panel =>
+          panel.scrollWidth <= panel.clientWidth + 1))).toBe(true);
       await expect(dialog).toContainText('WASD');
       await expect(dialog).toContainText('H:');
       await expect(dialog).toContainText('R:');
@@ -69,6 +83,9 @@ for (const [width, height] of [[320, 568], [390, 844], [1280, 720]] as const) {
       await expect(help).toHaveAttribute('aria-label', 'World controls guide');
       await help.click();
       await expect(dialog).toContainText('World controls');
+      await expect(page.getByTestId('world-controls-movement')).toHaveAttribute('aria-label', 'MOVEMENT');
+      await expect(page.getByTestId('world-controls-interface')).toHaveAttribute('aria-label', 'INTERFACE');
+      await expect(page.getByTestId('world-controls-portals')).toHaveAttribute('aria-label', 'PORTALS');
       await expect(dialog).toContainText('server authorizes');
       await page.getByTestId('world-controls-close').click();
       await expect(dialog).toBeHidden();

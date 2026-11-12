@@ -139,6 +139,73 @@
   color: color-mix(in srgb, var(--vuxo-game-hud-text) 52%, transparent);
 }
 
+
+/* Fullscreen-safe game control console: only MUI DialogContent may scroll. */
+.vuxo-controls-console { display: grid; gap: 12px; min-width: 0; }
+.vuxo-controls-intro.MuiTypography-root {
+  color: var(--vuxo-game-hud-text);
+  font-size: .78rem;
+  line-height: 1.4;
+}
+.vuxo-controls-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  align-items: start;
+  min-width: 0;
+}
+.vuxo-controls-panel {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--vuxo-game-hud-border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--vuxo-game-hud-bg) 76%, transparent);
+}
+.vuxo-controls-panel--portals { grid-column: 1 / -1; }
+.vuxo-controls-heading.MuiTypography-root {
+  color: var(--vuxo-game-hud-accent);
+  font-size: .8rem;
+  font-weight: 850;
+  letter-spacing: .06em;
+}
+.vuxo-controls-command {
+  display: grid;
+  grid-template-columns: minmax(0, 108px) minmax(0, 1fr);
+  gap: 9px;
+  align-items: start;
+  margin-top: 9px;
+}
+.vuxo-controls-panel--portals .vuxo-controls-command { grid-template-columns: 34px minmax(0, 1fr); }
+.vuxo-controls-keycaps { display: flex; flex-wrap: wrap; gap: 4px; }
+.vuxo-controls-keycap {
+  box-sizing: border-box;
+  display: inline-grid;
+  place-items: center;
+  min-width: 24px;
+  min-height: 24px;
+  padding: 0 5px;
+  border: 1px solid var(--vuxo-game-hud-border);
+  border-bottom-width: 3px;
+  border-radius: 6px;
+  color: var(--vuxo-game-hud-accent);
+  background: color-mix(in srgb, var(--vuxo-game-hud-bg) 96%, transparent);
+  font: 800 .72rem/1 ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+.vuxo-controls-description.MuiTypography-root {
+  min-width: 0;
+  margin: 0;
+  color: var(--vuxo-game-hud-text);
+  font-size: .72rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 599px) {
+  .vuxo-controls-grid { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .vuxo-controls-panel { padding: 10px; }
+  .vuxo-controls-panel--portals { grid-column: auto; }
+  .vuxo-controls-command { margin-top: 7px; }
+}
+
 .vuxo-game-notices {
   position: absolute;
   z-index: 9;
