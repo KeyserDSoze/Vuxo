@@ -298,7 +298,10 @@ test('late owner-only GET cannot resurrect a server-completed portal while anoth
     await page.getByTestId('portal-submit').click();
     await expect(page.getByTestId('portal-complete')).toBeVisible();
     await expect(spent).toHaveCount(0);
-    await expect(retained).toBeEnabled();
+    // The second grant survives, but the existing modal lock deliberately
+    // disables all HUD entry buttons while the challenge dialog is open.
+    await expect(retained).toBeVisible();
+    await expect(retained).toBeDisabled();
     await expect(host).toHaveAttribute('data-rendered-portals', '1');
     expect(api.getEntryCalls()).toBe(1);
     expect(api.getAttempts()).toBe(1);
@@ -310,7 +313,8 @@ test('late owner-only GET cannot resurrect a server-completed portal while anoth
     await page.evaluate(() => new Promise<void>(resolve =>
       requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
     await expect(spent).toHaveCount(0);
-    await expect(retained).toBeEnabled();
+    await expect(retained).toBeVisible();
+    await expect(retained).toBeDisabled();
     await expect(host).toHaveAttribute('data-rendered-portals', '1');
     await expect(page.getByTestId('world-portal-dialog')).toBeVisible();
     await info.attach('completed-portal-not-resurrected-390px', {
@@ -322,8 +326,13 @@ test('late owner-only GET cannot resurrect a server-completed portal while anoth
     await expect(host).toHaveAttribute('data-e2e-portal-list-refresh-revision', '3',
       { timeout: 24_000 });
     await expect(spent).toHaveCount(0);
-    await expect(retained).toBeEnabled();
+    await expect(retained).toBeVisible();
     await expect(host).toHaveAttribute('data-rendered-portals', '1');
+    // Once the modal closes, the untouched owner's second portal becomes
+    // actionable again; no forced entry or client-owned permission bypass.
+    await page.getByRole('dialog').press('Escape');
+    await expect(page.getByTestId('world-portal-dialog')).toHaveCount(0);
+    await expect(retained).toBeEnabled();
     await expect.poll(() => page.evaluate(() =>
       document.documentElement.scrollWidth <= innerWidth + 1
       && document.documentElement.scrollHeight <= innerHeight + 1
