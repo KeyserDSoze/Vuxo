@@ -33,6 +33,46 @@ for (const [width, height] of [[320, 568], [390, 844], [768, 1024], [1280, 720],
   });
 }
 
+// The visible Phaser canvas is not natively focusable. After navigating HUD
+// controls with a keyboard, a click back into the world must explicitly
+// restore keyboard ownership without producing document scroll.
+for (const [width, height] of [[390, 844], [1280, 720]] as const) {
+  test('world restores focus from HUD to canvas at ' + width + 'x' + height,
+    async ({ page }, info) => {
+      await page.setViewportSize({ width, height });
+      await page.goto('./#/game');
+      const world = page.getByTestId('game-canvas');
+      await expect(world.locator('canvas')).toBeVisible();
+      await expect(world).toHaveAttribute('tabindex', '0');
+      await expect(world).toHaveAttribute('role', 'region');
+      await expect(world).toHaveAttribute('aria-label', /.+/);
+
+      const fullscreen = page.getByTestId('game-fullscreen-toggle');
+      await fullscreen.focus();
+      await expect(fullscreen).toBeFocused();
+      await page.keyboard.press('ArrowRight');
+      await expect(fullscreen).toBeFocused();
+
+      const refuge = page.getByTestId('game-refuge-link');
+      await refuge.focus();
+      await expect(refuge).toBeFocused();
+      await page.keyboard.press('d');
+      await expect(refuge).toBeFocused();
+
+      await world.locator('canvas').click();
+      await expect(world).toBeFocused();
+      await expect.poll(() => page.evaluate(() =>
+        document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1
+        && document.documentElement.scrollHeight <= innerHeight + 1
+        && document.scrollingElement!.scrollTop === 0,
+      )).toBe(true);
+      await info.attach('world-hud-to-canvas-focus-' + width, {
+        body: await page.screenshot({ animations: 'disabled' }),
+        contentType: 'image/png',
+      });
+    });
+}
+
 test('resizing the browser reveals a different amount of world without a 16:9 letterbox', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 720 });
   await page.goto('./#/game');

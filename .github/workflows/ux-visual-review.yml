@@ -19,6 +19,11 @@ on:
       - src/frontend/src/game/WorldArtwork.ts
       - src/frontend/src/game/WorldPortalArtwork.ts
       - src/frontend/src/game/WorldScene.ts
+      - src/frontend/src/game/GameCanvas.tsx
+      - src/frontend/src/game/game.css
+      - src/frontend/src/game/WorldInputFocus.ts
+      - src/frontend/tests/game-viewport.spec.ts
+      - src/frontend/tests/multiplayer.spec.ts
       - src/frontend/src/game/WorldRadar.tsx
       - src/frontend/tests/world-radar.spec.ts
       - src/frontend/src/game/WorldTerrainWindow.ts
@@ -68,7 +73,7 @@ jobs:
           CI: "true"
           VITE_BASE_PATH: /Vuxo/
           VUXO_VISUAL_REVIEW: "1"
-        run: npx playwright test tests/ux-visual-review.spec.ts tests/world-art.spec.ts tests/world-portals.spec.ts tests/auth.spec.ts tests/character-editor.spec.ts tests/game-deck.spec.ts --workers=1
+        run: npx playwright test tests/ux-visual-review.spec.ts tests/world-art.spec.ts tests/world-portals.spec.ts tests/auth.spec.ts tests/character-editor.spec.ts tests/game-deck.spec.ts tests/game-viewport.spec.ts --workers=1
       - name: Upload screenshots and HTML report
         if: always()
         uses: actions/upload-artifact@v4

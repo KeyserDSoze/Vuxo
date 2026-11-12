@@ -104,7 +104,13 @@ test('client re-joins after a simulated reconnect without losing presence', asyn
   expect(await numericAttribute(player, 'data-player-x')).toBe(initialX);
 });
 
-test('two browser contexts see reciprocal player presence', async ({ browser }) => {
+test('two browser contexts see reciprocal player presence', async ({ browser, request }) => {
+  // The default preview room is shared across parallel Playwright workers.
+  // A private scope prevents an unrelated E2E browser appearing on the radar
+  // between the peer count assertion and the position check.
+  const scope = 'multiplayer-reciprocal-pair';
+  const reset = await request.post(previewOrigin + '/__vuxo_e2e/world/reset?scope=' + scope);
+  expect(reset.ok()).toBeTruthy();
   const contextA = await browser.newContext();
   const contextB = await browser.newContext();
 
@@ -113,6 +119,8 @@ test('two browser contexts see reciprocal player presence', async ({ browser }) 
     const pageB = await contextB.newPage();
     await configurePlayer(pageA, 'player-a', 'Alpha');
     await configurePlayer(pageB, 'player-b', 'Bravo');
+    await pageA.addInitScript(value => localStorage.setItem('vuxo.e2eWorldScope', value), scope);
+    await pageB.addInitScript(value => localStorage.setItem('vuxo.e2eWorldScope', value), scope);
 
     await pageA.goto(gameUrl);
     await expectConnected(pageA);

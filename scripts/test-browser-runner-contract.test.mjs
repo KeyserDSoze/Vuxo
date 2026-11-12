@@ -24,3 +24,24 @@ test('browser workflows pin Ubuntu 24.04 and do not run apt during Chromium setu
     assert.doesNotMatch(part, /continue-on-error: true/, file)
   }
 })
+
+
+test('visual screenshot workflow tracks world input-focus and covers game viewport', () => {
+  const source = yaml('ux-visual-review.yml').replace(/\r\n/g, '\n')
+  const watchList = source.split('    paths:\n')[1]?.split('\n\npermissions:')[0]
+  assert.ok(watchList, 'visual workflow must declare push paths')
+  for (const path of [
+    'src/frontend/src/game/GameCanvas.tsx',
+    'src/frontend/src/game/game.css',
+    'src/frontend/src/game/WorldInputFocus.ts',
+    'src/frontend/tests/game-viewport.spec.ts',
+    'src/frontend/tests/multiplayer.spec.ts',
+  ]) {
+    assert.ok(watchList.includes('      - ' + path + '\n'),
+      'visual workflow must trigger for ' + path)
+  }
+  const command = source.split('\n').find(line => line.includes('run: npx playwright test '))
+  assert.ok(command, 'visual workflow must execute Playwright')
+  assert.match(command, /tests\/game-viewport\.spec\.ts/,
+    'visual evidence must include mobile and desktop HUD→canvas focus regression')
+})
