@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
 
 const catalog = {
   catalogVersion: '0.0.1',
@@ -14,6 +14,21 @@ const catalog = {
   shoeColors: ['white', 'black', 'brown', 'red', 'blue'],
 }
 
+// MUI Select renders its choices in a modal Popover portal. While the
+// popover exits it can aria-hide the rest of the app: getByRole('combobox')
+// may temporarily find *no accessible control* even when the input exists.
+// Synchronize on the overlay actually leaving, not a guessed sleep/timeout.
+async function selectAppearanceOption(page: Page, field: string, option: string) {
+  await expect(page.locator('.MuiPopover-root')).toHaveCount(0)
+  const control = page.getByTestId(field + '-select').getByRole('combobox')
+  await expect(control).toBeVisible()
+  await control.click()
+  await expect(page.getByRole('listbox')).toBeVisible()
+  await page.getByRole('option', { name: option, exact: true }).click()
+  await expect(page.locator('.MuiPopover-root')).toHaveCount(0)
+  await expect(control).toHaveText(option)
+}
+
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem('vuxo.language', 'it')
@@ -27,10 +42,8 @@ test('appearance selection updates preview and persists across reload', async ({
   await expect(page.getByRole('heading', { name: /costruisci il tuo vuxian/i })).toBeVisible()
   await expect(page.getByTestId('character-preview')).toBeVisible()
 
-  await page.getByTestId('hairStyle-select').getByRole('combobox').click()
-  await page.getByRole('option', { name: 'Lunghi' }).click()
-  await page.getByTestId('bottomStyle-select').getByRole('combobox').click()
-  await page.getByRole('option', { name: 'Gonna' }).click()
+  await selectAppearanceOption(page, 'hairStyle', 'Lunghi')
+  await selectAppearanceOption(page, 'bottomStyle', 'Gonna')
 
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('vuxo.character.draft') ?? '{}').appearance?.hairStyle)).toBe('hair-3')
   await page.reload()
@@ -54,10 +67,11 @@ test('authenticated submit sends canonical ids and bearer token', async ({ page 
   })
 
   await page.goto('./#/character')
-  await page.getByTestId('hairStyle-select').getByRole('combobox').click()
-  await page.getByRole('option', { name: 'Ricci' }).click()
-  await page.getByTestId('shoeStyle-select').getByRole('combobox').click()
-  await page.getByRole('option', { name: 'Stivaletti' }).click()
+  await expect(page.getByTestId('character-studio-appearance')).toBeVisible()
+  await selectAppearanceOption(page, 'hairStyle', 'Ricci')
+  // This immediate second select triggered an intermittent Linux timeout in
+  // CI #43184156046 while MUI's previous Popover was exiting.
+  await selectAppearanceOption(page, 'shoeStyle', 'Stivaletti')
   await expect(page.getByTestId('create-character')).toBeEnabled()
   await page.getByTestId('create-character').click()
 
@@ -65,6 +79,40 @@ test('authenticated submit sends canonical ids and bearer token', async ({ page 
   expect(authorization).toBe('Bearer test-token')
   expect((postedBody?.appearance as Record<string, unknown>).hairStyle).toBe('hair-4')
   expect((postedBody?.appearance as Record<string, unknown>).shoeStyle).toBe('shoe-2')
+})
+
+
+test('consecutive catalog selects keep the character form accessible after MUI menu dismissal on mobile and desktop', async ({ page }, info) => {
+  const writes: string[] = []
+  page.on('request', request => {
+    if (request.method() === 'POST' && new URL(request.url()).pathname === '/api/characters')
+      writes.push(request.url())
+  })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('./#/character')
+  const appearance = page.getByTestId('character-studio-appearance')
+  await expect(appearance).toBeVisible()
+  await selectAppearanceOption(page, 'hairStyle', 'Ricci')
+  await selectAppearanceOption(page, 'shoeStyle', 'Stivaletti')
+  await expect(appearance).toBeVisible()
+  await expect(page.getByTestId('character-preview')).toBeVisible()
+  await info.attach('character-consecutive-selects-mobile-390px', {
+    body: await page.screenshot({ animations: 'disabled' }), contentType: 'image/png',
+  })
+  await page.setViewportSize({ width: 1280, height: 720 })
+  await selectAppearanceOption(page, 'hairStyle', 'Lunghi')
+  await selectAppearanceOption(page, 'shoeStyle', 'Scarpe')
+  await expect(appearance).toBeVisible()
+  await expect(page.getByTestId('hairStyle-select').getByRole('combobox')).toHaveText('Lunghi')
+  await expect(page.getByTestId('shoeStyle-select').getByRole('combobox')).toHaveText('Scarpe')
+  await expect.poll(() => page.evaluate(() => {
+    const draft = JSON.parse(localStorage.getItem('vuxo.character.draft') ?? '{}')
+    return [draft.appearance?.hairStyle, draft.appearance?.shoeStyle]
+  })).toEqual(['hair-3', 'shoe-1'])
+  await page.reload()
+  await expect(page.getByTestId('hairStyle-select').getByRole('combobox')).toHaveText('Lunghi')
+  await expect(page.getByTestId('shoeStyle-select').getByRole('combobox')).toHaveText('Scarpe')
+  expect(writes).toEqual([])
 })
 
 test('editor remains usable on a narrow mobile viewport', async ({ page }) => {
