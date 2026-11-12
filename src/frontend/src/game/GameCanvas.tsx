@@ -39,6 +39,11 @@ export function GameCanvas() {
   const [errorCode, setErrorCode] = useState<string | null>(null)
   const [selfPlayerId, setSelfPlayerId] = useState<string | null>(null)
   const [portals, setPortals] = useState<WorldPortalMarker[]>([])
+  // Only the confirmed completion callback can add an ID to this short-lived
+  // UI reconciliation set. Server-issued grants/positions remain authoritative;
+  // a GET that started before completion cannot resurrect a spent marker.
+  const completedPortalIds = useRef(new Set<string>())
+  const portalRefreshRevision = useRef(0)
   // A successful GET must clear only a transient list error, never an
   // independent failed portal-entry POST that still needs player attention.
   const [portalListErrorCode, setPortalListErrorCode] = useState<string | null>(null)
@@ -161,6 +166,7 @@ export function GameCanvas() {
       document.removeEventListener('visibilitychange', onVisibilityChange)
       observer.disconnect()
       heldTouchDirections.current.clear()
+      completedPortalIds.current.clear()
       unsubscribe()
       realtime.current = null
       worldScene.current = null
@@ -206,6 +212,7 @@ export function GameCanvas() {
 
   useEffect(() => {
     if (status !== 'connected' || !readStoredSession()) {
+      completedPortalIds.current.clear()
       setPortals([])
       setPortalListErrorCode(null)
       return
@@ -217,8 +224,17 @@ export function GameCanvas() {
       try {
         const markers = await fetchWorldPortals(controller.signal)
         if (!controller.signal.aborted) {
-          setPortals(markers)
+          const completed = completedPortalIds.current
+          const freshIds = new Set(markers.map(marker => marker.id))
+          // Once the API stops reporting a completed grant, the stale
+          // response hazard is gone. Do not retain tombstones indefinitely.
+          for (const id of completed) if (!freshIds.has(id)) completed.delete(id)
+          setPortals(markers.filter(marker => !completed.has(marker.id)))
           setPortalListErrorCode(null)
+          if (import.meta.env.VITE_E2E_REALTIME === 'true') {
+            host.current?.setAttribute('data-e2e-portal-list-refresh-revision',
+              String(++portalRefreshRevision.current))
+          }
         }
       } catch (error) {
         if (!controller.signal.aborted) {
@@ -531,6 +547,10 @@ export function GameCanvas() {
               key={activePortal.id}
               initialGrantId={activePortal.id}
               onCompleted={grantId => {
+                // This callback fires only after the server accepts the
+                // challenge. Ignore pre-completion GET snapshots until the
+                // owner-only list confirms removal; no client-side grant.
+                completedPortalIds.current.add(grantId)
                 setPortals(markers => markers.filter(portal => portal.id !== grantId))
               }}
               onExit={() => setActivePortal(null)}

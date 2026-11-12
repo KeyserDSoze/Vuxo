@@ -45,7 +45,7 @@ async function mockPrivatePortals(
     let body: unknown;
     if (pathname === '/api/personal-content/world-portals' && req.method() === 'GET') {
       listCalls++;
-      body = consumed ? [] : [{ id: grantId, contentKey: 'portal.grove', x: currentX, y: currentY }, ...extraMarkers];
+      body = consumed ? extraMarkers : [{ id: grantId, contentKey: 'portal.grove', x: currentX, y: currentY }, ...extraMarkers];
     } else if (pathname.endsWith('/world-portals/' + grantId + '/enter')) {
       entryCalls++;
       body = { id: grantId, contentKey: 'portal.grove', x: currentX, y: currentY };
@@ -246,6 +246,91 @@ test('rejected portal entry unlocks input and permits an explicit retry', async 
   await expect(page.getByTestId('world-portal-dialog')).toBeVisible();
   expect(requests).toBe(2);
   expect(api.getEntryCalls()).toBe(1);
+});
+
+
+test('late owner-only GET cannot resurrect a server-completed portal while another grant stays visible', async ({ page }, info) => {
+  test.setTimeout(95_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await initializePlayer(page, 'en');
+  const otherGrantId = '22222222-2222-4222-8222-222222222222';
+  const other = { id: otherGrantId, contentKey: 'portal.grove', x: 5.5, y: 4.5 };
+  const api = await mockPrivatePortals(page, 4.5, 4.5, [other]);
+  let calls = 0;
+  let releaseStale!: () => void;
+  const staleGate = new Promise<void>(resolve => { releaseStale = resolve });
+  // Snapshot deliberately captured *before* the authoritative challenge.
+  // A private GET already in flight must not replay a consumed grant later.
+  const staleMarkers = [
+    { id: grantId, contentKey: 'portal.grove', x: 4.5, y: 4.5 }, other,
+  ];
+  await page.route('**/api/personal-content/world-portals', async route => {
+    if (route.request().method() !== 'GET') return route.fallback();
+    calls++;
+    if (calls === 2) {
+      await staleGate;
+      await route.fulfill({ status: 200, contentType: 'application/json', headers: cors,
+        body: JSON.stringify(staleMarkers) });
+    } else {
+      await route.fallback();
+    }
+  });
+
+  const host = page.getByTestId('game-canvas');
+  const spent = page.locator('[data-testid="world-portal-enter"][data-grant-id="' + grantId + '"]');
+  const retained = page.locator('[data-testid="world-portal-enter"][data-grant-id="' + otherGrantId + '"]');
+  try {
+    await page.goto(origin + '/Vuxo/#/game');
+    await expect(page.getByTestId('world-connection-status')).toHaveAttribute('data-status', 'connected');
+    await expect(host).toHaveAttribute('data-e2e-portal-list-refresh-revision', '1');
+    await expect(host).toHaveAttribute('data-rendered-portals', '2');
+    await expect(spent).toBeEnabled();
+    await expect(retained).toBeEnabled();
+
+    // The first poll settles, but the second one waits beyond its start.
+    // Complete the challenge while that old GET is still unanswered.
+    await expect.poll(() => calls, { timeout: 24_000 }).toBe(2);
+    await spent.click();
+    await expect(page.getByTestId('world-portal-dialog')).toBeVisible();
+    await expect(page.getByTestId('portal-preview')).toBeVisible();
+    await expect(page.getByTestId('portal-preview')).toHaveCount(0, { timeout: 7000 });
+    for (const rune of sequence) await page.getByTestId('portal-rune-' + rune).click();
+    await page.getByTestId('portal-submit').click();
+    await expect(page.getByTestId('portal-complete')).toBeVisible();
+    await expect(spent).toHaveCount(0);
+    await expect(retained).toBeEnabled();
+    await expect(host).toHaveAttribute('data-rendered-portals', '1');
+    expect(api.getEntryCalls()).toBe(1);
+    expect(api.getAttempts()).toBe(1);
+
+    releaseStale();
+    // Observe the *second GET actually being accepted*, not just the
+    // preexisting one-marker DOM, before asserting the race is fixed.
+    await expect(host).toHaveAttribute('data-e2e-portal-list-refresh-revision', '2');
+    await page.evaluate(() => new Promise<void>(resolve =>
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+    await expect(spent).toHaveCount(0);
+    await expect(retained).toBeEnabled();
+    await expect(host).toHaveAttribute('data-rendered-portals', '1');
+    await expect(page.getByTestId('world-portal-dialog')).toBeVisible();
+    await info.attach('completed-portal-not-resurrected-390px', {
+      body: await page.screenshot({ animations: 'disabled' }), contentType: 'image/png',
+    });
+
+    // The next *fresh* private GET confirms the spent grant is absent,
+    // clearing the temporary local reconciliation state.
+    await expect(host).toHaveAttribute('data-e2e-portal-list-refresh-revision', '3',
+      { timeout: 24_000 });
+    await expect(spent).toHaveCount(0);
+    await expect(retained).toBeEnabled();
+    await expect(host).toHaveAttribute('data-rendered-portals', '1');
+    await expect.poll(() => page.evaluate(() =>
+      document.documentElement.scrollWidth <= innerWidth + 1
+      && document.documentElement.scrollHeight <= innerHeight + 1
+    )).toBe(true);
+  } finally {
+    releaseStale();
+  }
 });
 
 test('personal marker opens existing challenge in-world, then disappears on success', async ({ page }) => {
