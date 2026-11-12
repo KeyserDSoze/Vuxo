@@ -142,6 +142,82 @@ test('slow portal entry is single-flight across HUD and Phaser, and freezes move
   expect(api.getEntryCalls()).toBe(1);
 });
 
+
+test('transient private portal-list failure recovers without clearing an independent entry error', async ({ page }) => {
+  test.setTimeout(85_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await initializePlayer(page, 'en');
+  const api = await mockPrivatePortals(page);
+  let lists = 0;
+  // Only the initial owner-only GET fails; the real polling effect retries.
+  await page.route('**/api/personal-content/world-portals', async route => {
+    if (route.request().method() !== 'GET') return route.fallback();
+    lists++;
+    if (lists === 1) {
+      await route.fulfill({ status: 503, contentType: 'application/json', headers: cors,
+        body: JSON.stringify({ code: 'portal_request_failed' }) });
+    } else {
+      await route.fallback();
+    }
+  });
+  await page.goto(origin + '/Vuxo/#/game');
+  await expect(page.getByTestId('world-connection-status')).toHaveAttribute('data-status', 'connected');
+  await expect(page.getByTestId('world-portal-error')).toBeVisible();
+  await expect(page.getByTestId('world-portals')).toHaveCount(0);
+  await expect.poll(() => lists, { timeout: 25_000 }).toBeGreaterThan(1);
+  await expect(page.getByTestId('world-portals')).toBeVisible();
+  await expect(page.getByTestId('world-portal-error')).toHaveCount(0);
+  await expect(page.getByTestId('game-canvas')).toHaveAttribute('data-rendered-portals', '1');
+  expect(api.getEntryCalls()).toBe(0);
+
+  // An entry POST error is distinct: the next successful list refresh must
+  // not erase the rejection warning while the player decides to retry.
+  await page.route('**/api/personal-content/world-portals/' + grantId + '/enter', route =>
+    route.fulfill({ status: 503, contentType: 'application/json', headers: cors,
+      body: JSON.stringify({ code: 'portal_request_failed' }) }));
+  await page.getByTestId('world-portal-enter').click();
+  await expect(page.getByTestId('world-portal-error')).toBeVisible();
+  const afterEntry = lists;
+  await expect.poll(() => lists, { timeout: 25_000 }).toBeGreaterThan(afterEntry);
+  await expect(page.getByTestId('world-portal-error')).toBeVisible();
+  expect(api.getEntryCalls()).toBe(0);
+  await expect(page.getByTestId('game-canvas').locator('canvas')).toBeVisible();
+  await expect.poll(() => page.evaluate(() =>
+    document.documentElement.scrollWidth <= innerWidth + 1
+    && document.documentElement.scrollHeight <= innerHeight + 1
+  )).toBe(true);
+});
+
+test('slow owner-only portal list GET cannot overlap another refresh or rejoin', async ({ page }) => {
+  test.setTimeout(50_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await initializePlayer(page);
+  const api = await mockPrivatePortals(page);
+  let listCalls = 0;
+  let release!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve });
+  await page.route('**/api/personal-content/world-portals', async route => {
+    if (route.request().method() !== 'GET') return route.fallback();
+    listCalls++;
+    if (listCalls === 1) await gate;
+    await route.fallback();
+  });
+  try {
+    await page.goto(origin + '/Vuxo/#/game');
+    await expect(page.getByTestId('world-connection-status')).toHaveAttribute('data-status', 'connected');
+    await expect.poll(() => listCalls).toBe(1);
+    // The original setInterval creates a second pending request at 15s.
+    // Completion-based scheduling guarantees just one flight until release.
+    await page.waitForTimeout(16_000);
+    expect(listCalls).toBe(1);
+  } finally {
+    release();
+  }
+  await expect(page.getByTestId('world-portals')).toBeVisible();
+  await expect(page.getByTestId('game-canvas')).toHaveAttribute('data-rendered-portals', '1');
+  expect(api.getEntryCalls()).toBe(0);
+});
+
 test('rejected portal entry unlocks input and permits an explicit retry', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await initializePlayer(page, 'en');

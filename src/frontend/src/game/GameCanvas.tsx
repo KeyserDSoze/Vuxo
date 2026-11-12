@@ -39,7 +39,11 @@ export function GameCanvas() {
   const [errorCode, setErrorCode] = useState<string | null>(null)
   const [selfPlayerId, setSelfPlayerId] = useState<string | null>(null)
   const [portals, setPortals] = useState<WorldPortalMarker[]>([])
-  const [portalErrorCode, setPortalErrorCode] = useState<string | null>(null)
+  // A successful GET must clear only a transient list error, never an
+  // independent failed portal-entry POST that still needs player attention.
+  const [portalListErrorCode, setPortalListErrorCode] = useState<string | null>(null)
+  const [portalEntryErrorCode, setPortalEntryErrorCode] = useState<string | null>(null)
+  const portalErrorCode = portalEntryErrorCode ?? portalListErrorCode
   const [activePortal, setActivePortal] = useState<WorldPortalMarker | null>(null)
   const [portalEntering, setPortalEntering] = useState(false)
   // One synchronous in-flight guard for both Phaser hit areas and HUD buttons.
@@ -203,26 +207,36 @@ export function GameCanvas() {
   useEffect(() => {
     if (status !== 'connected' || !readStoredSession()) {
       setPortals([])
+      setPortalListErrorCode(null)
       return
     }
 
     const controller = new AbortController()
+    let nextRefresh: number | null = null
     const reload = async () => {
       try {
         const markers = await fetchWorldPortals(controller.signal)
-        if (!controller.signal.aborted) setPortals(markers)
+        if (!controller.signal.aborted) {
+          setPortals(markers)
+          setPortalListErrorCode(null)
+        }
       } catch (error) {
         if (!controller.signal.aborted) {
-          setPortalErrorCode(error instanceof PortalApiError
+          setPortalListErrorCode(error instanceof PortalApiError
             ? error.code : 'portal_request_failed')
+        }
+      } finally {
+        // Schedule only after the request settles: slow private API GETs
+        // must never overlap and apply stale marker snapshots out of order.
+        // Abort on unmount/reconnect also stops the retry cycle.
+        if (!controller.signal.aborted) {
+          nextRefresh = window.setTimeout(() => void reload(), 15_000)
         }
       }
     }
     void reload()
-    // Refresh privately granted and consumed portals while remaining in-world.
-    const interval = window.setInterval(() => void reload(), 15_000)
     return () => {
-      window.clearInterval(interval)
+      if (nextRefresh !== null) window.clearTimeout(nextRefresh)
       controller.abort()
     }
   }, [status])
@@ -246,12 +260,12 @@ export function GameCanvas() {
     setPortalEntering(true)
     worldScene.current?.setInputLocked(true)
     realtime.current?.setMovementIntent(0, 0)
-    setPortalErrorCode(null)
+    setPortalEntryErrorCode(null)
     try {
       const marker = await enterWorldPortal(grantId)
       setActivePortal(marker)
     } catch (error) {
-      setPortalErrorCode(error instanceof PortalApiError ? error.code : 'portal_request_failed')
+      setPortalEntryErrorCode(error instanceof PortalApiError ? error.code : 'portal_request_failed')
     } finally {
       portalEntryInFlight.current = false
       setPortalEntering(false)
