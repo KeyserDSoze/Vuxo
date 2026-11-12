@@ -6,6 +6,7 @@ import { WORLD_ART_VERSION, createIllustratedWanderer, paintWoodlandLandmarks, p
 import { readWorldAppearance, worldAppearanceKey } from './WorldAppearance'
 import { computeWorldCameraZoom } from './WorldCamera'
 import { isWorldAvatarInView } from './WorldAvatarVisibility'
+import { isWorldInteractiveFocus } from './WorldInputFocus'
 import { nextWorldTerrainWindow, type WorldTerrainWindow } from './WorldTerrainWindow'
 import { createIllustratedPortal, destroyIllustratedPortal, setIllustratedPortalVisible, updateIllustratedPortal, type IllustratedPortal } from './WorldPortalArtwork'
 
@@ -247,7 +248,17 @@ export class WorldScene extends Phaser.Scene {
         }))
     }
 
-    const keyboardBlocked = this.inputLocked || this.inputSuspended
+    // Phaser tracks keys globally, even while an HTML button/link/textbox is
+    // focused. A HUD keypress must never become a server movement intention.
+    // Clear any held Phaser keys to require a fresh world press after refocus.
+    const interactiveFocus = isWorldInteractiveFocus(document.activeElement)
+    if (interactiveFocus && (
+      this.cursors.left.isDown || this.cursors.right.isDown ||
+      this.cursors.up.isDown || this.cursors.down.isDown ||
+      this.wasd.W.isDown || this.wasd.A.isDown ||
+      this.wasd.S.isDown || this.wasd.D.isDown
+    )) this.input.keyboard?.resetKeys()
+    const keyboardBlocked = this.inputLocked || this.inputSuspended || interactiveFocus
     const horizontal = keyboardBlocked ? 0 :
       (this.cursors.right.isDown || this.wasd.D.isDown ? 1 : 0)
       - (this.cursors.left.isDown || this.wasd.A.isDown ? 1 : 0)

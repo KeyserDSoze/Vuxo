@@ -12,6 +12,7 @@ import type {
   WorldRealtimeClient,
 } from '../features/world/worldRealtime'
 import { WorldScene } from './WorldScene'
+import { isWorldInteractiveFocus } from './WorldInputFocus'
 import { HeldWorldTouchDirections } from './WorldTouchInput'
 import { PortalCompass } from './PortalCompass'
 import { WorldRadar } from './WorldRadar'
@@ -196,12 +197,11 @@ export function GameCanvas() {
       setFullscreenError(false)
     }
     const onShortcut = (event: KeyboardEvent) => {
-      const target = event.target instanceof Element ? event.target : null
-      // The world-only shortcut must never hijack text entry, HUD navigation
-      // or a modified keystroke; the focused control keeps its native behavior.
+      // The same interactive-focus boundary protects Phaser movement.
+      // The focused control keeps its native text/keyboard behavior.
       if (event.defaultPrevented || event.code !== 'KeyF' || event.repeat || event.isComposing ||
           event.shiftKey || event.altKey || event.ctrlKey || event.metaKey ||
-          target?.closest('input, textarea, select, button, a[href], summary, [contenteditable], [role="dialog"], [role="button"], [role="link"], [role="textbox"], [role="combobox"], [role="menuitem"], [role="tab"], [role="switch"], [role="checkbox"], [role="radio"], [role="slider"]')) return
+          isWorldInteractiveFocus(event.target)) return
       event.preventDefault()
       void toggleFullscreen()
     }

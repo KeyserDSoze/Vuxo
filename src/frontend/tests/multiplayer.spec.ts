@@ -25,6 +25,66 @@ test('keyboard sends movement intent and authoritative position comes back', asy
   await expect.poll(() => numericAttribute(player, 'data-player-x')).toBeGreaterThan(initialX);
 });
 
+
+test('HUD keyboard focus never sends movement and returning to canvas requires a fresh keypress', async ({ page, request }) => {
+  // Keep this server-owned world fixture independent of other tests' rooms.
+  const scope = 'keyboard-hud-focus';
+  const reset = await request.post(previewOrigin + '/__vuxo_e2e/world/reset?scope=' + scope);
+  expect(reset.ok()).toBeTruthy();
+  await configurePlayer(page, 'hud-focus-player', 'Keyboard Scout');
+  await page.addInitScript(value => localStorage.setItem('vuxo.e2eWorldScope', value), scope);
+  const intents: Array<{ horizontal: number; vertical: number }> = [];
+  page.on('request', outgoing => {
+    if (!outgoing.url().includes('/__vuxo_e2e/world/intent?scope=' + scope)) return;
+    const body = outgoing.postDataJSON() as { horizontal: number; vertical: number };
+    intents.push(body);
+  });
+  await page.goto(gameUrl);
+  await expectConnected(page);
+
+  const player = page.locator('[data-player-id="hud-focus-player"]');
+  const initialX = await numericAttribute(player, 'data-player-x');
+  const fullscreen = page.getByTestId('game-fullscreen-toggle');
+  await fullscreen.focus();
+  await expect(fullscreen).toBeFocused();
+
+  for (const key of ['ArrowRight', 'd']) {
+    await page.keyboard.down(key);
+    await page.waitForTimeout(160);
+    await page.keyboard.up(key);
+  }
+  const refuge = page.getByTestId('game-refuge-link');
+  await refuge.focus();
+  await expect(refuge).toBeFocused();
+  await page.keyboard.down('ArrowRight');
+  await page.waitForTimeout(160);
+  await page.keyboard.up('ArrowRight');
+  await page.waitForTimeout(180);
+  expect(intents.filter(intent => intent.horizontal !== 0 || intent.vertical !== 0)).toHaveLength(0);
+  expect(await numericAttribute(player, 'data-player-x')).toBe(initialX);
+
+  // The world remains keyboard-playable after navigation focus leaves the HUD.
+  await page.getByTestId('game-canvas').locator('canvas').click();
+  await page.keyboard.down('ArrowRight');
+  await expect.poll(() => numericAttribute(player, 'data-player-x')).toBeGreaterThan(initialX);
+  // Focusing the HUD mid-press stops current movement and clears the key.
+  await fullscreen.focus();
+  await expect(fullscreen).toBeFocused();
+  await page.waitForTimeout(250);
+  const stoppedX = await numericAttribute(player, 'data-player-x');
+  await page.waitForTimeout(280);
+  expect(await numericAttribute(player, 'data-player-x')).toBe(stoppedX);
+  await page.getByTestId('game-canvas').locator('canvas').click();
+  await page.waitForTimeout(180);
+  expect(await numericAttribute(player, 'data-player-x')).toBe(stoppedX);
+  await page.keyboard.up('ArrowRight');
+
+  // A NEW press from canvas moves again, without client-written positions.
+  await page.keyboard.down('ArrowRight');
+  await expect.poll(() => numericAttribute(player, 'data-player-x')).toBeGreaterThan(stoppedX);
+  await page.keyboard.up('ArrowRight');
+});
+
 test('client re-joins after a simulated reconnect without losing presence', async ({ page }) => {
   await configurePlayer(page, 'reconnect-player', 'Reconnect Vuxian');
   await page.goto(gameUrl);
