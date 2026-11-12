@@ -331,7 +331,20 @@ export function GameCanvas() {
 
   return (
     <Box ref={screen} className="vuxo-game-shell" data-testid="game-shell">
-      <Box className="game-canvas vuxo-game-world" ref={host} data-testid="game-canvas" />
+      <Box
+        className="game-canvas vuxo-game-world"
+        ref={host}
+        data-testid="game-canvas"
+        role="region"
+        aria-label={t('game.title')}
+        tabIndex={0}
+        onPointerDown={event => {
+          // Phaser's canvas is not natively focusable. Clicking back into
+          // the world after HUD keyboard navigation must explicitly restore
+          // keyboard focus, without scrolling the document.
+          event.currentTarget.focus({ preventScroll: true })
+        }}
+      />
       <Box className="vuxo-game-vignette" aria-hidden="true" />
 
       <Stack className="vuxo-game-hud vuxo-game-hud--left" spacing={0.5}>

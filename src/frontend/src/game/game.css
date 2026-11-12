@@ -18,6 +18,11 @@
   border-radius: 0;
 }
 .vuxo-game-world { position: absolute; inset: 0; }
+/* Keyboard users can locate the active world surface after leaving HUD controls. */
+.vuxo-game-world:focus-visible {
+  outline: 2px solid var(--vuxo-game-hud-accent);
+  outline-offset: -4px;
+}
 .vuxo-game-vignette {
   position: absolute;
   inset: 0;

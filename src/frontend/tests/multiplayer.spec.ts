@@ -65,6 +65,7 @@ test('HUD keyboard focus never sends movement and returning to canvas requires a
 
   // The world remains keyboard-playable after navigation focus leaves the HUD.
   await page.getByTestId('game-canvas').locator('canvas').click();
+  await expect(page.getByTestId('game-canvas')).toBeFocused();
   await page.keyboard.down('ArrowRight');
   await expect.poll(() => numericAttribute(player, 'data-player-x')).toBeGreaterThan(initialX);
   // Focusing the HUD mid-press stops current movement and clears the key.
@@ -75,6 +76,7 @@ test('HUD keyboard focus never sends movement and returning to canvas requires a
   await page.waitForTimeout(280);
   expect(await numericAttribute(player, 'data-player-x')).toBe(stoppedX);
   await page.getByTestId('game-canvas').locator('canvas').click();
+  await expect(page.getByTestId('game-canvas')).toBeFocused();
   await page.waitForTimeout(180);
   expect(await numericAttribute(player, 'data-player-x')).toBe(stoppedX);
   await page.keyboard.up('ArrowRight');
