@@ -1,6 +1,6 @@
 import { Alert, Box, Button, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, Grid, InputLabel, MenuItem, Paper, Select, Stack, TextField, Typography } from '@mui/material';
 import { AutoAwesome, BackpackOutlined, ExploreOutlined, FavoriteBorder, HistoryOutlined, ViewModuleOutlined, VisibilityOutlined } from '@mui/icons-material';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link as RouterLink } from 'react-router-dom';
 import { useStoredSession } from '../features/auth/useStoredSession';
@@ -67,6 +67,7 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
   const [browseSlot, setBrowseSlot] = useState<InventoryBrowseSlot>('all');
   const [browseSort, setBrowseSort] = useState<InventoryBrowseSort>('name');
   const searchRef = useRef<HTMLInputElement | null>(null);
+  const pendingQuickFind = useRef(false);
   // Pure UI selection; the authenticated owner read-model remains authoritative.
   const [inspectedItemKey, setInspectedItemKey] = useState<string | null>(null);
 
@@ -197,6 +198,47 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
       searchRef.current?.focus();
   }, [viewMode, browseFilter, browseSlot]);
 
+  const focusQuickFind = useCallback(() => {
+    // GameDeck owns scroll; searching from an offscreen card must never scroll
+    // the outer document or produce a new inventory request.
+    const deck = document.querySelector<HTMLElement>('[data-testid="game-deck-scroll"]');
+    if (deck) deck.scrollTop = 0;
+    searchRef.current?.focus({ preventScroll: true });
+  }, []);
+
+  useEffect(() => {
+    // Gear and History do not mount Backpack search. Focus only after React
+    // has committed the new view, never a detached or stale input element.
+    if (!pendingQuickFind.current || !canBrowse || viewMode !== 'bag') return;
+    pendingQuickFind.current = false;
+    focusQuickFind();
+  }, [canBrowse, viewMode, focusQuickFind]);
+
+  useEffect(() => {
+    if (!canBrowse) return;
+    const onQuickFind = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.code !== 'KeyK' ||
+          event.key.toLowerCase() !== 'k' || event.shiftKey || event.altKey ||
+          event.repeat || event.isComposing || event.ctrlKey === event.metaKey) return;
+      const editing = (target: EventTarget | null) => target instanceof Element &&
+        target.closest('input, textarea, select, [contenteditable], [role="textbox"], [role="combobox"]') !== null;
+      if (editing(event.target) || editing(document.activeElement) ||
+          document.querySelector('[role="dialog"], [role="listbox"], [role="menu"]')) return;
+      event.preventDefault();
+      if (viewMode === 'gear' || viewMode === 'journal') {
+        pendingQuickFind.current = true;
+        setInspectedItemKey(null);
+        setJournalVisibleCount(INVENTORY_JOURNAL_PAGE_SIZE);
+        setViewMode('bag');
+      } else {
+        focusQuickFind();
+      }
+    };
+    document.addEventListener('keydown', onQuickFind);
+    return () => document.removeEventListener('keydown', onQuickFind);
+  }, [canBrowse, viewMode, focusQuickFind]);
+
+
   const refreshEquipment = () => {
     if (equipmentBusy || equipmentLoading) return;
     setInspectedItemKey(null);
@@ -290,6 +332,10 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
               </Button>
             ))}
           </Stack>
+          <Typography variant="caption" component="p" color="text.secondary"
+            data-testid="inventory-quick-find-hint" sx={{ px: 1, pt: .5, pb: .25 }}>
+            {t('browse.quickFindHint')}
+          </Typography>
         </Box>
       )}
 
@@ -322,7 +368,8 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
                 <TextField inputRef={searchRef} fullWidth label={t('browse.search')} value={browseQuery}
                   onChange={event => setBrowseQuery(event.target.value)}
                   placeholder={t('browse.searchHint')}
-                  slotProps={{ htmlInput: { 'data-testid': 'inventory-browse-search' } }}
+                  slotProps={{ htmlInput: { 'data-testid': 'inventory-browse-search',
+                    'aria-keyshortcuts': 'Control+K Meta+K' } }}
                 />
               </Grid>
               <Grid size={{ xs: 12, sm: 6, md: 3 }}>

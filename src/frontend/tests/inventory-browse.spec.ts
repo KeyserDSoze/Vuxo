@@ -409,3 +409,109 @@ test('inventory view controls are keyboard-accessible, translated and owner-scop
   await expect(page.getByTestId('inventory-views')).toHaveCount(0);
   await expect(page.getByTestId('inventory-item')).toHaveCount(0);
 });
+
+
+test('Ctrl/Meta+K finds the owner backpack from gear and history without owner API requests', async ({ page }, info) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await signIn(page, 'owner-a', 'it');
+  await mockInventory(page);
+  await page.goto('./#/inventory');
+  await expect(page.getByTestId('inventory-stack')).toHaveCount(3);
+  await expect(page.getByTestId('inventory-quick-find-hint')).toHaveText('Ricerca rapida: Ctrl/⌘+K');
+  const search = page.getByTestId('inventory-browse-search');
+  await expect(search).toHaveAttribute('aria-keyshortcuts', 'Control+K Meta+K');
+  const unexpected: string[] = [];
+  page.on('request', request => {
+    if (/^\/api\/(inventory|equipment)(\/|$)/.test(new URL(request.url()).pathname))
+      unexpected.push(request.method() + ' ' + new URL(request.url()).pathname);
+  });
+  await page.getByTestId('inventory-view-all').focus();
+  await page.keyboard.press('Control+k');
+  await expect(search).toBeFocused();
+  await expect(page.getByTestId('inventory-view-all')).toHaveAttribute('aria-pressed', 'true');
+  await page.getByTestId('inventory-view-gear').click();
+  await expect(search).toHaveCount(0);
+  await page.keyboard.press('Control+k');
+  await expect(page.getByTestId('inventory-view-bag')).toHaveAttribute('aria-pressed', 'true');
+  await expect(search).toBeFocused();
+  await search.fill('Seme');
+  await expect(page.getByTestId('inventory-stack')).toHaveCount(1);
+  await expect(page.getByTestId('inventory-stack')).toContainText('Seme del bosco');
+  await info.attach('inventory-quick-find-390', {
+    body: await page.screenshot({ animations: 'disabled' }), contentType: 'image/png',
+  });
+  await page.getByTestId('inventory-view-journal').click();
+  await expect(search).toHaveCount(0);
+  await expect(page.getByTestId('inventory-item')).toHaveCount(4);
+  await page.keyboard.press('Control+k');
+  await expect(page.getByTestId('inventory-view-bag')).toHaveAttribute('aria-pressed', 'true');
+  await expect(search).toBeFocused();
+  await expect(search).toHaveValue('Seme');
+  const handledMeta = await page.evaluate(() => {
+    const e = new KeyboardEvent('keydown', { key: 'k', code: 'KeyK',
+      metaKey: true, bubbles: true, cancelable: true });
+    document.dispatchEvent(e); return e.defaultPrevented;
+  });
+  expect(handledMeta).toBe(true);
+  await expect(search).toBeFocused();
+  expect(unexpected).toEqual([]);
+  await expect.poll(() => page.evaluate(() =>
+    document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1 &&
+    document.documentElement.scrollHeight <= innerHeight + 1 &&
+    document.scrollingElement!.scrollTop === 0)).toBe(true);
+});
+
+test('quick find leaves editors, dialogs, modified keys and guests in control on narrow screens', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 568 });
+  await signIn(page, 'owner-a', 'en');
+  await mockInventory(page);
+  await page.goto('./#/inventory');
+  await expect(page.getByTestId('inventory-quick-find-hint')).toHaveText('Quick search: Ctrl/⌘+K');
+  const search = page.getByTestId('inventory-browse-search');
+  await search.fill('tidal');
+  const editingHandled = await search.evaluate(input => {
+    const event = new KeyboardEvent('keydown', { key: 'k', code: 'KeyK',
+      ctrlKey: true, bubbles: true, cancelable: true });
+    input.dispatchEvent(event); return event.defaultPrevented;
+  });
+  expect(editingHandled).toBe(false);
+  await expect(search).toHaveValue('tidal');
+  await search.fill('');
+  await page.getByTestId('inventory-inspect').first().click();
+  await expect(page.getByTestId('inventory-inspection')).toBeVisible();
+  const dialogHandled = await page.getByTestId('inventory-inspection').evaluate(dialog => {
+    const event = new KeyboardEvent('keydown', { key: 'k', code: 'KeyK',
+      ctrlKey: true, bubbles: true, cancelable: true });
+    dialog.dispatchEvent(event); return event.defaultPrevented;
+  });
+  expect(dialogHandled).toBe(false);
+  await page.getByTestId('inventory-inspection').press('Escape');
+  await expect(page.getByTestId('inventory-inspection')).toHaveCount(0);
+  await page.getByTestId('inventory-view-gear').click();
+  const ignored = await page.evaluate(() => [
+    { shiftKey: true, ctrlKey: true }, { repeat: true, metaKey: true },
+    { isComposing: true, ctrlKey: true },
+  ].map(mods => {
+    const e = new KeyboardEvent('keydown', { key: 'k', code: 'KeyK', ...mods,
+      bubbles: true, cancelable: true });
+    document.dispatchEvent(e); return e.defaultPrevented;
+  }));
+  expect(ignored).toEqual([false, false, false]);
+  await expect(page.getByTestId('inventory-view-gear')).toHaveAttribute('aria-pressed', 'true');
+  await page.getByTestId('language-toggle').click();
+  await expect(page.getByTestId('inventory-quick-find-hint')).toHaveText('Ricerca rapida: Ctrl/⌘+K');
+  await page.evaluate(() => {
+    localStorage.removeItem('vuxo.accessToken');
+    localStorage.removeItem('vuxo.auth.expiresAtUtc');
+    localStorage.removeItem('vuxo.auth.user');
+    window.dispatchEvent(new Event('vuxo:session-changed'));
+  });
+  await expect(page.getByTestId('inventory-views')).toHaveCount(0);
+  const guestHandled = await page.evaluate(() => {
+    const e = new KeyboardEvent('keydown', { key: 'k', code: 'KeyK',
+      ctrlKey: true, bubbles: true, cancelable: true });
+    document.dispatchEvent(e); return e.defaultPrevented;
+  });
+  expect(guestHandled).toBe(false);
+  await expect(page.getByTestId('inventory-auth-required')).toBeVisible();
+});
