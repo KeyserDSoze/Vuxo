@@ -67,6 +67,8 @@ test('fullscreen button and F shortcut request browser fullscreen without hiding
 
   await page.getByTestId('game-fullscreen-toggle').click();
   await expect.poll(() => page.evaluate(() => Number(document.body.dataset.fullscreenRequestCount ?? 0))).toBe(1);
+  // F belongs to the world, not to the button that just received click focus.
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
   await page.keyboard.press('f');
   await expect.poll(() => page.evaluate(() => Number(document.body.dataset.fullscreenRequestCount ?? 0))).toBe(2);
   await expect(page.getByTestId('world-connection-status')).toBeVisible();
@@ -88,4 +90,55 @@ test('fullscreen denial reports an actionable localized warning', async ({ page 
   await expect(page.getByTestId('game-fullscreen-error')).toContainText('Schermo intero non disponibile');
   await page.getByTestId('language-toggle').click();
   await expect(page.getByTestId('game-fullscreen-error')).toContainText('Fullscreen is unavailable');
+});
+
+test('world fullscreen F ignores interactive HUD focus, text entry and modified shortcuts', async ({ page }) => {
+  await page.goto('./#/game');
+  await expect(page.getByTestId('game-canvas').locator('canvas')).toBeVisible();
+
+  await page.evaluate(() => {
+    const shell = document.querySelector('[data-testid="game-shell"]') as HTMLElement;
+    Object.defineProperty(shell, 'requestFullscreen', {
+      configurable: true,
+      value: () => {
+        document.body.dataset.fullscreenRequestCount = String(Number(document.body.dataset.fullscreenRequestCount ?? 0) + 1);
+        return Promise.resolve();
+      },
+    });
+  });
+
+  const fullscreenButton = page.getByTestId('game-fullscreen-toggle');
+  await fullscreenButton.focus();
+  await expect(fullscreenButton).toBeFocused();
+  await page.keyboard.press('f');
+
+  const refugeLink = page.getByTestId('game-refuge-link');
+  await refugeLink.focus();
+  await expect(refugeLink).toBeFocused();
+  await page.keyboard.press('f');
+  await expect(page).toHaveURL(/#\\/game$/);
+
+  const editorValue = await page.evaluate(() => {
+    const input = document.createElement('input');
+    input.id = 'fullscreen-keyboard-focus-probe';
+    input.setAttribute('aria-label', 'Keyboard focus probe');
+    document.body.appendChild(input);
+    input.focus();
+    return input.value;
+  });
+  expect(editorValue).toBe('');
+  await page.keyboard.press('f');
+  await expect(page.locator('#fullscreen-keyboard-focus-probe')).toHaveValue('f');
+
+  await page.evaluate(() => {
+    document.getElementById('fullscreen-keyboard-focus-probe')?.remove();
+    (document.activeElement as HTMLElement | null)?.blur();
+  });
+  for (const shortcut of ['Shift+f', 'Control+f', 'Alt+f', 'Meta+f']) {
+    await page.keyboard.press(shortcut);
+  }
+  await expect.poll(() => page.evaluate(() => Number(document.body.dataset.fullscreenRequestCount ?? 0))).toBe(0);
+  await page.keyboard.press('f');
+  await expect.poll(() => page.evaluate(() => Number(document.body.dataset.fullscreenRequestCount ?? 0))).toBe(1);
+  await expect(page.getByTestId('world-connection-status')).toBeVisible();
 });

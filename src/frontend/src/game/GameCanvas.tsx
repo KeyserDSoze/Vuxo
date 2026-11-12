@@ -197,8 +197,11 @@ export function GameCanvas() {
     }
     const onShortcut = (event: KeyboardEvent) => {
       const target = event.target instanceof Element ? event.target : null
-      if (event.code !== 'KeyF' || event.repeat || event.altKey || event.ctrlKey || event.metaKey ||
-          target?.closest('input, textarea, select, [contenteditable="true"], [role="dialog"]')) return
+      // The world-only shortcut must never hijack text entry, HUD navigation
+      // or a modified keystroke; the focused control keeps its native behavior.
+      if (event.defaultPrevented || event.code !== 'KeyF' || event.repeat || event.isComposing ||
+          event.shiftKey || event.altKey || event.ctrlKey || event.metaKey ||
+          target?.closest('input, textarea, select, button, a[href], summary, [contenteditable], [role="dialog"], [role="button"], [role="link"], [role="textbox"], [role="combobox"], [role="menuitem"], [role="tab"], [role="switch"], [role="checkbox"], [role="radio"], [role="slider"]')) return
       event.preventDefault()
       void toggleFullscreen()
     }
