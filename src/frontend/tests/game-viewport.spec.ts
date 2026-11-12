@@ -58,7 +58,7 @@ for (const [width, height] of [[320, 568], [390, 844], [1280, 720]] as const) {
       await expect(portals).toHaveAttribute('aria-label', 'PORTALI');
       await expect(movement.locator('kbd')).toHaveText(['W', 'A', 'S', 'D', '↑', '←', '↓', '→', '↑', '←', '↓', '→']);
       await expect(interfacePanel.locator('kbd')).toHaveText(['F', 'H', 'R', '?']);
-      await expect(portals.locator('kbd')).toHaveText(['E', '✦']);
+      await expect(portals.locator('kbd')).toHaveText(['E', '✦', 'P']);
       await expect.poll(() => console.evaluate(node => node.scrollWidth <= node.clientWidth + 1 &&
         Array.from(node.querySelectorAll('.vuxo-controls-panel')).every(panel =>
           panel.scrollWidth <= panel.clientWidth + 1))).toBe(true);
@@ -180,6 +180,28 @@ for (const [width, height] of [[390, 844], [1280, 720]] as const) {
       await expect(page.getByTestId('world-hud')).toBeVisible();
     });
 }
+
+
+test('P remains a native key with no owner-granted portals', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('./#/game');
+  const world = page.getByTestId('game-canvas');
+  await expect(world.locator('canvas')).toBeVisible();
+  await expect(page.getByTestId('world-portals-toggle')).toHaveCount(0);
+  await world.focus();
+  const captured = await world.evaluate(element => {
+    const event = new KeyboardEvent('keydown', {
+      key: 'p', code: 'KeyP', bubbles: true, cancelable: true,
+    });
+    element.dispatchEvent(event);
+    return event.defaultPrevented;
+  });
+  expect(captured).toBe(false);
+  await expect.poll(() => page.evaluate(() =>
+    document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1 &&
+    document.documentElement.scrollHeight <= innerHeight + 1,
+  )).toBe(true);
+});
 
 // The visible Phaser canvas is not natively focusable. After navigating HUD
 // controls with a keyboard, a click back into the world must explicitly

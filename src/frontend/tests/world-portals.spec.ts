@@ -111,7 +111,7 @@ for (const [width, height] of [[390, 844], [1280, 720]] as const) {
       await help.click();
       await expect(page.getByTestId('world-controls-dialog')).toBeVisible();
       await expect(prompt).toHaveCount(0);
-      await expect(page.getByTestId('world-controls-portals').locator('kbd')).toHaveText(['E', '✦']);
+      await expect(page.getByTestId('world-controls-portals').locator('kbd')).toHaveText(['E', '✦', 'P']);
       await page.keyboard.press('e');
       expect(api.getEntryCalls()).toBe(0);
       await page.keyboard.press('Escape');
@@ -221,6 +221,109 @@ test('contextual E compass prompt fits the smallest world and switches IT/EN', a
   await expect(prompt).toHaveAttribute('aria-label', 'Press E or tap the in-range portal to enter');
   expect(api.getEntryCalls()).toBe(0);
 });
+
+
+for (const [width, height] of [[320, 568], [390, 844], [1280, 720]] as const) {
+  test('portal actions fold with P while compass and E remain usable at ' + width + 'x' + height,
+    async ({ page }, info) => {
+      await page.setViewportSize({ width, height });
+      await initializePlayer(page, 'en');
+      const api = await mockPrivatePortals(page);
+      await page.goto(origin + '/Vuxo/#/game');
+      await expect(page.getByTestId('world-connection-status')).toHaveAttribute('data-status', 'connected');
+      const world = page.getByTestId('game-canvas');
+      const portals = page.getByTestId('world-portals');
+      const toggle = page.getByTestId('world-portals-toggle');
+      const list = page.getByTestId('world-portal-action-list');
+      const action = page.getByTestId('world-portal-enter');
+      const compass = page.getByTestId('world-portal-compass');
+      await expect(portals).toHaveAttribute('data-expanded', 'true');
+      await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+      await expect(toggle).toHaveAttribute('aria-controls', 'world-portal-action-list');
+      await expect(toggle).toHaveAttribute('title', 'Press P to show or hide portal actions');
+      await expect(action).toBeVisible();
+      await expect(compass).toBeVisible();
+
+      await toggle.click();
+      await expect(portals).toHaveAttribute('data-expanded', 'false');
+      await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+      await expect(toggle).toHaveAttribute('aria-label', 'Show portal actions');
+      await expect(list).toBeHidden();
+      await expect(compass).toBeVisible();
+      await expect(page.getByTestId('world-portal-interact-prompt')).toBeVisible();
+      await expect(toggle).toBeFocused();
+      await page.keyboard.press('p');
+      await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+      // An HTML control or editor owns its keys. No world shortcut.
+      await page.getByTestId('game-refuge-link').focus();
+      await page.keyboard.press('p');
+      await expect(list).toBeHidden();
+      await page.evaluate(() => {
+        const input = document.createElement('input');
+        input.id = 'world-portal-P-editor';
+        input.setAttribute('aria-label', 'P shortcut editor');
+        document.body.appendChild(input);
+        input.focus();
+      });
+      await page.keyboard.press('p');
+      await expect(page.locator('#world-portal-P-editor')).toHaveValue('p');
+      await expect(list).toBeHidden();
+      await page.locator('#world-portal-P-editor').evaluate(input => input.remove());
+
+      await world.focus();
+      await page.keyboard.press('Shift+p');
+      await expect(list).toBeHidden();
+      const ignored = await world.evaluate(element => [
+        { ctrlKey: true }, { altKey: true }, { metaKey: true },
+        { repeat: true }, { isComposing: true },
+      ].map(flags => {
+        const event = new KeyboardEvent('keydown', {
+          key: 'p', code: 'KeyP', bubbles: true, cancelable: true, ...flags,
+        });
+        element.dispatchEvent(event);
+        return event.defaultPrevented;
+      }));
+      expect(ignored).toEqual([false, false, false, false, false]);
+      await world.evaluate(element => {
+        const e = new KeyboardEvent('keydown', {
+          key: 'p', code: 'KeyP', bubbles: true, cancelable: true,
+        });
+        e.preventDefault();
+        element.dispatchEvent(e);
+      });
+      await expect(list).toBeHidden();
+
+      await page.keyboard.press('p');
+      await expect(list).toBeVisible();
+      await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+      await expect(action).toBeVisible();
+      await page.keyboard.press('p');
+      await expect(list).toBeHidden();
+      await expect(compass).toBeVisible();
+      await info.attach('world-portal-actions-fold-' + width, {
+        body: await page.screenshot({ animations: 'disabled' }), contentType: 'image/png',
+      });
+      await expect.poll(() => page.evaluate(() =>
+        document.documentElement.scrollWidth <= innerWidth + 1 &&
+        document.documentElement.scrollHeight <= innerHeight + 1 &&
+        document.scrollingElement!.scrollTop === 0,
+      )).toBe(true);
+
+      // English/Italian text changes without changing stored world grants.
+      await page.getByTestId('language-toggle').click();
+      await expect(toggle).toHaveAttribute('aria-label', 'Mostra azioni portali');
+      await expect(toggle).toHaveAttribute('title', 'Tasto P: mostra o nascondi le azioni portali');
+
+      // Pressing E from exploration focus still enters while the rail is folded.
+      await world.focus();
+      await page.keyboard.press('e');
+      await expect(page.getByTestId('world-portal-dialog')).toBeVisible();
+      expect(api.getEntryCalls()).toBe(1);
+      await page.keyboard.press('p');
+      await expect(list).toBeHidden();
+      expect(api.getEntryCalls()).toBe(1);
+    });
+}
 
 test('rapid E presses remain single-flight while the authoritative entry is pending', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 720 });

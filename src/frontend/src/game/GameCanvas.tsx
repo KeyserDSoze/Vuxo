@@ -60,6 +60,9 @@ export function GameCanvas() {
   const portalEntryInFlight = useRef(false)
   const enterPortalFromScene = useRef<(grantId: string) => void>(() => {})
   const [allPortalActionsVisible, setAllPortalActionsVisible] = useState(false)
+  // Keep portal bearing and the E interaction available when the action rail
+  // is folded. This is a presentation-only choice, never a grant filter.
+  const [portalActionsExpanded, setPortalActionsExpanded] = useState(true)
   const heldTouchDirections = useRef(new HeldWorldTouchDirections())
 
   // Clear *pointer ownership*, not just the last network intent. Otherwise
@@ -306,11 +309,19 @@ export function GameCanvas() {
 
   useEffect(() => {
     const onPortalShortcut = (event: KeyboardEvent) => {
-      if (event.code !== 'KeyE' || !isUnmodifiedWorldShortcut(event) ||
+      if ((event.code !== 'KeyE' && event.code !== 'KeyP') ||
+          !isUnmodifiedWorldShortcut(event) ||
           status !== 'connected' || !windowInputActiveRef.current || document.hidden ||
           controlsOpen || activePortal || portalEntering || portalEntryInFlight.current) return
+      if (event.code === 'KeyP') {
+        // No owner-granted markers = no portal UI to fold or key to capture.
+        if (!portalActions.length) return
+        event.preventDefault()
+        setPortalActionsExpanded(expanded => !expanded)
+        return
+      }
       // Only the closest *owner-granted* portal can be entered by keyboard.
-      // No nearby marker = no intercepted keystroke or speculative API call.
+      // E remains available when the action list has been folded.
       const nearest = portalActions[0]?.portal
       if (!nearest || !nearby(nearest)) return
       event.preventDefault()
@@ -511,15 +522,33 @@ export function GameCanvas() {
       )}
 
       {portals.length > 0 && (
-        <Box className="vuxo-game-portals" data-testid="world-portals">
-          <Typography variant="caption" sx={{ color: 'var(--vuxo-game-hud-text)', fontWeight: 700 }}>
-            {t('game.portal.available', { count: portals.length })}
-          </Typography>
+        <Box className="vuxo-game-portals" data-testid="world-portals"
+          data-expanded={String(portalActionsExpanded)}>
+          <Box className="vuxo-game-portals-heading">
+            <Typography variant="caption" sx={{
+              color: 'var(--vuxo-game-hud-text)', fontWeight: 700,
+              minWidth: 0, overflowWrap: 'anywhere',
+            }}>
+              {t('game.portal.available', { count: portals.length })}
+            </Typography>
+            <IconButton
+              data-testid="world-portals-toggle"
+              aria-label={t(portalActionsExpanded ? 'game.portal.collapse' : 'game.portal.expand')}
+              aria-expanded={portalActionsExpanded}
+              aria-controls="world-portal-action-list"
+              title={t('game.portal.toggleShortcutHint')}
+              onClick={() => setPortalActionsExpanded(expanded => !expanded)}
+              size="small" className="vuxo-game-portal-toggle"
+            >
+              {portalActionsExpanded ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
+            </IconButton>
+          </Box>
           {status === 'connected' && <PortalCompass self={self} portals={portals}
             inputAvailable={!controlsOpen && !activePortal && !portalEntering &&
               windowInputActive && !portalEntryInFlight.current} />}
           <Stack id="world-portal-action-list" direction="row" spacing={0.75}
-            aria-busy={portalEntering}
+            aria-busy={portalEntering} hidden={!portalActionsExpanded}
+            style={portalActionsExpanded ? undefined : { display: 'none' }}
             className="vuxo-game-portal-actions" data-testid="world-portal-action-list">
             {portalPreview.visible.map(({ portal, number }) => (
               <Button
@@ -548,7 +577,7 @@ export function GameCanvas() {
               {t('game.portal.entering')}
             </Typography>
           )}
-          {portalActions.length > 6 && (
+          {portalActionsExpanded && portalActions.length > 6 && (
             <Button
               data-testid="world-portal-more"
               aria-controls="world-portal-action-list"
@@ -563,7 +592,7 @@ export function GameCanvas() {
                 : t('game.portal.showMore', { count: portalPreview.hiddenCount })}
             </Button>
           )}
-          {portals.some(portal => !nearby(portal)) && (
+          {portalActionsExpanded && portals.some(portal => !nearby(portal)) && (
             <Typography variant="caption" sx={{ color: 'var(--vuxo-game-hud-text)', opacity: 0.8 }}>
               {t('game.portal.moveCloser')}
             </Typography>

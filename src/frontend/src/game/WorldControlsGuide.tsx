@@ -57,6 +57,7 @@ export function WorldControlsGuide() {
             {t('game.help.portalsTitle')}
           </Typography>
           <Command keys={['E', '✦']} description={t('game.help.portals')} />
+          <Command keys={['P']} description={t('game.help.portalList')} />
         </Box>
       </Box>
     </Box>

@@ -233,6 +233,33 @@
   background: color-mix(in srgb, var(--vuxo-game-hud-bg) 84%, transparent);
   backdrop-filter: blur(16px);
 }
+
+/* Portal action rail can fold without hiding its compact compass or E cue. */
+.vuxo-game-portals-heading {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+.vuxo-game-portal-toggle.MuiIconButton-root {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+  padding: 3px;
+  color: var(--vuxo-game-hud-accent);
+  border: 1px solid var(--vuxo-game-hud-border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--vuxo-game-hud-bg) 76%, transparent);
+}
+.vuxo-game-portal-toggle.MuiIconButton-root:focus-visible {
+  outline: 2px solid var(--vuxo-game-hud-accent);
+  outline-offset: 2px;
+}
+.vuxo-game-portals[data-expanded="false"] {
+  gap: 5px;
+}
 .vuxo-game-radar {
   position: absolute;
   z-index: 6;
