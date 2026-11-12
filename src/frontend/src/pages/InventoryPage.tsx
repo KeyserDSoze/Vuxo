@@ -184,19 +184,15 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
 
   const showAvailableSlot = (slot: Exclude<InventoryBrowseSlot, 'all'>) => {
     if (!browseReady) return;
+    // Use the same post-mount focus/reveal path as Ctrl/Meta+K (#216).
+    // Focus before the Backpack is rendered is a no-op; raw .focus() after
+    // render can scroll the document instead of the GameDeck scroller.
+    pendingQuickFind.current = true;
     chooseView('bag');
     setBrowseFilter('available');
     setBrowseSlot(slot);
     setBrowseQuery('');
-    searchRef.current?.focus();
   };
-
-  // "Find" switches from equipment to the backpack. Focus the newly
-  // mounted search input after React commits the new view.
-  useEffect(() => {
-    if (viewMode === 'bag' && browseFilter === 'available' && browseSlot !== 'all')
-      searchRef.current?.focus();
-  }, [viewMode, browseFilter, browseSlot]);
 
   const focusQuickFind = useCallback(() => {
     // Reveal the search input inside the GameDeck scroller, not the document:

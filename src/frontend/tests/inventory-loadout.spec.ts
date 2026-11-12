@@ -104,6 +104,7 @@ test('server-confirmed slots are visible and can filter available compatible obj
 
   await page.getByTestId('inventory-loadout-find-charm').click();
   await expect(page.getByTestId('inventory-browse-search')).toBeFocused();
+  await expect(page.getByTestId('inventory-browse-search')).toBeInViewport();
   await expect(page.getByTestId('inventory-browse-filter')).toContainText('Disponibili');
   await expect(page.getByTestId('inventory-browse-slot')).toContainText('Amuleto');
   await expect(page.getByTestId('inventory-stack')).toHaveCount(1);
@@ -121,6 +122,49 @@ test('server-confirmed slots are visible and can filter available compatible obj
   await expect(page.getByTestId('inventory-browse-slot')).toContainText('Reliquia');
   await expect(page.getByTestId('inventory-stack')).toHaveCount(1);
   await expect(page.getByTestId('inventory-stack')).toContainText('Frammento di runa');
+  expect(api.deletes()).toBe(0);
+});
+
+
+test('compatible item finder reveals search within GameDeck at 320px without extra owner reads', async ({ page }, info) => {
+  await page.setViewportSize({ width: 320, height: 568 });
+  await signIn(page, 'en');
+  const api = await mockLoadout(page);
+  await page.goto('./#/inventory');
+  await expect(page.getByTestId('inventory-loadout-find-charm')).toBeVisible();
+  const reads: string[] = [];
+  page.on('request', request => {
+    const path = new URL(request.url()).pathname;
+    if (request.method() === 'GET' && /^\/api\/(equipment|inventory)(\/|$)/.test(path)) reads.push(path);
+  });
+  const find = page.getByTestId('inventory-loadout-find-charm');
+  await find.focus();
+  await expect(find).toBeFocused();
+  await page.keyboard.press('Enter');
+  const search = page.getByTestId('inventory-browse-search');
+  await expect(page.getByTestId('inventory-view-bag')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByTestId('inventory-browse-filter')).toContainText('Available');
+  await expect(page.getByTestId('inventory-browse-slot')).toContainText('Charm');
+  await expect(search).toBeFocused();
+  await expect(search).toBeInViewport();
+  await expect.poll(() => page.evaluate(() => {
+    const deck = document.querySelector<HTMLElement>('[data-testid="game-deck-scroll"]')!;
+    const nav = deck.querySelector<HTMLElement>('[data-testid="inventory-views"]')!;
+    const input = document.querySelector<HTMLInputElement>('[data-testid="inventory-browse-search"]')!;
+    const a = deck.getBoundingClientRect(), b = input.getBoundingClientRect();
+    return b.top >= a.top + nav.getBoundingClientRect().height - 1 && b.bottom <= a.bottom + 1;
+  })).toBe(true);
+  await expect.poll(() => page.evaluate(() => {
+    const root = document.documentElement;
+    return root.scrollWidth <= root.clientWidth + 1 &&
+      root.scrollHeight <= innerHeight + 1 &&
+      document.scrollingElement!.scrollTop === 0;
+  })).toBe(true);
+  await expect(page.getByTestId('inventory-stack')).toHaveCount(1);
+  await info.attach('inventory-compatible-find-320', {
+    body: await page.screenshot({ animations: 'disabled' }), contentType: 'image/png',
+  });
+  expect(reads).toEqual([]);
   expect(api.deletes()).toBe(0);
 });
 
