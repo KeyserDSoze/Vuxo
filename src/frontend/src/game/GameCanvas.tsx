@@ -1,4 +1,4 @@
-import { ExpandLess, ExpandMore, Fullscreen, FullscreenExit, HelpOutline, KeyboardArrowDown, KeyboardArrowLeft, KeyboardArrowRight, KeyboardArrowUp } from '@mui/icons-material'
+import { ExpandLess, ExpandMore, Fullscreen, FullscreenExit, HelpOutlined, KeyboardArrowDown, KeyboardArrowLeft, KeyboardArrowRight, KeyboardArrowUp } from '@mui/icons-material'
 import { Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, Stack, Typography } from '@mui/material'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -441,7 +441,7 @@ export function GameCanvas() {
             onClick={openControls}
             size="small"
           >
-            <HelpOutline fontSize="small" />
+            <HelpOutlined fontSize="small" />
           </IconButton>
         </Stack>
         <Button
