@@ -1,8 +1,9 @@
 import { Alert, Box, Button, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, Grid, IconButton, InputAdornment, InputLabel, MenuItem, Paper, Select, Stack, TextField, Typography } from '@mui/material';
 import { AutoAwesome, BackpackOutlined, CloseRounded, ExploreOutlined, FavoriteBorder, HistoryOutlined, SearchOutlined, ViewModuleOutlined, VisibilityOutlined } from '@mui/icons-material';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link as RouterLink } from 'react-router-dom';
+import { moveRovingRailFocus } from '../components/rovingRailFocus';
 import { useStoredSession } from '../features/auth/useStoredSession';
 import type { VuxoSession } from '../features/auth/authSession';
 import { browseInventory, equipmentSlotFor, type InventoryBrowseFilter, type InventoryBrowseSlot, type InventoryBrowseSort } from '../features/inventory/inventoryBrowse';
@@ -168,6 +169,11 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
     setInspectedItemKey(null);
     setJournalVisibleCount(INVENTORY_JOURNAL_PAGE_SIZE);
     setViewMode(mode);
+  };
+  // Same focus-only controller pattern as the GameDeck and Refuge. Never
+  // include quick-find or input fields, and never activate a view by Arrow.
+  const onInventoryViewsKeyDown = (event: KeyboardEvent<HTMLElement>) => {
+    moveRovingRailFocus(event, 'button[data-inventory-view-control]:not(:disabled)', true, true);
   };
 
   // The inspection deck is bounded by the visible owner-scoped Backpack query,
@@ -360,12 +366,16 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
 
       {browseReady && (
         <Box component="nav" data-testid="inventory-views" aria-label={t('views.navigation')}
+          onKeyDown={onInventoryViewsKeyDown}
           className="vuxo-inventory-views" sx={{ bgcolor: 'background.paper', borderColor: 'divider' }}>
           <Stack direction="row" className="vuxo-inventory-views__bar"
             sx={{ alignItems: 'center', gap: .75, minWidth: 0 }}>
             <Stack direction="row" spacing={0.75} className="vuxo-inventory-views__options">
               {inventoryViews.map(({ key, icon: Icon }) => (
                 <Button key={key} data-testid={'inventory-view-' + key}
+                  data-inventory-view-control="true"
+                  aria-keyshortcuts="ArrowLeft ArrowRight Home End"
+                  title={t('views.keyboardHint')}
                   aria-pressed={viewMode === key} variant={viewMode === key ? 'contained' : 'outlined'}
                   startIcon={<Icon fontSize="small" aria-hidden="true" />}
                   onClick={() => chooseView(key)} className="vuxo-inventory-views__button">
@@ -386,6 +396,10 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
           <Typography variant="caption" component="p" color="text.secondary"
             data-testid="inventory-quick-find-hint" sx={{ px: 1, pt: .5, pb: .25 }}>
             {t('browse.quickFindHint')}
+            <Box component="span" data-testid="inventory-views-keyboard-hint"
+              sx={{ display: 'inline-block', ml: 1, overflowWrap: 'anywhere' }}>
+              {t('views.keyboardHint')}
+            </Box>
           </Typography>
         </Box>
       )}

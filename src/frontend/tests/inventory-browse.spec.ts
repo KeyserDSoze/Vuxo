@@ -666,6 +666,108 @@ test('game-first inventory views separate gear, backpack and history without cha
   })).toBe(true);
 });
 
+
+for (const [width, height, language] of [
+  [320, 568, 'it'], [390, 844, 'en'], [1280, 720, 'en'],
+] as const) {
+  test('inventory view rail roves focus without activating owner panels at ' + width,
+    async ({ page }, info) => {
+      await page.setViewportSize({ width, height });
+      await signIn(page, 'inventory-rail-owner', language);
+      await mockInventory(page);
+      const apiReads: string[] = [];
+      page.on('request', request => {
+        if (/^\/api\/(inventory|equipment)(\/|$)/.test(new URL(request.url()).pathname)) {
+          apiReads.push(request.method() + ' ' + new URL(request.url()).pathname);
+        }
+      });
+      await page.goto('./#/inventory');
+      const nav = page.getByTestId('inventory-views');
+      const all = page.getByTestId('inventory-view-all');
+      const gear = page.getByTestId('inventory-view-gear');
+      const bag = page.getByTestId('inventory-view-bag');
+      const journal = page.getByTestId('inventory-view-journal');
+      const quickFind = page.getByTestId('inventory-quick-find-action');
+      const hint = page.getByTestId('inventory-views-keyboard-hint');
+      await expect(page.getByTestId('inventory-stack')).toHaveCount(3);
+      await expect(page.getByTestId('inventory-item')).toHaveCount(4);
+      await expect(nav.locator('button[data-inventory-view-control]')).toHaveCount(4);
+      await expect(nav.locator('button[aria-keyshortcuts="ArrowLeft ArrowRight Home End"]')).toHaveCount(4);
+      await expect(hint).toHaveText(language === 'it'
+        ? '←/→ sposta il focus; Home/End primo/ultimo; Invio apre'
+        : '←/→ moves focus; Home/End first/last; Enter opens');
+      const initialReads = apiReads.length;
+      expect(initialReads).toBeGreaterThan(0);
+
+      await all.focus();
+      await page.keyboard.press('ArrowRight');
+      await expect(gear).toBeFocused();
+      await page.keyboard.press('ArrowRight');
+      await expect(bag).toBeFocused();
+      await page.keyboard.press('ArrowRight');
+      await expect(journal).toBeFocused();
+      await page.keyboard.press('ArrowRight');
+      await expect(all).toBeFocused();
+      await page.keyboard.press('ArrowLeft');
+      await expect(journal).toBeFocused();
+      await page.keyboard.press('Home');
+      await expect(all).toBeFocused();
+      await page.keyboard.press('End');
+      await expect(journal).toBeFocused();
+      await page.keyboard.press('ArrowDown');
+      await expect(journal).toBeFocused();
+      const blocked = await journal.evaluate(el => [
+        { ctrlKey: true }, { altKey: true }, { metaKey: true },
+        { shiftKey: true }, { isComposing: true }, { repeat: true },
+      ].map(flags => {
+        const event = new KeyboardEvent('keydown', {
+          key: 'ArrowLeft', bubbles: true, cancelable: true, ...flags,
+        });
+        el.dispatchEvent(event);
+        return event.defaultPrevented;
+      }));
+      expect(blocked).toEqual([false, false, false, false, false, false]);
+      await journal.evaluate(el => {
+        const event = new KeyboardEvent('keydown', {
+          key: 'ArrowLeft', bubbles: true, cancelable: true,
+        });
+        event.preventDefault();
+        el.dispatchEvent(event);
+      });
+      await expect(journal).toBeFocused();
+      await expect(all).toHaveAttribute('aria-pressed', 'true');
+      await expect(journal).toHaveAttribute('aria-pressed', 'false');
+      await expect(page.getByTestId('inventory-stack')).toHaveCount(3);
+      // Tab takes the next normal button, not a fake tablist/selection.
+      await page.keyboard.press('Tab');
+      await expect(quickFind).toBeFocused();
+      await page.keyboard.press('ArrowLeft');
+      await expect(quickFind).toBeFocused();
+      await journal.focus();
+      await page.keyboard.press('Enter');
+      await expect(journal).toHaveAttribute('aria-pressed', 'true');
+      await expect(page.getByTestId('inventory-stack')).toHaveCount(0);
+      await expect(page.getByTestId('inventory-item')).toHaveCount(4);
+      expect(apiReads.length).toBe(initialReads);
+      await info.attach('inventory-view-rail-' + width, {
+        body: await page.screenshot({ animations: 'disabled' }), contentType: 'image/png',
+      });
+      await expect.poll(() => page.evaluate(() => {
+        const root = document.documentElement;
+        return root.scrollWidth <= innerWidth + 1 &&
+          root.scrollHeight <= innerHeight + 1 &&
+          document.scrollingElement!.scrollTop === 0;
+      })).toBe(true);
+      // Locale switches only presentation, not owner grant reads/selection.
+      await page.getByTestId('language-toggle').click();
+      await expect(journal).toHaveAttribute('aria-pressed', 'true');
+      await expect(hint).toHaveText(language === 'it'
+        ? '←/→ moves focus; Home/End first/last; Enter opens'
+        : '←/→ sposta il focus; Home/End primo/ultimo; Invio apre');
+      expect(apiReads.length).toBe(initialReads);
+    });
+}
+
 test('inventory view controls are keyboard-accessible, translated and owner-scoped on 320px', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 568 });
   await signIn(page, 'owner-a', 'en');

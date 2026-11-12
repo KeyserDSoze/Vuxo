@@ -614,6 +614,7 @@ const initialization = i18n.use(initReactI18next).init({
           description: 'Gli oggetti ottenuti superando le sfide personali sono salvati sul server.',
           views: {
             navigation: 'Viste dell’inventario',
+            keyboardHint: '←/→ sposta il focus; Home/End primo/ultimo; Invio apre',
             all: 'Panoramica',
             gear: 'Equipaggiamento',
             bag: 'Zaino',
@@ -1436,6 +1437,7 @@ const initialization = i18n.use(initReactI18next).init({
           description: 'Items earned through personal challenges are securely stored on the server.',
           views: {
             navigation: 'Inventory views',
+            keyboardHint: '←/→ moves focus; Home/End first/last; Enter opens',
             all: 'Overview',
             gear: 'Equipment',
             bag: 'Backpack',
