@@ -175,9 +175,23 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
   const inspectedIndex = showBag && browseReady
     ? displayedStacks.findIndex(stack => stack.itemKey === inspectedItemKey) : -1;
   const inspectedStack = inspectedIndex >= 0 ? displayedStacks[inspectedIndex] : undefined;
+  const inspectionPreviousRef = useRef<HTMLButtonElement>(null);
+  const inspectionNextRef = useRef<HTMLButtonElement>(null);
   const inspectNeighbor = (direction: -1 | 1) => {
-    const next = displayedStacks[inspectedIndex + direction];
-    if (inspectedIndex >= 0 && next) setInspectedItemKey(next.itemKey);
+    const nextIndex = inspectedIndex + direction;
+    const next = displayedStacks[nextIndex];
+    if (inspectedIndex < 0 || !next) return;
+    // MUI Button becomes natively disabled at a deck boundary. Transfer
+    // focus *before* changing the item if the active button will disable,
+    // so Escape/Tab continue working inside the modal, even on mobile.
+    if (nextIndex === displayedStacks.length - 1 &&
+        document.activeElement === inspectionNextRef.current) {
+      inspectionPreviousRef.current?.focus();
+    } else if (nextIndex === 0 &&
+        document.activeElement === inspectionPreviousRef.current) {
+      inspectionNextRef.current?.focus();
+    }
+    setInspectedItemKey(next.itemKey);
   };
   useEffect(() => {
     // Changed filters, account, or refreshed grants must never redisplay an
@@ -706,8 +720,8 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
         <DialogActions sx={{ flexWrap: 'wrap', gap: 1, justifyContent: 'space-between' }}>
           <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}
             data-testid="inventory-inspection-navigation">
-            <Button data-testid="inventory-inspection-prev" size="small" variant="outlined"
-              aria-keyshortcuts="ArrowLeft" title={t('inspect.previousKeyHint')}
+            <Button data-testid="inventory-inspection-prev" ref={inspectionPreviousRef}
+              size="small" variant="outlined" aria-keyshortcuts="ArrowLeft" title={t('inspect.previousKeyHint')}
               disabled={inspectedIndex <= 0}
               onClick={() => inspectNeighbor(-1)}>
               {t('inspect.previous')}
@@ -718,8 +732,8 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
                 current: inspectedIndex + 1, total: displayedStacks.length,
               })}
             </Typography>
-            <Button data-testid="inventory-inspection-next" size="small" variant="outlined"
-              aria-keyshortcuts="ArrowRight" title={t('inspect.nextKeyHint')}
+            <Button data-testid="inventory-inspection-next" ref={inspectionNextRef}
+              size="small" variant="outlined" aria-keyshortcuts="ArrowRight" title={t('inspect.nextKeyHint')}
               disabled={inspectedIndex < 0 || inspectedIndex >= displayedStacks.length - 1}
               onClick={() => inspectNeighbor(1)}>
               {t('inspect.next')}

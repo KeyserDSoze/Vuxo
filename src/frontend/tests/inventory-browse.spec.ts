@@ -514,6 +514,90 @@ for (const [width, height, language] of [
     });
 }
 
+for (const [width, height] of [[320, 568], [390, 844], [1280, 720]] as const) {
+  test('inspection keeps keyboard focus inside the modal when a navigation button disables at ' + width,
+    async ({ page }, info) => {
+      await page.setViewportSize({ width, height });
+      await signIn(page, 'inspection-focus-owner', 'en');
+      let reads = 0;
+      page.on('request', request => {
+        if (/\/api\/(inventory|equipment)(\/|$)/.test(new URL(request.url()).pathname)) reads++;
+      });
+      await mockInventory(page);
+      await page.goto('./#/inventory');
+      const opener = page.getByTestId('inventory-inspect').first();
+      await expect(opener).toBeEnabled();
+      const initialReads = reads;
+      expect(initialReads).toBeGreaterThan(0);
+      const dialog = page.getByTestId('inventory-inspection');
+      const previous = page.getByTestId('inventory-inspection-prev');
+      const next = page.getByTestId('inventory-inspection-next');
+      const position = page.getByTestId('inventory-inspection-position');
+
+      // Starting at item 1/3, twice Next reaches the final entry; Next
+      // disables but focus moves to Previous, allowing a genuine Escape.
+      await opener.click();
+      await expect(position).toHaveText('Item 1 of 3');
+      await next.click();
+      await expect(position).toHaveText('Item 2 of 3');
+      await next.click();
+      await expect(position).toHaveText('Item 3 of 3');
+      await expect(next).toBeDisabled();
+      await expect(previous).toBeFocused();
+      await info.attach('inventory-inspection-focus-final-' + width, {
+        body: await page.screenshot({ animations: 'disabled' }), contentType: 'image/png',
+      });
+      await page.keyboard.press('Escape');
+      await expect(dialog).toHaveCount(0);
+      await expect(opener).toBeFocused();
+
+      // The reverse boundary preserves the opposite enabled button.
+      await opener.click();
+      await next.click();
+      await expect(previous).toBeEnabled();
+      await previous.click();
+      await expect(position).toHaveText('Item 1 of 3');
+      await expect(previous).toBeDisabled();
+      await expect(next).toBeFocused();
+      await page.keyboard.press('Escape');
+      await expect(dialog).toHaveCount(0);
+      await expect(opener).toBeFocused();
+
+      // Arrow navigation should NOT steal focus from an unrelated enabled
+      // modal control, and must never refetch the owner data.
+      await opener.click();
+      await next.click();
+      await previous.focus();
+      await page.keyboard.press('ArrowRight');
+      await expect(position).toHaveText('Item 3 of 3');
+      await expect(previous).toBeFocused();
+      await page.keyboard.press('Escape');
+      await expect(dialog).toHaveCount(0);
+      await expect(opener).toBeFocused();
+
+      // One visible granted item: neither bound is navigable, yet the modal
+      // remains accessible and Escape returns to its actual opener.
+      await page.getByTestId('inventory-browse-search').fill('tidal_pearl');
+      await expect(page.getByTestId('inventory-inspect')).toHaveCount(1);
+      const soleOpener = page.getByTestId('inventory-inspect').first();
+      await soleOpener.click();
+      await expect(position).toHaveText('Item 1 of 1');
+      await expect(previous).toBeDisabled();
+      await expect(next).toBeDisabled();
+      await page.getByTestId('inventory-inspection-close').focus();
+      await page.keyboard.press('Escape');
+      await expect(dialog).toHaveCount(0);
+      await expect(soleOpener).toBeFocused();
+
+      expect(reads).toBe(initialReads);
+      await expect.poll(() => page.evaluate(() =>
+        document.documentElement.scrollWidth <= innerWidth + 1 &&
+        document.documentElement.scrollHeight <= innerHeight + 1 &&
+        document.scrollingElement!.scrollTop === 0,
+      )).toBe(true);
+    });
+}
+
 test('game-first inventory views separate gear, backpack and history without changing server data', async ({ page }) => {
   await signIn(page);
   await mockInventory(page);
