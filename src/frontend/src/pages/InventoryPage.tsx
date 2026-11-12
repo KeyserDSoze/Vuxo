@@ -394,8 +394,10 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
             </IconButton>
           </Stack>
           <Typography variant="caption" component="p" color="text.secondary"
-            data-testid="inventory-quick-find-hint" sx={{ px: 1, pt: .5, pb: .25 }}>
-            {t('browse.quickFindHint')}
+            sx={{ px: 1, pt: .5, pb: .25 }}>
+            <Box component="span" data-testid="inventory-quick-find-hint">
+              {t('browse.quickFindHint')}
+            </Box>
             <Box component="span" data-testid="inventory-views-keyboard-hint"
               sx={{ display: 'inline-block', ml: 1, overflowWrap: 'anywhere' }}>
               {t('views.keyboardHint')}
