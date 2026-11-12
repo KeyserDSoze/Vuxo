@@ -419,7 +419,7 @@ test('Ctrl/Meta+K finds the owner backpack from gear and history without owner A
   await expect(page.getByTestId('inventory-stack')).toHaveCount(3);
   await expect(page.getByTestId('inventory-quick-find-hint')).toHaveText('Ricerca rapida: Ctrl/⌘+K');
   const search = page.getByTestId('inventory-browse-search');
-  await expect(search).toHaveAttribute('aria-keyshortcuts', 'Control+K Meta+K');
+  await expect(search).toHaveAttribute('aria-keyshortcuts', 'Control+K Meta+K Escape');
   const unexpected: string[] = [];
   page.on('request', request => {
     if (/^\/api\/(inventory|equipment)(\/|$)/.test(new URL(request.url()).pathname))
@@ -632,8 +632,13 @@ test('clear-search adornment preserves owner inventory filters and input focus a
   await expect(page.getByTestId('inventory-browse-filter')).toContainText('Disponibili');
   await expect(page.getByTestId('inventory-browse-slot')).toContainText('Amuleto');
   await expect(page.getByTestId('inventory-browse-sort')).toContainText('Quantità (decrescente)');
-  await expect(page.getByTestId('inventory-stack')).toHaveCount(1);
-  await expect(page.getByTestId('inventory-stack')).toContainText('Seme del bosco');
+  // Two charm stacks have owner-authorized available grants in this fixture:
+  // Grove Seed (3) and Tidal Pearl (2). A query-only reset must restore
+  // both rather than silently dropping the second matching stack.
+  await expect(page.getByTestId('inventory-stack')).toHaveCount(2);
+  await expect(page.getByTestId('inventory-stack')).toContainText([
+    'Seme del bosco', 'Perla delle maree',
+  ]);
   await expect(page.getByTestId('inventory-browse-clear')).toBeVisible();
   expect(ownerCalls).toEqual([]);
   await expect.poll(() => page.evaluate(() =>
