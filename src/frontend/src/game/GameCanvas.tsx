@@ -12,6 +12,7 @@ import type {
   WorldRealtimeClient,
 } from '../features/world/worldRealtime'
 import { WorldScene } from './WorldScene'
+import { HeldWorldTouchDirections } from './WorldTouchInput'
 import { PortalCompass } from './PortalCompass'
 import { WorldRadar } from './WorldRadar'
 import { previewWorldPortalActions, rankWorldPortalActions } from './WorldPortalActions'
@@ -46,6 +47,14 @@ export function GameCanvas() {
   const portalEntryInFlight = useRef(false)
   const enterPortalFromScene = useRef<(grantId: string) => void>(() => {})
   const [allPortalActionsVisible, setAllPortalActionsVisible] = useState(false)
+  const heldTouchDirections = useRef(new HeldWorldTouchDirections())
+
+  // Clear *pointer ownership*, not just the last network intent. Otherwise
+  // releasing a stale finger after blur/portal dismissal can revive movement.
+  const clearTouch = () => {
+    heldTouchDirections.current.clear()
+    realtime.current?.setMovementIntent(0, 0)
+  }
 
   useEffect(() => {
     if (!host.current) return
@@ -120,6 +129,7 @@ export function GameCanvas() {
     // pointerup. Freeze the local controller and send a neutral server intent.
     const suspendMovement = () => {
       windowInputActiveRef.current = false
+      clearTouch()
       setWindowInputActive(false)
       // Stops both keyboard and touch intentions through the same neutral
       // intent; no stale touch press is replayed after focus returns.
@@ -146,6 +156,7 @@ export function GameCanvas() {
       window.removeEventListener('focus', resumeMovement)
       document.removeEventListener('visibilitychange', onVisibilityChange)
       observer.disconnect()
+      heldTouchDirections.current.clear()
       unsubscribe()
       realtime.current = null
       worldScene.current = null
@@ -231,6 +242,7 @@ export function GameCanvas() {
     if (portalEntryInFlight.current || activePortal ||
         realtime.current?.getState().status !== 'connected') return
     portalEntryInFlight.current = true
+    clearTouch()
     setPortalEntering(true)
     worldScene.current?.setInputLocked(true)
     realtime.current?.setMovementIntent(0, 0)
@@ -258,16 +270,31 @@ export function GameCanvas() {
 
   const touchLocked = status !== 'connected' || activePortal !== null ||
     portalEntering || !windowInputActive
-  const touch = (horizontal: number, vertical: number) => {
-    // Unlike Phaser's keyboard update, pointer handlers bypass WorldScene.
-    // Enforce the same modal/focus/connection lock at the input boundary.
-    if (touchLocked || portalEntryInFlight.current ||
-        !windowInputActiveRef.current || document.hidden ||
-        realtime.current?.getState().status !== 'connected') return
-    realtime.current.setMovementIntent(horizontal, vertical)
+  // A reconnect or modal can disable the buttons without emitting pointerup.
+  // Never restore those held directions when gameplay becomes active again.
+  useEffect(() => {
+    if (touchLocked) clearTouch()
+  }, [touchLocked])
+
+  const canSendTouch = () => !touchLocked && !portalEntryInFlight.current &&
+    windowInputActiveRef.current && !document.hidden &&
+    realtime.current?.getState().status === 'connected'
+
+  const pressTouch = (pointerId: number, horizontal: number, vertical: number) => {
+    if (!canSendTouch()) return
+    const intent = heldTouchDirections.current.press(pointerId, horizontal, vertical)
+    if (intent) realtime.current?.setMovementIntent(intent.horizontal, intent.vertical)
   }
 
-  const stopTouch = () => realtime.current?.setMovementIntent(0, 0)
+  const releaseTouch = (pointerId: number) => {
+    const intent = heldTouchDirections.current.release(pointerId)
+    if (!intent) return
+    if (!canSendTouch()) {
+      clearTouch()
+      return
+    }
+    realtime.current?.setMovementIntent(intent.horizontal, intent.vertical)
+  }
 
   return (
     <Box ref={screen} className="vuxo-game-shell" data-testid="game-shell">
@@ -424,10 +451,10 @@ export function GameCanvas() {
           aria-label={t('game.controls.up')}
           data-testid="touch-up"
           disabled={touchLocked}
-          onPointerDown={() => touch(0, -1)}
-          onPointerUp={stopTouch}
-          onPointerCancel={stopTouch}
-          onPointerLeave={stopTouch}
+          onPointerDown={event => pressTouch(event.pointerId, 0, -1)}
+          onPointerUp={event => releaseTouch(event.pointerId)}
+          onPointerCancel={event => releaseTouch(event.pointerId)}
+          onPointerLeave={event => releaseTouch(event.pointerId)}
           className="vuxo-game-touch-direction"
           sx={{ gridColumn: 2, gridRow: 1 }}
         >
@@ -437,10 +464,10 @@ export function GameCanvas() {
           aria-label={t('game.controls.left')}
           data-testid="touch-left"
           disabled={touchLocked}
-          onPointerDown={() => touch(-1, 0)}
-          onPointerUp={stopTouch}
-          onPointerCancel={stopTouch}
-          onPointerLeave={stopTouch}
+          onPointerDown={event => pressTouch(event.pointerId, -1, 0)}
+          onPointerUp={event => releaseTouch(event.pointerId)}
+          onPointerCancel={event => releaseTouch(event.pointerId)}
+          onPointerLeave={event => releaseTouch(event.pointerId)}
           className="vuxo-game-touch-direction"
           sx={{ gridColumn: 1, gridRow: 2 }}
         >
@@ -450,10 +477,10 @@ export function GameCanvas() {
           aria-label={t('game.controls.down')}
           data-testid="touch-down"
           disabled={touchLocked}
-          onPointerDown={() => touch(0, 1)}
-          onPointerUp={stopTouch}
-          onPointerCancel={stopTouch}
-          onPointerLeave={stopTouch}
+          onPointerDown={event => pressTouch(event.pointerId, 0, 1)}
+          onPointerUp={event => releaseTouch(event.pointerId)}
+          onPointerCancel={event => releaseTouch(event.pointerId)}
+          onPointerLeave={event => releaseTouch(event.pointerId)}
           className="vuxo-game-touch-direction"
           sx={{ gridColumn: 2, gridRow: 2 }}
         >
@@ -463,10 +490,10 @@ export function GameCanvas() {
           aria-label={t('game.controls.right')}
           data-testid="touch-right"
           disabled={touchLocked}
-          onPointerDown={() => touch(1, 0)}
-          onPointerUp={stopTouch}
-          onPointerCancel={stopTouch}
-          onPointerLeave={stopTouch}
+          onPointerDown={event => pressTouch(event.pointerId, 1, 0)}
+          onPointerUp={event => releaseTouch(event.pointerId)}
+          onPointerCancel={event => releaseTouch(event.pointerId)}
+          onPointerLeave={event => releaseTouch(event.pointerId)}
           className="vuxo-game-touch-direction"
           sx={{ gridColumn: 3, gridRow: 2 }}
         >

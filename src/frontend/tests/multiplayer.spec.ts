@@ -97,6 +97,83 @@ test('mobile viewport exposes touch controls and touch movement', async ({ page 
   await expect.poll(() => numericAttribute(player, 'data-player-x')).toBeGreaterThan(initialX);
 });
 
+
+test('multi-touch D-pad sends diagonals, retains the remaining finger and drops stale pointers on blur', async ({ page, request }) => {
+  const scope = 'touch-multitouch'
+  const reset = await request.post(`${previewOrigin}/__vuxo_e2e/world/reset?scope=${scope}`)
+  expect(reset.ok()).toBeTruthy()
+  await page.setViewportSize({ width: 390, height: 844 })
+  await configurePlayer(page, 'multitouch-player', 'Two Finger Vuxian')
+  await page.addInitScript(scope => localStorage.setItem('vuxo.e2eWorldScope', scope), scope)
+  const sent: Array<[number, number]> = []
+  page.on('request', request => {
+    if (!request.url().includes('/__vuxo_e2e/world/intent?scope=' + scope)) return
+    const value = request.postDataJSON() as { horizontal: number; vertical: number }
+    sent.push([value.horizontal, value.vertical])
+  })
+  await page.goto(gameUrl)
+  await expectConnected(page)
+  const player = page.locator('[data-player-id="multitouch-player"]')
+  const startingY = await numericAttribute(player, 'data-player-y')
+
+  const pointer = async (direction: string, type: 'pointerdown' | 'pointerup' | 'pointercancel', id: number) => {
+    await page.getByTestId('touch-' + direction).evaluate((element, details) => {
+      element.dispatchEvent(new PointerEvent(details.type, {
+        bubbles: true, pointerType: 'touch', pointerId: details.id,
+      }))
+    }, { type, id })
+  }
+  const expectLast = async (horizontal: number, vertical: number) =>
+    expect.poll(() => sent.at(-1)).toEqual([horizontal, vertical])
+
+  await pointer('right', 'pointerdown', 11)
+  await expectLast(1, 0)
+  await pointer('up', 'pointerdown', 22)
+  await expectLast(1, -1)
+  await expect.poll(() => numericAttribute(player, 'data-player-y')).toBeLessThan(startingY)
+  // A different/late pointerup cannot cancel either still-held finger.
+  const beforeUnknown = sent.length
+  await pointer('left', 'pointerup', 99)
+  expect(sent).toHaveLength(beforeUnknown)
+  await pointer('right', 'pointerup', 11)
+  await expectLast(0, -1)
+  await pointer('up', 'pointerup', 22)
+  await expectLast(0, 0)
+
+  // Two opposite held directions cancel, releasing one resumes the other.
+  await pointer('left', 'pointerdown', 33)
+  await expectLast(-1, 0)
+  await pointer('right', 'pointerdown', 44)
+  await expectLast(0, 0)
+  await pointer('left', 'pointerup', 33)
+  await expectLast(1, 0)
+  await pointer('right', 'pointercancel', 44)
+  await expectLast(0, 0)
+
+  // Focus loss clears the pointer map immediately, not only the outgoing
+  // intent. Neither a late pointerup nor focus restoration replays the hold.
+  await pointer('up', 'pointerdown', 55)
+  await expectLast(0, -1)
+  await page.evaluate(() => window.dispatchEvent(new Event('blur')))
+  await expect(page.getByTestId('touch-up')).toBeDisabled()
+  await expectLast(0, 0)
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')))
+  await expect(page.getByTestId('touch-up')).toBeEnabled()
+  const beforeStale = sent.length
+  await pointer('up', 'pointerup', 55)
+  expect(sent).toHaveLength(beforeStale)
+  await pointer('down', 'pointerdown', 66)
+  await expectLast(0, 1)
+  await pointer('down', 'pointerup', 66)
+  await expectLast(0, 0)
+
+  await expect(page.getByTestId('game-canvas').locator('canvas')).toBeVisible()
+  await expect.poll(() => page.evaluate(() =>
+    document.documentElement.scrollWidth <= innerWidth + 1
+    && document.documentElement.scrollHeight <= innerHeight + 1
+  )).toBe(true)
+})
+
 test('blur stops keyboard travel, rejects a stale held key and resumes only after a new press', async ({ page }) => {
   await configurePlayer(page, 'blur-player', 'Focus Vuxian');
   await page.goto(gameUrl);
