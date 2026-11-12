@@ -92,8 +92,11 @@ export function WorldRadar({
 }) {
   const { t } = useTranslation()
   const compact = useMediaQuery('(max-width: 599px), (max-height: 560px)')
-  const [expanded, setExpanded] = useState(false)
-  const visible = !compact || expanded
+  // Responsive defaults stay intact until the player makes an explicit choice.
+  // This keeps mobile collapsed, desktop expanded, and preserves the selected
+  // visibility across viewport changes without inventing server state.
+  const [expandedOverride, setExpandedOverride] = useState<boolean | null>(null)
+  const visible = expandedOverride ?? !compact
 
   // Never render invented coordinates or markers from an absent session.
   if (status !== 'connected' || !self ||
@@ -120,27 +123,27 @@ export function WorldRadar({
         <Typography component="span" variant="caption" className="vuxo-game-radar-heading-text">
           {t('game.radar.title')}
         </Typography>
-        {compact ? (
-          <IconButton
-            data-testid="world-radar-toggle"
-            className="vuxo-game-radar-toggle"
-            size="small"
-            onClick={() => setExpanded(previous => !previous)}
-            aria-expanded={visible}
-            aria-controls={visible ? 'world-radar-chart' : undefined}
-            aria-label={t(visible ? 'game.radar.hide' : 'game.radar.show')}
-          >
-            {visible ? '−' : '+'}
-          </IconButton>
-        ) : (
+        {!compact && visible && (
           <Typography component="span" variant="caption" className="vuxo-game-radar-scale">
             {t('game.radar.range', { count: RANGE_TILES })}
           </Typography>
         )}
+        <IconButton
+          data-testid="world-radar-toggle"
+          className="vuxo-game-radar-toggle"
+          size="small"
+          onClick={() => setExpandedOverride(!visible)}
+          aria-expanded={visible}
+          aria-controls="world-radar-details"
+          aria-label={t(visible ? 'game.radar.hide' : 'game.radar.show')}
+        >
+          {visible ? '−' : '+'}
+        </IconButton>
       </Box>
-      {visible && (
-        <svg
-          id="world-radar-chart"
+      <Box id="world-radar-details">
+        {visible && (
+          <svg
+            id="world-radar-chart"
           data-testid="world-radar-chart"
           className="vuxo-game-radar-chart"
           viewBox="0 0 144 144"
@@ -185,8 +188,9 @@ export function WorldRadar({
           ))}
           <circle data-testid="world-radar-self" cx={CENTER} cy={CENTER} r="7" className="vuxo-game-radar-self" />
           <circle cx={CENTER} cy={CENTER} r="2" className="vuxo-game-radar-self-core" />
-        </svg>
-      )}
+          </svg>
+        )}
+      </Box>
     </Box>
   )
 }

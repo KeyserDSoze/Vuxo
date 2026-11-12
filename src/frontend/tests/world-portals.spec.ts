@@ -980,6 +980,84 @@ test('world radar shows only granted portal, clamps distant marker and updates a
   expect(api.getListCalls()).toBe(1);
 });
 
+
+test('desktop exploration radar folds without losing authorized markers or keyboard access', async ({ page }, info) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await initializePlayer(page, 'it');
+  const api = await mockPrivatePortals(page, 18.5, 4.5);
+  await page.goto(origin + '/Vuxo/#/game');
+  await expect(page.getByTestId('world-connection-status')).toHaveAttribute('data-status', 'connected');
+  const radar = page.getByTestId('world-radar');
+  const toggle = page.getByTestId('world-radar-toggle');
+  await expect(radar).toHaveAttribute('data-expanded', 'true');
+  await expect(toggle).toHaveAttribute('aria-label', 'Chiudi radar');
+  await expect(toggle).toHaveAttribute('aria-controls', 'world-radar-details');
+  await expect(page.locator('#world-radar-details')).toHaveCount(1);
+  await expect(page.getByTestId('world-radar-portal')).toHaveCount(1);
+  await expect(page.getByTestId('world-radar-chart')).toBeVisible();
+  const originalHeight = await radar.evaluate(element => element.getBoundingClientRect().height);
+  await info.attach('desktop-radar-open', {
+    body: await page.screenshot({ animations: 'disabled' }), contentType: 'image/png',
+  });
+
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await expect(toggle).toHaveAttribute('aria-label', 'Apri radar');
+  await expect(page.locator('#world-radar-details')).toHaveCount(1);
+  await expect(page.getByTestId('world-radar-chart')).toHaveCount(0);
+  const closedHeight = await radar.evaluate(element => element.getBoundingClientRect().height);
+  expect(closedHeight).toBeLessThan(originalHeight);
+  await expect(page.getByTestId('game-canvas').locator('canvas')).toBeVisible();
+  await expect.poll(() => page.evaluate(() =>
+    document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1 &&
+    document.documentElement.scrollHeight <= innerHeight + 1)).toBe(true);
+  await info.attach('desktop-radar-closed', {
+    body: await page.screenshot({ animations: 'disabled' }), contentType: 'image/png',
+  });
+
+  await toggle.focus();
+  await expect(toggle).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.getByTestId('world-radar-portal')).toHaveCount(1);
+  await page.getByTestId('language-toggle').click();
+  await expect(toggle).toHaveAttribute('aria-label', 'Close radar');
+  expect(api.getEntryCalls()).toBe(0);
+});
+
+test('radar viewport defaults and explicit visibility choice remain predictable across resize', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await initializePlayer(page, 'en');
+  await mockPrivatePortals(page, 18.5, 4.5);
+  await page.goto(origin + '/Vuxo/#/game');
+  await expect(page.getByTestId('world-connection-status')).toHaveAttribute('data-status', 'connected');
+  const radar = page.getByTestId('world-radar');
+  const toggle = page.getByTestId('world-radar-toggle');
+  await expect(radar).toHaveAttribute('data-expanded', 'false');
+  await expect(toggle).toHaveAttribute('aria-controls', 'world-radar-details');
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await expect(radar).toHaveAttribute('data-expanded', 'true');
+  await expect(page.getByTestId('world-radar-portal')).toHaveCount(1);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(radar).toHaveAttribute('data-expanded', 'false');
+
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await toggle.click();
+  await expect(radar).toHaveAttribute('data-expanded', 'false');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(radar).toHaveAttribute('data-expanded', 'false');
+  await expect(toggle).toHaveAttribute('aria-label', 'Open radar');
+  await toggle.focus();
+  await page.keyboard.press('Enter');
+  await expect(radar).toHaveAttribute('data-expanded', 'true');
+  await expect(page.getByTestId('world-radar-portal')).toHaveCount(1);
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await expect(radar).toHaveAttribute('data-expanded', 'true');
+  await expect.poll(() => page.evaluate(() =>
+    document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1 &&
+    document.documentElement.scrollHeight <= innerHeight + 1)).toBe(true);
+});
+
 test('mobile radar can open and close without scrolling the document; labels follow language', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await initializePlayer(page);
