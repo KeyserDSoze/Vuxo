@@ -12,7 +12,7 @@ import type {
   WorldRealtimeClient,
 } from '../features/world/worldRealtime'
 import { WorldScene } from './WorldScene'
-import { isUnmodifiedWorldShortcut } from './WorldInputFocus'
+import { isUnmodifiedWorldShortcut, isWorldHelpShortcut } from './WorldInputFocus'
 import { HeldWorldTouchDirections } from './WorldTouchInput'
 import { PortalCompass } from './PortalCompass'
 import { WorldRadar } from './WorldRadar'
@@ -333,11 +333,24 @@ export function GameCanvas() {
 
   const openControls = () => {
     if (activePortal || portalEntering) return
-    // Flush any held finger/keyboard intention before the dialog receives focus.
+    // Both the button and the ? shortcut use one neutralization/lock path.
     clearTouch()
     worldScene.current?.setInputLocked(true)
     setControlsOpen(true)
   }
+
+  useEffect(() => {
+    const onGuideShortcut = (event: KeyboardEvent) => {
+      // A glyph rather than a physical code supports international layouts.
+      // Ignore interactive focus, dialog states and modified/repeated keydowns.
+      if (controlsOpen || activePortal || portalEntering ||
+          !isWorldHelpShortcut(event)) return
+      event.preventDefault()
+      openControls()
+    }
+    document.addEventListener('keydown', onGuideShortcut)
+    return () => document.removeEventListener('keydown', onGuideShortcut)
+  }, [controlsOpen, activePortal, portalEntering])
 
   return (
     <Box ref={screen} className="vuxo-game-shell" data-testid="game-shell">
@@ -434,7 +447,7 @@ export function GameCanvas() {
             data-testid="game-controls-help"
             className="vuxo-game-help-toggle"
             aria-label={t('game.help.open')}
-            title={t('game.help.open')}
+            title={t('game.help.shortcutHint')}
             aria-haspopup="dialog"
             aria-expanded={controlsOpen}
             disabled={Boolean(activePortal) || portalEntering}

@@ -1,5 +1,6 @@
 // Shared HTML-focus boundary for Phaser movement and world keyboard
-// shortcuts (fullscreen F and HUD H). This is a UI affordance, not a game-authority check.
+// shortcuts (fullscreen F, HUD H, radar R and help ?). Display-only,
+// never a substitute for server-owned game authority.
 const INTERACTIVE_WORLD_UI = [
   'input', 'textarea', 'select', 'button', 'a[href]', 'summary',
   '[contenteditable]', '[role="dialog"]', '[role="button"]',
@@ -12,9 +13,19 @@ export function isWorldInteractiveFocus(target: EventTarget | null): boolean {
   return target instanceof Element && target.closest(INTERACTIVE_WORLD_UI) !== null
 }
 
-/** One focus and modifier policy for non-gameplay display shortcuts. */
-export function isUnmodifiedWorldShortcut(event: KeyboardEvent): boolean {
+/** Common editing/focus protection; only the ? glyph may require Shift. */
+function isWorldDisplayShortcutSafe(event: KeyboardEvent): boolean {
   return !event.defaultPrevented && !event.repeat && !event.isComposing
-    && !event.shiftKey && !event.altKey && !event.ctrlKey && !event.metaKey
+    && !event.altKey && !event.ctrlKey && !event.metaKey
     && !isWorldInteractiveFocus(event.target)
+}
+
+/** F/H/R are unmodified keys: Shift+letter never toggles world overlays. */
+export function isUnmodifiedWorldShortcut(event: KeyboardEvent): boolean {
+  return !event.shiftKey && isWorldDisplayShortcutSafe(event)
+}
+
+/** The question-mark glyph is layout dependent; do not hard-code Slash/Shift. */
+export function isWorldHelpShortcut(event: KeyboardEvent): boolean {
+  return event.key === '?' && isWorldDisplayShortcutSafe(event)
 }

@@ -471,6 +471,7 @@ const initialization = i18n.use(initReactI18next).init({
           },
           help: {
             open: 'Guida ai comandi',
+            shortcutHint: 'Tasto ?: apri la guida ai comandi',
             title: 'Comandi del mondo',
             intro: 'Esplora senza lasciare la mappa. La guida sospende il movimento mentre è aperta.',
             move: 'Movimento: WASD oppure frecce della tastiera.',
@@ -1274,6 +1275,7 @@ const initialization = i18n.use(initReactI18next).init({
           },
           help: {
             open: 'World controls guide',
+            shortcutHint: 'Press ?: open the world controls guide',
             title: 'World controls',
             intro: 'Explore without leaving the map. Movement is paused while this guide is open.',
             move: 'Move: WASD or arrow keys.',

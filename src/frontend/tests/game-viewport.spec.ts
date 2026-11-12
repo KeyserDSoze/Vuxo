@@ -77,6 +77,93 @@ for (const [width, height] of [[320, 568], [390, 844], [1280, 720]] as const) {
     });
 }
 
+
+for (const [width, height] of [[390, 844], [1280, 720]] as const) {
+  test('question-mark shortcut opens world controls without stealing HUD input at ' + width + 'x' + height,
+    async ({ page }, info) => {
+      await page.setViewportSize({ width, height });
+      await page.goto('./#/game');
+      const world = page.getByTestId('game-canvas');
+      const help = page.getByTestId('game-controls-help');
+      const dialog = page.getByTestId('world-controls-dialog');
+      await expect(world.locator('canvas')).toBeVisible();
+      await expect(help).toHaveAttribute('title', 'Tasto ?: apri la guida ai comandi');
+
+      await world.locator('canvas').click();
+      await expect(world).toBeFocused();
+      await page.keyboard.press('Slash');
+      await expect(dialog).toBeHidden();
+      await page.keyboard.press('Shift+Slash');
+      await expect(dialog).toBeVisible();
+      await expect(dialog).toContainText('Comandi del mondo');
+      await info.attach('world-help-question-shortcut-' + width, {
+        body: await page.screenshot({ animations: 'disabled' }), contentType: 'image/png',
+      });
+      await page.keyboard.press('Escape');
+      await expect(dialog).toBeHidden();
+      await expect(world).toBeFocused();
+
+      await help.focus();
+      await page.keyboard.press('Shift+Slash');
+      await expect(dialog).toBeHidden();
+      const refuge = page.getByTestId('game-refuge-link');
+      await refuge.focus();
+      await page.keyboard.press('Shift+Slash');
+      await expect(dialog).toBeHidden();
+
+      await page.evaluate(() => {
+        const input = document.createElement('input');
+        input.id = 'world-help-shortcut-editor';
+        input.setAttribute('aria-label', 'Help shortcut input probe');
+        document.body.appendChild(input);
+        input.focus();
+      });
+      await page.keyboard.press('Shift+Slash');
+      await expect(page.locator('#world-help-shortcut-editor')).toHaveValue('?');
+      await page.locator('#world-help-shortcut-editor').evaluate(element => element.remove());
+
+      await world.locator('canvas').click();
+      const rejected = await world.evaluate(element => [
+        { ctrlKey: true }, { altKey: true }, { metaKey: true },
+        { repeat: true }, { isComposing: true },
+      ].map(flags => {
+        const event = new KeyboardEvent('keydown', {
+          key: '?', code: 'Slash', shiftKey: true, bubbles: true, cancelable: true,
+          ...flags,
+        });
+        element.dispatchEvent(event);
+        return event.defaultPrevented;
+      }));
+      expect(rejected).toEqual([false, false, false, false, false]);
+      await world.evaluate(element => {
+        const event = new KeyboardEvent('keydown', {
+          key: '?', code: 'Slash', shiftKey: true, bubbles: true, cancelable: true,
+        });
+        event.preventDefault();
+        element.dispatchEvent(event);
+      });
+      await expect(dialog).toBeHidden();
+
+      // Layout independence: the logical '?' is authoritative, not a US Slash code.
+      await world.evaluate(element => {
+        element.dispatchEvent(new KeyboardEvent('keydown', {
+          key: '?', code: 'Minus', bubbles: true, cancelable: true,
+        }));
+      });
+      await expect(dialog).toBeVisible();
+      await expect.poll(() => page.evaluate(() =>
+        document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1 &&
+        document.documentElement.scrollHeight <= innerHeight + 1 &&
+        document.scrollingElement!.scrollTop === 0,
+      )).toBe(true);
+      await page.getByTestId('world-controls-close').click();
+      await expect(dialog).toBeHidden();
+      await page.getByTestId('language-toggle').click();
+      await expect(help).toHaveAttribute('title', 'Press ?: open the world controls guide');
+      await expect(page.getByTestId('world-hud')).toBeVisible();
+    });
+}
+
 // The visible Phaser canvas is not natively focusable. After navigating HUD
 // controls with a keyboard, a click back into the world must explicitly
 // restore keyboard ownership without producing document scroll.
