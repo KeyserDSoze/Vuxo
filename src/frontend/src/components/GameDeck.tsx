@@ -1,7 +1,7 @@
 import { AutoAwesome, BackpackOutlined, CottageOutlined, PersonOutlined, SportsEsportsOutlined } from '@mui/icons-material';
 import { Box, Stack, Typography } from '@mui/material';
 import { alpha } from '@mui/material/styles';
-import { useEffect, useRef, type PropsWithChildren } from 'react';
+import { useEffect, useRef, type KeyboardEvent, type PropsWithChildren } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link as RouterLink, useLocation } from 'react-router-dom';
 import './game-deck.css';
@@ -31,13 +31,37 @@ export function GameDeck({ children }: PropsWithChildren) {
     if (scrollRef.current) scrollRef.current.scrollTop = 0;
   }, [location.pathname]);
 
+  // Controller-like directional focus without turning links into tabs.
+  // Enter still activates the route, Tab still navigates normally. Read the
+  // actual rail orientation: a resized page changes from row to column
+  // without an extra JS breakpoint that might disagree with the CSS.
+  const onRailKeyDown = (event: KeyboardEvent<HTMLElement>) => {
+    if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+    const target = event.target;
+    if (!(target instanceof HTMLAnchorElement) || !target.classList.contains('vuxo-deck__route')) return;
+    const links = Array.from(event.currentTarget.querySelectorAll<HTMLAnchorElement>('.vuxo-deck__route'));
+    const current = links.indexOf(target);
+    const routesContainer = event.currentTarget.querySelector<HTMLElement>('.vuxo-deck__routes');
+    if (current < 0 || !routesContainer || links.length === 0) return;
+    const horizontal = getComputedStyle(routesContainer).flexDirection.startsWith('row');
+    let next: number | null = null;
+    if (event.key === 'Home') next = 0;
+    else if (event.key === 'End') next = links.length - 1;
+    else if (event.key === (horizontal ? 'ArrowRight' : 'ArrowDown')) next = (current + 1) % links.length;
+    else if (event.key === (horizontal ? 'ArrowLeft' : 'ArrowUp')) next = (current - 1 + links.length) % links.length;
+    if (next === null) return;
+
+    event.preventDefault();
+    links[next]?.focus();
+  };
+
   return (
     <Box className="vuxo-deck" data-testid="game-deck" data-route={selected.name}
       sx={{
         background: theme => `radial-gradient(circle at 14% 14%, ${alpha(theme.palette.primary.main, .17)}, transparent 36%), ${theme.palette.background.default}`,
       }}>
       <Box component="nav" className="vuxo-deck__rail" aria-label={t('shell.navigation')}
-        data-testid="game-deck-navigation"
+        onKeyDown={onRailKeyDown} data-testid="game-deck-navigation"
         sx={{ bgcolor: 'background.paper', borderColor: 'divider' }}>
         <Box className="vuxo-deck__sigil" aria-hidden="true" sx={{ color: 'primary.main' }}>
           <span>✦</span>

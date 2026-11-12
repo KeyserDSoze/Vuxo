@@ -90,6 +90,75 @@ test('deck keeps IT/EN and dark mode localized while preserving its selected rou
   await expect(page.getByTestId('game-deck-scroll')).toBeVisible();
 });
 
+
+test('mobile horizontal GameDeck rail supports directional focus and Enter without document scrolling', async ({ page }, info) => {
+  await page.setViewportSize({ width: 320, height: 568 });
+  await page.goto('./#/refuge');
+  const link = (name: string) => page.getByTestId('game-deck-link-' + name);
+  await link('refuge').focus();
+  await expect(link('refuge')).toBeFocused();
+  await page.keyboard.press('ArrowRight');
+  await expect(link('character')).toBeFocused();
+  await page.keyboard.press('ArrowRight');
+  await expect(link('inventory')).toBeFocused();
+  await page.keyboard.press('Home');
+  await expect(link('refuge')).toBeFocused();
+  await page.keyboard.press('ArrowLeft');
+  await expect(link('game')).toBeFocused(); // wrap to final shortcut
+  await page.keyboard.press('ArrowRight');
+  await expect(link('refuge')).toBeFocused();
+  await page.keyboard.press('End');
+  await expect(link('game')).toBeFocused();
+  // Wrong-axis key is left to the browser; it cannot change the focused route.
+  await page.keyboard.press('ArrowDown');
+  await expect(link('game')).toBeFocused();
+  await expect(link('game')).toHaveCSS('outline-style', 'solid');
+  await expect(page).toHaveURL(/#\/refuge$/);
+  await expect.poll(() => page.evaluate(() =>
+    document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1
+    && document.documentElement.scrollHeight <= innerHeight + 1
+    && document.scrollingElement!.scrollTop === 0
+  )).toBe(true);
+  await info.attach('game-deck-keyboard-mobile-320', {
+    body: await page.screenshot({ animations: 'disabled' }), contentType: 'image/png',
+  });
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(/#\/game$/);
+  await expect(page.getByTestId('game-canvas').locator('canvas')).toBeVisible();
+});
+
+test('desktop vertical GameDeck rail handles Up/Down, Home/End and ignores horizontal arrows', async ({ page }, info) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.goto('./#/refuge');
+  const link = (name: string) => page.getByTestId('game-deck-link-' + name);
+  await link('character').focus();
+  await page.keyboard.press('ArrowDown');
+  await expect(link('inventory')).toBeFocused();
+  await page.keyboard.press('ArrowUp');
+  await expect(link('character')).toBeFocused();
+  await page.keyboard.press('ArrowRight');
+  await expect(link('character')).toBeFocused();
+  await page.keyboard.press('Home');
+  await expect(link('refuge')).toBeFocused();
+  await page.keyboard.press('ArrowUp');
+  await expect(link('game')).toBeFocused(); // vertical wrap
+  await page.keyboard.press('End');
+  await expect(link('game')).toBeFocused();
+  await expect(link('game')).toHaveCSS('outline-style', 'solid');
+  await expect(link('refuge')).toHaveAttribute('aria-current', 'page');
+  await expect(page).toHaveURL(/#\/refuge$/);
+  await expect.poll(() => page.evaluate(() =>
+    document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1
+    && document.documentElement.scrollHeight <= innerHeight + 1
+    && document.scrollingElement!.scrollTop === 0
+  )).toBe(true);
+  await info.attach('game-deck-keyboard-desktop-1280', {
+    body: await page.screenshot({ animations: 'disabled' }), contentType: 'image/png',
+  });
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(/#\/game$/);
+});
+
 test('world and home remain independent from the off-world deck', async ({ page }) => {
   await page.goto('./#/');
   await expect(page.getByTestId('game-deck')).toHaveCount(0);

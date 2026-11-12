@@ -69,6 +69,12 @@
   transition: background-color .17s ease, border-color .17s ease, transform .17s ease;
 }
 .vuxo-deck__route:hover { transform: translateX(2px); }
+/* Focus needs to be visible on keyboard/gamepad-like rail navigation, in
+   both themes, without shifting layout or overflowing the clipped rail. */
+.vuxo-deck__route:focus-visible {
+  outline: 3px solid var(--deck-glow);
+  outline-offset: -3px;
+}
 .vuxo-deck__route[aria-current="page"] { box-shadow: inset 3px 0 currentColor; }
 .vuxo-deck__main { display: flex; flex-direction: column; }
 .vuxo-deck__topline {
