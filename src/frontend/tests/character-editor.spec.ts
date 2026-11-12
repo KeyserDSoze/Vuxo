@@ -101,17 +101,17 @@ test('consecutive catalog selects keep the character form accessible after MUI m
   })
   await page.setViewportSize({ width: 1280, height: 720 })
   await selectAppearanceOption(page, 'hairStyle', 'Lunghi')
-  await selectAppearanceOption(page, 'shoeStyle', 'Scarpe')
+  await selectAppearanceOption(page, 'shoeStyle', 'Sneaker')
   await expect(appearance).toBeVisible()
   await expect(page.getByTestId('hairStyle-select').getByRole('combobox')).toHaveText('Lunghi')
-  await expect(page.getByTestId('shoeStyle-select').getByRole('combobox')).toHaveText('Scarpe')
+  await expect(page.getByTestId('shoeStyle-select').getByRole('combobox')).toHaveText('Sneaker')
   await expect.poll(() => page.evaluate(() => {
     const draft = JSON.parse(localStorage.getItem('vuxo.character.draft') ?? '{}')
     return [draft.appearance?.hairStyle, draft.appearance?.shoeStyle]
   })).toEqual(['hair-3', 'shoe-1'])
   await page.reload()
   await expect(page.getByTestId('hairStyle-select').getByRole('combobox')).toHaveText('Lunghi')
-  await expect(page.getByTestId('shoeStyle-select').getByRole('combobox')).toHaveText('Scarpe')
+  await expect(page.getByTestId('shoeStyle-select').getByRole('combobox')).toHaveText('Sneaker')
   expect(writes).toEqual([])
 })
 
