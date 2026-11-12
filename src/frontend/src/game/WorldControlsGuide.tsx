@@ -56,7 +56,7 @@ export function WorldControlsGuide() {
           <Typography component="h3" variant="subtitle2" className="vuxo-controls-heading">
             {t('game.help.portalsTitle')}
           </Typography>
-          <Command keys={['✦']} description={t('game.help.portals')} />
+          <Command keys={['E', '✦']} description={t('game.help.portals')} />
         </Box>
       </Box>
     </Box>

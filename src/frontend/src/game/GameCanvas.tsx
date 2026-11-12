@@ -304,6 +304,23 @@ export function GameCanvas() {
   const nearby = (portal: WorldPortalMarker) => Boolean(self)
     && Math.hypot(self!.x - portal.x, self!.y - portal.y) <= 1.5
 
+  useEffect(() => {
+    const onPortalShortcut = (event: KeyboardEvent) => {
+      if (event.code !== 'KeyE' || !isUnmodifiedWorldShortcut(event) ||
+          status !== 'connected' || !windowInputActiveRef.current || document.hidden ||
+          controlsOpen || activePortal || portalEntering || portalEntryInFlight.current) return
+      // Only the closest *owner-granted* portal can be entered by keyboard.
+      // No nearby marker = no intercepted keystroke or speculative API call.
+      const nearest = portalActions[0]?.portal
+      if (!nearest || !nearby(nearest)) return
+      event.preventDefault()
+      // Same single-flight server-authorized entry as HUD and Phaser clicks.
+      void enter(nearest.id)
+    }
+    document.addEventListener('keydown', onPortalShortcut)
+    return () => document.removeEventListener('keydown', onPortalShortcut)
+  }, [portalActions, status, controlsOpen, activePortal, portalEntering])
+
   const touchLocked = status !== 'connected' || activePortal !== null ||
     portalEntering || controlsOpen || !windowInputActive
   // A reconnect or modal can disable the buttons without emitting pointerup.
@@ -508,6 +525,10 @@ export function GameCanvas() {
                 data-testid="world-portal-enter"
                 data-grant-id={portal.id}
                 data-portal-number={number}
+                aria-keyshortcuts={status === 'connected' && portalActions[0]?.portal.id === portal.id &&
+                  nearby(portal) ? 'E' : undefined}
+                title={status === 'connected' && portalActions[0]?.portal.id === portal.id &&
+                  nearby(portal) ? t('game.portal.enterShortcutHint') : undefined}
                 variant="outlined"
                 size="small"
                 className="vuxo-game-button"

@@ -86,6 +86,137 @@ test.beforeEach(async ({ request }) => {
   expect(response.ok()).toBeTruthy();
 });
 
+
+for (const [width, height] of [[390, 844], [1280, 720]] as const) {
+  test('E enters only the nearby personal portal from world focus at ' + width + 'x' + height,
+    async ({ page }, info) => {
+      await page.setViewportSize({ width, height });
+      await initializePlayer(page, 'en');
+      const api = await mockPrivatePortals(page);
+      await page.goto(origin + '/Vuxo/#/game');
+      await expect(page.getByTestId('world-connection-status')).toHaveAttribute('data-status', 'connected');
+      const action = page.getByTestId('world-portal-enter');
+      await expect(action).toBeEnabled();
+      await expect(action).toHaveAttribute('aria-keyshortcuts', 'E');
+      await expect(action).toHaveAttribute('title', 'Press E to enter the nearby portal');
+      const world = page.getByTestId('game-canvas');
+      const dialog = page.getByTestId('world-portal-dialog');
+
+      // Interactive focus must keep E for its native target.
+      const help = page.getByTestId('game-controls-help');
+      await help.click();
+      await expect(page.getByTestId('world-controls-dialog')).toBeVisible();
+      await expect(page.getByTestId('world-controls-portals').locator('kbd')).toHaveText(['E', '✦']);
+      await page.keyboard.press('e');
+      expect(api.getEntryCalls()).toBe(0);
+      await page.keyboard.press('Escape');
+      await expect(help).toBeFocused();
+      await page.keyboard.press('e');
+      expect(api.getEntryCalls()).toBe(0);
+      await action.focus();
+      await page.keyboard.press('e');
+      expect(api.getEntryCalls()).toBe(0);
+      await page.getByTestId('game-refuge-link').focus();
+      await page.keyboard.press('e');
+      expect(api.getEntryCalls()).toBe(0);
+      await page.evaluate(() => {
+        const input = document.createElement('input');
+        input.id = 'portal-E-shortcut-editor';
+        input.setAttribute('aria-label', 'Portal E shortcut editor');
+        document.body.appendChild(input);
+        input.focus();
+      });
+      await page.keyboard.press('e');
+      await expect(page.locator('#portal-E-shortcut-editor')).toHaveValue('e');
+      expect(api.getEntryCalls()).toBe(0);
+      await page.locator('#portal-E-shortcut-editor').evaluate(input => input.remove());
+
+      await world.locator('canvas').click();
+      await expect(world).toBeFocused();
+      await page.keyboard.press('Shift+e');
+      const ignored = await world.evaluate(element => [
+        { ctrlKey: true }, { altKey: true }, { metaKey: true },
+        { repeat: true }, { isComposing: true },
+      ].map(flags => {
+        const event = new KeyboardEvent('keydown', {
+          key: 'e', code: 'KeyE', bubbles: true, cancelable: true, ...flags,
+        });
+        element.dispatchEvent(event);
+        return event.defaultPrevented;
+      }));
+      expect(ignored).toEqual([false, false, false, false, false]);
+      await world.evaluate(element => {
+        const event = new KeyboardEvent('keydown', {
+          code: 'KeyE', key: 'e', bubbles: true, cancelable: true,
+        });
+        event.preventDefault();
+        element.dispatchEvent(event);
+      });
+      expect(api.getEntryCalls()).toBe(0);
+      await expect(dialog).toHaveCount(0);
+
+      // Real keydown uses the same single-flight owner-grant API as HUD click.
+      await page.keyboard.press('e');
+      await expect(dialog).toBeVisible();
+      expect(api.getEntryCalls()).toBe(1);
+      await page.keyboard.press('e');
+      expect(api.getEntryCalls()).toBe(1);
+      await info.attach('world-nearby-portal-E-' + width, {
+        body: await page.screenshot({ animations: 'disabled' }), contentType: 'image/png',
+      });
+      await expect.poll(() => page.evaluate(() =>
+        document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1 &&
+        document.documentElement.scrollHeight <= innerHeight + 1 &&
+        document.scrollingElement!.scrollTop === 0,
+      )).toBe(true);
+    });
+}
+
+test('E from the world never enters a distant owner-granted portal', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await initializePlayer(page, 'it');
+  const api = await mockPrivatePortals(page, 54.5, 58.5);
+  await page.goto(origin + '/Vuxo/#/game');
+  await expect(page.getByTestId('world-connection-status')).toHaveAttribute('data-status', 'connected');
+  const action = page.getByTestId('world-portal-enter');
+  await expect(action).toBeDisabled();
+  await expect(action).not.toHaveAttribute('aria-keyshortcuts', 'E');
+  await page.getByTestId('game-canvas').locator('canvas').click();
+  await page.keyboard.press('e');
+  await expect(page.getByTestId('world-portal-dialog')).toHaveCount(0);
+  expect(api.getEntryCalls()).toBe(0);
+});
+
+test('rapid E presses remain single-flight while the authoritative entry is pending', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await initializePlayer(page, 'en');
+  const api = await mockPrivatePortals(page);
+  let release!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  let intercepted = 0;
+  await page.route('**/api/personal-content/world-portals/' + grantId + '/enter', async route => {
+    intercepted++;
+    await gate;
+    await route.fallback();
+  });
+  await page.goto(origin + '/Vuxo/#/game');
+  await expect(page.getByTestId('world-portal-enter')).toBeEnabled();
+  await page.getByTestId('game-canvas').locator('canvas').click();
+  try {
+    await page.keyboard.press('e');
+    await expect.poll(() => intercepted).toBe(1);
+    await expect(page.getByTestId('world-portal-action-list')).toHaveAttribute('aria-busy', 'true');
+    await expect(page.getByTestId('touch-right')).toBeDisabled();
+    await page.keyboard.press('e');
+    await page.waitForTimeout(120);
+    expect(intercepted).toBe(1);
+  } finally {
+    release();
+  }
+  await expect(page.getByTestId('world-portal-dialog')).toBeVisible();
+  expect(api.getEntryCalls()).toBe(1);
+});
+
 test('slow portal entry is single-flight across HUD and Phaser, and freezes movement until response', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 720 });
   await initializePlayer(page, 'en');

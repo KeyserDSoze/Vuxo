@@ -58,7 +58,7 @@ for (const [width, height] of [[320, 568], [390, 844], [1280, 720]] as const) {
       await expect(portals).toHaveAttribute('aria-label', 'PORTALI');
       await expect(movement.locator('kbd')).toHaveText(['W', 'A', 'S', 'D', '↑', '←', '↓', '→', '↑', '←', '↓', '→']);
       await expect(interfacePanel.locator('kbd')).toHaveText(['F', 'H', 'R', '?']);
-      await expect(portals.locator('kbd')).toHaveText(['✦']);
+      await expect(portals.locator('kbd')).toHaveText(['E', '✦']);
       await expect.poll(() => console.evaluate(node => node.scrollWidth <= node.clientWidth + 1 &&
         Array.from(node.querySelectorAll('.vuxo-controls-panel')).every(panel =>
           panel.scrollWidth <= panel.clientWidth + 1))).toBe(true);

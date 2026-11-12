@@ -483,7 +483,7 @@ const initialization = i18n.use(initReactI18next).init({
             hud: 'H: comprimi o riapri le informazioni del mondo.',
             radar: 'R: apri o comprimi il radar.',
             fullscreen: 'F: entra o esci dallo schermo intero.',
-            portals: 'Per i portali avvicinati e seleziona il simbolo: l’ingresso è autorizzato dal server.',
+            portals: 'Vicino al portale premi E o seleziona il simbolo: l’ingresso è autorizzato dal server.',
             close: 'Torna al mondo',
           },
           title: 'Mondo condiviso',
@@ -505,6 +505,7 @@ const initialization = i18n.use(initReactI18next).init({
           portal: {
             available: 'Portali personali nel mondo: {{count}}',
             enter: 'Entra nel portale {{number}}',
+            enterShortcutHint: 'Tasto E: entra nel portale vicino',
             entering: 'Ingresso nel portale…',
             showMore: 'Mostra altri {{count}} portali',
             showLess: 'Mostra meno portali',
@@ -1291,7 +1292,7 @@ const initialization = i18n.use(initReactI18next).init({
             hud: 'H: fold or restore world information.',
             radar: 'R: open or fold the radar.',
             fullscreen: 'F: enter or exit fullscreen.',
-            portals: 'Approach a portal and select its symbol: the server authorizes entry.',
+            portals: 'Near a portal, press E or select its symbol: the server authorizes entry.',
             close: 'Return to world',
           },
           title: 'Shared world',
@@ -1313,6 +1314,7 @@ const initialization = i18n.use(initReactI18next).init({
           portal: {
             available: 'Personal portals in the world: {{count}}',
             enter: 'Enter portal {{number}}',
+            enterShortcutHint: 'Press E to enter the nearby portal',
             entering: 'Entering portal…',
             showMore: 'Show {{count}} more portals',
             showLess: 'Show fewer portals',
