@@ -1,5 +1,5 @@
-// Shared HTML-focus boundary for Phaser movement and the world fullscreen
-// shortcut. This is a UI affordance, not a game-authority check.
+// Shared HTML-focus boundary for Phaser movement and world keyboard
+// shortcuts (fullscreen F and HUD H). This is a UI affordance, not a game-authority check.
 const INTERACTIVE_WORLD_UI = [
   'input', 'textarea', 'select', 'button', 'a[href]', 'summary',
   '[contenteditable]', '[role="dialog"]', '[role="button"]',

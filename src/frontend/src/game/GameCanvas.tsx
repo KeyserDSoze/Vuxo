@@ -200,11 +200,14 @@ export function GameCanvas() {
     const onShortcut = (event: KeyboardEvent) => {
       // The same interactive-focus boundary protects Phaser movement.
       // The focused control keeps its native text/keyboard behavior.
-      if (event.defaultPrevented || event.code !== 'KeyF' || event.repeat || event.isComposing ||
+      if (event.defaultPrevented ||
+          (event.code !== 'KeyF' && event.code !== 'KeyH') ||
+          event.repeat || event.isComposing ||
           event.shiftKey || event.altKey || event.ctrlKey || event.metaKey ||
           isWorldInteractiveFocus(event.target)) return
       event.preventDefault()
-      void toggleFullscreen()
+      if (event.code === 'KeyH') setHudExpanded(expanded => !expanded)
+      else void toggleFullscreen()
     }
     document.addEventListener('fullscreenchange', synchronizeFullscreen)
     document.addEventListener('keydown', onShortcut)
@@ -369,7 +372,7 @@ export function GameCanvas() {
             aria-expanded={hudExpanded}
             aria-controls="world-hud-details"
             aria-label={t(hudExpanded ? 'game.screen.collapseHud' : 'game.screen.expandHud')}
-            title={t(hudExpanded ? 'game.screen.collapseHud' : 'game.screen.expandHud')}
+            title={t('game.screen.hudShortcutHint')}
             onClick={() => setHudExpanded(expanded => !expanded)}
           >
             {hudExpanded ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}

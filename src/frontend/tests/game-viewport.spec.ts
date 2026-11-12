@@ -137,6 +137,82 @@ for (const [width, height] of [[320, 568], [390, 844], [1280, 720]] as const) {
     });
 }
 
+
+for (const [width, height] of [[390, 844], [1280, 720]] as const) {
+  test('H folds world HUD only from non-interactive world focus at ' + width + 'x' + height,
+    async ({ page }, info) => {
+      await page.setViewportSize({ width, height });
+      await page.goto('./#/game');
+      const world = page.getByTestId('game-canvas');
+      const hud = page.getByTestId('world-hud');
+      const details = page.getByTestId('world-hud-details');
+      const toggle = page.getByTestId('world-hud-toggle');
+      await expect(world.locator('canvas')).toBeVisible();
+      await expect(hud).toHaveAttribute('data-expanded', 'true');
+      await expect(toggle).toHaveAttribute('title', 'Tasto H: comprimi o espandi HUD');
+
+      await world.locator('canvas').click();
+      await expect(world).toBeFocused();
+      await page.keyboard.press('h');
+      await expect(hud).toHaveAttribute('data-expanded', 'false');
+      await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+      await expect(details).toBeHidden();
+      await expect(page.getByTestId('world-connection-status')).toBeVisible();
+      await expect(hud).toContainText(/Giocatori online: \d+/);
+      await expect(page.getByTestId('game-fullscreen-toggle')).toBeVisible();
+      if (width === 390) {
+        await info.attach('world-hud-keyboard-H-folded-390', {
+          body: await page.screenshot({ animations: 'disabled' }),
+          contentType: 'image/png',
+        });
+      }
+      await page.keyboard.press('Shift+h');
+      await expect(hud).toHaveAttribute('data-expanded', 'false');
+
+      // Modified/repeated/composing shortcuts preserve the existing state
+      // without stealing native browser events.
+      const ignored = await world.evaluate(element =>
+        [
+          { ctrlKey: true }, { metaKey: true }, { altKey: true },
+          { repeat: true }, { isComposing: true },
+        ].map(modifiers => {
+          const event = new KeyboardEvent('keydown', {
+            key: 'h', code: 'KeyH', ...modifiers,
+            bubbles: true, cancelable: true,
+          });
+          element.dispatchEvent(event);
+          return event.defaultPrevented;
+        }),
+      );
+      expect(ignored).toEqual([false, false, false, false, false]);
+      await expect(hud).toHaveAttribute('data-expanded', 'false');
+
+      await toggle.focus();
+      await expect(toggle).toBeFocused();
+      await page.keyboard.press('h');
+      await expect(hud).toHaveAttribute('data-expanded', 'false');
+      const refuge = page.getByTestId('game-refuge-link');
+      await refuge.focus();
+      await page.keyboard.press('h');
+      await expect(hud).toHaveAttribute('data-expanded', 'false');
+
+      await world.locator('canvas').click();
+      await expect(world).toBeFocused();
+      await page.keyboard.press('h');
+      await expect(hud).toHaveAttribute('data-expanded', 'true');
+      await expect(details).toBeVisible();
+
+      await page.getByTestId('language-toggle').click();
+      await expect(toggle).toHaveAttribute('title', 'Press H to collapse or expand the HUD');
+      await expect(toggle).toHaveAttribute('aria-label', 'Collapse world HUD');
+      await expect.poll(() => page.evaluate(() =>
+        document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1 &&
+        document.documentElement.scrollHeight <= innerHeight + 1 &&
+        document.scrollingElement!.scrollTop === 0,
+      )).toBe(true);
+    });
+}
+
 test('resizing the browser reveals a different amount of world without a 16:9 letterbox', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 720 });
   await page.goto('./#/game');
