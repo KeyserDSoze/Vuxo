@@ -1,5 +1,5 @@
-import { ExpandLess, ExpandMore, Fullscreen, FullscreenExit, KeyboardArrowDown, KeyboardArrowLeft, KeyboardArrowRight, KeyboardArrowUp } from '@mui/icons-material'
-import { Alert, Box, Button, Chip, Dialog, DialogContent, DialogTitle, IconButton, Stack, Typography } from '@mui/material'
+import { ExpandLess, ExpandMore, Fullscreen, FullscreenExit, HelpOutline, KeyboardArrowDown, KeyboardArrowLeft, KeyboardArrowRight, KeyboardArrowUp } from '@mui/icons-material'
+import { Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, Stack, Typography } from '@mui/material'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import Phaser from 'phaser'
@@ -29,6 +29,7 @@ export function GameCanvas() {
   const screen = useRef<HTMLDivElement>(null)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [hudExpanded, setHudExpanded] = useState(true)
+  const [controlsOpen, setControlsOpen] = useState(false)
   // Keep an immediate guard as well as accessible disabled button state.
   // Blur and visibilitychange can arrive before React re-renders the HUD.
   const [windowInputActive, setWindowInputActive] = useState(() => !document.hidden)
@@ -266,14 +267,14 @@ export function GameCanvas() {
   }, [portals])
 
   useEffect(() => {
-    worldScene.current?.setInputLocked(activePortal !== null || portalEntering)
-    if (activePortal || portalEntering) realtime.current?.setMovementIntent(0, 0)
-  }, [activePortal, portalEntering])
+    worldScene.current?.setInputLocked(activePortal !== null || portalEntering || controlsOpen)
+    if (activePortal || portalEntering || controlsOpen) realtime.current?.setMovementIntent(0, 0)
+  }, [activePortal, portalEntering, controlsOpen])
 
   const enter = async (grantId: string) => {
     // The server is authoritative about proximity and the grant. Client-side
     // gating only prevents accidental duplicate POSTs while one is pending.
-    if (portalEntryInFlight.current || activePortal ||
+    if (portalEntryInFlight.current || activePortal || controlsOpen ||
         realtime.current?.getState().status !== 'connected') return
     portalEntryInFlight.current = true
     clearTouch()
@@ -303,7 +304,7 @@ export function GameCanvas() {
     && Math.hypot(self!.x - portal.x, self!.y - portal.y) <= 1.5
 
   const touchLocked = status !== 'connected' || activePortal !== null ||
-    portalEntering || !windowInputActive
+    portalEntering || controlsOpen || !windowInputActive
   // A reconnect or modal can disable the buttons without emitting pointerup.
   // Never restore those held directions when gameplay becomes active again.
   useEffect(() => {
@@ -328,6 +329,14 @@ export function GameCanvas() {
       return
     }
     realtime.current?.setMovementIntent(intent.horizontal, intent.vertical)
+  }
+
+  const openControls = () => {
+    if (activePortal || portalEntering) return
+    // Flush any held finger/keyboard intention before the dialog receives focus.
+    clearTouch()
+    worldScene.current?.setInputLocked(true)
+    setControlsOpen(true)
   }
 
   return (
@@ -417,9 +426,24 @@ export function GameCanvas() {
       <WorldRadar status={status} self={self} players={players} portals={portals} />
 
       <Stack className="vuxo-game-actions" direction="row" spacing={1}>
-        <Button component={RouterLink} to="/refuge" color="inherit" variant="outlined" size="small" className="vuxo-game-button" data-testid="game-refuge-link">
-          {t('game.screen.refuge')}
-        </Button>
+        <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
+          <Button component={RouterLink} to="/refuge" color="inherit" variant="outlined" size="small" className="vuxo-game-button" data-testid="game-refuge-link">
+            {t('game.screen.refuge')}
+          </Button>
+          <IconButton
+            data-testid="game-controls-help"
+            className="vuxo-game-help-toggle"
+            aria-label={t('game.help.open')}
+            title={t('game.help.open')}
+            aria-haspopup="dialog"
+            aria-expanded={controlsOpen}
+            disabled={Boolean(activePortal) || portalEntering}
+            onClick={openControls}
+            size="small"
+          >
+            <HelpOutline fontSize="small" />
+          </IconButton>
+        </Stack>
         <Button
           data-testid="game-fullscreen-toggle"
           aria-label={t(isFullscreen ? 'game.screen.exitFullscreen' : 'game.screen.fullscreen')}
@@ -474,7 +498,7 @@ export function GameCanvas() {
                 size="small"
                 className="vuxo-game-button"
                 disabled={status !== 'connected' || !nearby(portal) ||
-                  Boolean(activePortal) || portalEntering}
+                  Boolean(activePortal) || portalEntering || controlsOpen}
                 onClick={() => void enter(portal.id)}
               >
                 {t('game.portal.enter', { number })}
@@ -564,6 +588,36 @@ export function GameCanvas() {
           <KeyboardArrowRight />
         </IconButton>
       </Box>
+      <Dialog
+        container={() => screen.current}
+        open={controlsOpen}
+        onClose={() => setControlsOpen(false)}
+        fullWidth
+        maxWidth="xs"
+        scroll="paper"
+        aria-labelledby="world-controls-guide-title"
+        data-testid="world-controls-dialog"
+      >
+        <DialogTitle id="world-controls-guide-title">{t('game.help.title')}</DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={1.25}>
+            <Typography variant="body2">{t('game.help.intro')}</Typography>
+            <Box component="ul" sx={{ m: 0, pl: 2.5, display: 'grid', gap: 1 }}>
+              <Typography component="li" variant="body2">{t('game.help.move')}</Typography>
+              <Typography component="li" variant="body2">{t('game.help.touch')}</Typography>
+              <Typography component="li" variant="body2">{t('game.help.hud')}</Typography>
+              <Typography component="li" variant="body2">{t('game.help.radar')}</Typography>
+              <Typography component="li" variant="body2">{t('game.help.fullscreen')}</Typography>
+              <Typography component="li" variant="body2">{t('game.help.portals')}</Typography>
+            </Box>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button data-testid="world-controls-close" onClick={() => setControlsOpen(false)}>
+            {t('game.help.close')}
+          </Button>
+        </DialogActions>
+      </Dialog>
       <Dialog
         container={() => screen.current}
         open={activePortal !== null}

@@ -33,6 +33,50 @@ for (const [width, height] of [[320, 568], [390, 844], [768, 1024], [1280, 720],
   });
 }
 
+
+for (const [width, height] of [[320, 568], [390, 844], [1280, 720]] as const) {
+  test('world controls help stays inside the viewport at ' + width + 'x' + height,
+    async ({ page }, info) => {
+      await page.setViewportSize({ width, height });
+      await page.goto('./#/game');
+      const help = page.getByTestId('game-controls-help');
+      const dialog = page.getByTestId('world-controls-dialog');
+      await expect(page.getByTestId('game-canvas').locator('canvas')).toBeVisible();
+      await expect(help).toBeVisible();
+      await expect(help).toHaveAttribute('aria-label', 'Guida ai comandi');
+      await help.click();
+      await expect(dialog).toBeVisible();
+      await expect(help).toHaveAttribute('aria-expanded', 'true');
+      await expect(dialog).toContainText('Comandi del mondo');
+      await expect(dialog).toContainText('WASD');
+      await expect(dialog).toContainText('H:');
+      await expect(dialog).toContainText('R:');
+      await expect(dialog).toContainText('F:');
+      await expect.poll(() => page.evaluate(() =>
+        document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1
+        && document.documentElement.scrollHeight <= innerHeight + 1
+        && document.scrollingElement!.scrollTop === 0,
+      )).toBe(true);
+      await info.attach('world-controls-guide-' + width, {
+        body: await page.screenshot({ animations: 'disabled' }),
+        contentType: 'image/png',
+      });
+      await page.keyboard.press('Escape');
+      await expect(dialog).toBeHidden();
+      await expect(help).toHaveAttribute('aria-expanded', 'false');
+      await expect(help).toBeFocused();
+      await page.getByTestId('language-toggle').click();
+      await expect(help).toHaveAttribute('aria-label', 'World controls guide');
+      await help.click();
+      await expect(dialog).toContainText('World controls');
+      await expect(dialog).toContainText('server authorizes');
+      await page.getByTestId('world-controls-close').click();
+      await expect(dialog).toBeHidden();
+      await expect(page.getByTestId('game-fullscreen-toggle')).toBeVisible();
+      await expect(page.getByTestId('world-connection-status')).toBeVisible();
+    });
+}
+
 // The visible Phaser canvas is not natively focusable. After navigating HUD
 // controls with a keyboard, a click back into the world must explicitly
 // restore keyboard ownership without producing document scroll.

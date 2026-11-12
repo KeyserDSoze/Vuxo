@@ -109,6 +109,44 @@ for (const [width, height] of [[390, 844], [1280, 720]] as const) {
     })
 }
 
+
+test('controls dialog neutralizes and does not replay held world movement', async ({ page, request }) => {
+  const scope = 'world-controls-help-movement'
+  await resetRoom(request, scope)
+  await demoPlayer(page, 'help-world-player', 'Guide Wanderer', scope)
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto(gameUrl)
+  await expect(page.getByTestId('world-connection-status')).toHaveAttribute('data-status', 'connected')
+  const canvas = page.getByTestId('game-canvas').locator('canvas')
+  const self = page.locator('[data-player-id="help-world-player"]')
+  await expect(self).toHaveCount(1)
+  const start = Number(await self.getAttribute('data-player-x'))
+  await canvas.click()
+  await page.keyboard.down('ArrowRight')
+  await expect.poll(async () => Number(await self.getAttribute('data-player-x'))).toBeGreaterThan(start)
+
+  const help = page.getByTestId('game-controls-help')
+  await help.click()
+  await expect(page.getByTestId('world-controls-dialog')).toBeVisible()
+  await expect(page.getByTestId('touch-right')).toBeDisabled()
+  await page.keyboard.up('ArrowRight')
+  await page.waitForTimeout(200)
+  const stopped = Number(await self.getAttribute('data-player-x'))
+  await page.keyboard.press('ArrowRight')
+  await page.waitForTimeout(300)
+  expect(Number(await self.getAttribute('data-player-x'))).toBe(stopped)
+  await page.getByTestId('world-controls-close').click()
+  await expect(help).toBeFocused()
+  await page.waitForTimeout(250)
+  expect(Number(await self.getAttribute('data-player-x'))).toBe(stopped)
+
+  // Only a fresh press after returning to the canvas is a movement intent.
+  await canvas.click()
+  await page.keyboard.down('ArrowRight')
+  await expect.poll(async () => Number(await self.getAttribute('data-player-x'))).toBeGreaterThan(stopped)
+  await page.keyboard.up('ArrowRight')
+})
+
 test('two illustrated wanderers coexist in the authoritative world at mobile size', async ({ browser, request }, info) => {
   await resetRoom(request, duoScope)
   // Preview server holds the cosmetic fixture; browsers send only playerId/name.

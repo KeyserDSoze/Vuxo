@@ -152,6 +152,9 @@ export class WorldScene extends Phaser.Scene {
   }
 
   setInputLocked(locked: boolean): void {
+    // Releasing an overlay must not replay movement from a key held when
+    // the dialog opened. Require a fresh physical keydown instead.
+    if (this.inputLocked !== locked && this.ready) this.input.keyboard?.resetKeys()
     this.inputLocked = locked
     if (locked) {
       this.lastHorizontal = 0
