@@ -134,9 +134,20 @@ test('world fullscreen F ignores interactive HUD focus, text entry and modified 
     document.getElementById('fullscreen-keyboard-focus-probe')?.remove();
     (document.activeElement as HTMLElement | null)?.blur();
   });
-  for (const shortcut of ['Shift+f', 'Control+f', 'Alt+f', 'Meta+f']) {
-    await page.keyboard.press(shortcut);
-  }
+  // Exercise Shift+F with a genuine key press. Dispatch the browser-reserved
+  // Ctrl/Alt/Meta+F combinations to the document to avoid opening Chrome's
+  // Find UI/menu and stealing keyboard focus from the world test.
+  await page.keyboard.press('Shift+f');
+  await page.evaluate(() => {
+    for (const modifier of ['ctrlKey', 'altKey', 'metaKey'] as const) {
+      document.dispatchEvent(new KeyboardEvent('keydown', {
+        code: 'KeyF', key: 'f', bubbles: true, [modifier]: true,
+      }));
+    }
+    document.dispatchEvent(new KeyboardEvent('keydown', {
+      code: 'KeyF', key: 'f', bubbles: true, repeat: true,
+    }));
+  });
   await expect.poll(() => page.evaluate(() => Number(document.body.dataset.fullscreenRequestCount ?? 0))).toBe(0);
   await page.keyboard.press('f');
   await expect.poll(() => page.evaluate(() => Number(document.body.dataset.fullscreenRequestCount ?? 0))).toBe(1);
