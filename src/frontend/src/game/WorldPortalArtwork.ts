@@ -68,6 +68,22 @@ export function createIllustratedPortal(
   return portal
 }
 
+/** Hide/show the seven decorative Phaser layers as one visual unit.
+ * A portal's grant and its 19px interactive geometry are never destroyed by
+ * camera culling. Do not replay an old hover when its art returns onscreen.
+ */
+export function setIllustratedPortalVisible(portal: IllustratedPortal, visible: boolean): void {
+  if (portal.ring.visible === visible) return
+  if (!visible) portal.hovered = false
+  portal.ring.setVisible(visible)
+  portal.arch.setVisible(visible)
+  portal.halo.setVisible(visible)
+  portal.veil.setVisible(visible)
+  portal.shimmer.setVisible(visible)
+  portal.center.setVisible(visible)
+  portal.glyphs.setVisible(visible)
+}
+
 /** Animate only the non-interactive light, never the portal's input surface. */
 export function updateIllustratedPortal(portal: IllustratedPortal, timeMs: number, reducedMotion: boolean): void {
   const pulse = reducedMotion ? 0.5 : (1 + Math.sin(timeMs / 360)) / 2

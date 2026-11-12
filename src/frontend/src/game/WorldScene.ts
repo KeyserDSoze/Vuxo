@@ -7,9 +7,12 @@ import { readWorldAppearance, worldAppearanceKey } from './WorldAppearance'
 import { computeWorldCameraZoom } from './WorldCamera'
 import { isWorldAvatarInView } from './WorldAvatarVisibility'
 import { nextWorldTerrainWindow, type WorldTerrainWindow } from './WorldTerrainWindow'
-import { createIllustratedPortal, destroyIllustratedPortal, updateIllustratedPortal, type IllustratedPortal } from './WorldPortalArtwork'
+import { createIllustratedPortal, destroyIllustratedPortal, setIllustratedPortalVisible, updateIllustratedPortal, type IllustratedPortal } from './WorldPortalArtwork'
 
 const TILE_SIZE = 32
+// Account for the 47px portal arch, halo and camera lerp in world pixels.
+// All granted portals remain in the scene/map; only distant art is culled.
+const WORLD_PORTAL_OVERSCAN = 96
 
 type PlayerVisual = {
   body: Phaser.GameObjects.Container
@@ -216,8 +219,15 @@ export class WorldScene extends Phaser.Scene {
         })
       }
     }
+    const cameraView = this.cameras.main.worldView
     for (const visual of this.portalVisuals.values()) {
-      updateIllustratedPortal(visual, time, this.reducedMotion)
+      // Use the actual zoom-adjusted camera worldView rather than the
+      // window dimensions. Offscreen portal layers no longer draw or pulse.
+      // The API-owned marker, hit geometry and entry callback still exist.
+      const visible = isWorldAvatarInView(
+        cameraView, visual.ring.x, visual.ring.y, WORLD_PORTAL_OVERSCAN)
+      setIllustratedPortalVisible(visual, visible)
+      if (visible) updateIllustratedPortal(visual, time, this.reducedMotion)
     }
     // Browser-only E2E geometry evidence; not present in production builds.
     if (import.meta.env.VITE_E2E_REALTIME === 'true') {
@@ -228,6 +238,7 @@ export class WorldScene extends Phaser.Scene {
           reducedMotion: this.reducedMotion,
           builds: this.portalBuilds,
           hitCenters: visuals.map(visual => [visual.ring.x, visual.ring.y]),
+          visible: visuals.map(visual => visual.ring.visible),
           hitScales: visuals.map(visual => [visual.ring.scaleX, visual.ring.scaleY]),
           hitRadii: visuals.map(visual => visual.ring.radius),
           hovered: visuals.map(visual => visual.hovered),

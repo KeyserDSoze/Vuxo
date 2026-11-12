@@ -370,6 +370,98 @@ test('personal marker opens existing challenge in-world, then disappears on succ
   await expect(page.getByTestId('world-connection-status')).toHaveAttribute('data-status', 'connected');
 });
 
+
+test('far owner portal art pauses offscreen and reappears after ultrawide camera resize without rebuilding or losing the near click target', async ({ page }, info) => {
+  test.setTimeout(75_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await initializePlayer(page, 'en');
+  const distantId = '33333333-3333-4333-8333-333333333333';
+  const api = await mockPrivatePortals(page, 4.5, 4.5, [
+    { id: distantId, contentKey: 'portal.grove', x: 30, y: 4.5 },
+  ]);
+  await page.goto(origin + '/Vuxo/#/game');
+  const host = page.getByTestId('game-canvas');
+  const canvas = host.locator('canvas');
+  await expect(page.getByTestId('world-connection-status')).toHaveAttribute('data-status', 'connected');
+  await expect(host).toHaveAttribute('data-rendered-portals', '2');
+
+  type PortalArt = {
+    count: number; builds: number; visible: boolean[]; hovered: boolean[];
+    hitRadii: number[]; hitScales: number[][]; haloAlphas: number[];
+    coreScales: number[]; reducedMotion: boolean;
+  };
+  const art = async (): Promise<PortalArt> =>
+    JSON.parse((await host.getAttribute('data-e2e-portal-art')) ?? '{}') as PortalArt;
+  await expect.poll(async () => (await art()).visible).toEqual([true, false]);
+  const initial = await art();
+  expect(initial.builds).toBe(2);
+  expect(initial.count).toBe(2);
+  expect(initial.hitRadii).toEqual([19, 19]);
+  expect(initial.hitScales).toEqual([[1, 1], [1, 1]]);
+  await page.waitForTimeout(220);
+  // A distant grant still exists but its halo does not animate offscreen.
+  expect((await art()).haloAlphas[1]).toBe(initial.haloAlphas[1]);
+  expect(await page.locator('[data-testid="world-portal-enter"]').count()).toBe(2);
+  await info.attach('portals-near-and-culled-mobile-390px', {
+    body: await page.screenshot({ animations: 'disabled' }), contentType: 'image/png',
+  });
+
+  // Zoom-adjusted camera worldView on an ultrawide display contains both
+  // server-owned markers; the same seven GameObjects become visible again.
+  await page.setViewportSize({ width: 3440, height: 1440 });
+  await expect.poll(async () => (await art()).visible).toEqual([true, true]);
+  expect((await art()).builds).toBe(2);
+  const wideAlpha = (await art()).haloAlphas[1];
+  await expect.poll(async () => Math.abs((await art()).haloAlphas[1] - wideAlpha))
+    .toBeGreaterThan(0.025);
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await expect.poll(async () => (await art()).haloAlphas).toEqual([0.2, 0.2]);
+  expect((await art()).coreScales).toEqual([1, 1]);
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await info.attach('portals-near-and-far-ultrawide', {
+    body: await page.screenshot({ animations: 'disabled' }), contentType: 'image/png',
+  });
+
+  // Back on mobile only decorative rendering is culled, not grant/HUD data.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect.poll(async () => (await art()).visible).toEqual([true, false]);
+  const frozenAlpha = (await art()).haloAlphas[1];
+  await page.waitForTimeout(220);
+  expect((await art()).haloAlphas[1]).toBe(frozenAlpha);
+  expect((await art()).builds).toBe(2);
+  expect((await art()).hovered[1]).toBe(false);
+  const near = page.locator('[data-testid="world-portal-enter"][data-grant-id="' + grantId + '"]');
+  const distant = page.locator('[data-testid="world-portal-enter"][data-grant-id="' + distantId + '"]');
+  await expect(near).toBeEnabled();
+  await expect(distant).toBeDisabled();
+  await expect.poll(() => host.evaluate(element => {
+    const canvas = element.querySelector('canvas') as HTMLCanvasElement | null;
+    if (!canvas) return false;
+    const x = Number(element.dataset.portalScreenX);
+    const y = Number(element.dataset.portalScreenY);
+    return Number.isFinite(x) && Number.isFinite(y) &&
+      x > 19 && x < canvas.width - 19 &&
+      y > 19 && y < canvas.height - 19;
+  })).toBe(true);
+  const marker = await host.evaluate(element => {
+    const canvas = element.querySelector('canvas') as HTMLCanvasElement;
+    const bounds = canvas.getBoundingClientRect();
+    return {
+      x: Number(element.dataset.portalScreenX) * bounds.width / canvas.width,
+      y: Number(element.dataset.portalScreenY) * bounds.height / canvas.height,
+    };
+  });
+  await canvas.click({ position: marker });
+  await expect(page.getByTestId('world-portal-dialog')).toBeVisible();
+  expect(api.getEntryCalls()).toBe(1);
+  expect((await art()).hitScales).toEqual([[1, 1], [1, 1]]);
+  await expect.poll(() => page.evaluate(() =>
+    document.documentElement.scrollWidth <= innerWidth + 1 &&
+    document.documentElement.scrollHeight <= innerHeight + 1
+  )).toBe(true);
+});
+
 test('runic portal light animates without changing click hit area and freezes on live reduced motion', async ({ page }, info) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await initializePlayer(page);
