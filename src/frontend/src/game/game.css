@@ -372,6 +372,38 @@
   line-height: 1.25;
   overflow-wrap: anywhere;
 }
+
+/* Short, discoverable gameplay affordance. Stays *inside* compass text column,
+   leaving the narrow 320px mobile portal HUD and scroll containment intact. */
+.vuxo-game-compass-prompt {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  margin-top: 4px;
+}
+.vuxo-game-compass-key {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  min-width: 22px;
+  height: 22px;
+  border: 1px solid var(--vuxo-game-hud-border);
+  border-bottom-width: 3px;
+  border-radius: 5px;
+  color: var(--vuxo-game-hud-accent);
+  background: color-mix(in srgb, var(--vuxo-game-hud-bg) 94%, transparent);
+  font: 800 .7rem/1 ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+.vuxo-game-compass-prompt .MuiTypography-root {
+  font-size: .64rem;
+  font-weight: 750;
+  line-height: 1.25;
+  color: var(--vuxo-game-hud-accent);
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
 .vuxo-game-portal-expand.MuiButton-root {
   width: 100%;
   min-height: 30px;

@@ -515,7 +515,9 @@ export function GameCanvas() {
           <Typography variant="caption" sx={{ color: 'var(--vuxo-game-hud-text)', fontWeight: 700 }}>
             {t('game.portal.available', { count: portals.length })}
           </Typography>
-          {status === 'connected' && <PortalCompass self={self} portals={portals} />}
+          {status === 'connected' && <PortalCompass self={self} portals={portals}
+            inputAvailable={!controlsOpen && !activePortal && !portalEntering &&
+              windowInputActive && !portalEntryInFlight.current} />}
           <Stack id="world-portal-action-list" direction="row" spacing={0.75}
             aria-busy={portalEntering}
             className="vuxo-game-portal-actions" data-testid="world-portal-action-list">

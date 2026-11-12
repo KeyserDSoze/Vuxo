@@ -516,6 +516,8 @@ const initialization = i18n.use(initReactI18next).init({
               distance_other: '{{count}} caselle',
               readout: '{{direction}} · {{distance}}',
               inRange: 'A portata · {{distance}}',
+              interactHint: 'Interagisci · tocca il portale',
+              interactAccessible: 'Premi E o tocca il portale a portata per entrare',
               nearby: 'vicino',
               accessible: 'Bussola del portale {{number}}: {{direction}}, {{distance}}',
               directions: {
@@ -1325,6 +1327,8 @@ const initialization = i18n.use(initReactI18next).init({
               distance_other: '{{count}} tiles',
               readout: '{{direction}} · {{distance}}',
               inRange: 'In reach · {{distance}}',
+              interactHint: 'Interact · tap the portal',
+              interactAccessible: 'Press E or tap the in-range portal to enter',
               nearby: 'nearby',
               accessible: 'Portal {{number}} compass: {{direction}}, {{distance}}',
               directions: {

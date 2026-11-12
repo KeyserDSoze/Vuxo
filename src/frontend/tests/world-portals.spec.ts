@@ -99,6 +99,10 @@ for (const [width, height] of [[390, 844], [1280, 720]] as const) {
       await expect(action).toBeEnabled();
       await expect(action).toHaveAttribute('aria-keyshortcuts', 'E');
       await expect(action).toHaveAttribute('title', 'Press E to enter the nearby portal');
+      const prompt = page.getByTestId('world-portal-interact-prompt');
+      await expect(prompt).toBeVisible();
+      await expect(prompt).toContainText('Interact');
+      await expect(prompt.locator('kbd')).toHaveText('E');
       const world = page.getByTestId('game-canvas');
       const dialog = page.getByTestId('world-portal-dialog');
 
@@ -106,11 +110,13 @@ for (const [width, height] of [[390, 844], [1280, 720]] as const) {
       const help = page.getByTestId('game-controls-help');
       await help.click();
       await expect(page.getByTestId('world-controls-dialog')).toBeVisible();
+      await expect(prompt).toHaveCount(0);
       await expect(page.getByTestId('world-controls-portals').locator('kbd')).toHaveText(['E', '✦']);
       await page.keyboard.press('e');
       expect(api.getEntryCalls()).toBe(0);
       await page.keyboard.press('Escape');
       await expect(help).toBeFocused();
+      await expect(prompt).toBeVisible();
       await page.keyboard.press('e');
       expect(api.getEntryCalls()).toBe(0);
       await action.focus();
@@ -131,7 +137,10 @@ for (const [width, height] of [[390, 844], [1280, 720]] as const) {
       expect(api.getEntryCalls()).toBe(0);
       await page.locator('#portal-E-shortcut-editor').evaluate(input => input.remove());
 
-      await world.locator('canvas').click();
+      // The nearby Phaser marker is centered on the canvas. A canvas click
+      // can legitimately enter it, so focus the keyboard region directly.
+      // Marker-click behavior remains tested separately below.
+      await world.focus();
       await expect(world).toBeFocused();
       await page.keyboard.press('Shift+e');
       const ignored = await world.evaluate(element => [
@@ -158,6 +167,7 @@ for (const [width, height] of [[390, 844], [1280, 720]] as const) {
       // Real keydown uses the same single-flight owner-grant API as HUD click.
       await page.keyboard.press('e');
       await expect(dialog).toBeVisible();
+      await expect(prompt).toHaveCount(0);
       expect(api.getEntryCalls()).toBe(1);
       await page.keyboard.press('e');
       expect(api.getEntryCalls()).toBe(1);
@@ -181,9 +191,34 @@ test('E from the world never enters a distant owner-granted portal', async ({ pa
   const action = page.getByTestId('world-portal-enter');
   await expect(action).toBeDisabled();
   await expect(action).not.toHaveAttribute('aria-keyshortcuts', 'E');
-  await page.getByTestId('game-canvas').locator('canvas').click();
+  await expect(page.getByTestId('world-portal-interact-prompt')).toHaveCount(0);
+  await page.getByTestId('game-canvas').focus();
   await page.keyboard.press('e');
   await expect(page.getByTestId('world-portal-dialog')).toHaveCount(0);
+  expect(api.getEntryCalls()).toBe(0);
+});
+
+test('contextual E compass prompt fits the smallest world and switches IT/EN', async ({ page }, info) => {
+  await page.setViewportSize({ width: 320, height: 568 });
+  await initializePlayer(page, 'it');
+  const api = await mockPrivatePortals(page);
+  await page.goto(origin + '/Vuxo/#/game');
+  await expect(page.getByTestId('world-connection-status')).toHaveAttribute('data-status', 'connected');
+  const prompt = page.getByTestId('world-portal-interact-prompt');
+  await expect(prompt).toBeVisible();
+  await expect(prompt).toContainText('Interagisci');
+  await expect(prompt).toHaveAttribute('aria-label', 'Premi E o tocca il portale a portata per entrare');
+  await expect.poll(() => page.evaluate(() =>
+    document.documentElement.scrollWidth <= innerWidth + 1 &&
+    document.documentElement.scrollHeight <= innerHeight + 1 &&
+    document.scrollingElement!.scrollTop === 0,
+  )).toBe(true);
+  await info.attach('world-interact-E-prompt-320', {
+    body: await page.screenshot({ animations: 'disabled' }), contentType: 'image/png',
+  });
+  await page.getByTestId('language-toggle').click();
+  await expect(prompt).toContainText('Interact');
+  await expect(prompt).toHaveAttribute('aria-label', 'Press E or tap the in-range portal to enter');
   expect(api.getEntryCalls()).toBe(0);
 });
 
@@ -201,7 +236,7 @@ test('rapid E presses remain single-flight while the authoritative entry is pend
   });
   await page.goto(origin + '/Vuxo/#/game');
   await expect(page.getByTestId('world-portal-enter')).toBeEnabled();
-  await page.getByTestId('game-canvas').locator('canvas').click();
+  await page.getByTestId('game-canvas').focus();
   try {
     await page.keyboard.press('e');
     await expect.poll(() => intercepted).toBe(1);

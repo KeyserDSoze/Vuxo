@@ -53,10 +53,11 @@ export function nearestPortalBearing(
 }
 
 export function PortalCompass({
-  self, portals,
+  self, portals, inputAvailable = true,
 }: {
   self: WorldPlayerSnapshot | undefined
   portals: readonly WorldPortalMarker[]
+  inputAvailable?: boolean
 }) {
   const { t } = useTranslation()
   const bearing = nearestPortalBearing(self, portals)
@@ -65,6 +66,7 @@ export function PortalCompass({
   const distance = t('game.portal.compass.distance', { count: Math.ceil(bearing.distance) })
   const direction = t('game.portal.compass.directions.' + bearing.direction)
   const inRange = bearing.distance <= 1.5
+  const showPrompt = inRange && inputAvailable
   const readout = inRange
     ? t('game.portal.compass.inRange', { distance })
     : t('game.portal.compass.readout', { direction, distance })
@@ -96,6 +98,16 @@ export function PortalCompass({
         <Typography component="span" className="vuxo-game-compass-readout" variant="caption" sx={{ display: 'block' }}>
           {readout}
         </Typography>
+        {showPrompt && (
+          <Box data-testid="world-portal-interact-prompt"
+            className="vuxo-game-compass-prompt" role="note"
+            aria-label={t('game.portal.compass.interactAccessible')}>
+            <Box component="kbd" className="vuxo-game-compass-key" aria-hidden="true">E</Box>
+            <Typography component="span" variant="caption">
+              {t('game.portal.compass.interactHint')}
+            </Typography>
+          </Box>
+        )}
       </Box>
     </Stack>
   )
