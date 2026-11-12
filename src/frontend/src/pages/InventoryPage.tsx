@@ -1,6 +1,6 @@
 import { Alert, Box, Button, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, Grid, IconButton, InputAdornment, InputLabel, MenuItem, Paper, Select, Stack, TextField, Typography } from '@mui/material';
 import { AutoAwesome, BackpackOutlined, CloseRounded, ExploreOutlined, FavoriteBorder, HistoryOutlined, SearchOutlined, ViewModuleOutlined, VisibilityOutlined } from '@mui/icons-material';
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link as RouterLink } from 'react-router-dom';
 import { moveRovingRailFocus } from '../components/rovingRailFocus';
@@ -172,7 +172,7 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
   };
   // Same focus-only controller pattern as the GameDeck and Refuge. Never
   // include quick-find or input fields, and never activate a view by Arrow.
-  const onInventoryViewsKeyDown = (event: KeyboardEvent<HTMLElement>) => {
+  const onInventoryViewsKeyDown = (event: ReactKeyboardEvent<HTMLElement>) => {
     moveRovingRailFocus(event, 'button[data-inventory-view-control]:not(:disabled)', true, true);
   };
 
