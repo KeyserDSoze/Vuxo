@@ -25,9 +25,16 @@ public sealed class VuxoDbContext(DbContextOptions<VuxoDbContext> options) : DbC
     {
         modelBuilder.Entity<PlayerCharacterEntity>(entity =>
         {
-            entity.ToTable("player_characters", table => table.HasCheckConstraint(
-                "CK_player_characters_CurrentHealth_Range",
-                "\"CurrentHealth\" >= 0 AND \"CurrentHealth\" <= \"Constitution\" * 10"));
+            entity.ToTable("player_characters", table =>
+            {
+                table.HasCheckConstraint(
+                    "CK_player_characters_CurrentHealth_Range",
+                    "\"CurrentHealth\" >= 0 AND \"CurrentHealth\" <= \"Constitution\" * 10");
+                // Created by migration 202611090001; declared here so the model snapshot matches the database.
+                table.HasCheckConstraint(
+                    "CK_player_characters_AppearanceRevision_Nonnegative",
+                    "\"AppearanceRevision\" >= 0");
+            });
             entity.HasKey(x => x.Id);
             entity.HasIndex(x => x.OwnerId).IsUnique();
             entity.Property(x => x.OwnerId).HasMaxLength(200);

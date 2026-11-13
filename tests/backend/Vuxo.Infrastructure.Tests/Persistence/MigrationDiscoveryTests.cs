@@ -62,8 +62,22 @@ public sealed class MigrationDiscoveryTests
                 "202611060001_PortalCompletionHistoryIndex",
                 "202611060002_PortalOutcomeHistoryIndexes",
                 "202611060003_PortalRewardProvenanceIndex",
-                "202611090001_CharacterAppearanceRevision"
+                "202611090001_CharacterAppearanceRevision",
+                "202611130001_PortalMistakeDamageCharacterIndex"
             ],
             dbContext.Database.GetMigrations().ToArray());
+    }
+
+    [Fact]
+    public void ModelSnapshot_MatchesTheCurrentModel()
+    {
+        var options = new DbContextOptionsBuilder<VuxoDbContext>()
+            .UseNpgsql("Host=localhost;Database=vuxo_migration_discovery;Username=vuxo;Password=vuxo")
+            .Options;
+
+        using var dbContext = new VuxoDbContext(options);
+
+        // Fails when the model changed without `dotnet ef migrations add`.
+        Assert.False(dbContext.Database.HasPendingModelChanges());
     }
 }
