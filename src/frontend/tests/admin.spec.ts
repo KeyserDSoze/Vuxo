@@ -49,6 +49,41 @@ test('admin filters and pagination are sent to the server query', async ({ page 
   await expect(page.getByTestId('admin-pagination-summary')).toContainText('21–40 di 42 eventi')
 })
 
+// #236 regression: a slower earlier audit page must not replace a newer result.
+test('a slow earlier audit response is aborted and cannot overwrite newer filters', async ({ page }) => {
+  const abortedUrls: string[] = []
+  page.on('requestfailed', request => {
+    if (request.url().includes('/api/admin/audit/events')) abortedUrls.push(request.url())
+  })
+  let releaseStale!: () => void
+  const staleGate = new Promise<void>(resolve => { releaseStale = resolve })
+  let staleSettled = false
+  await installAdminRoutes(page)
+  // Registered last, so it runs first; filtered queries fall back to the fixture.
+  await page.route(url => url.pathname === '/api/admin/audit/events', async route => {
+    if (new URL(route.request().url()).searchParams.get('eventType')) return route.fallback()
+    await staleGate
+    await route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({ total: 1, offset: 0, limit: 20, items: [event(EVENT_B, 'stale.unfiltered', 'player-b', '2026-09-16T13:58:00Z')] }),
+    }).catch(() => undefined)
+    staleSettled = true
+  })
+
+  await page.goto('./#/admin')
+  await page.getByTestId('admin-filter-type').fill('exclusive_content.granted')
+  await page.getByTestId('admin-filter-apply').click()
+  await expect(page.getByTestId('admin-event-row')).toHaveCount(1)
+  await expect(page.getByTestId('admin-event-row')).toContainText('exclusive_content.granted')
+
+  releaseStale()
+  await expect.poll(() => staleSettled).toBe(true)
+  await expect.poll(() => abortedUrls.some(url => !url.includes('eventType='))).toBe(true)
+  await expect(page.getByTestId('admin-event-row')).toHaveCount(1)
+  await expect(page.getByTestId('admin-event-row')).toContainText('exclusive_content.granted')
+  await expect(page.getByTestId('admin-dashboard')).not.toContainText('stale.unfiltered')
+})
+
 test('admin API forbidden state is localized and does not expose audit data', async ({ page }) => {
   await page.route('**/api/admin/**', async route => {
     await route.fulfill({

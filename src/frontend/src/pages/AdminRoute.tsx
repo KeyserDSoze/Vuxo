@@ -1,5 +1,7 @@
-import { Alert, Stack, Typography } from '@mui/material'
+import { AdminPanelSettingsOutlined } from '@mui/icons-material'
+import { Alert, Stack } from '@mui/material'
 import { useTranslation } from 'react-i18next'
+import { DeckPageHeader } from '../components/DeckPageHeader'
 import '../features/admin/adminI18n'
 import { useAdminAccessState } from '../features/admin/useAdminAccessState'
 import { AdminPage } from './AdminPage'
@@ -16,7 +18,7 @@ export function AdminRoute() {
 
   return (
     <Stack spacing={3} data-testid="admin-access-denied">
-      <Typography variant="h2" component="h1">{t('admin.title')}</Typography>
+      <DeckPageHeader icon={AdminPanelSettingsOutlined} title={t('admin.title')} />
       <Alert severity={accessState === 'forbidden' ? 'warning' : 'error'}>
         {t(`admin.errors.${errorCode}`)}
       </Alert>

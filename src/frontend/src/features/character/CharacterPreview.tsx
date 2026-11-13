@@ -1,4 +1,5 @@
 import { Box } from '@mui/material'
+import { useTranslation } from 'react-i18next'
 import type { CharacterAppearanceDraft } from './appearance'
 import { PREVIEW_COLORS } from './appearance'
 
@@ -7,6 +8,7 @@ function color(id: string, fallback: string) {
 }
 
 export function CharacterPreview({ appearance }: { appearance: CharacterAppearanceDraft }) {
+  const { t } = useTranslation()
   const bodyWidth = appearance.bodyType === 'body-1' ? 70 : appearance.bodyType === 'body-3' ? 98 : 84
   const bodyX = 110 - bodyWidth / 2
   const faceRx = appearance.face === 'face-2' ? 34 : appearance.face === 'face-3' ? 39 : 36
@@ -32,7 +34,7 @@ export function CharacterPreview({ appearance }: { appearance: CharacterAppearan
         aspectRatio: '4 / 5',
       }}
     >
-      <svg viewBox="0 0 220 280" role="img" aria-label="Vuxo character preview" width="100%" height="100%">
+      <svg viewBox="0 0 220 280" role="img" aria-label={t('character.editor.studio.portraitImage')} width="100%" height="100%">
         <defs>
           <linearGradient id="preview-bg" x1="0" x2="1" y1="0" y2="1">
             <stop offset="0" stopColor="currentColor" stopOpacity="0.05" />

@@ -1,7 +1,11 @@
 /* #160 — A game UI rather than a scrolling marketing document.
-   The application owns viewport sizing; only this panel's content scrolls. */
+   The application owns viewport sizing; only this panel's content scrolls.
+   #233: every off-world route lives here, so the document never scrolls.
+   #234: the deck floats in the same runic night as the Home vista. */
 .vuxo-deck {
   --deck-glow: var(--vuxo-focus-ring);
+  position: relative;
+  isolation: isolate;
   display: grid;
   grid-template-columns: clamp(144px, 14vw, 196px) minmax(0, 1fr);
   flex: 1 1 auto;
@@ -12,21 +16,31 @@
   min-width: 0;
   padding: clamp(7px, 1vw, 14px);
   overflow: hidden;
+  background:
+    radial-gradient(ellipse 55% 42% at 8% 0%, color-mix(in srgb, var(--vuxo-rune-world) 20%, transparent), transparent 72%),
+    radial-gradient(ellipse 48% 40% at 96% 100%, color-mix(in srgb, var(--vuxo-rune-portals) 18%, transparent), transparent 72%),
+    linear-gradient(160deg, var(--vuxo-sky-top), var(--vuxo-sky-bottom) 62%, var(--vuxo-sky-land));
 }
 .vuxo-deck__rail,
 .vuxo-deck__main {
+  position: relative;
+  z-index: 1;
   min-height: 0;
   min-width: 0;
   overflow: hidden;
-  border: 1px solid;
+  border: 1px solid color-mix(in srgb, var(--vuxo-rune-world) 24%, transparent);
   border-radius: clamp(13px, 1.4vw, 20px);
-  box-shadow: 0 14px 35px -30px rgba(0, 0, 0, .6);
+  box-shadow: 0 18px 42px -30px var(--vuxo-sky-land);
 }
+/* Night glass: the sky and its constellation stay visible through the rail. */
 .vuxo-deck__rail {
   display: flex;
   flex-direction: column;
   gap: 12px;
   padding: clamp(8px, 1vw, 15px);
+  color: var(--vuxo-sky-text);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--vuxo-sky-top) 72%, transparent),
+    color-mix(in srgb, var(--vuxo-sky-bottom) 38%, transparent));
 }
 .vuxo-deck__sigil {
   flex: 0 0 auto;
@@ -35,17 +49,33 @@
   align-items: center;
   gap: 5px;
   padding: 22px 6px 12px;
-  text-shadow: 0 0 25px color-mix(in srgb, var(--deck-glow) 28%, transparent);
+  color: var(--vuxo-rune-world);
+  text-shadow: 0 0 25px color-mix(in srgb, var(--vuxo-rune-world) 45%, transparent);
 }
 .vuxo-deck__sigil > span:first-child {
+  position: relative;
   display: grid;
   place-items: center;
   border-radius: 50%;
   width: 62px;
   height: 62px;
-  border: 1px solid color-mix(in srgb, var(--deck-glow) 32%, transparent);
-  background: radial-gradient(circle, color-mix(in srgb, var(--deck-glow) 20%, transparent), transparent 72%);
+  border: 1px solid color-mix(in srgb, var(--vuxo-rune-world) 40%, transparent);
+  background: radial-gradient(circle, color-mix(in srgb, var(--vuxo-rune-world) 22%, transparent), transparent 72%);
   font-size: 2rem;
+}
+/* A slow orbit of three rune colours around the sigil. */
+.vuxo-deck__sigil > span:first-child::after {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  pointer-events: none;
+  background: conic-gradient(from 0deg, transparent 0 18%, var(--vuxo-rune-world) 24%, transparent 30% 48%,
+    var(--vuxo-rune-portals) 56%, transparent 62% 80%, var(--vuxo-rune-character) 88%, transparent 94%);
+  -webkit-mask: radial-gradient(circle, transparent 62%, #000 63%, #000 66%, transparent 67%);
+  mask: radial-gradient(circle, transparent 62%, #000 63%, #000 66%, transparent 67%);
+  opacity: .8;
+  animation: vuxo-deck-orbit 24s linear infinite;
 }
 .vuxo-deck__routes {
   min-height: 0;
@@ -62,26 +92,53 @@
   gap: 10px;
   flex: 0 0 auto;
   padding: 8px 11px;
-  border: 1px solid;
+  border: 1px solid transparent;
   border-radius: 11px;
+  color: var(--vuxo-sky-muted);
   text-decoration: none;
   white-space: nowrap;
-  transition: background-color .17s ease, border-color .17s ease, transform .17s ease;
+  transition: background-color .17s ease, border-color .17s ease, transform .17s ease, color .17s ease;
 }
-.vuxo-deck__route:hover { transform: translateX(2px); }
+.vuxo-deck__route:hover {
+  transform: translateX(2px);
+  color: var(--vuxo-sky-text);
+  background: color-mix(in srgb, var(--vuxo-sky-text) 9%, transparent);
+}
 /* Focus needs to be visible on keyboard/gamepad-like rail navigation, in
    both themes, without shifting layout or overflowing the clipped rail. */
 .vuxo-deck__route:focus-visible {
-  outline: 3px solid var(--deck-glow);
+  outline: 3px solid var(--vuxo-rune-world);
   outline-offset: -3px;
 }
-.vuxo-deck__route[aria-current="page"] { box-shadow: inset 3px 0 currentColor; }
+.vuxo-deck__route[data-active="true"] {
+  color: var(--vuxo-rune-world);
+  border-color: color-mix(in srgb, var(--vuxo-rune-world) 55%, transparent);
+  background: linear-gradient(100deg, color-mix(in srgb, var(--vuxo-rune-world) 18%, transparent), transparent 88%);
+  box-shadow: inset 3px 0 var(--vuxo-rune-world), 0 0 22px -10px var(--vuxo-rune-world);
+}
 .vuxo-deck__main { display: flex; flex-direction: column; }
+/* Runic aurora seam along the top of the main console. */
+.vuxo-deck__main::before {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  top: 0; left: 6%; right: 6%;
+  height: 2px;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, var(--vuxo-rune-world), var(--vuxo-rune-portals),
+    var(--vuxo-rune-character), transparent);
+}
 .vuxo-deck__topline {
   min-height: 48px;
   flex: 0 0 auto;
+  gap: 10px;
+  min-width: 0;
   padding: 7px clamp(12px, 2vw, 24px);
-  border-bottom: 1px solid;
+  color: var(--vuxo-sky-text);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--vuxo-sky-top) 82%, transparent),
+    color-mix(in srgb, var(--vuxo-sky-bottom) 66%, transparent));
+  border-bottom: 1px solid color-mix(in srgb, var(--vuxo-rune-world) 26%, transparent);
+  white-space: nowrap;
 }
 .vuxo-deck__topline-rune {
   width: 30px;
@@ -90,6 +147,42 @@
   display: grid;
   place-items: center;
   border-radius: 9px;
+  color: var(--vuxo-rune-world);
+  background: color-mix(in srgb, var(--vuxo-rune-world) 14%, transparent);
+  box-shadow: 0 0 16px -6px var(--vuxo-rune-world);
+}
+.vuxo-deck__topline-brand.MuiTypography-root {
+  flex: 0 0 auto;
+  color: var(--vuxo-sky-muted);
+  font-weight: 850;
+  letter-spacing: .15em;
+}
+.vuxo-deck__crumb-separator {
+  flex: 0 0 auto;
+  color: var(--vuxo-rune-character);
+  font-size: .62rem;
+  opacity: .85;
+}
+.vuxo-deck__crumb-link {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--vuxo-sky-muted);
+  font-size: .82rem;
+  font-weight: 750;
+  text-decoration: none;
+  border-radius: 6px;
+}
+.vuxo-deck__crumb-link:hover { color: var(--vuxo-sky-text); text-decoration: underline; text-underline-offset: 3px; }
+.vuxo-deck__crumb-link:focus-visible { outline: 3px solid var(--vuxo-rune-world); outline-offset: 2px; }
+.vuxo-deck__crumb-current.MuiTypography-root {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--vuxo-rune-world);
+  font-weight: 900;
+  text-shadow: 0 0 18px color-mix(in srgb, var(--vuxo-rune-world) 35%, transparent);
 }
 .vuxo-deck__scroll {
   flex: 1 1 auto;
@@ -102,10 +195,15 @@
   padding: clamp(11px, 1.7vw, 28px);
 }
 .vuxo-deck__scroll:focus-visible { outline-offset: -5px; }
-.vuxo-deck__scroll > [data-testid] { min-width: 0; }
-.vuxo-deck__scroll > [data-testid="refuge-page"],
-.vuxo-deck__scroll > [data-testid="inventory-page"],
-.vuxo-deck__scroll > [data-testid="portal-page"] {
+/* Each screen rises out of the night with a short runic reveal. */
+.vuxo-deck__page {
+  min-width: 0;
+  animation: vuxo-deck-reveal .42s cubic-bezier(.2, .75, .25, 1) both;
+}
+.vuxo-deck__page > [data-testid] { min-width: 0; }
+.vuxo-deck__page > [data-testid="refuge-page"],
+.vuxo-deck__page > [data-testid="inventory-page"],
+.vuxo-deck__page > [data-testid="portal-page"] {
   gap: clamp(12px, 1.3vw, 22px);
 }
 .vuxo-deck__scroll [data-testid="refuge-page"] > .MuiPaper-root:first-child {
@@ -125,7 +223,6 @@
   border-color: var(--deck-glow);
   box-shadow: 0 12px 24px -21px var(--deck-glow);
 }
-.vuxo-deck__scroll [data-testid="inventory-page"] > .MuiBox-root:first-child .MuiTypography-h2,
 .vuxo-deck__scroll [data-testid="portal-page"] > .MuiStack-root:first-child .MuiTypography-h2 {
   font-size: clamp(1.85rem, 3vw, 3rem);
 }
@@ -149,7 +246,7 @@
 }
 .vuxo-deck__scroll [data-testid="inventory-stack"],
 .vuxo-deck__scroll [data-testid="inventory-item"] { border-radius: 14px; }
-.vuxo-deck__scroll > [data-testid="character-editor-page"] .MuiCard-root {
+.vuxo-deck__page > [data-testid="character-editor-page"] .MuiCard-root {
   border-radius: 17px;
   border-color: color-mix(in srgb, var(--deck-glow) 27%, transparent);
 }
@@ -196,7 +293,7 @@
     border-radius: 8px;
   }
   .vuxo-deck__route .MuiTypography-root { font-size: .76rem; }
-  .vuxo-deck__route[aria-current="page"] { box-shadow: inset 0 -2px currentColor; }
+  .vuxo-deck__route[data-active="true"] { box-shadow: inset 0 -2px var(--vuxo-rune-world), 0 0 18px -10px var(--vuxo-rune-world); }
   .vuxo-deck__main { flex: 1 1 0; border-radius: 12px; }
   .vuxo-deck__topline { min-height: 42px; padding: 5px 12px; }
   .vuxo-deck__scroll { padding: clamp(9px, 2.1vw, 18px); }
@@ -206,7 +303,9 @@
   .vuxo-deck__route { min-height: 37px; padding: 5px 8px; gap: 5px; }
   .vuxo-deck__route .MuiSvgIcon-root { font-size: 17px; }
   .vuxo-deck__route .MuiTypography-root { font-size: .7rem; }
-  .vuxo-deck__topline { min-height: 38px; }
+  .vuxo-deck__topline { min-height: 38px; gap: 7px; }
+  .vuxo-deck__topline-brand.MuiTypography-root { display: none; }
+  .vuxo-deck__topline-brand.MuiTypography-root + .vuxo-deck__crumb-separator { display: none; }
   .vuxo-deck__scroll { padding: 9px; }
   .vuxo-deck__scroll [data-testid="refuge-page"] > .MuiPaper-root:first-child { padding: 16px; }
   .vuxo-deck__scroll [data-testid="refuge-activities"] > .MuiGrid-root > .MuiPaper-root { padding: 15px; }
@@ -214,6 +313,192 @@
 @media (prefers-reduced-motion: reduce) {
   .vuxo-deck__route, .vuxo-deck__scroll [data-testid="refuge-activities"] > .MuiGrid-root > .MuiPaper-root { transition: none; }
   .vuxo-deck__route:hover, .vuxo-deck__scroll [data-testid="refuge-activities"] > .MuiGrid-root > .MuiPaper-root:hover { transform: none; }
+}
+
+/* #234: decorative night sky. Never interactive, never announced, and fully
+   still when the player prefers reduced motion. */
+.vuxo-deck__sky {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.vuxo-deck__aurora {
+  position: absolute;
+  inset: -20% -10% auto;
+  height: 70%;
+  background:
+    radial-gradient(ellipse 38% 50% at 30% 40%, color-mix(in srgb, var(--vuxo-rune-world) 16%, transparent), transparent 70%),
+    radial-gradient(ellipse 34% 46% at 72% 30%, color-mix(in srgb, var(--vuxo-rune-portals) 14%, transparent), transparent 70%);
+  filter: blur(18px);
+  opacity: .9;
+  animation: vuxo-deck-aurora 18s ease-in-out infinite alternate;
+}
+.vuxo-deck__star {
+  position: absolute;
+  width: var(--star-size, 1px);
+  height: var(--star-size, 1px);
+  border-radius: 50%;
+  background: var(--vuxo-sky-text);
+  box-shadow: 0 0 6px var(--vuxo-rune-world);
+  opacity: .75;
+}
+.vuxo-deck__star--twinkle { animation: vuxo-deck-twinkle 3.8s ease-in-out infinite alternate; }
+.vuxo-deck__constellation {
+  position: absolute;
+  left: clamp(18px, 3vw, 46px);
+  bottom: clamp(16px, 4vh, 42px);
+  width: clamp(92px, 9vw, 132px);
+  height: auto;
+  overflow: visible;
+  opacity: .8;
+}
+.vuxo-deck__constellation path {
+  fill: none;
+  stroke: var(--vuxo-rune-world);
+  stroke-width: .9;
+  stroke-dasharray: 3 4;
+  opacity: .55;
+}
+.vuxo-deck__constellation circle {
+  fill: var(--vuxo-sky-text);
+  filter: drop-shadow(0 0 3px var(--vuxo-rune-world));
+}
+.vuxo-deck__comet {
+  position: absolute;
+  top: 9%;
+  left: -12%;
+  width: 120px;
+  height: 1px;
+  border-radius: 1px;
+  background: linear-gradient(90deg, transparent, var(--vuxo-sky-text));
+  opacity: 0;
+  transform: rotate(14deg);
+  animation: vuxo-deck-comet 17s linear infinite 4s;
+}
+@keyframes vuxo-deck-reveal {
+  from { opacity: 0; transform: translateY(10px) scale(.995); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes vuxo-deck-orbit { to { transform: rotate(1turn); } }
+@keyframes vuxo-deck-twinkle {
+  from { opacity: .25; }
+  to { opacity: .95; }
+}
+@keyframes vuxo-deck-aurora {
+  from { transform: translate3d(-3%, 0, 0); opacity: .7; }
+  to { transform: translate3d(3%, 4%, 0); opacity: 1; }
+}
+@keyframes vuxo-deck-comet {
+  0%, 88% { opacity: 0; transform: translate3d(0, 0, 0) rotate(14deg); }
+  90% { opacity: .9; }
+  100% { opacity: 0; transform: translate3d(70vw, 17vw, 0) rotate(14deg); }
+}
+@media (max-width: 899px) {
+  /* The rail becomes a top strip: keep the sigil constellation out of the way. */
+  .vuxo-deck__constellation { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vuxo-deck__page,
+  .vuxo-deck__aurora,
+  .vuxo-deck__star--twinkle,
+  .vuxo-deck__sigil > span:first-child::after { animation: none; }
+  .vuxo-deck__comet { display: none; }
+}
+
+/* #234: one header language for every deck screen (journal, training,
+   account, admin, version). The title keeps its h1 semantics. */
+.vuxo-page-header {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas: "sigil copy actions" "extra extra extra";
+  align-items: center;
+  column-gap: clamp(12px, 1.6vw, 22px);
+  min-width: 0;
+  padding: clamp(14px, 2vw, 26px);
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--deck-glow) 32%, transparent);
+  border-radius: clamp(14px, 1.5vw, 20px);
+  background:
+    radial-gradient(ellipse at 92% 0%, color-mix(in srgb, var(--vuxo-rune-world) 14%, transparent), transparent 46%),
+    radial-gradient(ellipse at 0% 100%, color-mix(in srgb, var(--vuxo-rune-portals) 10%, transparent), transparent 52%),
+    linear-gradient(140deg, color-mix(in srgb, var(--deck-glow) 6%, transparent), transparent);
+}
+.vuxo-page-header__sigil {
+  grid-area: sigil;
+  display: grid;
+  place-items: center;
+  width: clamp(46px, 4.4vw, 62px);
+  height: clamp(46px, 4.4vw, 62px);
+  border-radius: 50%;
+  color: var(--deck-glow);
+  border: 1px solid color-mix(in srgb, var(--deck-glow) 38%, transparent);
+  background: radial-gradient(circle, color-mix(in srgb, var(--deck-glow) 20%, transparent), transparent 72%);
+  box-shadow: 0 0 26px -12px var(--deck-glow);
+}
+.vuxo-page-header__copy { grid-area: copy; min-width: 0; }
+.vuxo-page-header__actions {
+  grid-area: actions;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 0;
+}
+.vuxo-page-header__extra { grid-area: extra; min-width: 0; margin-top: 12px; }
+.vuxo-page-header__eyebrow.MuiTypography-root {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 4px;
+  color: var(--deck-glow);
+  font-size: .7rem;
+  font-weight: 850;
+  letter-spacing: .2em;
+  text-transform: uppercase;
+}
+.vuxo-page-header__eyebrow-rune { color: var(--vuxo-rune-character); letter-spacing: 0; }
+.vuxo-page-header__title.MuiTypography-root {
+  margin: 0;
+  font-size: clamp(1.55rem, 3vw, 2.7rem);
+  font-weight: 900;
+  line-height: 1.08;
+  letter-spacing: -.035em;
+  overflow-wrap: anywhere;
+}
+/* Every deck screen title shares the runic ink, sized to the text itself. */
+.vuxo-deck__page h1 {
+  width: fit-content;
+  max-width: 100%;
+  background-image: linear-gradient(100deg, var(--vuxo-text-primary) 30%, var(--vuxo-primary) 75%, var(--vuxo-secondary));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.vuxo-page-header__description.MuiTypography-root {
+  max-width: 68ch;
+  margin: 6px 0 0;
+  font-size: .9rem;
+  line-height: 1.45;
+}
+@media (max-width: 640px) {
+  .vuxo-page-header {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas: "sigil copy" "actions actions" "extra extra";
+    row-gap: 10px;
+  }
+  .vuxo-page-header__actions { justify-content: flex-start; }
+  .vuxo-page-header__extra { margin-top: 0; }
+  .vuxo-page-header__description.MuiTypography-root { font-size: .82rem; }
+}
+@media (forced-colors: active) {
+  .vuxo-deck__page h1 {
+    background: none !important;
+    -webkit-text-fill-color: CanvasText;
+    color: CanvasText;
+  }
 }
 
 

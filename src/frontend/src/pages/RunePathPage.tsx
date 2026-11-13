@@ -1,8 +1,9 @@
-import { ArrowBack, ArrowDownward, ArrowForward, ArrowUpward } from '@mui/icons-material';
+import { ArrowBack, ArrowDownward, ArrowForward, ArrowUpward, RouteOutlined } from '@mui/icons-material';
 import { Alert, Box, Button, Chip, Paper, Stack, Typography } from '@mui/material';
 import { useEffect, useState, type KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link as RouterLink } from 'react-router-dom';
+import { DeckPageHeader } from '../components/DeckPageHeader';
 import { getApiBaseUrl } from '../features/character/appearance';
 
 // Three small, fixed, solvable puzzles. These are local practice maps, never
@@ -191,11 +192,12 @@ export function RunePathPage() {
 
   return (
     <Stack spacing={3} data-testid="rune-path-page">
-      <Stack spacing={1}>
-        <Typography variant="overline" color="primary.main">{t('refuge.path.eyebrow')}</Typography>
-        <Typography component="h1" variant="h2" sx={{ typography: { xs: 'h4', sm: 'h2' }, overflowWrap: 'anywhere' }}>{t('refuge.path.title')}</Typography>
-        <Typography color="text.secondary">{t('refuge.path.description')}</Typography>
-      </Stack>
+      <DeckPageHeader
+        icon={RouteOutlined}
+        eyebrow={t('refuge.path.eyebrow')}
+        title={t('refuge.path.title')}
+        description={t('refuge.path.description')}
+      />
       <Alert data-testid="path-disclaimer" severity="info">{t('refuge.path.disclaimer')}</Alert>
       <Alert
         severity={rulesStatus === 'matched' ? 'success' : 'info'}

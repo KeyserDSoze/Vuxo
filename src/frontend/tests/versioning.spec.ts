@@ -1,8 +1,8 @@
 import { expect, test } from '@playwright/test';
 import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 
-const version = readFileSync(resolve(process.cwd(), '../../VERSION'), 'utf8').trim();
+// Resolve from this file, not the shell's working directory (#235).
+const version = readFileSync(new URL('../../../VERSION', import.meta.url), 'utf8').trim();
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {

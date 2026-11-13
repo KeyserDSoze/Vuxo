@@ -3,6 +3,7 @@ import { AutoAwesome, BackpackOutlined, CloseRounded, ExploreOutlined, FavoriteB
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link as RouterLink } from 'react-router-dom';
+import { DeckPageHeader } from '../components/DeckPageHeader';
 import { moveRovingRailFocus } from '../components/rovingRailFocus';
 import { useStoredSession } from '../features/auth/useStoredSession';
 import type { VuxoSession } from '../features/auth/authSession';
@@ -323,10 +324,7 @@ function InventorySessionPage({ session }: { session: VuxoSession | null }) {
 
   return (
     <Stack spacing={2} data-testid="inventory-page">
-      <Box>
-        <Typography variant="h2" component="h1" sx={{ typography: { xs: 'h3', sm: 'h2' }, overflowWrap: 'anywhere' }}>{t('title')}</Typography>
-        <Typography color="text.secondary">{t('description')}</Typography>
-      </Box>
+      <DeckPageHeader icon={BackpackOutlined} eyebrow={t('eyebrow')} title={t('title')} description={t('description')} />
 
       {!session && (
         <Alert severity="info" data-testid="inventory-auth-required">

@@ -19,19 +19,6 @@ export function VuxoThemeProvider({ children }: PropsWithChildren) {
   const [mode, setMode] = useState<VuxoThemeMode>(readThemePreference);
   const effectiveMode = mode === 'system' ? (prefersDark ? 'dark' : 'light') : mode;
 
-  useEffect(() => {
-    writeThemePreference(mode);
-    const palette = vuxoDesignTokens.palette[effectiveMode];
-    document.documentElement.dataset.theme = effectiveMode;
-    document.documentElement.style.colorScheme = effectiveMode;
-    document.documentElement.style.setProperty('--vuxo-focus-ring', palette.focusRing);
-    document.documentElement.style.setProperty('--vuxo-game-canvas-bg', palette.gameCanvas);
-    document.documentElement.style.setProperty('--vuxo-game-hud-bg', palette.gameHud);
-    document.documentElement.style.setProperty('--vuxo-game-hud-text', palette.gameHudText);
-    document.documentElement.style.setProperty('--vuxo-game-hud-border', palette.gameHudBorder);
-    document.documentElement.style.setProperty('--vuxo-game-hud-accent', palette.gameHudAccent);
-  }, [mode, effectiveMode]);
-
   const theme = useMemo(() => {
     const palette = vuxoDesignTokens.palette[effectiveMode];
     return createTheme({
@@ -79,6 +66,37 @@ export function VuxoThemeProvider({ children }: PropsWithChildren) {
       },
     });
   }, [effectiveMode]);
+
+  useEffect(() => {
+    writeThemePreference(mode);
+    const palette = vuxoDesignTokens.palette[effectiveMode];
+    const sky = vuxoDesignTokens.landing[effectiveMode];
+    const root = document.documentElement;
+    root.dataset.theme = effectiveMode;
+    root.style.colorScheme = effectiveMode;
+    // #234: the runic night vista is shared by Home and every off-world deck screen.
+    const variables: Record<string, string> = {
+      '--vuxo-focus-ring': palette.focusRing,
+      '--vuxo-game-canvas-bg': palette.gameCanvas,
+      '--vuxo-game-hud-bg': palette.gameHud,
+      '--vuxo-game-hud-text': palette.gameHudText,
+      '--vuxo-game-hud-border': palette.gameHudBorder,
+      '--vuxo-game-hud-accent': palette.gameHudAccent,
+      '--vuxo-text-primary': theme.palette.text.primary,
+      '--vuxo-primary': theme.palette.primary.main,
+      '--vuxo-secondary': theme.palette.secondary.main,
+      '--vuxo-sky-top': sky.skyTop,
+      '--vuxo-sky-bottom': sky.skyBottom,
+      '--vuxo-sky-horizon': sky.horizon,
+      '--vuxo-sky-land': sky.land,
+      '--vuxo-sky-text': sky.text,
+      '--vuxo-sky-muted': sky.muted,
+      '--vuxo-rune-world': sky.realms.world,
+      '--vuxo-rune-character': sky.realms.character,
+      '--vuxo-rune-portals': sky.realms.portals,
+    };
+    for (const [name, value] of Object.entries(variables)) root.style.setProperty(name, value);
+  }, [mode, effectiveMode, theme]);
 
   const context = useMemo<ThemeModeContextValue>(() => ({
     mode,

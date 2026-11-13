@@ -1,6 +1,8 @@
+import { InfoOutlined } from '@mui/icons-material';
 import { Alert, Paper, Stack, Table, TableBody, TableCell, TableRow, Typography } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { DeckPageHeader } from '../components/DeckPageHeader';
 import { useBuildInfo } from '../features/version/BuildInfoProvider';
 import { fetchBackendBuildInfo, type BackendBuildInfo } from '../features/version/buildInfo';
 
@@ -29,11 +31,13 @@ export function VersionPage() {
   const unavailable = t('version.unavailable');
 
   return (
-    <Stack spacing={3}>
-      <Stack spacing={1}>
-        <Typography variant="h2" component="h1">{t('version.title')}</Typography>
-        <Typography color="text.secondary">{t('version.description')}</Typography>
-      </Stack>
+    <Stack spacing={3} data-testid="version-page">
+      <DeckPageHeader
+        icon={InfoOutlined}
+        eyebrow={t('version.eyebrow')}
+        title={t('version.title')}
+        description={t('version.description')}
+      />
 
       {frontendError ? <Alert severity="warning">{t('version.frontendUnavailable')}</Alert> : null}
       <Paper variant="outlined" sx={{ overflow: 'hidden' }}>
@@ -41,7 +45,7 @@ export function VersionPage() {
         <Table>
           <TableBody>
             <TableRow><TableCell component="th">{t('version.version')}</TableCell><TableCell data-testid="frontend-version">{frontendBuild?.version ?? unknown}</TableCell></TableRow>
-            <TableRow><TableCell component="th">{t('version.commit')}</TableCell><TableCell data-testid="frontend-commit" sx={{ fontFamily: 'monospace' }}>{frontendBuild?.commit ?? unknown}</TableCell></TableRow>
+            <TableRow><TableCell component="th">{t('version.commit')}</TableCell><TableCell data-testid="frontend-commit" sx={{ fontFamily: 'monospace', overflowWrap: 'anywhere' }}>{frontendBuild?.commit ?? unknown}</TableCell></TableRow>
             <TableRow><TableCell component="th">{t('version.buildUtc')}</TableCell><TableCell>{frontendBuild?.buildDateUtc ?? unknown}</TableCell></TableRow>
           </TableBody>
         </Table>
@@ -56,8 +60,8 @@ export function VersionPage() {
             <TableBody>
               <TableRow><TableCell component="th">{t('version.application')}</TableCell><TableCell>{backendBuild?.application ?? unavailable}</TableCell></TableRow>
               <TableRow><TableCell component="th">{t('version.version')}</TableCell><TableCell data-testid="backend-version">{backendBuild?.version ?? unavailable}</TableCell></TableRow>
-              <TableRow><TableCell component="th">{t('version.informationalVersion')}</TableCell><TableCell sx={{ fontFamily: 'monospace' }}>{backendBuild?.informationalVersion ?? unavailable}</TableCell></TableRow>
-              <TableRow><TableCell component="th">{t('version.commit')}</TableCell><TableCell sx={{ fontFamily: 'monospace' }}>{backendBuild?.commit ?? unavailable}</TableCell></TableRow>
+              <TableRow><TableCell component="th">{t('version.informationalVersion')}</TableCell><TableCell sx={{ fontFamily: 'monospace', overflowWrap: 'anywhere' }}>{backendBuild?.informationalVersion ?? unavailable}</TableCell></TableRow>
+              <TableRow><TableCell component="th">{t('version.commit')}</TableCell><TableCell sx={{ fontFamily: 'monospace', overflowWrap: 'anywhere' }}>{backendBuild?.commit ?? unavailable}</TableCell></TableRow>
               <TableRow><TableCell component="th">{t('version.buildUtc')}</TableCell><TableCell>{backendBuild?.buildDateUtc ?? unavailable}</TableCell></TableRow>
               <TableRow><TableCell component="th">{t('version.environment')}</TableCell><TableCell data-testid="backend-environment">{backendBuild?.environment ?? unavailable}</TableCell></TableRow>
             </TableBody>

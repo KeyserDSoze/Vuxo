@@ -1,7 +1,9 @@
+import { AccountCircleOutlined } from '@mui/icons-material';
 import { Alert, Box, Button, CircularProgress, Paper, Stack, Typography } from '@mui/material';
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link as RouterLink } from 'react-router-dom';
+import { DeckPageHeader } from '../components/DeckPageHeader';
 import {
   AuthApiError,
   exchangeSocialCredential,
@@ -138,10 +140,12 @@ export function AuthPage() {
 
   return (
     <Stack spacing={3} data-testid="auth-page">
-      <Stack spacing={1}>
-        <Typography variant="h2" component="h1">{tAuth('title')}</Typography>
-        <Typography color="text.secondary">{tAuth('description')}</Typography>
-      </Stack>
+      <DeckPageHeader
+        icon={AccountCircleOutlined}
+        eyebrow={tAuth('eyebrow')}
+        title={tAuth('title')}
+        description={tAuth('description')}
+      />
 
       {errorCode ? (
         <Alert data-testid="auth-error" severity="error">

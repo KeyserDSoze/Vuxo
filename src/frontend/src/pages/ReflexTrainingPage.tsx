@@ -1,7 +1,9 @@
+import { TouchAppOutlined } from '@mui/icons-material';
 import { Alert, Box, Button, Chip, Paper, Stack, Typography } from '@mui/material';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link as RouterLink } from 'react-router-dom';
+import { DeckPageHeader } from '../components/DeckPageHeader';
 
 // Local free practice: no gameplay API requests, persisted scores or rewards.
 const runes = ['sun', 'moon', 'star', 'wave'] as const;
@@ -92,11 +94,12 @@ export function ReflexTrainingPage() {
 
   return (
     <Stack spacing={3} data-testid="reflex-training-page">
-      <Stack spacing={1}>
-        <Typography variant="overline" color="primary.main">{t('refuge.reflex.eyebrow')}</Typography>
-        <Typography component="h1" variant="h2" sx={{ typography: { xs: 'h4', sm: 'h2' }, overflowWrap: 'anywhere' }}>{t('refuge.reflex.title')}</Typography>
-        <Typography color="text.secondary">{t('refuge.reflex.description')}</Typography>
-      </Stack>
+      <DeckPageHeader
+        icon={TouchAppOutlined}
+        eyebrow={t('refuge.reflex.eyebrow')}
+        title={t('refuge.reflex.title')}
+        description={t('refuge.reflex.description')}
+      />
       <Alert severity="info" data-testid="reflex-disclaimer">{t('refuge.reflex.disclaimer')}</Alert>
 
       <Paper variant="outlined" sx={{ p: { xs: 2.5, md: 4 } }}>

@@ -7,6 +7,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link as RouterLink } from 'react-router-dom';
 import { RefugePortalCompletionHistory } from '../features/refuge/RefugePortalCompletionHistory';
+import { DeckPageHeader } from '../components/DeckPageHeader';
 import type { VuxoSession } from '../features/auth/authSession';
 import { useStoredSession } from '../features/auth/useStoredSession';
 import {
@@ -120,31 +121,34 @@ function RefugeJournalSession({ session }: { session: VuxoSession | null }) {
 
   return (
     <Stack spacing={3} data-testid="refuge-journal-page">
-      <Paper variant="outlined" sx={{ p: { xs: 2.5, sm: 4 } }}>
-        <Stack spacing={1.5} sx={{ alignItems: 'flex-start' }}>
-          <HistoryEduOutlined color="primary" fontSize="large" aria-hidden="true" />
-          <Typography component="h1" variant="h2" sx={{ typography: { xs: 'h4', sm: 'h2' }, overflowWrap: 'anywhere' }}>{t('refuge.journal.title')}</Typography>
-          <Typography color="text.secondary" sx={{ maxWidth: '70ch' }}>
-            {t('refuge.journal.description')}
-          </Typography>
-          <Button component={RouterLink} to="/refuge" variant="text" data-testid="refuge-journal-back">
-            {t('refuge.journal.back')}
-          </Button>
-          {!session ? (
-            <Alert severity="info" data-testid="refuge-journal-auth-required">
-              {t('refuge.journal.authRequired')}{' '}
-              <Button component={RouterLink} to="/auth" size="small">
-                {t('refuge.journal.signIn')}
-              </Button>
-            </Alert>
-          ) : (
-            <Button onClick={refreshAll} variant="outlined" data-testid="refuge-journal-refresh-all"
-              startIcon={<Refresh />}>
-              {t('refuge.journal.refreshAll')}
+      <DeckPageHeader
+        icon={HistoryEduOutlined}
+        eyebrow={t('refuge.journal.eyebrow')}
+        title={t('refuge.journal.title')}
+        description={t('refuge.journal.description')}
+        actions={(
+          <>
+            <Button component={RouterLink} to="/refuge" variant="text" data-testid="refuge-journal-back">
+              {t('refuge.journal.back')}
             </Button>
-          )}
-        </Stack>
-      </Paper>
+            {session ? (
+              <Button onClick={refreshAll} variant="outlined" data-testid="refuge-journal-refresh-all"
+                startIcon={<Refresh />}>
+                {t('refuge.journal.refreshAll')}
+              </Button>
+            ) : null}
+          </>
+        )}
+      >
+        {!session ? (
+          <Alert severity="info" data-testid="refuge-journal-auth-required">
+            {t('refuge.journal.authRequired')}{' '}
+            <Button component={RouterLink} to="/auth" size="small">
+              {t('refuge.journal.signIn')}
+            </Button>
+          </Alert>
+        ) : null}
+      </DeckPageHeader>
 
       {session && (
         <>

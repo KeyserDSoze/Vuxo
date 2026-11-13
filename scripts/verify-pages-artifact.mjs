@@ -6,6 +6,8 @@ import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+// Present only when VITE_E2E_REALTIME / VITE_E2E_AUTH were enabled at build time.
+const e2eMarkers = ['__vuxo_e2e', 'e2e-microsoft-id-token'];
 
 function assertExists(path, description) {
   if (!existsSync(path)) throw new Error('Pages artifact missing ' + description);
@@ -50,8 +52,15 @@ export function verifyPagesArtifact(dist = join(root, 'src/frontend/dist')) {
 
   const assetDir = join(dist, 'assets');
   assertExists(assetDir, 'assets directory');
-  if (!readdirSync(assetDir).some(name => name.endsWith('.js'))) {
+  const scripts = readdirSync(assetDir).filter(name => name.endsWith('.js'));
+  if (!scripts.length) {
     throw new Error('Pages assets contain no JavaScript');
+  }
+  // A public build must never ship the local E2E world/auth doubles (#236).
+  for (const name of scripts) {
+    const source = readFileSync(join(assetDir, name), 'utf8');
+    const marker = e2eMarkers.find(value => source.includes(value));
+    if (marker) throw new Error('Pages asset ' + name + ' contains E2E-only marker ' + marker);
   }
   return version.commit;
 }

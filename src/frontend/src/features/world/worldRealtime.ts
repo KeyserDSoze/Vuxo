@@ -255,10 +255,6 @@ export class SignalRWorldRealtimeClient implements WorldRealtimeClient {
   }
 }
 
-export function createWorldRealtimeClient(): WorldRealtimeClient {
-  return new SignalRWorldRealtimeClient()
-}
-
 function clampAxis(value: number): number {
   if (value > 0) return 1
   if (value < 0) return -1

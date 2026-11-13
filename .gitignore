@@ -24,6 +24,10 @@ test-results/
 .env.*
 !.env.example
 secrets/
+*.pfx
+*.p12
+*.key
+*.pem
 
 # Docker/runtime data
 *.pid

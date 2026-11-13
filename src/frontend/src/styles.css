@@ -1,6 +1,8 @@
 * { box-sizing: border-box; }
-html, body, #root { margin: 0; min-width: 320px; min-height: 100%; }
-body { min-height: 100vh; }
+html, body, #root { margin: 0; min-width: 320px; height: 100%; }
+/* #233: VUXO is a one-page game. The document never scrolls on any route;
+   long content scrolls only inside its own bounded panel. */
+html, body { overflow: hidden; overscroll-behavior: none; }
 a { color: inherit; }
 :focus-visible {
   outline: 3px solid var(--vuxo-focus-ring, currentColor);
@@ -48,4 +50,35 @@ a { color: inherit; }
 @media (prefers-reduced-motion: reduce) {
   .vuxo-shell-tab.MuiButton-root, .vuxo-shell-drawer-list .MuiListItemButton-root { transition: none; }
   .vuxo-shell-tab.MuiButton-root:hover { transform: none; }
+}
+
+/* #234: the runic aurora seals the command bar and the sigil breathes.
+   Only opacity is animated, and never with a reduced-motion preference. */
+.vuxo-shell-bar::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; bottom: -1px;
+  height: 1px;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent 2%, var(--vuxo-rune-world) 24%,
+    var(--vuxo-rune-portals) 52%, var(--vuxo-rune-character) 78%, transparent 98%);
+  opacity: .75;
+}
+.vuxo-shell-brand-rune { position: relative; }
+.vuxo-shell-brand-rune::after {
+  content: "";
+  position: absolute;
+  inset: -5px;
+  border-radius: 14px;
+  pointer-events: none;
+  box-shadow: 0 0 20px var(--vuxo-rune-world);
+  opacity: .12;
+  animation: vuxo-rune-breathe 5.5s ease-in-out infinite alternate;
+}
+@keyframes vuxo-rune-breathe {
+  from { opacity: .08; }
+  to { opacity: .42; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vuxo-shell-brand-rune::after { animation: none; }
 }

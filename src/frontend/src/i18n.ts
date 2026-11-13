@@ -11,6 +11,7 @@ const initialization = i18n.use(initReactI18next).init({
         nav: { home: 'Home', refuge: 'Rifugio', auth: 'Account', character: 'Personaggio', game: 'Gioco', portals: 'Portali', inventory: 'Inventario', admin: 'Admin', version: 'Versione' },
         shell: { theme: 'Tema', language: 'Lingua', navigation: 'Navigazione principale', openMenu: 'Apri menu', closeMenu: 'Chiudi', loadingPage: 'Caricamento pagina…', version: 'Versione {{version}}' },
         theme: { system: 'Sistema', light: 'Chiaro', dark: 'Scuro' },
+        deck: { breadcrumb: 'Dove ti trovi', pages: { journal: 'Diario', training: 'Memoria delle rune', reflex: 'Riflessi', path: 'Percorso delle rune' } },
         home: {
           eyebrow: 'VUXO · {{version}} · Prima avventura',
           chapter: 'Il richiamo dell’ignoto',
@@ -196,6 +197,7 @@ const initialization = i18n.use(initReactI18next).init({
             openWorld: 'Entra nel mondo'
           },
           journal: {
+            eyebrow: 'Memorie del Rifugio',
             title: 'Diario del Rifugio',
             description: 'Rivedi gli oggetti ottenuti e le sfide personali ancora disponibili, anche senza entrare nella mappa.',
             back: 'Torna al Rifugio',
@@ -400,6 +402,7 @@ const initialization = i18n.use(initReactI18next).init({
           }
         },
         auth: {
+          eyebrow: 'Sigillo del viaggiatore',
           title: 'Accedi a Vuxo',
           description: 'Usa Microsoft o Google. Il provider conferma la tua identità, poi Vuxo crea una sessione propria per gioco e realtime.',
           microsoft: 'Accedi con Microsoft',
@@ -610,6 +613,7 @@ const initialization = i18n.use(initReactI18next).init({
             encounterActive: 'Incontro del portale attivo: puoi usare il Seme del Bosco dopo la sfida o alla scadenza.',
             refreshEncounter: 'Aggiorna stato incontro'
           },
+          eyebrow: 'Bottino del Vuxian',
           title: 'Inventario',
           description: 'Gli oggetti ottenuti superando le sfide personali sono salvati sul server.',
           views: {
@@ -723,6 +727,7 @@ const initialization = i18n.use(initReactI18next).init({
         },
         admin: { title: 'Amministrazione', description: 'Health, giocatori online, audit degli eventi, contenuti esclusivi e telemetria saranno raccolti qui.' },
         version: {
+          eyebrow: 'Cronaca della build',
           title: 'Versione e build',
           description: 'Identifica la build frontend caricata e il backend a cui è connessa.',
           frontend: 'Frontend',
@@ -749,6 +754,7 @@ const initialization = i18n.use(initReactI18next).init({
               identity: 'Identità e punti',
               appearance: 'Aspetto e colori',
               portrait: 'Anteprima del tuo Vuxian',
+              portraitImage: 'Ritratto illustrato del tuo Vuxian',
               tryLook: 'Prova un altro look',
               localNote: 'Il look cambia solo in questa anteprima; la creazione viene confermata dal server.',
               persistedNote: 'Le modifiche estetiche vengono inviate al server soltanto dopo aver premuto Salva aspetto.',
@@ -834,6 +840,7 @@ const initialization = i18n.use(initReactI18next).init({
         nav: { home: 'Home', refuge: 'Refuge', auth: 'Account', character: 'Character', game: 'Game', portals: 'Portals', inventory: 'Inventory', admin: 'Admin', version: 'Version' },
         shell: { theme: 'Theme', language: 'Language', navigation: 'Main navigation', openMenu: 'Open menu', closeMenu: 'Close', loadingPage: 'Loading page…', version: 'Version {{version}}' },
         theme: { system: 'System', light: 'Light', dark: 'Dark' },
+        deck: { breadcrumb: 'You are here', pages: { journal: 'Journal', training: 'Rune memory', reflex: 'Reflexes', path: 'Rune path' } },
         home: {
           eyebrow: 'VUXO · {{version}} · First adventure',
           chapter: 'The call of the unknown',
@@ -1019,6 +1026,7 @@ const initialization = i18n.use(initReactI18next).init({
             openWorld: 'Enter the world'
           },
           journal: {
+            eyebrow: 'Refuge memories',
             title: 'Refuge journal',
             description: 'Review the items you have earned and personal challenges still available, without opening the 2D world.',
             back: 'Back to Refuge',
@@ -1223,6 +1231,7 @@ const initialization = i18n.use(initReactI18next).init({
           }
         },
         auth: {
+          eyebrow: 'Traveller’s seal',
           title: 'Sign in to Vuxo',
           description: 'Use Microsoft or Google. The provider confirms your identity, then Vuxo creates its own session for gameplay and realtime.',
           microsoft: 'Sign in with Microsoft',
@@ -1433,6 +1442,7 @@ const initialization = i18n.use(initReactI18next).init({
             encounterActive: 'A portal encounter is active. Use the Grove Seed after the challenge ends or the encounter expires.',
             refreshEncounter: 'Refresh encounter status'
           },
+          eyebrow: 'Vuxian haul',
           title: 'Inventory',
           description: 'Items earned through personal challenges are securely stored on the server.',
           views: {
@@ -1546,6 +1556,7 @@ const initialization = i18n.use(initReactI18next).init({
         },
         admin: { title: 'Administration', description: 'Health, online players, event audit, exclusive content and telemetry will live here.' },
         version: {
+          eyebrow: 'Build chronicle',
           title: 'Version and build',
           description: 'Identify the loaded frontend build and the backend it is connected to.',
           frontend: 'Frontend',
@@ -1572,6 +1583,7 @@ const initialization = i18n.use(initReactI18next).init({
               identity: 'Identity and points',
               appearance: 'Appearance and colors',
               portrait: 'Your Vuxian preview',
+              portraitImage: 'Illustrated portrait of your Vuxian',
               tryLook: 'Try another look',
               localNote: 'The look changes only in this preview; character creation is confirmed by the server.',
               persistedNote: 'Cosmetic changes reach the server only when you select Save appearance.',

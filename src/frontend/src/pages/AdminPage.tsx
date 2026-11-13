@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { AdminPanelSettingsOutlined } from '@mui/icons-material'
 import {
   Alert,
   Box,
@@ -22,6 +23,7 @@ import {
   Typography,
 } from '@mui/material'
 import { useTranslation } from 'react-i18next'
+import { DeckPageHeader } from '../components/DeckPageHeader'
 import '../features/admin/adminI18n'
 import {
   AdminApiError,
@@ -65,6 +67,9 @@ export function AdminPage() {
   const [loading, setLoading] = useState(true)
   const [detailLoading, setDetailLoading] = useState(false)
   const [errorCode, setErrorCode] = useState<string | null>(null)
+  // Only the newest dashboard/detail request may update the screen (#236).
+  const dashboardRequest = useRef<AbortController | null>(null)
+  const detailRequest = useRef<AbortController | null>(null)
 
   const locale = i18n.resolvedLanguage?.startsWith('en') ? 'en-GB' : 'it-IT'
   const dateFormatter = useMemo(() => new Intl.DateTimeFormat(locale, {
@@ -73,27 +78,35 @@ export function AdminPage() {
   }), [locale])
 
   const loadDashboard = useCallback(async (offset: number, filters: FilterDraft) => {
+    dashboardRequest.current?.abort()
+    const controller = new AbortController()
+    dashboardRequest.current = controller
     setLoading(true)
     setErrorCode(null)
     try {
       const query = toApiFilters(filters, offset)
       const [eventPage, players, telemetry] = await Promise.all([
-        fetchAdminEvents(query),
-        fetchAdminOnlinePlayers(),
-        fetchAdminObservability(),
+        fetchAdminEvents(query, controller.signal),
+        fetchAdminOnlinePlayers(controller.signal),
+        fetchAdminObservability(controller.signal),
       ])
+      if (controller.signal.aborted) return
       setEvents(eventPage)
       setOnlinePlayers(players)
       setObservability(telemetry)
     } catch (error) {
-      setErrorCode(readErrorCode(error))
+      if (!controller.signal.aborted) setErrorCode(readErrorCode(error))
     } finally {
-      setLoading(false)
+      if (!controller.signal.aborted) setLoading(false)
     }
   }, [])
 
   useEffect(() => {
     void loadDashboard(0, EMPTY_FILTERS)
+    return () => {
+      dashboardRequest.current?.abort()
+      detailRequest.current?.abort()
+    }
   }, [loadDashboard])
 
   const applyFilters = () => {
@@ -108,14 +121,18 @@ export function AdminPage() {
   }
 
   const openEvent = async (eventId: string) => {
+    detailRequest.current?.abort()
+    const controller = new AbortController()
+    detailRequest.current = controller
     setDetailLoading(true)
     setErrorCode(null)
     try {
-      setSelectedEvent(await fetchAdminEvent(eventId))
+      const detail = await fetchAdminEvent(eventId, controller.signal)
+      if (!controller.signal.aborted) setSelectedEvent(detail)
     } catch (error) {
-      setErrorCode(readErrorCode(error))
+      if (!controller.signal.aborted) setErrorCode(readErrorCode(error))
     } finally {
-      setDetailLoading(false)
+      if (!controller.signal.aborted) setDetailLoading(false)
     }
   }
 
@@ -126,11 +143,12 @@ export function AdminPage() {
 
   return (
     <Stack spacing={3} data-testid="admin-dashboard">
-      <Box>
-        <Typography variant="overline" color="primary.main">{t('admin.eyebrow')}</Typography>
-        <Typography variant="h2" component="h1">{t('admin.title')}</Typography>
-        <Typography color="text.secondary" sx={{ mt: 1, maxWidth: 820 }}>{t('admin.description')}</Typography>
-      </Box>
+      <DeckPageHeader
+        icon={AdminPanelSettingsOutlined}
+        eyebrow={t('admin.eyebrow')}
+        title={t('admin.title')}
+        description={t('admin.description')}
+      />
 
       {errorCode && (
         <Alert severity={errorCode === 'admin_forbidden' ? 'warning' : 'error'} data-testid="admin-error">
@@ -198,9 +216,9 @@ export function AdminPage() {
           ) : (
             <Stack direction="row" sx={{ flexWrap: 'wrap', gap: 1.5 }}>
               {onlinePlayers.map(player => (
-                <Paper key={player.playerId} variant="outlined" sx={{ p: 1.5, minWidth: 220 }} data-testid="admin-online-player">
+                <Paper key={player.playerId} variant="outlined" sx={{ p: 1.5, minWidth: { xs: 0, sm: 220 }, maxWidth: '100%' }} data-testid="admin-online-player">
                   <Typography sx={{ fontWeight: 800 }}>{player.characterName}</Typography>
-                  <Typography variant="caption" color="text.secondary">{player.playerId}</Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', overflowWrap: 'anywhere' }}>{player.playerId}</Typography>
                   <Typography variant="body2" sx={{ mt: 0.5 }}>
                     {t('admin.online.position', { x: player.x.toFixed(2), y: player.y.toFixed(2) })}
                   </Typography>
@@ -264,7 +282,7 @@ export function AdminPage() {
               onChange={event => setDraft(current => ({ ...current, toUtc: event.target.value }))}
               slotProps={{ inputLabel: { shrink: true }, htmlInput: { 'data-testid': 'admin-filter-to' } }}
             />
-            <Stack direction="row" spacing={1}>
+            <Stack direction="row" useFlexGap sx={{ flexWrap: 'wrap', gap: 1 }}>
               <Button variant="contained" data-testid="admin-filter-apply" onClick={applyFilters}>{t('admin.actions.apply')}</Button>
               <Button variant="outlined" data-testid="admin-filter-reset" onClick={resetFilters}>{t('admin.actions.reset')}</Button>
               <Button variant="text" data-testid="admin-refresh" onClick={() => void loadDashboard(events.offset, activeFilters)}>{t('admin.actions.refresh')}</Button>

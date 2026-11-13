@@ -1,9 +1,12 @@
-import { AutoAwesome, BackpackOutlined, CottageOutlined, PersonOutlined, SportsEsportsOutlined } from '@mui/icons-material';
-import { Box, Stack, Typography } from '@mui/material';
-import { alpha } from '@mui/material/styles';
-import { useEffect, useRef, type KeyboardEvent, type PropsWithChildren } from 'react';
+import {
+  AccountCircleOutlined, AdminPanelSettingsOutlined, AutoAwesome, BackpackOutlined, CottageOutlined,
+  HistoryEduOutlined, InfoOutlined, PersonOutlined, RouteOutlined, SportsEsportsOutlined, TouchAppOutlined,
+} from '@mui/icons-material';
+import { Box, CircularProgress, Stack, Typography } from '@mui/material';
+import { Suspense, useEffect, useRef, type KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link as RouterLink, useLocation } from 'react-router-dom';
+import { Link as RouterLink, Outlet, useLocation } from 'react-router-dom';
+import { DeckSky } from './DeckSky';
 import './game-deck.css';
 import { moveRovingRailFocus } from './rovingRailFocus';
 
@@ -15,15 +18,39 @@ const routes = [
   { to: '/game', label: 'nav.game', icon: SportsEsportsOutlined, name: 'game' },
 ] as const;
 
+type DeckRoute = typeof routes[number];
+type DeckPage = { name: string; label: string; icon: typeof CottageOutlined; parent?: DeckRoute };
+
+const refuge = routes[0];
+// Refuge chambers keep the Refuge rail entry lit; system screens light none.
+const pages: Record<string, DeckPage> = {
+  '/refuge/journal': { name: 'journal', label: 'deck.pages.journal', icon: HistoryEduOutlined, parent: refuge },
+  '/refuge/training': { name: 'training', label: 'deck.pages.training', icon: SportsEsportsOutlined, parent: refuge },
+  '/refuge/reflex': { name: 'reflex', label: 'deck.pages.reflex', icon: TouchAppOutlined, parent: refuge },
+  '/refuge/path': { name: 'path', label: 'deck.pages.path', icon: RouteOutlined, parent: refuge },
+  '/auth': { name: 'auth', label: 'nav.auth', icon: AccountCircleOutlined },
+  '/admin': { name: 'admin', label: 'nav.admin', icon: AdminPanelSettingsOutlined },
+  '/version': { name: 'version', label: 'nav.version', icon: InfoOutlined },
+};
+
+function resolveDeckPage(pathname: string): { section: DeckRoute | null; page: DeckPage } {
+  const route = routes.find(item => item.to === pathname);
+  if (route) return { section: route, page: route };
+  const page = pages[pathname];
+  if (page) return { section: page.parent ?? null, page };
+  return { section: refuge, page: refuge };
+}
+
 /**
- * Presentation-only off-world command deck. It does not own account state,
- * authorize gameplay or remount the individual page on viewport changes.
+ * Presentation-only off-world command deck shared by every non-world screen.
+ * It owns the one-page layout (rail, breadcrumb and the only scrollable panel)
+ * but never account state, authorization or gameplay data.
  */
-export function GameDeck({ children }: PropsWithChildren) {
+export function GameDeck() {
   const { t } = useTranslation();
   const location = useLocation();
-  const selected = routes.find(route => route.to === location.pathname) ?? routes[0];
-  const SelectedIcon = selected.icon;
+  const { section, page } = resolveDeckPage(location.pathname);
+  const PageIcon = page.icon;
   const activeLinkRef = useRef<HTMLAnchorElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
@@ -37,29 +64,25 @@ export function GameDeck({ children }: PropsWithChildren) {
   // actual rail orientation: a resized page changes from row to column
   // without an extra JS breakpoint that might disagree with the CSS.
   const onRailKeyDown = (event: KeyboardEvent<HTMLElement>) => {
-    const routes = event.currentTarget.querySelector<HTMLElement>('.vuxo-deck__routes');
-    if (!routes) return;
-    // Use the actual CSS axis after responsive layout transitions.
+    const rail = event.currentTarget.querySelector<HTMLElement>('.vuxo-deck__routes');
+    if (!rail) return;
     moveRovingRailFocus(event, '.vuxo-deck__route',
-      getComputedStyle(routes).flexDirection.startsWith('row'));
+      getComputedStyle(rail).flexDirection.startsWith('row'));
   };
 
   return (
-    <Box className="vuxo-deck" data-testid="game-deck" data-route={selected.name}
-      sx={{
-        background: theme => `radial-gradient(circle at 14% 14%, ${alpha(theme.palette.primary.main, .17)}, transparent 36%), ${theme.palette.background.default}`,
-      }}>
+    <Box className="vuxo-deck" data-testid="game-deck" data-route={section?.name ?? page.name} data-page={page.name}>
+      <DeckSky />
       <Box component="nav" className="vuxo-deck__rail" aria-label={t('shell.navigation')}
-        onKeyDown={onRailKeyDown} data-testid="game-deck-navigation"
-        sx={{ bgcolor: 'background.paper', borderColor: 'divider' }}>
-        <Box className="vuxo-deck__sigil" aria-hidden="true" sx={{ color: 'primary.main' }}>
+        onKeyDown={onRailKeyDown} data-testid="game-deck-navigation">
+        <Box className="vuxo-deck__sigil" aria-hidden="true">
           <span>✦</span>
           <Typography component="span" sx={{ fontSize: '.77rem', fontWeight: 900, letterSpacing: '.14em' }}>VUXO</Typography>
         </Box>
         <Stack className="vuxo-deck__routes" spacing={0}>
           {routes.map(route => {
             const Icon = route.icon;
-            const active = route.to === location.pathname;
+            const active = route === section;
             return (
               <Box
                 key={route.to}
@@ -68,15 +91,10 @@ export function GameDeck({ children }: PropsWithChildren) {
                 to={route.to}
                 className="vuxo-deck__route"
                 data-testid={`game-deck-link-${route.name}`}
+                data-active={active ? 'true' : 'false'}
                 aria-label={t(route.label)}
                 title={t(route.label)}
-                aria-current={active ? 'page' : undefined}
-                sx={{
-                  color: active ? 'primary.main' : 'text.secondary',
-                  bgcolor: active ? 'action.selected' : 'transparent',
-                  borderColor: active ? 'primary.main' : 'transparent',
-                  '&:hover': { bgcolor: 'action.hover' },
-                }}
+                aria-current={active ? (route === page ? 'page' : 'true') : undefined}
               >
                 <Icon aria-hidden="true" fontSize="small" />
                 <Typography component="span" variant="body2" sx={{ fontWeight: active ? 800 : 650 }}>
@@ -88,22 +106,38 @@ export function GameDeck({ children }: PropsWithChildren) {
         </Stack>
       </Box>
 
-      <Box component="section" className="vuxo-deck__main" sx={{ borderColor: 'divider', bgcolor: 'background.paper' }}>
-        <Stack className="vuxo-deck__topline" direction="row" sx={{ alignItems: 'center', gap: 1.25, borderColor: 'divider' }}>
-          <Box className="vuxo-deck__topline-rune" aria-hidden="true" sx={{ color: 'primary.main', bgcolor: 'action.hover' }}>
-            <SelectedIcon fontSize="small" />
+      <Box component="section" className="vuxo-deck__main">
+        <Stack component="nav" aria-label={t('deck.breadcrumb')} className="vuxo-deck__topline" direction="row" sx={{ alignItems: 'center' }}>
+          <Box className="vuxo-deck__topline-rune" aria-hidden="true">
+            <PageIcon fontSize="small" />
           </Box>
-          <Typography component="span" variant="overline" sx={{ color: 'text.secondary', fontWeight: 850, letterSpacing: '.15em' }}>
-            VUXO
-          </Typography>
-          <Box component="span" sx={{ color: 'text.disabled' }} aria-hidden="true">/</Box>
-          <Typography component="span" variant="subtitle2" sx={{ fontWeight: 900, color: 'primary.main' }} data-testid="game-deck-current">
-            {t(selected.label)}
+          <Typography component="span" variant="overline" className="vuxo-deck__topline-brand">VUXO</Typography>
+          <Box component="span" className="vuxo-deck__crumb-separator" aria-hidden="true">✦</Box>
+          {page.parent ? (
+            <>
+              <Box component={RouterLink} to={page.parent.to} className="vuxo-deck__crumb-link" data-testid="game-deck-parent">
+                {t(page.parent.label)}
+              </Box>
+              <Box component="span" className="vuxo-deck__crumb-separator" aria-hidden="true">✦</Box>
+            </>
+          ) : null}
+          <Typography component="span" variant="subtitle2" className="vuxo-deck__crumb-current" data-testid="game-deck-current">
+            {t(page.label)}
           </Typography>
         </Stack>
         <Box ref={scrollRef} className="vuxo-deck__scroll" tabIndex={0} role="region"
-          aria-label={t(selected.label)} data-testid="game-deck-scroll">
-          {children}
+          aria-label={t(page.label)} data-testid="game-deck-scroll" sx={{ bgcolor: 'background.paper' }}>
+          <Suspense fallback={
+            <Stack role="status" data-testid="game-deck-loading" direction="row" spacing={2} sx={{ alignItems: 'center', justifyContent: 'center', py: 5 }}>
+              <CircularProgress size={28} aria-label={t('shell.loadingPage')} />
+              <Typography color="text.secondary">{t('shell.loadingPage')}</Typography>
+            </Stack>
+          }>
+            {/* Keyed by route so each screen enters with the runic reveal. */}
+            <Box key={location.pathname} className="vuxo-deck__page">
+              <Outlet />
+            </Box>
+          </Suspense>
         </Box>
       </Box>
     </Box>

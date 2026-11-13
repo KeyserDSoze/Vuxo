@@ -1,5 +1,5 @@
 import { AccountCircleOutlined, AdminPanelSettingsOutlined, AutoAwesome, BackpackOutlined, CottageOutlined, DarkMode, HomeOutlined, InfoOutlined, Language, LightMode, Menu as MenuIcon, PersonOutlined, SettingsBrightness, SportsEsportsOutlined } from '@mui/icons-material';
-import { AppBar, Box, Button, Chip, CircularProgress, Container, Drawer, IconButton, List, ListItemButton, ListItemIcon, ListItemText, Stack, Toolbar, Tooltip, Typography } from '@mui/material';
+import { AppBar, Box, Button, Chip, CircularProgress, Drawer, IconButton, List, ListItemButton, ListItemIcon, ListItemText, Stack, Toolbar, Tooltip, Typography } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import { lazy, Suspense, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -45,8 +45,6 @@ export function App() {
   const location = useLocation();
   const isWorldRoute = location.pathname === '/game';
   const isHomeRoute = location.pathname === '/';
-  const isDeckRoute = ['/refuge', '/inventory', '/character', '/portals'].includes(location.pathname);
-  const isViewportRoute = isWorldRoute || isHomeRoute || isDeckRoute;
   const accessState = useAdminAccessState();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const visibleNavItems = navItems.filter(item => item.to !== '/admin' || accessState === 'administrator');
@@ -58,11 +56,11 @@ export function App() {
 
   return (
     <Box data-testid="app-shell" className={isWorldRoute ? 'vuxo-app vuxo-app--world' : isHomeRoute ? 'vuxo-app vuxo-app--home' : 'vuxo-app'} sx={{
-      minHeight: isViewportRoute ? '100dvh' : '100vh',
-      height: isViewportRoute ? '100dvh' : undefined,
+      // #233: every route is a one-page game screen sized to the viewport.
+      height: '100dvh',
       display: 'flex',
       flexDirection: 'column',
-      overflow: isViewportRoute ? 'hidden' : undefined,
+      overflow: 'hidden',
       background: theme => 'radial-gradient(circle at 20% 0%, ' +
         alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.20 : 0.12) +
         ', transparent 38%), ' + theme.palette.background.default
@@ -160,38 +158,33 @@ export function App() {
           </List>
         </Box>
       </Drawer>
-      <Container component="main" maxWidth={isViewportRoute ? false : 'xl'} disableGutters={isViewportRoute} sx={{
-        flex: isViewportRoute ? '1 1 auto' : undefined,
-        minHeight: 0,
-        minWidth: 0,
-        width: '100%',
-        overflow: isViewportRoute ? 'hidden' : undefined,
-        display: isViewportRoute ? 'flex' : undefined,
-        py: isViewportRoute ? 0 : { xs: vuxoDesignTokens.layout.pagePaddingYMobile, md: vuxoDesignTokens.layout.pagePaddingYDesktop },
-      }}>
+      <Box component="main" sx={{ flex: '1 1 auto', minHeight: 0, minWidth: 0, width: '100%', overflow: 'hidden', display: 'flex' }}>
         <Suspense fallback={
-          <Stack role="status" data-testid="route-loading" direction="row" spacing={2} sx={{ alignItems: 'center', py: 5 }}>
+          <Stack role="status" data-testid="route-loading" direction="row" spacing={2} sx={{ alignItems: 'center', m: 'auto' }}>
             <CircularProgress size={28} aria-label={t('shell.loadingPage')} />
             <Typography color="text.secondary">{t('shell.loadingPage')}</Typography>
           </Stack>
         }>
         <Routes>
           <Route path="/" element={<HomePage />} />
-          <Route path="/auth" element={<AuthPage />} />
-          <Route path="/refuge" element={<GameDeck><RefugePage /></GameDeck>} />
-          <Route path="/refuge/journal" element={<RefugeJournalPage />} />
-          <Route path="/refuge/training" element={<RuneTrainingPage />} />
-          <Route path="/refuge/reflex" element={<ReflexTrainingPage />} />
-          <Route path="/refuge/path" element={<RunePathPage />} />
-          <Route path="/character" element={<GameDeck><CharacterEditorPage /></GameDeck>} />
           <Route path="/game" element={<GamePage />} />
-          <Route path="/portals" element={<GameDeck><PortalChallengesPage /></GameDeck>} />
-          <Route path="/inventory" element={<GameDeck><InventoryPage /></GameDeck>} />
-          <Route path="/admin" element={<AdminRoute />} />
-          <Route path="/version" element={<VersionPage />} />
+          {/* Every other screen shares one persistent deck: rail, breadcrumb and a bounded scroll panel. */}
+          <Route element={<GameDeck />}>
+            <Route path="/refuge" element={<RefugePage />} />
+            <Route path="/refuge/journal" element={<RefugeJournalPage />} />
+            <Route path="/refuge/training" element={<RuneTrainingPage />} />
+            <Route path="/refuge/reflex" element={<ReflexTrainingPage />} />
+            <Route path="/refuge/path" element={<RunePathPage />} />
+            <Route path="/character" element={<CharacterEditorPage />} />
+            <Route path="/portals" element={<PortalChallengesPage />} />
+            <Route path="/inventory" element={<InventoryPage />} />
+            <Route path="/auth" element={<AuthPage />} />
+            <Route path="/admin" element={<AdminRoute />} />
+            <Route path="/version" element={<VersionPage />} />
+          </Route>
         </Routes>
         </Suspense>
-      </Container>
+      </Box>
       <BuildUpdateNotifier />
     </Box>
   );

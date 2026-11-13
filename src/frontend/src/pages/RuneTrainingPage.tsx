@@ -1,7 +1,9 @@
+import { SportsEsportsOutlined } from '@mui/icons-material';
 import { Alert, Box, Button, Chip, Paper, Stack, Typography } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link as RouterLink } from 'react-router-dom';
+import { DeckPageHeader } from '../components/DeckPageHeader';
 
 const runes = ['sun', 'moon', 'star', 'wave'] as const;
 type Rune = typeof runes[number];
@@ -70,11 +72,12 @@ export function RuneTrainingPage() {
 
   return (
     <Stack spacing={3} data-testid="rune-training-page">
-      <Stack spacing={1}>
-        <Typography variant="overline" color="primary.main">{t('refuge.training.eyebrow')}</Typography>
-        <Typography component="h1" variant="h2">{t('refuge.training.title')}</Typography>
-        <Typography color="text.secondary">{t('refuge.training.description')}</Typography>
-      </Stack>
+      <DeckPageHeader
+        icon={SportsEsportsOutlined}
+        eyebrow={t('refuge.training.eyebrow')}
+        title={t('refuge.training.title')}
+        description={t('refuge.training.description')}
+      />
       <Alert severity="info" data-testid="training-disclaimer">{t('refuge.training.disclaimer')}</Alert>
 
       <Paper variant="outlined" sx={{ p: { xs: 2.5, md: 4 } }}>

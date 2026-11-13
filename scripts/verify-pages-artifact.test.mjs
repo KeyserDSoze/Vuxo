@@ -49,8 +49,18 @@ test('Pages artifact rejects missing asset and wrong version', () => {
   });
 });
 
+for (const marker of ['__vuxo_e2e', 'e2e-microsoft-id-token']) {
+  test('Pages artifact rejects the E2E-only marker ' + marker, () => {
+    withArtifact(dist => {
+      writeFileSync(join(dist, 'assets/chunk-e2e.js'), 'fetch("/' + marker + '/world/join")');
+      assert.throws(() => verifyPagesArtifact(dist), new RegExp('chunk-e2e.js contains E2E-only marker ' + marker));
+    });
+  });
+}
+
 test('Pages workflow publishes every main push, not only frontend file changes', () => {
-  const workflow = readFileSync(resolve(fileURLToPath(new URL('../.github/workflows/deploy-pages.yml', import.meta.url))), 'utf8');
+  const workflow = readFileSync(resolve(fileURLToPath(new URL('../.github/workflows/deploy-pages.yml', import.meta.url))), 'utf8')
+    .replace(/\r\n/g, '\n'); // Windows checkouts may use CRLF.
   const trigger = workflow.match(/\n  push:\n([\s\S]*?)\n  workflow_dispatch:/);
   assert.ok(trigger, 'Main push trigger must be present');
   assert.match(trigger[1], /branches:\s*\[main\]/);
