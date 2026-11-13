@@ -50,6 +50,36 @@ export async function preparePlayer(page: Page, options: PlayerOptions = {}): Pr
   if (options.reducedMotion) await page.emulateMedia({ reducedMotion: 'reduce' });
 }
 
+type OwnerSession = {
+  /** Opaque value: specs that switch accounts rely on it being distinct per owner. */
+  token: string;
+  userId: string;
+  displayName: string;
+  language?: Language;
+  /** Left unset when the spec does not care about the theme. */
+  theme?: Theme | 'system';
+  expiresAtUtc?: string;
+};
+
+/** Stored Vuxo session for specs that mock every owner endpoint themselves. */
+export async function seedOwnerSession(page: Page, session: OwnerSession): Promise<void> {
+  await page.addInitScript(({ token, userId, displayName, language, theme, expiresAtUtc }) => {
+    localStorage.clear();
+    localStorage.setItem('vuxo.language', language);
+    if (theme) localStorage.setItem('vuxo.theme', theme);
+    localStorage.setItem('vuxo.accessToken', token);
+    localStorage.setItem('vuxo.auth.expiresAtUtc', expiresAtUtc);
+    localStorage.setItem('vuxo.auth.user', JSON.stringify({ id: userId, displayName, email: null }));
+  }, {
+    token: session.token,
+    userId: session.userId,
+    displayName: session.displayName,
+    language: session.language ?? 'it',
+    theme: session.theme ?? null,
+    expiresAtUtc: session.expiresAtUtc ?? '2099-01-01T00:00:00Z',
+  });
+}
+
 export const appearanceCatalog = {
   catalogVersion: '0.0.1',
   hairStyles: ['hair-1', 'hair-2', 'hair-3', 'hair-4'],

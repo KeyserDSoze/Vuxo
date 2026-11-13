@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { seedOwnerSession } from './support/vuxoFixtures';
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -16,15 +17,9 @@ const outcome = { eventId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', grantId: a,
   rewardItemKey: solved.rewardItemKey };
 
 async function signIn(page: Page, language: 'it' | 'en' = 'it') {
-  await page.addInitScript(({ language }) => {
-    localStorage.clear();
-    localStorage.setItem('vuxo.language', language);
-    localStorage.setItem('vuxo.accessToken', 'reward-owner-a');
-    localStorage.setItem('vuxo.auth.expiresAtUtc', '2099-01-01T00:00:00Z');
-    localStorage.setItem('vuxo.auth.user', JSON.stringify({
-      id: 'reward-owner-a', displayName: 'Explorer', email: null,
-    }));
-  }, { language });
+  await seedOwnerSession(page, {
+    token: 'reward-owner-a', userId: 'reward-owner-a', displayName: 'Explorer', language,
+  });
 }
 async function otherSections(page: Page) {
   await page.route('**/api/inventory', route => route.fulfill({

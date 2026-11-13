@@ -251,7 +251,7 @@ jobs:
       - name: Test .NET security dependency and container baseline (offline)
         run: node --test ../../scripts/test-dotnet-security-baseline.test.mjs
       - name: Test browser runner and Chromium install contracts (offline)
-        run: node --test ../../scripts/test-browser-runner-contract.test.mjs
+        run: node --test ../../scripts/test-browser-runner-contract.test.mjs ../../scripts/test-workflow-release-guards.test.mjs
       - name: Test local cross-platform dev CLI contracts (offline)
         run: node --test ../../scripts/dev.test.mjs ../../scripts/dev-process-tree.test.mjs
       - name: Install dependencies

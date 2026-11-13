@@ -19,7 +19,7 @@ jobs:
   build-and-push:
     # Legacy x64 deploy is opt-in. Pi 3 ARM64 uses deploy-pi3.yml instead.
     # This prevents an accidental second production deployment during migration.
-    if: vars.VUXO_X64_DEPLOY_ENABLED == 'true'
+    if: vars.VUXO_X64_DEPLOY_ENABLED == 'true' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     outputs:
       image: ${{ steps.image.outputs.image }}
@@ -50,6 +50,7 @@ jobs:
 
   deploy:
     needs: build-and-push
+    if: github.ref == 'refs/heads/main'
     runs-on: [self-hosted, linux, x64, vuxo-prod]
     environment: production
     permissions:

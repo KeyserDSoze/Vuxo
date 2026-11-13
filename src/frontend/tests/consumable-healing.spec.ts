@@ -1,4 +1,5 @@
 import { expect, test, type Page, type Route } from '@playwright/test';
+import { seedOwnerSession } from './support/vuxoFixtures';
 
 const grantId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const groveSeed = 'item.grove_seed.v1';
@@ -7,15 +8,9 @@ const cors = { 'Access-Control-Allow-Origin': '*' };
 async function signIn(page: Page, language: 'it' | 'en' = 'it') {
   await page.route('**/api/characters/me/encounter', route => json(route,
     { active: false, portalGrantId: null, expiresAtUtc: null }));
-  const expiresAtUtc = new Date(Date.now() + 3_600_000).toISOString();
-  await page.addInitScript(({ expiresAtUtc, language }) => {
-    localStorage.clear();
-    localStorage.setItem('vuxo.language', language);
-    localStorage.setItem('vuxo.accessToken', 'consumable-test-token');
-    localStorage.setItem('vuxo.auth.expiresAtUtc', expiresAtUtc);
-    localStorage.setItem('vuxo.auth.user',
-      JSON.stringify({ id: 'player-a', displayName: 'Healer', email: null }));
-  }, { expiresAtUtc, language });
+  await seedOwnerSession(page, {
+    token: 'consumable-test-token', userId: 'player-a', displayName: 'Healer', language,
+  });
 }
 
 function json(route: Route, value: unknown, status = 200) {

@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { seedOwnerSession } from './support/vuxoFixtures';
 
 const grantId = '11111111-1111-4111-8111-111111111111';
 const secret = ['sun', 'moon', 'star', 'wave'];
@@ -10,15 +11,9 @@ const corsHeaders = {
 };
 
 async function login(page: Page, language: 'it' | 'en' = 'it') {
-  const expiresAtUtc = new Date(Date.now() + 3_600_000).toISOString();
-  await page.addInitScript(({ expiresAtUtc, language }) => {
-    localStorage.clear();
-    localStorage.setItem('vuxo.language', language);
-    localStorage.setItem('vuxo.theme', 'system');
-    localStorage.setItem('vuxo.accessToken', 'portal-console-token');
-    localStorage.setItem('vuxo.auth.expiresAtUtc', expiresAtUtc);
-    localStorage.setItem('vuxo.auth.user', JSON.stringify({ id: 'portal-player', displayName: 'Runic Hero', email: null }));
-  }, { expiresAtUtc, language });
+  await seedOwnerSession(page, {
+    token: 'portal-console-token', userId: 'portal-player', displayName: 'Runic Hero', language, theme: 'system',
+  });
 }
 
 async function mockPortal(page: Page) {

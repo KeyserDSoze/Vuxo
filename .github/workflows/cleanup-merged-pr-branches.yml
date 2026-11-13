@@ -44,7 +44,7 @@ jobs:
         run: node scripts/maintenance/prune-merged-pr-branches.mjs --dry-run
 
   prune:
-    if: github.repository == 'KeyserDSoze/Vuxo' && github.event_name != 'pull_request'
+    if: github.repository == 'KeyserDSoze/Vuxo' && github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     needs: validate
     runs-on: ubuntu-latest
     permissions:

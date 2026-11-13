@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { seedOwnerSession } from './support/vuxoFixtures';
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -25,15 +26,9 @@ const outcome = (index: number, kind: string) => ({
 });
 
 async function signIn(page: Page, language: 'it' | 'en') {
-  await page.addInitScript(({ language }) => {
-    localStorage.clear();
-    localStorage.setItem('vuxo.language', language);
-    localStorage.setItem('vuxo.accessToken', 'cursor-owner');
-    localStorage.setItem('vuxo.auth.expiresAtUtc', '2099-01-01T00:00:00Z');
-    localStorage.setItem('vuxo.auth.user', JSON.stringify({
-      id: 'cursor-owner', displayName: 'Explorer', email: null,
-    }));
-  }, { language });
+  await seedOwnerSession(page, {
+    token: 'cursor-owner', userId: 'cursor-owner', displayName: 'Explorer', language,
+  });
   await page.route('**/api/inventory', route => route.fulfill({
     headers, contentType: 'application/json', body: '[]',
   }));

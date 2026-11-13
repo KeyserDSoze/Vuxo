@@ -5,7 +5,7 @@ import { test } from 'node:test'
 // The hosted-browser jobs must run Chromium for real, but should not need
 // unattended apt installs to begin tests while Ubuntu 26 runner rollout
 // and transient repository DNS failures are ongoing.
-const yaml = (name) => readFileSync(new URL('../.github/workflows/' + name, import.meta.url), 'utf8')
+const yaml = (name) => readFileSync(new URL('../.github/workflows/' + name, import.meta.url), 'utf8').replace(/\r\n/g, '\n')
 
 test('browser workflows pin Ubuntu 24.04 and do not run apt during Chromium setup', () => {
   const jobs = [

@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { seedOwnerSession } from './support/vuxoFixtures';
 
 const grantId = '11111111-1111-4111-8111-111111111111';
 const sequence = ['sun', 'moon', 'star', 'wave'];
@@ -9,16 +10,9 @@ const corsHeaders = {
 };
 
 async function signIn(page: Page, language: 'it' | 'en' = 'it') {
-  const expiresAtUtc = new Date(Date.now() + 3_600_000).toISOString();
-  await page.addInitScript(({ expiresAtUtc, language }) => {
-    localStorage.clear();
-    localStorage.setItem('vuxo.language', language);
-    localStorage.setItem('vuxo.accessToken', 'playwright-session-token');
-    localStorage.setItem('vuxo.auth.expiresAtUtc', expiresAtUtc);
-    localStorage.setItem('vuxo.auth.user', JSON.stringify({
-      id: 'player-a', displayName: 'E2E player', email: null
-    }));
-  }, { expiresAtUtc, language });
+  await seedOwnerSession(page, {
+    token: 'playwright-session-token', userId: 'player-a', displayName: 'E2E player', language,
+  });
 }
 
 async function mockPortalApi(page: Page) {

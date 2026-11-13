@@ -54,10 +54,11 @@ test('notifies when a newer frontend build appears', async ({ page }) => {
     buildDateUtc: '2026-09-21T07:00:00Z'
   };
 
-  await page.waitForTimeout(100);
-  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
-
-  await expect(page.getByTestId('build-update-notice')).toBeVisible();
+  // The focus listener attaches once the first build is known; retry until it observes the newer build.
+  await expect(async () => {
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await expect(page.getByTestId('build-update-notice')).toBeVisible({ timeout: 500 });
+  }).toPass();
   await expect(page.getByTestId('build-update-notice')).toContainText('nuova build Vuxo');
   await expect(page.getByRole('button', { name: 'Ricarica' })).toBeVisible();
 });

@@ -1,20 +1,14 @@
 import { expect, test, type Page } from '@playwright/test';
+import { seedOwnerSession } from './support/vuxoFixtures';
 
 const shard = '11111111-1111-4111-8111-111111111111';
 const seed = '22222222-2222-4222-8222-222222222222';
 const pearl = '33333333-3333-4333-8333-333333333333';
 
 async function signIn(page: Page, language: 'it' | 'en' = 'it') {
-  await page.addInitScript(({ language }) => {
-    localStorage.clear();
-    localStorage.setItem('vuxo.language', language);
-    localStorage.setItem('vuxo.theme', 'system');
-    localStorage.setItem('vuxo.accessToken', 'inspection-owner-token');
-    localStorage.setItem('vuxo.auth.expiresAtUtc', '2099-01-01T00:00:00Z');
-    localStorage.setItem('vuxo.auth.user', JSON.stringify({
-      id: 'inspection-owner', displayName: 'Inspector', email: null,
-    }));
-  }, { language });
+  await seedOwnerSession(page, {
+    token: 'inspection-owner-token', userId: 'inspection-owner', displayName: 'Inspector', language, theme: 'system',
+  });
 }
 
 async function mockInventory(page: Page) {

@@ -24,7 +24,7 @@ if (!ledger.includes(`## Versione corrente: ${version}`)) {
   throw new Error(`Development ledger does not declare current version ${version}`);
 }
 
-const handoffDocument = readFileSync(resolve(root, 'docs/engineering/chat-handoff-prompt.md'), 'utf8');
+const handoffDocument = readFileSync(resolve(root, 'docs/engineering/chat-handoff-prompt.md'), 'utf8').replace(/\r\n/g, '\n');
 const match = handoffDocument.match(/```text\n([\s\S]*?)\n```/);
 if (!match) {
   throw new Error('Handoff prompt must contain exactly a fenced text block that can be copied to a new chat.');

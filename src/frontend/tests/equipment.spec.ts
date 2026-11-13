@@ -1,19 +1,14 @@
 import { expect, test, type Page } from '@playwright/test';
+import { seedOwnerSession } from './support/vuxoFixtures';
 
 const awardA = '11111111-1111-4111-8111-111111111111';
 const awardB = '22222222-2222-4222-8222-222222222222';
 const rune = 'item.rune_shard.v1';
 
 async function signIn(page: Page, language: 'it' | 'en' = 'it') {
-  const expiresAtUtc = new Date(Date.now() + 3_600_000).toISOString();
-  await page.addInitScript(({ expiresAtUtc, language }) => {
-    localStorage.clear();
-    localStorage.setItem('vuxo.language', language);
-    localStorage.setItem('vuxo.accessToken', 'equipment-test-token');
-    localStorage.setItem('vuxo.auth.expiresAtUtc', expiresAtUtc);
-    localStorage.setItem('vuxo.auth.user',
-      JSON.stringify({ id: 'player-a', displayName: 'Player A', email: null }));
-  }, { expiresAtUtc, language });
+  await seedOwnerSession(page, {
+    token: 'equipment-test-token', userId: 'player-a', displayName: 'Player A', language,
+  });
 }
 
 async function mockEquipment(page: Page) {

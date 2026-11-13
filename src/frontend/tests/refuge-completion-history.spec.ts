@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { seedOwnerSession } from './support/vuxoFixtures';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -21,16 +22,10 @@ const completed = [
 ];
 
 async function signIn(page: Page, locale: 'it' | 'en' = 'it') {
-  await page.addInitScript(({ locale }) => {
-    localStorage.clear();
-    localStorage.setItem('vuxo.language', locale);
-    localStorage.setItem('vuxo.theme', 'system');
-    localStorage.setItem('vuxo.accessToken', 'completion-owner-token');
-    localStorage.setItem('vuxo.auth.expiresAtUtc', '2099-01-01T00:00:00Z');
-    localStorage.setItem('vuxo.auth.user', JSON.stringify({
-      id: 'completion-owner', displayName: 'Explorer', email: null,
-    }));
-  }, { locale });
+  await seedOwnerSession(page, {
+    token: 'completion-owner-token', userId: 'completion-owner', displayName: 'Explorer',
+    language: locale, theme: 'system',
+  });
 }
 
 async function emptyOtherPanels(page: Page) {

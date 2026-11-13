@@ -1,16 +1,10 @@
 import { expect, test, type Page } from '@playwright/test';
+import { seedOwnerSession } from './support/vuxoFixtures';
 
 async function signIn(page: Page, language: 'it' | 'en' = 'it') {
-  const expiresAtUtc = new Date(Date.now() + 60 * 60 * 1000).toISOString();
-  await page.addInitScript(({ expiresAtUtc, language }) => {
-    localStorage.clear();
-    localStorage.setItem('vuxo.language', language);
-    localStorage.setItem('vuxo.accessToken', 'playwright-inventory-token');
-    localStorage.setItem('vuxo.auth.expiresAtUtc', expiresAtUtc);
-    localStorage.setItem('vuxo.auth.user', JSON.stringify({
-      id: 'player-a', displayName: 'Inventory Hero', email: null,
-    }));
-  }, { expiresAtUtc, language });
+  await seedOwnerSession(page, {
+    token: 'playwright-inventory-token', userId: 'player-a', displayName: 'Inventory Hero', language,
+  });
 }
 
 test('inventory requires a Vuxo login and never reads anonymously', async ({ page }) => {
