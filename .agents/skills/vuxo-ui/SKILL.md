@@ -23,7 +23,7 @@ Use this skill whenever a task adds or changes visible UI.
 - Keep game-world drawing/input inside Phaser; React/MUI may overlay HUD and menus but should not duplicate world state.
 - Use responsive MUI APIs/breakpoints rather than desktop-only dimensions.
 - Preserve keyboard operation, visible focus and useful accessible labels.
-- Do not ship third-party artwork as final Vuxo assets. New game tiles/sprites are original project assets; code-generated placeholders are fine while a feature is incomplete.
+- Third-party artwork/audio is allowed only under CC0 or CC-BY and only with the license registry (`docs/legal/asset-licenses.md`), the license file beside the asset and an entry on the Credits page; see `AGENTS.md`. Code-generated placeholders are fine while a feature is incomplete.
 - All visible copy must come from i18n; apply the `vuxo-i18n` skill in the same change.
 
 ## Reusable visual primitives

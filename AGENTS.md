@@ -93,7 +93,7 @@ MUI is the application design system. Phaser renders the game world; MUI owns me
 - Use centralized theme/design tokens. Do not scatter raw colors, spacing constants or arbitrary typography through components.
 - Reuse shared components before creating new variants. If a pattern is expected to recur, extract it into the shared UI layer immediately.
 - Every screen must consider desktop and mobile layouts, keyboard access, visible focus, contrast, loading, empty and error states.
-- Do not use third-party game art as final assets. Vuxo's map tiles, characters and game art are original project assets; generated code-only placeholders are acceptable during development.
+- Third-party game art and audio are allowed **only** under CC0 or CC-BY (decision of 2026-11-13, issue #246). Forbidden: NC/ND/ShareAlike-restricted, "free for personal use", ripped or unlicensed assets. Every third-party file must live under `src/frontend/public/assets/third-party/<pack>/` next to its license text and be listed in `docs/legal/asset-licenses.md` (author, source URL, license, files used) and on the in-game Credits page (`/credits`, IT/EN). CC-BY entries need visible attribution. Original Vuxo art (avatars, portals, procedural effects) remains the identity layer; generated code-only placeholders are still fine.
 - Follow `.agents/skills/vuxo-ui/SKILL.md` for UI work.
 
 ## Internationalization
