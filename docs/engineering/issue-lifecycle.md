@@ -87,6 +87,8 @@ Dopo la chiusura aggiornare `docs/engineering/development-ledger.md` con:
 
 Il ledger non deve replicare tutta la cronologia: i dettagli restano nella issue.
 
+Le righe `Done`, `Duplicate` e `Cancelled` oltre le 15 più recenti vanno spostate, **senza modificarle**, in `docs/engineering/development-ledger-archive.md`; le righe attive restano sempre nel ledger. Lo stesso vale per le voci del patch note: se ne tengono le più recenti in `docs/patch-notes/<VERSION>.md` e le precedenti in `<VERSION>-archive.md`. Dopo lo spostamento verificare che nessuna riga o sezione sia andata persa.
+
 ## Versioning
 
 Non serve un bump per ogni issue/commit. Il bump avviene quando si apre una nuova versione/release. Tuttavia ogni modifica destinata alla versione corrente deve essere riflessa nella patch note corrente prima che la release venga considerata completa.
