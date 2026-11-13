@@ -13,7 +13,7 @@ const rootDir = fileURLToPath(new URL('../', import.meta.url))
 const frontendDir = fileURLToPath(new URL('../src/frontend/', import.meta.url))
 const frontendNodeModulesDir = fileURLToPath(new URL('../src/frontend/node_modules/', import.meta.url))
 
-const help = () => console.log(`VUXO local development (0.0.2)
+const help = () => console.log(`VUXO local development (0.0.3)
   node scripts/dev.mjs init              Create docker/.env.local, never overwrite
   node scripts/dev.mjs doctor            Validate local config and installed tools
   node scripts/dev.mjs infra [--ollama] [--observability]  Start local dependencies
