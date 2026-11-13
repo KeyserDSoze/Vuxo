@@ -35,6 +35,16 @@ Il contratto completo di rete, healthcheck, named volume, Cloudflare Tunnel e te
 
 Il tunnel production è remotely managed. La published application per `api.vuxoapi.xyz` deve usare come Service URL `http://api:8080`, perché `cloudflared` raggiunge l'API tramite la rete Docker e non tramite `localhost`.
 
+### Rate limiting dietro il tunnel
+
+L'API è pubblicata solo su loopback e sulla rete privata, quindi l'indirizzo del peer è sempre il connettore `cloudflared`. `compose.prod.yml` imposta `Network__TrustCloudflareConnectingIp=true`: gli utenti non autenticati sono limitati per `CF-Connecting-IP` (solo se è un IP valido e presente una volta), quelli autenticati per ID giocatore. **Non abilitare l'impostazione** se l'API diventa raggiungibile senza passare dal tunnel: l'header sarebbe falsificabile.
+
+Policy: `auth-social` 10/min, `portal-challenge` 12/min, `world-chunk` 60/min; superamento → HTTP 429.
+
+### Limiti del mondo
+
+Il mondo è limitato a ±256 chunk (±4096 tile) attorno all'origine (`WorldGenerationRules.MaxChunkExtent`). Fuori da questo raggio `GET /api/world/chunks/{x}/{y}` risponde `400 world_chunk_out_of_range` e il movimento server-side non considera calpestabili le tile esterne; questo limita righe persistite e cache runtime.
+
 ## Stato e backup
 
 PostgreSQL e Redis usano named volume. Il recreate o l'aggiornamento dei container non deve usare `docker compose down -v`, perché `-v` elimina intenzionalmente lo stato.

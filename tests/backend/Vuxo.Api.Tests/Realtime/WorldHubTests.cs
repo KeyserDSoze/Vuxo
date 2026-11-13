@@ -153,6 +153,19 @@ public sealed class WorldHubTests
         Assert.Equal(1, state.Self.AppearanceRevision);
     }
 
+    [Theory]
+    [InlineData(null)]
+    [InlineData("not-a-valid-jwt")]
+    public async Task WorldHub_RejectsConnectionsWithoutAValidVuxoToken(string? token)
+    {
+        using var factory = CreateFactory();
+        await using var connection = CreateConnection(factory, token ?? string.Empty);
+
+        await Assert.ThrowsAnyAsync<Exception>(() => connection.StartAsync());
+
+        Assert.NotEqual(HubConnectionState.Connected, connection.State);
+    }
+
     private static VuxoApiFactory CreateFactory()
     {
         var players = new FakePlayerRepository(

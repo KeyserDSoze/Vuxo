@@ -57,10 +57,16 @@ public sealed class WorldRuntimeMap(
         var tileY = (int)flooredY;
         var chunkX = FloorDivide(tileX, WorldGenerationRules.ChunkSize);
         var chunkY = FloorDivide(tileY, WorldGenerationRules.ChunkSize);
+        var chunk = new ChunkCoordinate(chunkX, chunkY);
+        if (!chunk.IsWithinWorld)
+        {
+            return false;
+        }
+
         var localX = PositiveModulo(tileX, WorldGenerationRules.ChunkSize);
         var localY = PositiveModulo(tileY, WorldGenerationRules.ChunkSize);
 
-        var result = await GetChunkAsync(new ChunkCoordinate(chunkX, chunkY), cancellationToken);
+        var result = await GetChunkAsync(chunk, cancellationToken);
         return result.Chunk.GetTile(localX, localY).IsWalkable;
     }
 

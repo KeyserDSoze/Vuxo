@@ -14,6 +14,7 @@ using Vuxo.Api.Contracts.Players;
 using Vuxo.Api.Observability;
 using Vuxo.Api.PersonalContent;
 using Vuxo.Api.Players;
+using Vuxo.Api.RateLimiting;
 using Vuxo.Api.Realtime;
 using Vuxo.Api.Worlds;
 using Vuxo.Application.AI;
@@ -79,10 +80,11 @@ builder.Services.AddSingleton<ISocialIdentityVerifier, OidcSocialIdentityVerifie
 builder.Services.AddScoped<SocialAuthenticationService>();
 builder.Services.AddRateLimiter(options =>
 {
+    var trustCloudflareIp = builder.Configuration.GetValue("Network:TrustCloudflareConnectingIp", false);
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
     options.AddPolicy("auth-social", httpContext =>
         RateLimitPartition.GetFixedWindowLimiter(
-            httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            RateLimitPartitionKey.Resolve(httpContext, trustCloudflareIp),
             _ => new FixedWindowRateLimiterOptions
             {
                 PermitLimit = 10,
@@ -92,10 +94,20 @@ builder.Services.AddRateLimiter(options =>
             }));
     options.AddPolicy("portal-challenge", httpContext =>
         RateLimitPartition.GetFixedWindowLimiter(
-            httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            RateLimitPartitionKey.Resolve(httpContext, trustCloudflareIp),
             _ => new FixedWindowRateLimiterOptions
             {
                 PermitLimit = 12,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
+    options.AddPolicy("world-chunk", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            RateLimitPartitionKey.Resolve(httpContext, trustCloudflareIp),
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 60,
                 Window = TimeSpan.FromMinutes(1),
                 QueueLimit = 0,
                 AutoReplenishment = true
@@ -175,8 +187,8 @@ if (app.Configuration.GetValue("Database:ApplyMigrationsOnStartup", true))
 }
 
 app.UseCors("web");
-app.UseRateLimiter();
 app.UseAuthentication();
+app.UseRateLimiter();
 app.UseMiddleware<TelemetryContextMiddleware>();
 app.UseAuthorization();
 

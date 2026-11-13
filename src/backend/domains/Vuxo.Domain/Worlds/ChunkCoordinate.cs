@@ -2,6 +2,10 @@ namespace Vuxo.Domain.Worlds;
 
 public readonly record struct ChunkCoordinate(int X, int Y)
 {
+    public bool IsWithinWorld =>
+        X >= -WorldGenerationRules.MaxChunkExtent && X <= WorldGenerationRules.MaxChunkExtent
+        && Y >= -WorldGenerationRules.MaxChunkExtent && Y <= WorldGenerationRules.MaxChunkExtent;
+
     public long ToWorldX(int localX) => ((long)X * WorldGenerationRules.ChunkSize) + ValidateLocal(localX, nameof(localX));
 
     public long ToWorldY(int localY) => ((long)Y * WorldGenerationRules.ChunkSize) + ValidateLocal(localY, nameof(localY));

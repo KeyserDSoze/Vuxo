@@ -21,6 +21,8 @@ services:
       Auth__Microsoft__TenantId: ${VUXO_MICROSOFT_TENANT_ID:-consumers}
       Auth__Google__ClientId: ${VUXO_GOOGLE_CLIENT_ID:-}
       Cors__AllowedOrigins__0: ${VUXO_ALLOWED_ORIGIN:-https://vuxo.quest}
+      # The API is bound to loopback and the private network: only cloudflared reaches it, so the edge header is trustworthy.
+      Network__TrustCloudflareConnectingIp: "true"
       Database__ApplyMigrationsOnStartup: "true"
       Build__CommitSha: ${VUXO_COMMIT_SHA:-unknown}
       Build__BuildDateUtc: ${VUXO_BUILD_DATE_UTC:-unknown}

@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Vuxo.Application.Worlds;
 using Vuxo.Domain.Worlds;
 
@@ -13,16 +14,18 @@ public static class WorldEndpoints
                 int chunkX,
                 int chunkY,
                 WorldBootstrapSpec bootstrap,
-                WorldService service,
+                IServiceScopeFactory scopeFactory,
                 CancellationToken cancellationToken) =>
             {
+                var coordinate = new ChunkCoordinate(chunkX, chunkY);
+                if (!coordinate.IsWithinWorld)
+                {
+                    return Results.BadRequest(new { code = "world_chunk_out_of_range" });
+                }
+
                 try
                 {
-                    var result = await service.GetOrMaterializeChunkAsync(
-                        bootstrap,
-                        new ChunkCoordinate(chunkX, chunkY),
-                        cancellationToken);
-
+                    var result = await MaterializeAsync(scopeFactory, bootstrap, coordinate, cancellationToken);
                     return Results.Ok(new
                     {
                         worldId = result.Definition.WorldId,
@@ -60,8 +63,30 @@ public static class WorldEndpoints
                         statusCode: StatusCodes.Status500InternalServerError);
                 }
             })
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .RequireRateLimiting("world-chunk");
 
         return endpoints;
+    }
+
+    // A concurrent first request can win the unique insert; the retry runs in a fresh scope and reads the winner's row.
+    private static async Task<WorldChunkResult> MaterializeAsync(
+        IServiceScopeFactory scopeFactory,
+        WorldBootstrapSpec bootstrap,
+        ChunkCoordinate coordinate,
+        CancellationToken cancellationToken)
+    {
+        for (var attempt = 1; ; attempt++)
+        {
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var service = scope.ServiceProvider.GetRequiredService<WorldService>();
+            try
+            {
+                return await service.GetOrMaterializeChunkAsync(bootstrap, coordinate, cancellationToken);
+            }
+            catch (DbUpdateException) when (attempt < 2)
+            {
+            }
+        }
     }
 }

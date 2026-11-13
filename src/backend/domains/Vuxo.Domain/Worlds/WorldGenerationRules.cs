@@ -4,6 +4,8 @@ public static class WorldGenerationRules
 {
     public const int CurrentGeneratorVersion = 1;
     public const int ChunkSize = 16;
+    // Inclusive chunk radius around the origin: bounds persisted metadata and the runtime cache.
+    public const int MaxChunkExtent = 256;
     internal const int NoiseCellSize = 8;
 }
 

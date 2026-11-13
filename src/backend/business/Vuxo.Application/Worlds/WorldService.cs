@@ -16,6 +16,10 @@ public sealed class WorldService(
     {
         ArgumentNullException.ThrowIfNull(bootstrap);
         ArgumentException.ThrowIfNullOrWhiteSpace(bootstrap.WorldId);
+        if (!coordinate.IsWithinWorld)
+        {
+            throw new ArgumentOutOfRangeException(nameof(coordinate), coordinate, "Chunk is outside the bounded world.");
+        }
         if (bootstrap.GeneratorVersion <= 0)
         {
             throw new ArgumentOutOfRangeException(nameof(bootstrap), "Generator version must be positive.");

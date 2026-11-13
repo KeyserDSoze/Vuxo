@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Vuxo.Api.Tests.Infrastructure;
@@ -80,6 +81,76 @@ public sealed class WorldChunkTests
         Assert.Equal(1, unitOfWork.SaveCalls);
     }
 
+    [Theory]
+    [InlineData(257, 0)]
+    [InlineData(0, -257)]
+    [InlineData(int.MaxValue, int.MinValue)]
+    public async Task GetChunk_OutsideBoundedWorld_IsRejectedWithoutPersisting(int x, int y)
+    {
+        using var factory = CreateFactory(out _, out var unitOfWork);
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client);
+
+        var response = await client.GetAsync($"/api/world/chunks/{x}/{y}");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal("world_chunk_out_of_range", document.RootElement.GetProperty("code").GetString());
+        Assert.Equal(0, unitOfWork.SaveCalls);
+    }
+
+    [Theory]
+    [InlineData(256, 256)]
+    [InlineData(-256, -256)]
+    public async Task GetChunk_AtWorldEdge_IsStillServed(int x, int y)
+    {
+        using var factory = CreateFactory(out _, out _);
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client);
+
+        var response = await client.GetAsync($"/api/world/chunks/{x}/{y}");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetChunk_LosingAConcurrentInsert_RetriesAndReturnsTheExistingChunk()
+    {
+        var conflictOnce = new ConflictOnceUnitOfWork();
+        var repository = new FakeWorldRepository();
+        using var factory = new VuxoApiFactory(configureServices: services =>
+        {
+            services.RemoveAll<IWorldRepository>();
+            services.RemoveAll<IUnitOfWork>();
+            services.AddSingleton<IWorldRepository>(repository);
+            services.AddSingleton<IUnitOfWork>(conflictOnce);
+        });
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client);
+
+        var response = await client.GetAsync("/api/world/chunks/5/5");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        // The retry reads the row written by the winning request instead of saving again.
+        Assert.Equal(1, conflictOnce.SaveCalls);
+    }
+
+    [Fact]
+    public async Task GetChunk_IsRateLimitedPerPlayer()
+    {
+        using var factory = CreateFactory(out _, out _);
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client);
+
+        HttpStatusCode last = HttpStatusCode.OK;
+        for (var i = 0; i < 61; i++)
+        {
+            last = (await client.GetAsync("/api/world/chunks/0/0")).StatusCode;
+        }
+
+        Assert.Equal(HttpStatusCode.TooManyRequests, last);
+    }
+
     private static VuxoApiFactory CreateFactory(
         out FakeWorldRepository repository,
         out FakeUnitOfWork unitOfWork)
@@ -113,6 +184,22 @@ public sealed class WorldChunkTests
     }
 
     private sealed record MockLoginResponse(string AccessToken, string TokenType);
+
+    private sealed class ConflictOnceUnitOfWork : IUnitOfWork
+    {
+        public int SaveCalls { get; private set; }
+
+        public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+        {
+            SaveCalls++;
+            if (SaveCalls == 1)
+            {
+                throw new DbUpdateException("Simulated unique violation from a concurrent request.");
+            }
+
+            return Task.FromResult(1);
+        }
+    }
 
     private sealed class FakeUnitOfWork : IUnitOfWork
     {
