@@ -1,6 +1,6 @@
 # Avvio locale cross-platform (issue #45, incremento 4)
 
-Versione: **0.0.1**. Il CLI usa Node.js 24+, Docker con Compose plugin e .NET 10 SDK; funziona senza shell Bash su Windows, Linux e macOS. La prima tranche gestisce PostgreSQL/Redis e la configurazione privata; la seconda introduce **`up` con .NET API + Vite live/hot reload in container**. I comandi `debug` e `test` sono ora implementati anche per Windows senza Bash; i test di esecuzione su Windows/Linux reali e l'observability opzionale restano da completare e la #45 resta aperta.
+Versione: **0.0.2**. Il CLI usa Node.js 24+, Docker con Compose plugin e .NET 10 SDK; funziona senza shell Bash su Windows, Linux e macOS. La prima tranche gestisce PostgreSQL/Redis e la configurazione privata; la seconda introduce **`up` con .NET API + Vite live/hot reload in container**. I comandi `debug` e `test` sono ora implementati anche per Windows senza Bash; i test di esecuzione su Windows/Linux reali e l'observability opzionale restano da completare e la #45 resta aperta.
 
 ## Bootstrap
 
