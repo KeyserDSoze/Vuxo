@@ -1,4 +1,5 @@
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
+import { expectAttributeQuiet, settledAttribute } from './support/vuxoFixtures';
 
 const previewOrigin = 'http://127.0.0.1:4173';
 const gameUrl = `${previewOrigin}/Vuxo/#/game`;
@@ -19,10 +20,8 @@ test('keyboard sends movement intent and authoritative position comes back', asy
 
   await page.getByTestId('game-canvas').locator('canvas').click();
   await page.keyboard.down('ArrowRight');
-  await page.waitForTimeout(120);
-  await page.keyboard.up('ArrowRight');
-
   await expect.poll(() => numericAttribute(player, 'data-player-x')).toBeGreaterThan(initialX);
+  await page.keyboard.up('ArrowRight');
 });
 
 
@@ -43,6 +42,7 @@ test('HUD keyboard focus never sends movement and returning to canvas requires a
   await expectConnected(page);
 
   const player = page.locator('[data-player-id="hud-focus-player"]');
+  const playerSelector = '[data-player-id="hud-focus-player"]';
   const initialX = await numericAttribute(player, 'data-player-x');
   const fullscreen = page.getByTestId('game-fullscreen-toggle');
   await fullscreen.focus();
@@ -50,16 +50,16 @@ test('HUD keyboard focus never sends movement and returning to canvas requires a
 
   for (const key of ['ArrowRight', 'd']) {
     await page.keyboard.down(key);
-    await page.waitForTimeout(160);
+    await expectAttributeQuiet(page, playerSelector, 'data-player-x', 160);
     await page.keyboard.up(key);
   }
   const refuge = page.getByTestId('game-refuge-link');
   await refuge.focus();
   await expect(refuge).toBeFocused();
   await page.keyboard.down('ArrowRight');
-  await page.waitForTimeout(160);
+  await expectAttributeQuiet(page, playerSelector, 'data-player-x', 160);
   await page.keyboard.up('ArrowRight');
-  await page.waitForTimeout(180);
+  await expectAttributeQuiet(page, playerSelector, 'data-player-x', 180);
   expect(intents.filter(intent => intent.horizontal !== 0 || intent.vertical !== 0)).toHaveLength(0);
   expect(await numericAttribute(player, 'data-player-x')).toBe(initialX);
 
@@ -71,13 +71,12 @@ test('HUD keyboard focus never sends movement and returning to canvas requires a
   // Focusing the HUD mid-press stops current movement and clears the key.
   await fullscreen.focus();
   await expect(fullscreen).toBeFocused();
-  await page.waitForTimeout(250);
-  const stoppedX = await numericAttribute(player, 'data-player-x');
-  await page.waitForTimeout(280);
+  const stoppedX = Number(await settledAttribute(page, playerSelector, 'data-player-x', 200));
+  await expectAttributeQuiet(page, playerSelector, 'data-player-x', 280);
   expect(await numericAttribute(player, 'data-player-x')).toBe(stoppedX);
   await page.getByTestId('game-canvas').locator('canvas').click();
   await expect(page.getByTestId('game-canvas')).toBeFocused();
-  await page.waitForTimeout(180);
+  await expectAttributeQuiet(page, playerSelector, 'data-player-x', 180);
   expect(await numericAttribute(player, 'data-player-x')).toBe(stoppedX);
   await page.keyboard.up('ArrowRight');
 
@@ -161,10 +160,8 @@ test('mobile viewport exposes touch controls and touch movement', async ({ page 
   await expect(page.getByTestId('touch-right')).toBeVisible();
 
   await page.getByTestId('touch-right').dispatchEvent('pointerdown');
-  await page.waitForTimeout(100);
-  await page.getByTestId('touch-right').dispatchEvent('pointerup');
-
   await expect.poll(() => numericAttribute(player, 'data-player-x')).toBeGreaterThan(initialX);
+  await page.getByTestId('touch-right').dispatchEvent('pointerup');
 });
 
 
@@ -250,6 +247,7 @@ test('blur stops keyboard travel, rejects a stale held key and resumes only afte
   await expectConnected(page);
 
   const player = page.locator('[data-player-id="blur-player"]');
+  const playerSelector = '[data-player-id="blur-player"]';
   const initialX = await numericAttribute(player, 'data-player-x');
   await page.getByTestId('game-canvas').locator('canvas').click();
   await page.keyboard.down('ArrowRight');
@@ -257,14 +255,13 @@ test('blur stops keyboard travel, rejects a stale held key and resumes only afte
 
   // A browser can lose keyup while the key is still physically held.
   await page.evaluate(() => window.dispatchEvent(new Event('blur')));
-  await page.waitForTimeout(300);
-  const stoppedX = await numericAttribute(player, 'data-player-x');
-  await page.waitForTimeout(250);
+  const stoppedX = Number(await settledAttribute(page, playerSelector, 'data-player-x', 200));
+  await expectAttributeQuiet(page, playerSelector, 'data-player-x', 250);
   expect(await numericAttribute(player, 'data-player-x')).toBe(stoppedX);
 
   // Restoring focus must not replay the old keydown.
   await page.evaluate(() => window.dispatchEvent(new Event('focus')));
-  await page.waitForTimeout(250);
+  await expectAttributeQuiet(page, playerSelector, 'data-player-x', 250);
   expect(await numericAttribute(player, 'data-player-x')).toBe(stoppedX);
   await page.keyboard.up('ArrowRight');
   await page.keyboard.down('ArrowRight');
@@ -279,6 +276,7 @@ test('leaving the touch direction with mouse pressed stops movement on narrow sc
   await expectConnected(page);
 
   const player = page.locator('[data-player-id="touch-leave-player"]');
+  const playerSelector = '[data-player-id="touch-leave-player"]';
   const initialX = await numericAttribute(player, 'data-player-x');
   const right = page.getByTestId('touch-right');
   await right.hover();
@@ -288,9 +286,8 @@ test('leaving the touch direction with mouse pressed stops movement on narrow sc
   // Move out while pressed: pointerup is delivered to the canvas, not button.
   await page.mouse.move(240, 400);
   await page.mouse.up();
-  await page.waitForTimeout(300);
-  const stoppedX = await numericAttribute(player, 'data-player-x');
-  await page.waitForTimeout(250);
+  const stoppedX = Number(await settledAttribute(page, playerSelector, 'data-player-x', 200));
+  await expectAttributeQuiet(page, playerSelector, 'data-player-x', 250);
   expect(await numericAttribute(player, 'data-player-x')).toBe(stoppedX);
 
   await right.dispatchEvent('pointerdown');
@@ -305,6 +302,7 @@ test('touch remains neutral across blur, disabled input and fresh focus press', 
   await expectConnected(page);
 
   const player = page.locator('[data-player-id="touch-focus-player"]');
+  const playerSelector = '[data-player-id="touch-focus-player"]';
   const right = page.getByTestId('touch-right');
   await expect(right).toBeEnabled();
   const initialX = await numericAttribute(player, 'data-player-x');
@@ -314,18 +312,17 @@ test('touch remains neutral across blur, disabled input and fresh focus press', 
   // No pointerup is delivered when a tab/window loses focus.
   await page.evaluate(() => window.dispatchEvent(new Event('blur')));
   await expect(right).toBeDisabled();
-  await page.waitForTimeout(180);
-  const stoppedX = await numericAttribute(player, 'data-player-x');
-  await page.waitForTimeout(230);
+  const stoppedX = Number(await settledAttribute(page, playerSelector, 'data-player-x', 180));
+  await expectAttributeQuiet(page, playerSelector, 'data-player-x', 230);
   expect(await numericAttribute(player, 'data-player-x')).toBe(stoppedX);
 
   // Even a synthetic pointerdown cannot resume a blurred touch controller.
   await right.dispatchEvent('pointerdown');
-  await page.waitForTimeout(200);
+  await expectAttributeQuiet(page, playerSelector, 'data-player-x', 200);
   expect(await numericAttribute(player, 'data-player-x')).toBe(stoppedX);
   await page.evaluate(() => window.dispatchEvent(new Event('focus')));
   await expect(right).toBeEnabled();
-  await page.waitForTimeout(160);
+  await expectAttributeQuiet(page, playerSelector, 'data-player-x', 160);
   expect(await numericAttribute(player, 'data-player-x')).toBe(stoppedX);
 
   // A fresh press, not the former held pointer, can resume movement.

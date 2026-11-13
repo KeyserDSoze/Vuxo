@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import { computeWorldCameraZoom } from '../src/game/WorldCamera'
+import { expectAttributeQuiet, settledAttribute } from './support/vuxoFixtures'
 
 const origin = 'http://127.0.0.1:4173'
 const gameUrl = origin + '/Vuxo/#/game'
@@ -130,14 +131,14 @@ test('controls dialog neutralizes and does not replay held world movement', asyn
   await expect(page.getByTestId('world-controls-dialog')).toBeVisible()
   await expect(page.getByTestId('touch-right')).toBeDisabled()
   await page.keyboard.up('ArrowRight')
-  await page.waitForTimeout(200)
-  const stopped = Number(await self.getAttribute('data-player-x'))
+  const selfSelector = '[data-player-id="help-world-player"]'
+  const stopped = Number(await settledAttribute(page, selfSelector, 'data-player-x', 200))
   await page.keyboard.press('ArrowRight')
-  await page.waitForTimeout(300)
+  await expectAttributeQuiet(page, selfSelector, 'data-player-x', 300)
   expect(Number(await self.getAttribute('data-player-x'))).toBe(stopped)
   await page.getByTestId('world-controls-close').click()
   await expect(help).toBeFocused()
-  await page.waitForTimeout(250)
+  await expectAttributeQuiet(page, selfSelector, 'data-player-x', 250)
   expect(Number(await self.getAttribute('data-player-x'))).toBe(stopped)
 
   // Only a fresh press after returning to the canvas is a movement intent.
@@ -281,9 +282,8 @@ test('two illustrated wanderers coexist in the authoritative world at mobile siz
     const oldX = Number(await self.getAttribute('data-player-x'))
     await pageA.getByTestId('game-canvas').locator('canvas').click()
     await pageA.keyboard.down('ArrowRight')
-    await pageA.waitForTimeout(140)
-    await pageA.keyboard.up('ArrowRight')
     await expect.poll(async () => Number(await self.getAttribute('data-player-x'))).toBeGreaterThan(oldX)
+    await pageA.keyboard.up('ArrowRight')
     // The same authoritative snapshot turns the *peer* on the other browser.
     await expect.poll(() => pageB.evaluate(() => {
       const encoded = document.querySelector('[data-testid="game-canvas"]')
@@ -711,10 +711,9 @@ test('adaptive camera keeps two canonical outfits, viewport HUD and movement sta
   await expect(host).toHaveAttribute('data-e2e-camera-zoom', '1')
   await page.getByTestId('game-canvas').locator('canvas').click()
   await page.keyboard.down('ArrowRight')
-  await page.waitForTimeout(150)
-  await page.keyboard.up('ArrowRight')
   await expect.poll(async () => Number(await self.getAttribute('data-player-x')))
     .toBeGreaterThan(originalX)
+  await page.keyboard.up('ArrowRight')
 })
 
 
@@ -964,7 +963,7 @@ test('server-owned movement reuses terrain and resize repaints the cached window
   const self = page.locator('[data-player-id="terrain-player"]')
   await expect(page.getByTestId('world-connection-status')).toHaveAttribute('data-status', 'connected')
   await expect.poll(async () => Number(await host.getAttribute('data-e2e-terrain-redraws'))).toBeGreaterThan(0)
-  await page.waitForTimeout(250) // initial server-owned camera follow settles before sampling
+  await settledAttribute(page, '[data-testid="game-canvas"]', 'data-e2e-terrain-redraws', 250) // initial camera follow finished repainting
   const before = Number(await host.getAttribute('data-e2e-terrain-redraws'))
   const x = Number(await self.getAttribute('data-player-x'))
   await host.locator('canvas').click()

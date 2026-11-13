@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { expectAttributeQuiet, expectJsonFieldsQuiet, expectNoRequestDuring, settledAttribute } from './support/vuxoFixtures';
 
 const origin = 'http://127.0.0.1:4173';
 const grantId = '11111111-1111-4111-8111-111111111111';
@@ -345,8 +346,8 @@ test('rapid E presses remain single-flight while the authoritative entry is pend
     await expect.poll(() => intercepted).toBe(1);
     await expect(page.getByTestId('world-portal-action-list')).toHaveAttribute('aria-busy', 'true');
     await expect(page.getByTestId('touch-right')).toBeDisabled();
-    await page.keyboard.press('e');
-    await page.waitForTimeout(120);
+    await expectNoRequestDuring(page, /\/world-portals\/[^/]+\/enter$/, 150,
+      () => page.keyboard.press('e'));
     expect(intercepted).toBe(1);
   } finally {
     release();
@@ -397,11 +398,10 @@ test('slow portal entry is single-flight across HUD and Phaser, and freezes move
     const box = await canvas.boundingBox();
     if (!box) throw new Error('World canvas is not mounted');
     expect(Number.isFinite(marker.x) && Number.isFinite(marker.y)).toBe(true);
-    await canvas.click({ position: {
+    await expectNoRequestDuring(page, /\/world-portals\/[^/]+\/enter$/, 150, () => canvas.click({ position: {
       x: marker.x * box.width / size.width,
       y: marker.y * box.height / size.height,
-    } });
-    await page.waitForTimeout(120);
+    } }));
     expect(intercepted).toBe(1);
   } finally {
     release();
@@ -477,7 +477,7 @@ test('slow owner-only portal list GET cannot overlap another refresh or rejoin',
     await expect.poll(() => listCalls).toBe(1);
     // The original setInterval creates a second pending request at 15s.
     // Completion-based scheduling guarantees just one flight until release.
-    await page.waitForTimeout(16_000);
+    await expectNoRequestDuring(page, /\/world-portals$/, 16_000, undefined, 'GET');
     expect(listCalls).toBe(1);
   } finally {
     release();
@@ -668,8 +668,8 @@ test('far owner portal art pauses offscreen and reappears after ultrawide camera
   expect(initial.count).toBe(2);
   expect(initial.hitRadii).toEqual([19, 19]);
   expect(initial.hitScales).toEqual([[1, 1], [1, 1]]);
-  await page.waitForTimeout(220);
   // A distant grant still exists but its halo does not animate offscreen.
+  await expectJsonFieldsQuiet(page, '[data-testid="game-canvas"]', 'data-e2e-portal-art', ['haloAlphas.1'], 220);
   expect((await art()).haloAlphas[1]).toBe(initial.haloAlphas[1]);
   expect(await page.locator('[data-testid="world-portal-enter"]').count()).toBe(2);
   await info.attach('portals-near-and-culled-mobile-390px', {
@@ -696,7 +696,7 @@ test('far owner portal art pauses offscreen and reappears after ultrawide camera
   await page.setViewportSize({ width: 390, height: 844 });
   await expect.poll(async () => (await art()).visible).toEqual([true, false]);
   const frozenAlpha = (await art()).haloAlphas[1];
-  await page.waitForTimeout(220);
+  await expectJsonFieldsQuiet(page, '[data-testid="game-canvas"]', 'data-e2e-portal-art', ['haloAlphas.1'], 220);
   expect((await art()).haloAlphas[1]).toBe(frozenAlpha);
   expect((await art()).builds).toBe(2);
   expect((await art()).hovered[1]).toBe(false);
@@ -770,7 +770,8 @@ test('runic portal light animates without changing click hit area and freezes on
       && current.coreScales[0] === 1
       && JSON.stringify(current.hitScales) === '[[1,1]]';
   }).toBe(true);
-  await page.waitForTimeout(160);
+  await expectJsonFieldsQuiet(page, '[data-testid="game-canvas"]', 'data-e2e-portal-art',
+    ['haloAlphas', 'coreScales', 'hitScales'], 160);
   const frozen = await readArt();
   expect(frozen.haloAlphas).toEqual([0.2]);
   expect(frozen.coreScales).toEqual([1]);
@@ -852,7 +853,7 @@ test('runic portal hover responds to real mouse input, preserves the 19px target
       && current.coreScales[0] === 1 && current.hitRadii[0] === 19
       && JSON.stringify(current.hitScales) === '[[1,1]]';
   }).toBe(true);
-  await page.waitForTimeout(160);
+  await expectJsonFieldsQuiet(page, '[data-testid="game-canvas"]', 'data-e2e-portal-art', ['haloAlphas'], 160);
   expect((await art()).haloAlphas).toEqual([0.38]);
 
   // Leave the portal but stay inside the world canvas: Phaser pointerout.
@@ -942,7 +943,7 @@ test('same owner grant relocates its Phaser art and 19px click target after a fr
   expect(rebuilt.hitScales).toEqual([[1, 1]]);
   // No repaint/rebuild each animation frame when the owner snapshot stays
   // identical. Both ring and absolute-coordinate Graphics were replaced.
-  await page.waitForTimeout(180);
+  await expectJsonFieldsQuiet(page, '[data-testid="game-canvas"]', 'data-e2e-portal-art', ['builds'], 180);
   expect((await art()).builds).toBe(2);
 
   const screen = await host.evaluate(element => ({
@@ -1037,7 +1038,7 @@ test('portal dialog locks all touch intents and restores fresh movement on close
   await expect.poll(async () => Number(await player.getAttribute('data-player-x')))
     .toBeGreaterThan(initialX);
   await right.dispatchEvent('pointerup');
-  await page.waitForTimeout(180);
+  await settledAttribute(page, '[data-player-id="portal-player"]', 'data-player-x', 180);
 
   await page.getByTestId('world-portal-enter').click();
   await expect(page.getByTestId('world-portal-dialog')).toBeVisible();
@@ -1048,7 +1049,7 @@ test('portal dialog locks all touch intents and restores fresh movement on close
   const lockedX = Number(await player.getAttribute('data-player-x'));
   const lockedY = Number(await player.getAttribute('data-player-y'));
   await right.dispatchEvent('pointerdown');
-  await page.waitForTimeout(300);
+  await expectAttributeQuiet(page, '[data-player-id="portal-player"]', 'data-player-x', 300);
   expect(Number(await player.getAttribute('data-player-x'))).toBe(lockedX);
   expect(Number(await player.getAttribute('data-player-y'))).toBe(lockedY);
   expect(api.getEntryCalls()).toBe(1);

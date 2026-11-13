@@ -1,4 +1,5 @@
 import { expect, test, type Page, type Route } from '@playwright/test';
+import { expectNoRequestDuring } from './support/vuxoFixtures';
 
 const userId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 
@@ -270,8 +271,7 @@ test('aborting provider discovery on navigation cancels pending edge retry', asy
   await expect.poll(() => discoveryCalls).toBe(1);
   // Exit before the first bounded retry; the obsolete auth effect must not
   // issue any more requests after its AbortController is disposed.
-  await page.goto('./#/');
-  await page.waitForTimeout(1500);
+  await expectNoRequestDuring(page, /\/api\/auth\/providers/, 1500, () => page.goto('./#/'));
   expect(discoveryCalls).toBe(1);
 });
 
