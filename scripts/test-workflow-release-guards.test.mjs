@@ -1,9 +1,19 @@
 import { strict as assert } from 'node:assert'
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { test } from 'node:test'
 
-const yaml = (name) => readFileSync(new URL('../.github/workflows/' + name, import.meta.url), 'utf8').replace(/\r\n/g, '\n')
+const workflowDirectory = new URL('../.github/workflows/', import.meta.url)
+const yaml = (name) => readFileSync(new URL(name, workflowDirectory), 'utf8').replace(/\r\n/g, '\n')
 const job = (source, name) => source.split('\n  ' + name + ':\n')[1]?.split(/\n  [a-z0-9-]+:\n/)[0] ?? ''
+
+test('every third-party action is pinned to a full commit SHA', () => {
+  for (const file of readdirSync(workflowDirectory).filter(name => name.endsWith('.yml'))) {
+    for (const [, reference] of yaml(file).matchAll(/^\s*-?\s*uses:\s*(\S+)/gm)) {
+      if (reference.startsWith('./')) continue
+      assert.match(reference, /^[\w.-]+\/[\w./-]+@[0-9a-f]{40}$/, file + ': ' + reference + ' must be pinned to a SHA')
+    }
+  }
+})
 
 test('production-affecting workflows only run from main even when dispatched manually', () => {
   for (const [file, jobs] of [

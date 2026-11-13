@@ -35,7 +35,7 @@ jobs:
         env:
           SOURCE_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
         run: echo "source_sha=$SOURCE_SHA" >> "$GITHUB_OUTPUT"
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ steps.revision.outputs.source_sha }}
           persist-credentials: true
@@ -44,9 +44,9 @@ jobs:
           SOURCE_SHA: ${{ steps.revision.outputs.source_sha }}
         run: |
           test "$(git ls-remote origin refs/heads/main | cut -f1)" = "$SOURCE_SHA"
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
       - name: Log in to GHCR
-        uses: docker/login-action@v3
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -57,7 +57,7 @@ jobs:
           SOURCE_SHA: ${{ steps.revision.outputs.source_sha }}
         run: echo "image=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/vuxo-api:pi3-$SOURCE_SHA" >> "$GITHUB_OUTPUT"
       - name: Publish linux/arm64 API after green CI
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
           file: docker/Dockerfile.api
@@ -78,7 +78,7 @@ jobs:
       packages: read
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ needs.build-arm64.outputs.source_sha }}
       - name: Reject stale revision before production update
@@ -89,7 +89,7 @@ jobs:
       - name: Check Raspberry hardware and runner before production deploy
         run: bash infra/pi3/preflight.sh
       - name: Log in to GHCR
-        uses: docker/login-action@v3
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -161,10 +161,10 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ needs.build-arm64.outputs.source_sha }}
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 24
       - name: Verify public auth, private history access and MSAL bridge
@@ -202,7 +202,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ needs.build-arm64.outputs.source_sha }}
           persist-credentials: false
