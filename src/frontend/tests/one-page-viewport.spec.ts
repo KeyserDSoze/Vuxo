@@ -20,6 +20,7 @@ const routes = [
   { path: '/auth', ready: 'auth-page', deck: true },
   { path: '/admin', ready: 'admin-dashboard', deck: true },
   { path: '/version', ready: 'version-page', deck: true },
+  { path: '/credits', ready: 'credits-page', deck: true },
 ] as const;
 
 const variants: ReadonlyArray<{ name: string; language: Language; theme: Theme; role: Role | null }> = [

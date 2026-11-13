@@ -1,15 +1,17 @@
-import { AccountCircleOutlined, AdminPanelSettingsOutlined, AutoAwesome, BackpackOutlined, CottageOutlined, DarkMode, HomeOutlined, InfoOutlined, Language, LightMode, Menu as MenuIcon, PersonOutlined, SettingsBrightness, SportsEsportsOutlined } from '@mui/icons-material';
+import { AccountCircleOutlined, AdminPanelSettingsOutlined, AutoAwesome, BackpackOutlined, CottageOutlined, DarkMode, HomeOutlined, InfoOutlined, Language, LightMode, Menu as MenuIcon, PersonOutlined, SettingsBrightness, SportsEsportsOutlined, VolumeOffOutlined, VolumeUpOutlined } from '@mui/icons-material';
 import { AppBar, Box, Button, Chip, CircularProgress, Drawer, IconButton, List, ListItemButton, ListItemIcon, ListItemText, Stack, Toolbar, Tooltip, Typography } from '@mui/material';
 import { alpha } from '@mui/material/styles';
-import { lazy, Suspense, useState } from 'react';
+import { lazy, Suspense, useEffect, useState, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link as RouterLink, Route, Routes, useLocation } from 'react-router-dom';
 import { useAdminAccessState } from './features/admin/useAdminAccessState';
 import { BuildUpdateNotifier } from './features/version/BuildUpdateNotifier';
 import { GameDeck } from './components/GameDeck';
 import { useBuildInfo } from './features/version/BuildInfoProvider';
+import { gameAudio } from './audio/gameAudio';
 import { AuthPage } from './pages/AuthPage';
 import { CharacterEditorPage } from './pages/CharacterEditorPage';
+import { CreditsPage } from './pages/CreditsPage';
 import { HomePage } from './pages/HomePage';
 import { InventoryPage } from './pages/InventoryPage';
 import { PortalChallengesPage } from './pages/PortalChallengesPage';
@@ -53,6 +55,27 @@ export function App() {
   const themeLabel = t('shell.theme') + ': ' + t('theme.' + mode);
 
   const toggleLanguage = () => void i18n.changeLanguage(language === 'it' ? 'en' : 'it');
+  const soundEnabled = useSyncExternalStore(gameAudio.subscribe, gameAudio.getSnapshot);
+  const soundLabel = t(soundEnabled ? 'shell.soundOn' : 'shell.soundOff');
+  const SoundIcon = soundEnabled ? VolumeUpOutlined : VolumeOffOutlined;
+
+  // Browsers only allow audio after a gesture: the first one unlocks it, later
+  // clicks on controls get a soft tick. Presentation only, never game state.
+  useEffect(() => {
+    const unlock = () => gameAudio.unlock();
+    const tick = (event: MouseEvent) => {
+      const target = event.target instanceof Element ? event.target : null;
+      if (target?.closest('button, a, [role="tab"], [role="menuitem"]') && !target.closest('[data-testid="sound-toggle"]')) gameAudio.play('click', 0.25);
+    };
+    document.addEventListener('pointerdown', unlock, { passive: true });
+    document.addEventListener('keydown', unlock);
+    document.addEventListener('click', tick);
+    return () => {
+      document.removeEventListener('pointerdown', unlock);
+      document.removeEventListener('keydown', unlock);
+      document.removeEventListener('click', tick);
+    };
+  }, []);
 
   return (
     <Box data-testid="app-shell" className={isWorldRoute ? 'vuxo-app vuxo-app--world' : isHomeRoute ? 'vuxo-app vuxo-app--home' : 'vuxo-app'} sx={{
@@ -112,6 +135,11 @@ export function App() {
             {t(navItems.find(item => item.to === location.pathname)?.key ?? 'nav.home')}
           </Typography>
           <Box sx={{ flexGrow: 1 }} />
+          <Tooltip title={soundLabel}>
+            <IconButton data-testid="sound-toggle" aria-label={soundLabel} aria-pressed={soundEnabled} color="inherit" size="small" onClick={() => gameAudio.setEnabled(!soundEnabled)}>
+              <SoundIcon />
+            </IconButton>
+          </Tooltip>
           <Tooltip title={themeLabel}>
             <Button data-testid="theme-toggle" aria-label={themeLabel} color="inherit" size="small" onClick={cycleMode} startIcon={<ThemeIcon />}>
               <Box component="span" sx={{ display: { xs: 'none', xl: 'inline' } }}>{t('theme.' + mode)}</Box>
@@ -181,6 +209,7 @@ export function App() {
             <Route path="/auth" element={<AuthPage />} />
             <Route path="/admin" element={<AdminRoute />} />
             <Route path="/version" element={<VersionPage />} />
+            <Route path="/credits" element={<CreditsPage />} />
           </Route>
         </Routes>
         </Suspense>

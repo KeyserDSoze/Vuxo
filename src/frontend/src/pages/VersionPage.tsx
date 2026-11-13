@@ -1,7 +1,8 @@
 import { InfoOutlined } from '@mui/icons-material';
-import { Alert, Paper, Stack, Table, TableBody, TableCell, TableRow, Typography } from '@mui/material';
+import { Alert, Link, Paper, Stack, Table, TableBody, TableCell, TableRow, Typography } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link as RouterLink } from 'react-router-dom';
 import { DeckPageHeader } from '../components/DeckPageHeader';
 import { useBuildInfo } from '../features/version/BuildInfoProvider';
 import { fetchBackendBuildInfo, type BackendBuildInfo } from '../features/version/buildInfo';
@@ -68,6 +69,7 @@ export function VersionPage() {
           </Table>
         </Paper>
       )}
+      <Link component={RouterLink} to="/credits" data-testid="credits-link" sx={{ alignSelf: 'flex-start' }}>{t('credits.link')}</Link>
     </Stack>
   );
 }

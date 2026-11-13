@@ -9,9 +9,20 @@ const initialization = i18n.use(initReactI18next).init({
     it: {
       translation: {
         nav: { home: 'Home', refuge: 'Rifugio', auth: 'Account', character: 'Personaggio', game: 'Gioco', portals: 'Portali', inventory: 'Inventario', admin: 'Admin', version: 'Versione' },
-        shell: { theme: 'Tema', language: 'Lingua', navigation: 'Navigazione principale', openMenu: 'Apri menu', closeMenu: 'Chiudi', loadingPage: 'Caricamento pagina…', version: 'Versione {{version}}' },
+        shell: { theme: 'Tema', language: 'Lingua', navigation: 'Navigazione principale', openMenu: 'Apri menu', closeMenu: 'Chiudi', loadingPage: 'Caricamento pagina…', version: 'Versione {{version}}', soundOn: 'Suono attivo: tocca per disattivare', soundOff: 'Suono disattivato: tocca per attivare' },
         theme: { system: 'Sistema', light: 'Chiaro', dark: 'Scuro' },
-        deck: { breadcrumb: 'Dove ti trovi', pages: { journal: 'Diario', training: 'Memoria delle rune', reflex: 'Riflessi', path: 'Percorso delle rune' } },
+        deck: { breadcrumb: 'Dove ti trovi', pages: { journal: 'Diario', training: 'Memoria delle rune', reflex: 'Riflessi', path: 'Percorso delle rune', credits: 'Crediti' } },
+        credits: {
+          eyebrow: 'Con gratitudine',
+          title: 'Crediti e licenze',
+          description: 'Vuxo usa alcune risorse libere di altri autori. Ecco chi le ha create e con quale licenza.',
+          by: 'Autore: {{author}}',
+          source: 'Fonte',
+          license: 'Licenza {{license}}',
+          original: 'Avatar, portali, rune, effetti atmosferici, creature e ambiente sonoro notturno sono creati da Vuxo.',
+          link: 'Crediti e licenze',
+          entries: { kenneyRpgPack: 'Alberi, cespugli, recinzioni, terreno ed effetti sonori (click, finestre, portali, passi) del mondo.' }
+        },
         home: {
           eyebrow: 'VUXO · {{version}} · Prima avventura',
           chapter: 'Il richiamo dell’ignoto',
@@ -838,9 +849,20 @@ const initialization = i18n.use(initReactI18next).init({
     en: {
       translation: {
         nav: { home: 'Home', refuge: 'Refuge', auth: 'Account', character: 'Character', game: 'Game', portals: 'Portals', inventory: 'Inventory', admin: 'Admin', version: 'Version' },
-        shell: { theme: 'Theme', language: 'Language', navigation: 'Main navigation', openMenu: 'Open menu', closeMenu: 'Close', loadingPage: 'Loading page…', version: 'Version {{version}}' },
+        shell: { theme: 'Theme', language: 'Language', navigation: 'Main navigation', openMenu: 'Open menu', closeMenu: 'Close', loadingPage: 'Loading page…', version: 'Version {{version}}', soundOn: 'Sound on: tap to turn off', soundOff: 'Sound off: tap to turn on' },
         theme: { system: 'System', light: 'Light', dark: 'Dark' },
-        deck: { breadcrumb: 'You are here', pages: { journal: 'Journal', training: 'Rune memory', reflex: 'Reflexes', path: 'Rune path' } },
+        deck: { breadcrumb: 'You are here', pages: { journal: 'Journal', training: 'Rune memory', reflex: 'Reflexes', path: 'Rune path', credits: 'Credits' } },
+        credits: {
+          eyebrow: 'With gratitude',
+          title: 'Credits and licenses',
+          description: 'Vuxo uses a few free assets made by other creators. Here is who made them and under which license.',
+          by: 'Author: {{author}}',
+          source: 'Source',
+          license: '{{license}} license',
+          original: 'Avatars, portals, runes, atmosphere effects, creatures and the night soundscape are created by Vuxo.',
+          link: 'Credits and licenses',
+          entries: { kenneyRpgPack: 'World trees, bushes, fences, ground texture and sound effects (clicks, dialogs, portals, footsteps).' }
+        },
         home: {
           eyebrow: 'VUXO · {{version}} · First adventure',
           chapter: 'The call of the unknown',

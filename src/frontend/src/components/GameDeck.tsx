@@ -1,6 +1,6 @@
 import {
   AccountCircleOutlined, AdminPanelSettingsOutlined, AutoAwesome, BackpackOutlined, CottageOutlined,
-  HistoryEduOutlined, InfoOutlined, PersonOutlined, RouteOutlined, SportsEsportsOutlined, TouchAppOutlined,
+  FavoriteBorderOutlined, HistoryEduOutlined, InfoOutlined, PersonOutlined, RouteOutlined, SportsEsportsOutlined, TouchAppOutlined,
 } from '@mui/icons-material';
 import { Box, CircularProgress, Stack, Typography } from '@mui/material';
 import { Suspense, useEffect, useRef, type KeyboardEvent } from 'react';
@@ -31,6 +31,7 @@ const pages: Record<string, DeckPage> = {
   '/auth': { name: 'auth', label: 'nav.auth', icon: AccountCircleOutlined },
   '/admin': { name: 'admin', label: 'nav.admin', icon: AdminPanelSettingsOutlined },
   '/version': { name: 'version', label: 'nav.version', icon: InfoOutlined },
+  '/credits': { name: 'credits', label: 'deck.pages.credits', icon: FavoriteBorderOutlined },
 };
 
 function resolveDeckPage(pathname: string): { section: DeckRoute | null; page: DeckPage } {

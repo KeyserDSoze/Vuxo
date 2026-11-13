@@ -1,6 +1,7 @@
 import Phaser from 'phaser'
 import type { CharacterAppearanceDraft } from '../features/character/appearance'
 import { PREVIEW_COLORS } from '../features/character/appearance'
+import { cellNoise } from './WorldNoise'
 
 // VUXO's first original procedural world art. These graphics are presentation
 // only: no asset licence, gameplay collision, coordinates, economy or
@@ -270,13 +271,6 @@ export function createIllustratedWanderer(
   return body
 }
 
-function cellNoise(x: number, y: number): number {
-  const a = Math.imul(x ^ 0x45d9f3b, 0x27d4eb2d)
-  const b = Math.imul(y ^ 0x119de1f3, 0x165667b1)
-  const hash = a ^ b
-  return (hash ^ (hash >>> 16)) >>> 0
-}
-
 
 // A macro-tile woodland backdrop. Fixed cell coordinates are the only seed:
 // all browsers see the same scenery even with different zoom or join order.
@@ -400,13 +394,14 @@ export function paintWoodlandTile(
   graphics: Phaser.GameObjects.Graphics,
   tileX: number,
   tileY: number,
+  baseAlpha = 1,
 ): void {
   const x = tileX * TILE
   const y = tileY * TILE
   const noise = cellNoise(tileX, tileY)
   const region = cellNoise(Math.floor(tileX / 5), Math.floor(tileY / 5))
   const ground = [0x193b43, 0x163740, 0x1c3e45, 0x193a48, 0x1c3a3d][region % 5]
-  graphics.fillStyle(ground, 1)
+  graphics.fillStyle(ground, baseAlpha)
   graphics.fillRect(x, y, TILE, TILE)
 
   // Soft dappled patches soften the former harsh chessboard grid.

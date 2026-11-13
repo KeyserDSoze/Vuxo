@@ -9,6 +9,9 @@ import { isWorldAvatarInView } from './WorldAvatarVisibility'
 import { isWorldInteractiveFocus } from './WorldInputFocus'
 import { nextWorldTerrainWindow, type WorldTerrainWindow } from './WorldTerrainWindow'
 import { createIllustratedPortal, destroyIllustratedPortal, setIllustratedPortalVisible, updateIllustratedPortal, type IllustratedPortal } from './WorldPortalArtwork'
+import { gameAudio } from '../audio/gameAudio'
+import { WorldAtmosphere } from './WorldAtmosphere'
+import { SCENERY_ASSET_PATH, allSceneryFrames, groundTextureKey, sceneryFile, sceneryInBounds, sceneryTextureKey } from './WorldScenery'
 
 const TILE_SIZE = 32
 // Account for the 47px portal arch, halo and camera lerp in world pixels.
@@ -36,6 +39,9 @@ export class WorldScene extends Phaser.Scene {
   private terrainGraphics: Phaser.GameObjects.Graphics | null = null
   private terrainWindow: WorldTerrainWindow | null = null
   private terrainRedraws = 0
+  private groundSprite: Phaser.GameObjects.TileSprite | null = null
+  private readonly scenerySprites: Phaser.GameObjects.Image[] = []
+  private atmosphere: WorldAtmosphere | null = null
   private reducedMotion = false
   private portals: WorldPortalMarker[] = []
   private ready = false
@@ -58,6 +64,13 @@ export class WorldScene extends Phaser.Scene {
     super('world')
   }
 
+  /** Decorative Kenney CC0 images only; a missing file just leaves the vector backdrop. */
+  preload() {
+    this.load.setPath(import.meta.env.BASE_URL + SCENERY_ASSET_PATH)
+    for (const frame of allSceneryFrames()) this.load.image(sceneryTextureKey(frame), sceneryFile(frame))
+    this.load.setPath('')
+  }
+
   create() {
     const motionPreference = window.matchMedia('(prefers-reduced-motion: reduce)')
     this.reducedMotion = motionPreference.matches
@@ -72,6 +85,19 @@ export class WorldScene extends Phaser.Scene {
     }
     this.input.on(Phaser.Input.Events.GAME_OUT, clearPortalHoverOnCanvasExit)
     this.terrainGraphics = this.add.graphics().setDepth(-10)
+    for (const frame of allSceneryFrames()) {
+      // Smooth cartoon art must not be nearest-neighbour scaled by the pixelArt renderer.
+      if (this.textures.exists(sceneryTextureKey(frame))) {
+        this.textures.get(sceneryTextureKey(frame)).setFilter(Phaser.Textures.FilterMode.LINEAR)
+      }
+    }
+    if (this.textures.exists(groundTextureKey)) {
+      this.groundSprite = this.add.tileSprite(0, 0, 64, 64, groundTextureKey)
+        .setOrigin(0, 0).setDepth(-11).setTileScale(0.5, 0.5).setTint(0x4f8f86)
+    }
+    this.atmosphere = new WorldAtmosphere(this)
+    this.atmosphere.create()
+    gameAudio.setAmbientWanted(true)
     this.updateCameraZoom(this.scale.width, this.scale.height)
     this.drawWorldGrid()
     this.ready = true
@@ -87,6 +113,12 @@ export class WorldScene extends Phaser.Scene {
       this.terrainGraphics = null
       this.terrainWindow = null
       this.terrainRedraws = 0
+      gameAudio.setAmbientWanted(false)
+      this.atmosphere?.destroy()
+      this.atmosphere = null
+      for (const sprite of this.scenerySprites) sprite.destroy()
+      this.scenerySprites.length = 0
+      this.groundSprite = null
       for (const visual of this.portalVisuals.values()) destroyIllustratedPortal(visual)
       this.portalVisuals.clear()
       this.portalBuilds = 0
@@ -104,6 +136,8 @@ export class WorldScene extends Phaser.Scene {
         host?.removeAttribute('data-e2e-world-coverage')
         host?.removeAttribute('data-e2e-terrain-redraws')
         host?.removeAttribute('data-e2e-woodland-landmarks')
+        host?.removeAttribute('data-e2e-scenery')
+        host?.removeAttribute('data-e2e-atmosphere')
         host?.removeAttribute('data-e2e-portal-art')
       }
       this.realtime.setMovementIntent(0, 0)
@@ -233,6 +267,13 @@ export class WorldScene extends Phaser.Scene {
       setIllustratedPortalVisible(visual, visible)
       if (visible) updateIllustratedPortal(visual, time, this.reducedMotion)
     }
+    const atmosphereEvidence = this.atmosphere?.update(
+      time, cameraView, this.reducedMotion,
+      [...this.portalVisuals.values()].map(visual => ({ x: visual.ring.x, y: visual.ring.y, visible: visual.ring.visible })))
+    if (import.meta.env.VITE_E2E_REALTIME === 'true' && atmosphereEvidence) {
+      document.querySelector('[data-testid="game-canvas"]')
+        ?.setAttribute('data-e2e-atmosphere', JSON.stringify(atmosphereEvidence))
+    }
     // Browser-only E2E geometry evidence; not present in production builds.
     if (import.meta.env.VITE_E2E_REALTIME === 'true') {
       const visuals = [...this.portalVisuals.values()]
@@ -297,6 +338,8 @@ export class WorldScene extends Phaser.Scene {
       // This is *not* client-predicted displacement or a gameplay timer.
       const remaining = Math.hypot(offsetX, offsetY)
       const moving = remaining > 0.75 || visual.motionFrames > 0
+      // Footsteps follow the authoritative avatar's own interpolated travel only.
+      if (moving && remaining > 0.75 && playerId === this.selfPlayerId) gameAudio.footstep()
       // Off-camera bodies keep lerping toward server positions but do not
       // spend render time updating gait/particles that cannot be seen.
       // On re-entry the existing illustrated container resumes its cycle.
@@ -503,6 +546,39 @@ export class WorldScene extends Phaser.Scene {
     if (this.cameraTargetId === playerId) this.cameraTargetId = null
   }
 
+  /**
+   * Decorative props for the cached terrain window. Pooled images keep a
+   * redraw allocation-free after warm-up; none of them is interactive, has a
+   * physics body or is known to the server, radar or portal hit testing.
+   */
+  private applyScenery(window: WorldTerrainWindow): void {
+    const items = sceneryInBounds(window.left, window.top, window.right, window.bottom)
+      .filter(item => this.textures.exists(sceneryTextureKey(item.frame)))
+      .sort((a, b) => a.y - b.y)
+    items.forEach((item, index) => {
+      let sprite = this.scenerySprites[index]
+      if (!sprite) {
+        sprite = this.add.image(0, 0, sceneryTextureKey(item.frame))
+        this.scenerySprites.push(sprite)
+      }
+      sprite.setTexture(sceneryTextureKey(item.frame))
+        .setOrigin(0.5, 0.94)
+        .setPosition(item.x, item.y)
+        .setScale(item.scale)
+        .setFlipX(item.flipX)
+        // Below portals (5+) and avatars (10); lower props draw over higher ones.
+        .setDepth(4 + item.y / 1_000_000)
+        .setVisible(true)
+    })
+    for (let index = items.length; index < this.scenerySprites.length; index++) this.scenerySprites[index].setVisible(false)
+    if (import.meta.env.VITE_E2E_REALTIME === 'true') {
+      document.querySelector('[data-testid="game-canvas"]')?.setAttribute('data-e2e-scenery', JSON.stringify({
+        count: items.length,
+        sample: items.slice(0, 40).map(({ key, kind, x, y }) => ({ key, kind, x, y })),
+      }))
+    }
+  }
+
   private drawWorldGrid(): void {
     const graphics = this.terrainGraphics
     if (!graphics) return
@@ -515,11 +591,18 @@ export class WorldScene extends Phaser.Scene {
       this.terrainWindow = next
       graphics.clear()
       this.terrainRedraws++
+      const textured = this.groundSprite !== null
+      if (this.groundSprite) {
+        // 32px world tiles and a 0.5-scaled 64px texture share a period, so the pattern never jumps.
+        this.groundSprite.setPosition(next.left * TILE_SIZE, next.top * TILE_SIZE)
+        this.groundSprite.setSize((next.right - next.left + 1) * TILE_SIZE, (next.bottom - next.top + 1) * TILE_SIZE)
+      }
       for (let tileX = next.left; tileX <= next.right; tileX++) {
         for (let tileY = next.top; tileY <= next.bottom; tileY++) {
-          paintWoodlandTile(graphics, tileX, tileY)
+          paintWoodlandTile(graphics, tileX, tileY, textured ? 0.58 : 1)
         }
       }
+      this.applyScenery(next)
       // Landmark coordinates and drawing order are unchanged.
       const scenery = paintWoodlandLandmarks(graphics, next.left, next.top, next.right, next.bottom)
       if (import.meta.env.VITE_E2E_REALTIME === 'true') {

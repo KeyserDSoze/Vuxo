@@ -3,6 +3,24 @@ export type ThemePreference = 'system' | 'light' | 'dark';
 
 const LANGUAGE_KEY = 'vuxo.language';
 const THEME_KEY = 'vuxo.theme';
+const AUDIO_KEY = 'vuxo.audio';
+
+/** Sound is on unless the player explicitly turned it off. */
+export function readAudioPreference(): boolean {
+  try {
+    return localStorage.getItem(AUDIO_KEY) !== 'off';
+  } catch {
+    return true;
+  }
+}
+
+export function writeAudioPreference(enabled: boolean): void {
+  try {
+    localStorage.setItem(AUDIO_KEY, enabled ? 'on' : 'off');
+  } catch {
+    // Private mode: the preference simply does not persist.
+  }
+}
 
 export function readLanguagePreference(browserLanguage: string): SupportedLanguage {
   const stored = localStorage.getItem(LANGUAGE_KEY);

@@ -23,6 +23,7 @@ import { readStoredSession } from '../features/auth/authSession'
 import { enterWorldPortal, fetchWorldPortals, PortalApiError, type WorldPortalMarker } from '../features/portals/portalApi'
 import { PortalChallengesPage } from '../pages/PortalChallengesPage'
 import { GuardianDuel } from '../features/portals/GuardianDuel'
+import { gameAudio } from '../audio/gameAudio'
 
 export function GameCanvas() {
   const { t } = useTranslation()
@@ -288,6 +289,7 @@ export function GameCanvas() {
     setPortalEntryErrorCode(null)
     try {
       const marker = await enterWorldPortal(grantId)
+      gameAudio.play('portalEnter', 0.5)
       setActivePortal(marker)
     } catch (error) {
       setPortalEntryErrorCode(error instanceof PortalApiError ? error.code : 'portal_request_failed')
