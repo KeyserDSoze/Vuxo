@@ -36,6 +36,7 @@ public static class SocialAuthEndpoints
                     SocialLoginRequest request,
                     SocialAuthenticationService authentication,
                     VuxoTokenService tokens,
+                    SuperAdminPolicy superAdmins,
                     CancellationToken cancellationToken) =>
                 {
                     try
@@ -44,7 +45,10 @@ public static class SocialAuthEndpoints
                             request.Provider,
                             request.Credential,
                             cancellationToken);
-                        var token = tokens.CreateUserToken(result.User.Id, result.User.DisplayName);
+                        var token = tokens.CreateUserToken(
+                            result.User.Id,
+                            result.User.DisplayName,
+                            superAdmins.IsSuperAdmin(result.VerifiedEmail));
 
                         return Results.Ok(new
                         {

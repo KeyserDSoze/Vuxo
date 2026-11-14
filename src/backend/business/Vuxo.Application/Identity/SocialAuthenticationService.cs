@@ -8,7 +8,8 @@ namespace Vuxo.Application.Identity;
 public sealed record SocialAuthenticationResult(
     VuxoUser User,
     string Provider,
-    bool IsNewUser);
+    bool IsNewUser,
+    string? VerifiedEmail = null);
 
 public sealed class SocialAuthenticationService(
     ISocialIdentityVerifier verifier,
@@ -48,16 +49,20 @@ public sealed class SocialAuthenticationService(
         }
 
         var now = timeProvider.GetUtcNow();
+        var verifiedEmail = verified.EmailVerified && !string.IsNullOrWhiteSpace(verified.Email)
+            ? verified.Email.Trim()
+            : null;
         var user = await identities.GetByExternalIdentityAsync(
             normalizedProvider,
             verified.Subject,
             cancellationToken);
-        var isNewUser = user is null;
+        var isNewUser = false;
+        var linkedByEmail = false;
 
-        if (user is null)
+        if (user is not null)
         {
-            user = VuxoUser.Create(verified.DisplayName, verified.Email, now);
-            await identities.AddAsync(
+            user.RecordLogin(user.DisplayName, verifiedEmail ?? user.Email, now);
+            await identities.UpdateLoginAsync(
                 user,
                 normalizedProvider,
                 verified.Subject,
@@ -66,13 +71,32 @@ public sealed class SocialAuthenticationService(
         }
         else
         {
-            user.RecordLogin(verified.DisplayName, verified.Email, now);
-            await identities.UpdateLoginAsync(
-                user,
-                normalizedProvider,
-                verified.Subject,
-                now,
-                cancellationToken);
+            var existing = verifiedEmail is null
+                ? null
+                : await identities.GetByVerifiedEmailAsync(verifiedEmail, cancellationToken);
+            if (existing is not null)
+            {
+                user = existing;
+                linkedByEmail = true;
+                user.RecordLogin(user.DisplayName, verifiedEmail, now);
+                await identities.LinkExternalIdentityAsync(
+                    user,
+                    normalizedProvider,
+                    verified.Subject,
+                    now,
+                    cancellationToken);
+            }
+            else
+            {
+                isNewUser = true;
+                user = VuxoUser.Create(verified.DisplayName, verifiedEmail, now);
+                await identities.AddAsync(
+                    user,
+                    normalizedProvider,
+                    verified.Subject,
+                    now,
+                    cancellationToken);
+            }
         }
 
         await eventStore.AppendAsync(
@@ -83,15 +107,15 @@ public sealed class SocialAuthenticationService(
                 user.Id.ToString("D"),
                 Guid.NewGuid(),
                 CausationId: null,
-                RuleVersion: "social-auth-v1",
+                RuleVersion: "social-auth-v2",
                 OccurredAtUtc: now),
             GameEventPayloadSerializer.Serialize(
                 "auth.social.login_succeeded",
-                new { provider = normalizedProvider, isNewUser }),
+                new { provider = normalizedProvider, isNewUser, linkedByEmail }),
             cancellationToken);
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
-        return new SocialAuthenticationResult(user, normalizedProvider, isNewUser);
+        return new SocialAuthenticationResult(user, normalizedProvider, isNewUser, verifiedEmail);
     }
 
     private async Task AuditFailureAsync(

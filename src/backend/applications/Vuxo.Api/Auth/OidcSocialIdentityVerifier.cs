@@ -188,8 +188,26 @@ public sealed class OidcSocialIdentityVerifier : ISocialIdentityVerifier
             ?? "Vuxo Player";
         var email = principal.FindFirst("email")?.Value
             ?? principal.FindFirst("preferred_username")?.Value;
+        if (email is not null && !email.Contains('@', StringComparison.Ordinal))
+        {
+            email = null;
+        }
 
-        return new VerifiedSocialIdentity(provider, subject.Trim(), name, email);
+        var emailVerified = email is not null && provider switch
+        {
+            SocialIdentityProviders.Google => string.Equals(
+                principal.FindFirst("email_verified")?.Value,
+                "true",
+                StringComparison.OrdinalIgnoreCase),
+            // Personal Microsoft accounts prove ownership of their sign-in address; work/school tenants do not.
+            SocialIdentityProviders.Microsoft => string.Equals(
+                principal.FindFirst("tid")?.Value,
+                MicrosoftTenantPolicy.ConsumerTenantId,
+                StringComparison.OrdinalIgnoreCase),
+            _ => false
+        };
+
+        return new VerifiedSocialIdentity(provider, subject.Trim(), name, email, emailVerified);
     }
 
     private ConfigurationManager<OpenIdConnectConfiguration> GetMicrosoftConfiguration(string tenantId)

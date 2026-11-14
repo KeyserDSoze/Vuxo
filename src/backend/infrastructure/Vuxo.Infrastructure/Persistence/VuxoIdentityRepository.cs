@@ -28,6 +28,44 @@ public sealed class VuxoIdentityRepository(VuxoDbContext dbContext) : IVuxoIdent
         return Rehydrate(user);
     }
 
+    public async Task<VuxoUser?> GetByVerifiedEmailAsync(
+        string email,
+        CancellationToken cancellationToken = default)
+    {
+        var normalized = email.Trim().ToLowerInvariant();
+        var user = await dbContext.VuxoUsers
+            .AsNoTracking()
+            .Where(x => x.Email != null && x.Email.ToLower() == normalized)
+            .OrderBy(x => x.CreatedAtUtc)
+            .ThenBy(x => x.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return user is null ? null : Rehydrate(user);
+    }
+
+    public async Task LinkExternalIdentityAsync(
+        VuxoUser user,
+        string provider,
+        string subject,
+        DateTimeOffset linkedAtUtc,
+        CancellationToken cancellationToken = default)
+    {
+        var userEntity = await dbContext.VuxoUsers.SingleAsync(x => x.Id == user.Id, cancellationToken);
+        userEntity.Email = user.Email;
+        userEntity.LastLoginAtUtc = user.LastLoginAtUtc;
+
+        await dbContext.ExternalIdentities.AddAsync(
+            new ExternalIdentityEntity
+            {
+                Provider = provider,
+                Subject = subject,
+                VuxoUserId = user.Id,
+                CreatedAtUtc = linkedAtUtc,
+                LastLoginAtUtc = linkedAtUtc
+            },
+            cancellationToken);
+    }
+
     public async Task AddAsync(
         VuxoUser user,
         string provider,

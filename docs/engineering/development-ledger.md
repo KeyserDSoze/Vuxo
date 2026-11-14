@@ -14,12 +14,13 @@ Questo file è l'indice sintetico dello stato degli sviluppi. **GitHub Issues re
 
 Quando una issue cambia stato in modo significativo, aggiornare la riga corrispondente. Il dettaglio, le decisioni e la chiusura restano nella issue.
 
-## Versione corrente: 0.0.3
+## Versione corrente: 0.0.4
 
 Le righe `Done`, `Duplicate` e `Cancelled` meno recenti (oltre le ultime 15) sono in [development-ledger-archive.md](development-ledger-archive.md), copiate senza modifiche.
 
 | Issue | Tipo | Versione | Area | Stato | Test/Stato verifica | Risoluzione / prossimo passo |
 |---|---|---:|---|---|---|---|
+| n/a | Feature/Auth/P1 | 0.0.4 | Account unico per e-mail verificata tra provider social e super admin da `VUXO_SUPER_ADMIN` | In progress | Locale: xUnit Application 8, Api 25 (login/link/admin); issue GitHub non creata (gh non autenticato) | Aprire issue, deploy locale su 64000, verificare login reali Google/Microsoft e ruolo admin. |
 | #246 | Feature/UX/Art/Audio/P1 | 0.0.3 | Scenografia con asset CC0/CC-BY, luce giorno/notte, creature decorative, suoni UI e ambiente, pagina Crediti | In progress | Implementato: scenografia Kenney CC0 (alberi, cespugli, recinzioni, accampamenti), luce giorno/notte, lucciole, scintille portali, creature decorative, suoni con toggle, `/credits`, registro `docs/legal/asset-licenses.md`. Test nuovi: `world-scenery-atmosphere`, `credits-and-sound`. Resta: esito suite completa, commit | Parent #154/#167; policy asset di terzi aggiornata in AGENTS.md (decisione utente 13/11/2026); mondo e portali restano server-authoritative. |
 | #239 | CI/QA/P2 | 0.0.2 | Guardie main sui workflow di rilascio, OIDC Pages sul solo deploy, action pinnate a SHA + Dependabot, fixture Playwright condivise, zero `waitForTimeout`, ledger/patch note archiviati, fix CRLF su Windows | In progress | Locale: 91 test Node di contratto (incl. pin SHA e guardie main), governance e release metadata OK, 87 Playwright su spec world/multiplayer/auth + helper self-test, 103 su spec con `seedOwnerSession`; ledger/patch note archiviati senza perdita (162/162 righe, 198/198 sezioni); CI remota non eseguita | Figlia di #237; chiudere dopo CI/Visual sullo SHA pubblicato. |
 | #238 | Security/Backend/P1 | 0.0.2 | Chunk mondo limitati (±256), rate limit per giocatore/CF-Connecting-IP dietro tunnel, retry race chunk, hub anonimo, snapshot modello EF + indice FK mancante | In progress | Locale con PostgreSQL 17 reale: xUnit Domain 168, Application 63, Api 216, Infrastructure 69/69; drift migrazioni↔modello verificato (solo `IX_portal_mistake_damages_CharacterId` mancava, migrazione `202611130001`); CI remota non eseguita | Figlia di #237; verificare in produzione che `CF-Connecting-IP` arrivi dal tunnel prima di chiudere. |

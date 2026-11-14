@@ -76,6 +76,7 @@ builder.Services.AddSingleton<IWorldPortalMap>(serviceProvider =>
 builder.Services.AddHostedService<WorldSimulationTicker>();
 builder.Services.AddSingleton<MockTokenService>();
 builder.Services.AddSingleton<VuxoTokenService>();
+builder.Services.AddSingleton<SuperAdminPolicy>();
 builder.Services.AddSingleton<ISocialIdentityVerifier, OidcSocialIdentityVerifier>();
 builder.Services.AddScoped<SocialAuthenticationService>();
 builder.Services.AddRateLimiter(options =>

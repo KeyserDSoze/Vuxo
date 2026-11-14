@@ -9,7 +9,7 @@ public sealed record VuxoAccessToken(string AccessToken, DateTimeOffset ExpiresA
 
 public sealed class VuxoTokenService(IConfiguration configuration, TimeProvider timeProvider)
 {
-    public VuxoAccessToken CreateUserToken(Guid userId, string displayName)
+    public VuxoAccessToken CreateUserToken(Guid userId, string displayName, bool isAdministrator = false)
     {
         if (userId == Guid.Empty)
         {
@@ -29,13 +29,17 @@ public sealed class VuxoTokenService(IConfiguration configuration, TimeProvider 
         var now = timeProvider.GetUtcNow();
         var expiresAtUtc = now.AddMinutes(lifetimeMinutes);
 
-        var claims = new[]
+        var claims = new List<Claim>
         {
-            new Claim(JwtRegisteredClaimNames.Sub, userId.ToString("D")),
-            new Claim(ClaimTypes.NameIdentifier, userId.ToString("D")),
-            new Claim(ClaimTypes.Name, displayName),
-            new Claim(ClaimTypes.Role, "User")
+            new(JwtRegisteredClaimNames.Sub, userId.ToString("D")),
+            new(ClaimTypes.NameIdentifier, userId.ToString("D")),
+            new(ClaimTypes.Name, displayName),
+            new(ClaimTypes.Role, "User")
         };
+        if (isAdministrator)
+        {
+            claims.Add(new Claim(ClaimTypes.Role, "Administrator"));
+        }
 
         var credentials = new SigningCredentials(
             new SymmetricSecurityKey(Encoding.UTF8.GetBytes(signingKey)),

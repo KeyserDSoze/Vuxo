@@ -14,7 +14,7 @@ public sealed class SocialAuthenticationServiceTests
     [InlineData("google")]
     public async Task AuthenticateAsync_CreatesStableInternalUser_AndReusesExistingLink(string provider)
     {
-        var verifier = new FakeVerifier(new VerifiedSocialIdentity(provider, "provider-subject", "Social Player", "social@example.test"));
+        var verifier = new FakeVerifier(new VerifiedSocialIdentity(provider, "provider-subject", "Social Player", "social@example.test", true));
         var repository = new FakeIdentityRepository();
         var events = new FakeEventStore();
         var unitOfWork = new FakeUnitOfWork();
@@ -36,6 +36,50 @@ public sealed class SocialAuthenticationServiceTests
             Assert.DoesNotContain("provider-credential", item.PayloadJson, StringComparison.Ordinal);
             Assert.DoesNotContain("provider-subject", item.PayloadJson, StringComparison.Ordinal);
         });
+    }
+
+    [Fact]
+    public async Task AuthenticateAsync_SameVerifiedEmailOnOtherProvider_LinksToTheExistingUser()
+    {
+        var repository = new FakeIdentityRepository();
+        var events = new FakeEventStore();
+        var google = CreateService(
+            new FakeVerifier(new VerifiedSocialIdentity("google", "g-1", "Google Name", "Player@Example.test", true)),
+            repository, events, new FakeUnitOfWork());
+        var microsoft = CreateService(
+            new FakeVerifier(new VerifiedSocialIdentity("microsoft", "m-1", "MS Name", "player@example.test", true)),
+            repository, events, new FakeUnitOfWork());
+
+        var first = await google.AuthenticateAsync("google", "c");
+        var second = await microsoft.AuthenticateAsync("microsoft", "c");
+        var third = await microsoft.AuthenticateAsync("microsoft", "c");
+
+        Assert.True(first.IsNewUser);
+        Assert.False(second.IsNewUser);
+        Assert.Equal(first.User.Id, second.User.Id);
+        Assert.Equal(first.User.Id, third.User.Id);
+        Assert.Equal("Google Name", third.User.DisplayName);
+    }
+
+    [Fact]
+    public async Task AuthenticateAsync_UnverifiedEmail_NeverLinksAndIsNotStored()
+    {
+        var repository = new FakeIdentityRepository();
+        var events = new FakeEventStore();
+        var verified = CreateService(
+            new FakeVerifier(new VerifiedSocialIdentity("google", "g-1", "Owner", "player@example.test", true)),
+            repository, events, new FakeUnitOfWork());
+        var unverified = CreateService(
+            new FakeVerifier(new VerifiedSocialIdentity("microsoft", "m-1", "Impostor", "player@example.test", false)),
+            repository, events, new FakeUnitOfWork());
+
+        var owner = await verified.AuthenticateAsync("google", "c");
+        var other = await unverified.AuthenticateAsync("microsoft", "c");
+
+        Assert.NotEqual(owner.User.Id, other.User.Id);
+        Assert.True(other.IsNewUser);
+        Assert.Null(other.User.Email);
+        Assert.Null(other.VerifiedEmail);
     }
 
     [Theory]
@@ -123,6 +167,25 @@ public sealed class SocialAuthenticationServiceTests
             string subject,
             CancellationToken cancellationToken = default) =>
             Task.FromResult(users.GetValueOrDefault((provider, subject)));
+
+        public Task<VuxoUser?> GetByVerifiedEmailAsync(
+            string email,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(users.Values
+                .Where(x => string.Equals(x.Email, email, StringComparison.OrdinalIgnoreCase))
+                .OrderBy(x => x.CreatedAtUtc)
+                .FirstOrDefault());
+
+        public Task LinkExternalIdentityAsync(
+            VuxoUser user,
+            string provider,
+            string subject,
+            DateTimeOffset linkedAtUtc,
+            CancellationToken cancellationToken = default)
+        {
+            users[(provider, subject)] = user;
+            return Task.CompletedTask;
+        }
 
         public Task AddAsync(
             VuxoUser user,

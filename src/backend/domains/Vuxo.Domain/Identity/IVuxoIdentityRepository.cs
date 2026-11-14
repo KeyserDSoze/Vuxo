@@ -7,6 +7,17 @@ public interface IVuxoIdentityRepository
         string subject,
         CancellationToken cancellationToken = default);
 
+    Task<VuxoUser?> GetByVerifiedEmailAsync(
+        string email,
+        CancellationToken cancellationToken = default);
+
+    Task LinkExternalIdentityAsync(
+        VuxoUser user,
+        string provider,
+        string subject,
+        DateTimeOffset linkedAtUtc,
+        CancellationToken cancellationToken = default);
+
     Task AddAsync(
         VuxoUser user,
         string provider,

@@ -43,6 +43,68 @@ public sealed class SocialAuthenticationApiTests
         Assert.DoesNotContain("clientSecret", json, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public async Task SocialLogin_SameVerifiedEmailOnAnotherProvider_ReusesTheSameAccount()
+    {
+        var repository = new FakeIdentityRepository();
+        await using var factory = CreateFactory(new FakeVerifier(), repository, new FakeEventStore());
+        using var client = factory.CreateClient();
+
+        var google = await LoginAsync(client, "google", "token-g");
+        var microsoft = await LoginAsync(client, "microsoft", "token-m");
+        var googleAgain = await LoginAsync(client, "google", "token-g2");
+
+        Assert.Equal(google.User.Id, microsoft.User.Id);
+        Assert.Equal(google.User.Id, googleAgain.User.Id);
+        Assert.Equal("google Player", microsoft.User.DisplayName);
+        Assert.Equal(2, repository.Users.Count);
+    }
+
+    [Fact]
+    public async Task SocialLogin_UnverifiedEmail_DoesNotLinkAccounts()
+    {
+        var repository = new FakeIdentityRepository();
+        var verifiedFactory = CreateFactory(new FakeVerifier(), repository, new FakeEventStore());
+        using var first = verifiedFactory.CreateClient();
+        var owner = await LoginAsync(first, "google", "token-g");
+
+        await using var unverifiedFactory = CreateFactory(
+            new FakeVerifier(emailVerified: false),
+            repository,
+            new FakeEventStore());
+        using var second = unverifiedFactory.CreateClient();
+        var other = await LoginAsync(second, "microsoft", "token-m");
+
+        Assert.NotEqual(owner.User.Id, other.User.Id);
+        await verifiedFactory.DisposeAsync();
+    }
+
+    [Theory]
+    [InlineData("google", "Alessandro.Rapiti44@gmail.com", true, true)]
+    [InlineData("microsoft", "alessandro.rapiti44@gmail.com", true, true)]
+    [InlineData("google", "alessandro.rapiti44@gmail.com", false, false)]
+    [InlineData("google", "someone.else@example.test", true, false)]
+    public async Task SocialLogin_SuperAdmin_RequiresVerifiedConfiguredEmail(
+        string provider,
+        string email,
+        bool emailVerified,
+        bool expectedAdministrator)
+    {
+        await using var factory = CreateFactory(
+            new FakeVerifier(email: email, emailVerified: emailVerified),
+            new FakeIdentityRepository(),
+            new FakeEventStore(),
+            new Dictionary<string, string?> { ["Auth:SuperAdminEmails"] = "alessandro.rapiti44@gmail.com" });
+        using var client = factory.CreateClient();
+
+        var login = await LoginAsync(client, provider, "token");
+
+        var jwt = new JwtSecurityTokenHandler().ReadJwtToken(login.AccessToken);
+        Assert.Equal(
+            expectedAdministrator,
+            jwt.Claims.Any(claim => claim.Value == "Administrator"));
+    }
+
     [Theory]
     [InlineData("microsoft")]
     [InlineData("google")]
@@ -57,7 +119,7 @@ public sealed class SocialAuthenticationApiTests
         var second = await LoginAsync(client, provider, "provider-token-b");
 
         Assert.Equal(first.User.Id, second.User.Id);
-        Assert.Equal("Social Player", first.User.DisplayName);
+        Assert.Equal($"{provider} Player", first.User.DisplayName);
         Assert.Equal("social@example.test", first.User.Email);
         Assert.Equal("Bearer", first.TokenType);
         Assert.True(first.ExpiresAtUtc > DateTimeOffset.UtcNow);
@@ -210,7 +272,10 @@ public sealed class SocialAuthenticationApiTests
             },
             configurationOverrides: configuration);
 
-    private sealed class FakeVerifier(string? errorCode = null) : ISocialIdentityVerifier
+    private sealed class FakeVerifier(
+        string? errorCode = null,
+        string? email = "social@example.test",
+        bool emailVerified = true) : ISocialIdentityVerifier
     {
         public int CallCount { get; private set; }
 
@@ -227,9 +292,10 @@ public sealed class SocialAuthenticationApiTests
 
             return Task.FromResult(new VerifiedSocialIdentity(
                 provider,
-                "provider-subject",
-                "Social Player",
-                "social@example.test"));
+                $"{provider}-subject",
+                $"{provider} Player",
+                email,
+                emailVerified));
         }
     }
 
@@ -242,6 +308,25 @@ public sealed class SocialAuthenticationApiTests
             string subject,
             CancellationToken cancellationToken = default) =>
             Task.FromResult(Users.GetValueOrDefault((provider, subject)));
+
+        public Task<VuxoUser?> GetByVerifiedEmailAsync(
+            string email,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(Users.Values
+                .Where(x => string.Equals(x.Email, email, StringComparison.OrdinalIgnoreCase))
+                .OrderBy(x => x.CreatedAtUtc)
+                .FirstOrDefault());
+
+        public Task LinkExternalIdentityAsync(
+            VuxoUser user,
+            string provider,
+            string subject,
+            DateTimeOffset linkedAtUtc,
+            CancellationToken cancellationToken = default)
+        {
+            Users[(provider, subject)] = user;
+            return Task.CompletedTask;
+        }
 
         public Task AddAsync(
             VuxoUser user,

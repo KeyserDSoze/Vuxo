@@ -35,7 +35,8 @@ public sealed record VerifiedSocialIdentity(
     string Provider,
     string Subject,
     string DisplayName,
-    string? Email);
+    string? Email,
+    bool EmailVerified = false);
 
 public interface ISocialIdentityVerifier
 {
