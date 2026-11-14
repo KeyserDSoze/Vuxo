@@ -26,6 +26,26 @@ test('Docker production Compose defaults and Pi preflight use quest, not app', (
   assert.match(source('infra/pi3/verify-auth.py'), /entries\["VUXO_ALLOWED_ORIGIN"\]\s*!=\s*"https:\/\/vuxo\.quest"/);
 });
 
+test('production API defaults to loopback 64000 while dev and existing Linux deploy retain separate ports', () => {
+  const productionCompose = source('docker/compose.prod.yml');
+  const envExample = source('docker/.env.example');
+  const developmentCompose = source('docker/compose.dev-app.yml');
+  const serverWorkflow = source('.github/workflows/deploy-server.yml');
+  const piWorkflow = source('.github/workflows/deploy-pi3.yml');
+
+  assert.match(productionCompose, /127\.0\.0\.1:\$\{VUXO_API_PORT:-64000\}:8080/);
+  assert.match(envExample, /^VUXO_API_PORT=64000$/m);
+  assert.match(envExample, /^VUXO_MICROSOFT_TENANT_ID=consumers$/m);
+  assert.match(developmentCompose, /VUXO_API_DEV_PORT:-8080/);
+  assert.match(serverWorkflow, /^\s+VUXO_API_PORT=8080$/m);
+  assert.match(serverWorkflow, /http:\/\/127\.0\.0\.1:8080\/health/);
+  assert.match(piWorkflow, /stream\.write\("VUXO_API_PORT=8080\\n"\)/);
+});
+
+test('Docker build context excludes local workspace data', () => {
+  assert.match(source('.dockerignore'), /^\.local\/$/m);
+});
+
 test('Public API smoke probes the correct browser origin', () => {
   const script = source('scripts/verify-public-auth.mjs');
   assert.match(script, /const WEB\s*=\s*'https:\/\/vuxo\.quest'/);

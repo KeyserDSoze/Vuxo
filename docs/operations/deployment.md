@@ -33,7 +33,7 @@ Il contratto completo di rete, healthcheck, named volume, Cloudflare Tunnel e te
 
 ## Cloudflare
 
-Il tunnel production è remotely managed. La published application per `api.vuxoapi.xyz` deve usare come Service URL `http://api:8080`, perché `cloudflared` raggiunge l'API tramite la rete Docker e non tramite `localhost`.
+Il workflow Linux esistente usa il connector `cloudflared` in Docker: la published application per `api.vuxoapi.xyz` deve usare `http://api:8080`. Per il Compose manuale con il servizio `cloudflared.exe` installato sull'host Windows, non avviare il profilo Compose `edge`; in quel caso il mapping API predefinito è solo loopback e la published application usa `http://127.0.0.1:64000`. Non mescolare le due modalità: `api:8080` è l'indirizzo interno Docker, `127.0.0.1:64000` quello del connector sullo stesso host.
 
 ### Rate limiting dietro il tunnel
 

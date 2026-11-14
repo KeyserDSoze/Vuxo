@@ -89,6 +89,8 @@ jobs:
           umask 077
           cat > /tmp/vuxo.env <<EOF
           VUXO_API_IMAGE=${API_IMAGE}
+          # This existing Linux deployment uses the Docker-managed tunnel and its established local health port.
+          VUXO_API_PORT=8080
           VUXO_POSTGRES_DB=vuxo
           VUXO_POSTGRES_USER=vuxo
           VUXO_POSTGRES_PASSWORD=${POSTGRES_PASSWORD}

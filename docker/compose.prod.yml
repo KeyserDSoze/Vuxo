@@ -36,7 +36,7 @@ services:
       Llm__CircuitFailureThreshold: ${VUXO_LLM_CIRCUIT_FAILURE_THRESHOLD:-3}
       Llm__CircuitBreakSeconds: ${VUXO_LLM_CIRCUIT_BREAK_SECONDS:-30}
     ports:
-      - "127.0.0.1:${VUXO_API_PORT:-8080}:8080"
+      - "127.0.0.1:${VUXO_API_PORT:-64000}:8080"
     networks: [vuxo]
     stop_grace_period: 30s
 

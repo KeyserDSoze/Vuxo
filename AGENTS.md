@@ -13,6 +13,21 @@ Canonical production endpoints:
 
 Do not introduce alternative production URLs in code or documentation unless a migration is explicitly requested.
 
+## Production host and Docker contract
+
+For the manually managed production host, Docker Engine and Docker Compose must be installed and configured to start at boot. Compose services use `restart: unless-stopped`; that policy does not start containers while the Docker daemon itself is stopped.
+
+- The production API listens on container port `8080` and is published on host port `64000` by default, bound **only** to `127.0.0.1`. Do not open port `64000` in the public firewall: Cloudflare Tunnel is the public ingress. PostgreSQL, Redis and Ollama have no host port mappings.
+- Development may use host port `8080`; Docker runtime tests use an isolated port/project. Never change those defaults to “make room” for production.
+- Use one Cloudflare connector mode per tunnel route. A host-installed service such as Windows `cloudflared.exe` targets `http://127.0.0.1:64000`. The Compose `edge` connector targets `http://api:8080` on the shared Docker network. `http://api:64000` is not a valid target for either topology. Do not start both connectors for the same route.
+- The private production environment must provide `VUXO_API_IMAGE` (an immutable GHCR commit tag), `VUXO_POSTGRES_PASSWORD`, and `VUXO_JWT_SIGNING_KEY` (at least 32 characters). Use `VUXO_API_PORT=64000` unless a verified host conflict requires a documented change.
+- Social sign-in configuration uses `VUXO_GOOGLE_CLIENT_ID` and `VUXO_MICROSOFT_CLIENT_ID` (public client IDs, not client secrets). `VUXO_MICROSOFT_TENANT_ID=consumers` is the supported production setting for personal Microsoft accounts. Set `VUXO_ALLOWED_ORIGIN=https://vuxo.quest`; the current deploy workflows pin this canonical origin rather than accepting a stale `.app` value.
+- `VUXO_CLOUDFLARE_TUNNEL_TOKEN` is a secret only when the Compose `edge` connector is used. A host-installed connector keeps its token in the host service configuration instead. Never commit or print either token.
+- `VUXO_PI3_DEPLOY_ENABLED` is a GitHub Actions deployment variable for the Raspberry Pi 3 workflow, not an API/Compose runtime setting. Enabling it can deploy a green `main` build to the Pi; do not enable it for a different production host.
+- `VUXO_SUPER_ADMIN` is not currently consumed by the application. Adding it to an environment does not grant administrator access; do not document or rely on it as active until server-side bootstrap and identity-linking behavior is implemented and tested.
+
+Use the procedures in `docs/operations/docker-runtime.md` and `docs/operations/deployment.md`. A local/test image such as `local.local` or a public tunnel pointing at a test database is not a production deployment. Validate local `/health`, public `/health`, `/api/meta/version` (expected immutable commit), provider discovery and canonical CORS; never run `docker compose down -v` on production data.
+
 ## Technology baseline
 
 - Backend: .NET 10, ASP.NET Core, SignalR

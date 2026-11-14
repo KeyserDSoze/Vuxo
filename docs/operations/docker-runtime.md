@@ -43,11 +43,25 @@ Avvio del runtime base:
 docker compose --env-file /percorso/vuxo.env -f docker/compose.prod.yml up -d
 ```
 
-L'API pubblica la porta container `8080`, ma sul server viene bindata soltanto a `127.0.0.1:${VUXO_API_PORT:-8080}`. PostgreSQL e Redis **non pubblicano alcuna porta host** in production; sono raggiungibili soltanto attraverso la rete Docker `vuxo`.
+L'API ascolta sulla porta container `8080`; il mapping host predefinito è `127.0.0.1:64000`. Si può sovrascrivere con `VUXO_API_PORT`. Il bind su loopback evita l'esposizione diretta dell'API. PostgreSQL, Redis e Ollama **non pubblicano porte host** in production; sono raggiungibili soltanto attraverso la rete Docker `vuxo`. L'ambiente di sviluppo può continuare a usare `8080` (`VUXO_API_DEV_PORT`) e lo smoke test Docker usa una porta isolata.
 
 L'API dipende dagli healthcheck di PostgreSQL e Redis. I tre servizi hanno `restart: unless-stopped`. L'immagine API finale deriva da `mcr.microsoft.com/dotnet/aspnet:10.0`: l'SDK .NET viene usato soltanto nello stage di build e non è presente nel runtime finale.
 
 ## Cloudflare Tunnel
+
+Sono supportate due modalità di connector; usarne **una sola** per la route pubblicata.
+
+### Connector cloudflared gestito dall'host
+
+Con il servizio Windows `cloudflared.exe` installato sull'host, avviare il Compose base **senza** il profilo `edge`. L'origine locale che si configura nella published application Cloudflare è:
+
+```text
+http://127.0.0.1:64000
+```
+
+Se si cambia `VUXO_API_PORT`, aggiornare anche questa origine. Non occorre aprire la porta nel firewall: il connector la raggiunge in locale e il mapping Docker resta legato a loopback.
+
+### Connector cloudflared in Docker
 
 Il servizio `cloudflared` è opzionale e usa il profilo Compose `edge`:
 
@@ -59,15 +73,15 @@ docker compose \
   up -d
 ```
 
-Vuxo usa un tunnel Cloudflare **remotely managed** autenticato tramite `VUXO_CLOUDFLARE_TUNNEL_TOKEN`. Nel route/published application configurato in Cloudflare, il **Service URL deve essere**:
+Con questa modalità, Vuxo usa un tunnel Cloudflare **remotely managed** autenticato tramite `VUXO_CLOUDFLARE_TUNNEL_TOKEN`. Nel route/published application configurato in Cloudflare, il **Service URL deve essere**:
 
 ```text
 http://api:8080
 ```
 
-Non usare `http://localhost:8080`: `cloudflared` e `api` sono container differenti. Entrambi sono collegati alla stessa rete Compose e Docker DNS risolve il nome servizio `api`.
+Non usare `localhost` né `127.0.0.1`: `cloudflared` e `api` sono container differenti. Entrambi sono collegati alla stessa rete Compose e Docker DNS risolve il nome servizio `api`. In questa modalità la porta host `64000` non serve al connector; la comunicazione resta sulla porta interna `8080`.
 
-Il profilo `edge` dipende dall'healthcheck API, quindi il connector parte dopo che l'origine è healthy. Il token resta un secret di deployment e non deve essere scritto nel repository.
+Il profilo `edge` dipende dall'healthcheck API, quindi il connector parte dopo che l'origine è healthy. Il token resta un secret di deployment e non deve essere scritto nel repository. Non installare contemporaneamente il servizio host per lo stesso tunnel/route.
 
 ## Persistenza e recreate
 
